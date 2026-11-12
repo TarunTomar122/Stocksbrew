@@ -1963,6 +1963,40 @@ class TraceMoneyStore:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, merge=False)
 
+    def save_watchlist_view_if_current(self, uid: str, payload: dict[str, Any], *, source_version: int) -> bool:
+        """Write a built view only when it is still the newest book: the user's `watchlist_version` has not moved
+        past `source_version` (the snapshot the build started from) and the stored view was not built from a newer
+        one (the web rebuild after an edit, lib/watchlist-view.ts). Returns False and writes nothing otherwise.
+
+        On LocalDB the check and the write are one transaction: a write to either doc in between is a conflict,
+        which also skips (the next build or the web rebuild covers it). Firestore (rollback only) gets a checked,
+        non-atomic write."""
+        user_ref = self.db.collection("users").document(uid)
+        view_ref = self.db.collection("tm_watchlist_views").document(uid)
+        doc = {**payload, "uid": uid, "updated_at": datetime.now(timezone.utc).isoformat()}
+
+        def current(user_snap, view_snap) -> bool:
+            user_version = int(((user_snap.to_dict() or {}) if user_snap.exists else {}).get("watchlist_version") or 0)
+            stored_version = int(((view_snap.to_dict() or {}) if view_snap.exists else {}).get("source_version") or 0)
+            return user_version <= source_version and stored_version <= source_version
+
+        if isinstance(self.db, LocalFirestoreClient):
+            transaction = self.db.transaction()
+            if not current(user_ref.get(transaction=transaction), view_ref.get(transaction=transaction)):
+                return False
+            transaction.set(view_ref, doc)
+            try:
+                transaction.commit()
+            except RuntimeError as exc:
+                if "conflict" in str(exc):
+                    return False
+                raise
+            return True
+        if not current(user_ref.get(), view_ref.get()):
+            return False
+        view_ref.set(doc, merge=False)
+        return True
+
     def get_watchlist_view(self, uid: str) -> dict[str, Any] | None:
         doc = self.db.collection("tm_watchlist_views").document(uid).get()
         return _serialize(doc.to_dict()) if doc.exists else None
@@ -2176,6 +2210,8 @@ class TraceMoneyStore:
             .select([
                 "tracked_stocks",
                 "watchlist_positions",
+                # Share counts and cost: without them every scheduled build wiped the amounts from the view.
+                "watchlist_holdings",
                 "watchlist_version",
                 "alert_thresholds",
                 "thresholds",

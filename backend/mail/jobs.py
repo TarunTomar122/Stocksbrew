@@ -3,6 +3,7 @@
     python -m backend.mail.jobs daily      # trading days, ~8:30am ET
     python -m backend.mail.jobs weekly     # Saturday, ~9am ET
     python -m backend.mail.jobs alerts     # every 15 minutes: agent findings, hand-set price alerts that fired,
+                                           # earnings reminders the day before a report,
                                            # and the rebalance note when STRATEGY_REBALANCE_NOTES=1
     python -m backend.mail.jobs lifecycle  # hourly
 
@@ -77,11 +78,21 @@ def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit:
     rebalances: list = []
     # hand-set price alerts (tm_alerts), read once per run; the old sender skips them under MAIL_V2_ACTIVE=1
     price_alerts: dict[str, list[dict]] = {}
+    # "remind me the day before earnings" toggles (tm_alerts kind earnings_24h), read once per run
+    reminders: dict[str, list[dict]] = {}
+    calendar: dict = {}
     if job == "alerts":
         try:
             price_alerts = alerts.load_price_alerts(src)
         except Exception as exc:  # a bad read costs the price alerts this run, never the agent alerts
             print(f"[mail] price alerts skipped: {exc!r}")
+        if alerts.earnings_reminders_enabled() and alerts.earnings_reminder_window(now):
+            try:
+                reminders = alerts.load_earnings_reminders(src)
+                calendar = alerts.load_earnings_calendar(src, now) if reminders else {}
+            except Exception as exc:  # a bad read costs the reminders this run, never the other alerts
+                reminders, calendar = {}, {}
+                print(f"[mail] earnings reminders skipped: {exc!r}")
     if job == "alerts" and rebalance.enabled():
         try:
             rebalances = rebalance.load_recent(src, now)
@@ -92,6 +103,7 @@ def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit:
         "daily": lambda uid, user, hist: _daily(src, uid, user, now, market),
         "weekly": lambda uid, user, hist: _weekly(src, uid, user, now, market),
         "alerts": lambda uid, user, hist: (_alerts(src, uid, user, now, hist) + _price_alert_emails(src, now, price_alerts.get(uid, []))
+                                           + _earnings_reminder_emails(src, user, now, hist, reminders.get(uid, []), calendar)
                                            + _rebalance_notes(src, user, now, hist, rebalances)),
         "lifecycle": lambda uid, user, hist: _lifecycle(src, uid, user, now, hist, popular),
     }
@@ -193,6 +205,43 @@ def _price_alert_emails(src, now, items: list[dict]):
         alert_id = str(alert.get("id") or "")
         out.append((email, f"price_alert:{alert_id}", lambda store, alert_id=alert_id: _mark_fired(store, alert_id)))
     return out
+
+
+def _earnings_reminder_emails(src, user, now, hist, items: list[dict], calendar: dict):
+    """One email per "remind me the day before earnings" toggle whose stock reports tomorrow, deduped on the alert
+    and the report date. Pro only, as the toggle is (zone_alerts in lib/entitlements.ts). The alert stays on for the
+    next quarter: it is never marked fired. `calendar` is tomorrow's reports by (market, ticker), read once per run."""
+    try:
+        if not items or not calendar or not is_pro_user(user):
+            return []
+        due: list[tuple[dict, str, tuple]] = []
+        for alert in items:
+            iid = str(alert.get("instrument_id") or f"US_{str(alert.get('ticker') or '').upper()}")
+            market, _, rest = iid.partition("_")
+            ticker = str(alert.get("ticker") or rest.replace("_", ".")).upper()
+            hit = calendar.get((market.upper(), ticker))
+            if hit is None:
+                continue
+            key = f"earnings_24h:{alert.get('id') or iid}:{hit[0].isoformat()}"
+            if key in hist.keys:
+                continue  # sent on an earlier run today
+            due.append((alert, iid, hit))
+        if not due:
+            return []
+        by_id = {s.id: s for s in stocks_by_id(src, list(dict.fromkeys(iid for _, iid, _ in due)), now=now)}
+        out = []
+        for alert, iid, (day, time) in due:
+            stock = by_id.get(iid)
+            if stock is None:
+                continue
+            stock.earnings_date, stock.earnings_time = day, time
+            email = alerts.build_earnings_reminder(stock, alert, now=now)
+            if email is not None:
+                out.append((email, f"earnings_24h:{alert.get('id') or iid}:{day.isoformat()}"))
+        return out
+    except Exception as exc:  # a bad record costs the reminders, never the person's other alerts
+        print(f"[mail] earnings reminder failed: {exc!r}")
+        return []
 
 
 def _mark_fired(store, alert_id: str) -> None:

@@ -89,6 +89,8 @@ export type PortfolioViewProps = {
   asOf?: string | null;
   /** Shown under the tabs, before the summary: the example's line on how to start. */
   lead?: React.ReactNode;
+  /** Live mode: the list version the page was read at, so Add or edit stocks never overwrites a newer list. */
+  listVersion?: number | null;
 };
 
 const BTN = `inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border px-3 text-[12.5px] font-medium transition-colors ${FOCUS}`;
@@ -254,6 +256,7 @@ export function PortfolioView({
   pricesWords = null,
   asOf = null,
   lead = null,
+  listVersion = null,
 }: PortfolioViewProps) {
   const router = useRouter();
   const example = mode === "example";
@@ -386,7 +389,7 @@ export function PortfolioView({
                   {totals.value === null
                     ? totals.holdings === 0
                       ? "No holdings yet"
-                      : "Choose Edit, then a holding, and enter its shares to see what it is worth"
+                      : "Add your shares in Add or edit stocks to see what it is worth"
                     : `Total value · ${totals.valued} holding${totals.valued === 1 ? "" : "s"}${missingShares > 0 ? `, ${missingShares} more without shares` : ""}`}
                 </span>
               </div>
@@ -445,6 +448,7 @@ export function PortfolioView({
                   isSubscribed={isSubscribed}
                   freeLimit={freeLimit}
                   ctaLabel="Add or edit stocks"
+                  baseVersion={listVersion}
                   triggerClassName={`${BTN_PRIMARY} rounded-r-none`}
                 />
                 <MoreActions className={`${BTN_PRIMARY} rounded-l-none border-l-[color-mix(in_srgb,var(--oa-primary-fg)_35%,transparent)] !px-2`}>
@@ -497,7 +501,7 @@ export function PortfolioView({
             {positions.length === 0 ? (
               <EmptyNote title="Nothing marked as a holding yet">
                 {watching.length > 0
-                  ? "In Watching, tap Edit, pick a stock you own and choose I own this."
+                  ? "Open Add or edit stocks and switch the ones you own to Hold."
                   : "Add the stocks you own and the ones you are watching."}
               </EmptyNote>
             ) : (
@@ -509,12 +513,11 @@ export function PortfolioView({
               <PositionsTable
                 positions={shownPositions}
                 // The bar above has Clear all, so the note only says what happened. The table stays mounted, so its
-                // sort and Edit survive a filter that leaves nothing.
+                // sort survives a filter that leaves nothing.
                 empty={<EmptyNote title="Nothing matches these filters" />}
                 columnsFrom={positions}
                 kind="holding"
                 today={today}
-                editable={!example}
                 defaultSort={
                   totals.valued > 0
                     ? { key: "value", direction: "desc" }
@@ -561,7 +564,6 @@ export function PortfolioView({
                   columnsFrom={watching}
                   kind="watchlist"
                   today={today}
-                  editable={!example}
                   defaultSort={{ key: "dayPct", direction: "desc" }}
                 />
               )}
@@ -588,6 +590,7 @@ export function PortfolioView({
             isSubscribed={isSubscribed}
             emailPrefs={emailPrefs}
             example={example}
+            today={today}
           />
         ) : null}
       </div>

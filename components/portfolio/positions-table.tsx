@@ -12,7 +12,6 @@ import { needsLook, orderPositions } from "@/lib/portfolio-attention";
 import { reportsWithin } from "@/lib/portfolio-filters";
 import { CALL_PLAIN } from "@/lib/plain-copy";
 import { callWord } from "@/lib/stock-chart";
-import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import {
   fmtMoney,
   fmtSignedMoney,
@@ -57,199 +56,6 @@ function colClass(column: Column): string {
   return `${column.hideBelow ? HIDE[column.hideBelow] : ""} ${column.align === "right" ? "text-right" : "text-left"}`;
 }
 
-/* ── editing one position: same routes the page always used ──────────────── */
-
-type EditorProps = {
-  position: PortfolioPosition;
-  onClose: () => void;
-};
-
-function parseField(raw: string): number | null | "invalid" {
-  const text = raw.trim().replace(/[$,\s]/g, "");
-  if (text === "") return null;
-  const value = Number(text);
-  return Number.isFinite(value) && value >= 0 ? value : "invalid";
-}
-
-function PositionEditor({ position, onClose }: EditorProps) {
-  const router = useRouter();
-  const isHolding = position.kind === "holding";
-  const [shares, setShares] = useState(position.shares !== null ? String(position.shares) : "");
-  const [cost, setCost] = useState(position.avgCost !== null ? String(position.avgCost) : "");
-  const [busy, setBusy] = useState<null | "save" | "move" | "remove">(null);
-  const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<null | "move" | "remove">(null);
-
-  async function run(kind: "save" | "move" | "remove", request: () => Promise<Response>, failure: string) {
-    setBusy(kind);
-    setError(null);
-    try {
-      const res = await request();
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string; reason?: string };
-        if (res.status === 401) throw new Error("Sign in again to change your portfolio.");
-        if (data.error === "free_tier_limit_reached" || data.error === "swap_limit_reached") throw new Error(data.reason || "That change did not go through. Try again.");
-        throw new Error(failure);
-      }
-      void flushWatchlistRebuild(router, 500);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : failure);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  function save() {
-    const quantity = parseField(shares);
-    const averageCost = parseField(cost);
-    if (quantity === "invalid" || averageCost === "invalid") {
-      setError("Shares and cost need to be numbers.");
-      return;
-    }
-    void run(
-      "save",
-      () =>
-        fetch("/api/watchlist/holding", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          // With shares entered, value is shares x live price, so a typed-in value is dropped.
-          // Without shares, a value the user typed in earlier is kept as it was.
-          body: JSON.stringify({
-            instrument_id: position.instrument_id,
-            quantity,
-            average_cost: averageCost,
-            market_value: quantity === null && position.valueSource === "entered" ? position.value : null,
-            source: "manual",
-          }),
-        }),
-      "Could not save. Try again.",
-    );
-  }
-
-  function move() {
-    void run(
-      "move",
-      () =>
-        fetch("/api/track", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instrument_id: position.instrument_id, position_type: isHolding ? "watchlist" : "holding" }),
-        }),
-      "Could not move it. Try again.",
-    );
-  }
-
-  function remove() {
-    void run(
-      "remove",
-      () =>
-        fetch("/api/track", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instrument_id: position.instrument_id }),
-        }),
-      "Could not remove it. Try again.",
-    );
-  }
-
-  const input =
-    `oa-mono h-8 w-28 rounded border border-oa-border bg-oa-card px-2 text-[13px] tabular-nums text-oa-fg placeholder:text-oa-muted-fg/60 ${FOCUS}`;
-  const button = `inline-flex h-8 items-center rounded border px-3 text-[12.5px] font-medium disabled:opacity-50 ${FOCUS}`;
-
-  return (
-    <div className="flex flex-col gap-2 bg-oa-bg px-3 py-3" onClick={(event) => event.stopPropagation()}>
-      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-        {isHolding ? (
-          <>
-            <label className="flex flex-col gap-1">
-              <span className="oa-caption">Shares</span>
-              <input
-                inputMode="decimal"
-                value={shares}
-                onChange={(event) => setShares(event.target.value)}
-                placeholder="0"
-                className={input}
-                aria-label={`Shares of ${position.ticker}`}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="oa-caption">Average cost</span>
-              <input
-                inputMode="decimal"
-                value={cost}
-                onChange={(event) => setCost(event.target.value)}
-                placeholder="per share"
-                className={input}
-                aria-label={`Average cost per share of ${position.ticker}`}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={save}
-              disabled={busy !== null}
-              className={`${button} border-oa-primary bg-oa-primary text-oa-primary-fg hover:brightness-110`}
-            >
-              {busy === "save" ? "Saving" : "Save"}
-            </button>
-          </>
-        ) : null}
-        {confirm === null ? (
-          <>
-            <button
-              type="button"
-              onClick={() => (isHolding && (position.shares !== null || position.avgCost !== null) ? setConfirm("move") : move())}
-              disabled={busy !== null}
-              className={`${button} border-oa-border bg-oa-card text-oa-fg hover:border-oa-fg/30`}
-            >
-              {busy === "move" ? "Moving" : isHolding ? "Move to Watching" : "I own this"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirm("remove")}
-              disabled={busy !== null}
-              className={`${button} border-oa-border bg-oa-card text-signal-bearish hover:border-current`}
-            >
-              Remove
-            </button>
-          </>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12.5px] text-oa-fg">
-              {confirm === "move"
-                ? `Move ${position.ticker} to Watching? Its saved shares and cost are cleared.`
-                : `Stop tracking ${position.ticker}?${isHolding ? " Its saved shares and cost are cleared." : ""}`}
-            </span>
-            <button
-              type="button"
-              onClick={confirm === "move" ? move : remove}
-              disabled={busy !== null}
-              className={`${button} border-current bg-oa-card text-signal-bearish`}
-            >
-              {busy ? "Working" : confirm === "move" ? "Yes, move it" : "Yes, remove it"}
-            </button>
-            <button type="button" onClick={() => setConfirm(null)} className={`${button} border-oa-border bg-oa-card text-oa-fg`}>
-              Keep it
-            </button>
-          </div>
-        )}
-        <button type="button" onClick={onClose} className={`${button} ml-auto border-transparent text-oa-muted-fg hover:text-oa-fg`}>
-          Close
-        </button>
-      </div>
-      {error ? (
-        <p role="alert" className="text-[12.5px] text-signal-bearish">
-          {error}
-        </p>
-      ) : isHolding ? (
-        <p className="text-[11.5px] leading-4 text-oa-muted-fg">
-          Value is shares times the latest price. Gain needs the average cost. Leave a field empty to clear it.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 /* ── the table ───────────────────────────────────────────────────────────── */
 
 const STICKY_RULE_BELOW = "shadow-[inset_0_-1px_0_var(--oa-border)]";
@@ -292,33 +98,23 @@ function SortHeader({
   );
 }
 
-/**
- * The table's stock cell: logo, ticker and the reason watcher's word when it needs a look. The ticker links to the
- * stock, except in Edit mode, where the whole row opens the editor and the ticker is plain text (council, Nov 12).
- */
-function StockCell({ position, editMode = false }: { position: PortfolioPosition; editMode?: boolean }) {
-  const label = position.name ? `${position.ticker}, ${position.name}` : position.ticker;
+/** The table's stock cell: logo, ticker (the link to the stock) and the reason watcher's word when it needs a look. */
+function StockCell({ position }: { position: PortfolioPosition }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <StockLogo ticker={position.ticker} market="US" size={20} circle className="shrink-0" />
       <div className="flex min-w-0 items-baseline gap-2">
         {/* Ticker only: long company names wrapped over several lines and pushed the numbers apart (owner, Nov 11).
             The name stays on hover and for screen readers. */}
-        {editMode ? (
-          <span title={position.name || undefined} aria-label={label} className="oa-mono block text-[14px] font-medium leading-5 text-oa-fg">
-            {position.ticker}
-          </span>
-        ) : (
         <Link
           href={`/stock/${position.ticker}`}
           onClick={(event) => event.stopPropagation()}
           title={position.name || undefined}
-          aria-label={label}
+          aria-label={position.name ? `${position.ticker}, ${position.name}` : position.ticker}
           className={`oa-mono block text-[14px] font-medium leading-5 text-oa-fg hover:underline ${FOCUS}`}
         >
           {position.ticker}
         </Link>
-        )}
         <ThesisLine instrumentId={position.instrument_id} inline />
       </div>
     </div>
@@ -442,8 +238,8 @@ function cardDigits(value: number): number {
 /**
  * A stock on a phone (owner, Nov 12, after a broker app): the logo, name, price and today's move; for a holding the
  * average cost and shares on the right, then one quiet money row, then our call and a report date when one is two
- * weeks out or closer. A watched stock has our call on the right instead. The card itself is the link (or, in Edit,
- * the way into its editor), so nothing inside it links on its own.
+ * weeks out or closer. A watched stock has our call on the right instead. The card itself is the link to the
+ * stock, so nothing inside it links on its own.
  */
 function PositionCard({
   position,
@@ -541,7 +337,6 @@ export function PositionsTable({
   positions,
   kind,
   today,
-  editable,
   defaultSort,
   hiddenCount = 0,
   hiddenNote,
@@ -554,11 +349,10 @@ export function PositionsTable({
   positions: PortfolioPosition[];
   /** The rows that decide which columns show, when `positions` is a filtered subset: the columns stay put while filtering. */
   columnsFrom?: PortfolioPosition[];
-  /** Shown in place of the rows when `positions` is empty (a filter left nothing); the sort and Edit state are kept. */
+  /** Shown in place of the rows when `positions` is empty (a filter left nothing); the header and sort stay. */
   empty?: React.ReactNode;
   kind: "holding" | "watchlist";
   today: string;
-  editable: boolean;
   defaultSort: { key: SortKey; direction: Direction };
   hiddenCount?: number;
   hiddenNote?: React.ReactNode;
@@ -601,12 +395,12 @@ export function PositionsTable({
   // Until a header is clicked, the rows that need a look (an orange report date, a price at its call's level, the
   // zone tint) come first, each group in the default sort. A chosen sort is a plain sort on that column.
   const [picked, setPicked] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
   // When the sort column is hidden (no row has a value in it), sort by stock instead of silently by nothing.
   const effectiveSort = sortable.some((column) => column.key === sort.key) ? sort : { key: "ticker" as SortKey, direction: "asc" as Direction };
   // The order and what the sort control says about it come from one place (lib/portfolio-attention orderPositions):
-  // "Needs a look first" with no column arrow while some row in the whole list needs a look and no sort was picked;
-  // otherwise exactly the labelled column, arrow shown. Counted on every row, so a filter does not flip it.
+  // the highlighted rows, then the other rows that need a look, with no column arrow, while some row in the whole list
+  // needs a look and no sort was picked; otherwise exactly the arrowed column. Counted on every row, so a filter does
+  // not flip it.
   const anyLook = useMemo(() => every.some((position) => needsLook(position, today)), [every, today]);
   const { lookFirst, rows: sorted } = useMemo(
     () => orderPositions(positions, effectiveSort, picked, today, every),
@@ -615,8 +409,6 @@ export function PositionsTable({
   );
   // The cards fold after about eight, but never before the last one that needs a look (owner rule 4).
   const fold = lookFirst ? Math.max(CARD_FOLD, sorted.filter((position) => needsLook(position, today)).length) : CARD_FOLD;
-  // Phone cards are links to the stock; one Edit control over the list turns them into the way into each editor.
-  const [editMode, setEditMode] = useState(false);
 
   function onSort(column: Column) {
     const key = column.key;
@@ -633,47 +425,9 @@ export function PositionsTable({
     router.push(`/stock/${position.ticker}`);
   }
 
-  // A table row draws a ring unreliably, so a focused row gets the hover tint and a thin inset outline.
-  const ROW_FOCUS =
-    "outline-none focus-visible:bg-oa-accent focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
-  // What choosing a row does, for the tooltip and screen readers: a holding opens its shares and cost, a watched
-  // stock its "I own this" and remove.
-  const editWords = (position: PortfolioPosition) =>
-    position.kind === "holding" ? `${position.ticker}: change shares and cost` : `${position.ticker}: mark as owned or remove`;
-  function onRowKey(event: React.KeyboardEvent<HTMLElement>, position: PortfolioPosition) {
-    if (event.target !== event.currentTarget) return;
-    if (event.key === "Enter" || (editable && event.key === " ")) {
-      event.preventDefault();
-      choose(position);
-    }
-  }
-
-  // In Edit a row or card opens its shares and cost; read-only (the example) it opens the stock.
-  function choose(position: PortfolioPosition) {
-    if (!editable) return open(position);
-    setEditing((current) => (current === position.instrument_id ? null : position.instrument_id));
-  }
-
   const span = columns.length;
 
-  // One Edit for the whole list, phone and desktop (owner rule 1: no control repeated on every row or card). While it is
-  // on, a row or card opens its shares and cost; otherwise it opens the stock.
-  const editButton = editable ? (
-    <button
-      type="button"
-      onClick={() => {
-        setEditMode((value) => !value);
-        setEditing(null);
-      }}
-      className={`inline-flex h-8 items-center rounded border px-2.5 text-[13px] font-medium ${FOCUS} ${
-        editMode ? "border-oa-primary bg-oa-primary text-oa-primary-fg" : "border-oa-border bg-oa-card text-oa-fg"
-      }`}
-    >
-      {editMode ? "Done" : "Edit"}
-    </button>
-  ) : null;
-
-  // A filter that leaves nothing keeps the header, sort and Edit in place, with the note where the rows were.
+  // A filter that leaves nothing keeps the header and sort in place, with the note where the rows were.
   const none = positions.length === 0;
 
   return (
@@ -681,17 +435,6 @@ export function PositionsTable({
       {/* md and up: the full table. About eight rows show, the rest scroll inside the box with no scrollbar; the header
           and the Total stick to its edges, and the cut lands on a whole row (owner rule 5). One box scrolls both ways so
           the sticky rows work, and the page takes the scroll back at either end (no overscroll-contain). */}
-      {/* md and up: Edit, and while the needs-a-look order is in force, the words for it (no column arrow claims it). */}
-      {editButton || lookFirst ? (
-        <div className="hidden min-h-11 items-center gap-3 border-b border-oa-border px-3 py-1.5 md:flex">
-          {editButton}
-          {lookFirst ? (
-            <span className="ml-auto text-[13px] text-oa-muted-fg">
-              Sort <span className="font-medium text-oa-fg">Needs a look first</span>
-            </span>
-          ) : null}
-        </div>
-      ) : null}
       <WholeRows rem={31} className="scrollbar-hide hidden max-h-[31rem] overflow-auto md:block">
         <table className="w-full border-collapse text-[14px]">
           <thead className="sticky top-0 z-10">
@@ -716,28 +459,21 @@ export function PositionsTable({
                 </td>
               </tr>
             ) : null}
-            {sorted.map((position) => {
-              const isEditing = editing === position.instrument_id;
-              return (
-                <PositionRows key={position.instrument_id}>
+            {sorted.map((position) => (
                   <tr
+                    key={position.instrument_id}
                     data-row
-                    // The row opens the stock (its ticker is the link for the keyboard); in Edit it opens its editor, so
-                    // then it takes focus and opens with Enter or Space.
-                    onClick={() => (editMode ? choose(position) : open(position))}
-                    tabIndex={editMode ? 0 : undefined}
-                    onKeyDown={editMode ? (event) => onRowKey(event, position) : undefined}
-                    title={editMode ? editWords(position) : undefined}
-                    aria-label={editMode ? editWords(position) : undefined}
-                    aria-expanded={editMode ? isEditing : undefined}
-                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${editMode ? ROW_FOCUS : ""} ${
-                      isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
+                    // The row opens the stock; its ticker is the same link for the keyboard. Shares, cost, moving and
+                    // removing live in Add or edit stocks above.
+                    onClick={() => open(position)}
+                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${
+                      position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
                     }`}
                   >
                     {columns.map((column, index) => (
                       <td key={column.key} className={`${TD} ${colClass(column)} ${index === 0 ? "pl-3" : ""}`}>
                         {column.key === "ticker" ? (
-                          <StockCell position={position} editMode={editMode} />
+                          <StockCell position={position} />
                         ) : column.key === "price" ? (
                           position.price !== null ? <span className={`${NUM} text-oa-fg`}>{fmtMoney(position.price)}</span> : <Dash />
                         ) : column.key === "avgCost" ? (
@@ -758,16 +494,7 @@ export function PositionsTable({
                       </td>
                     ))}
                   </tr>
-                  {isEditing ? (
-                    <tr className="border-b border-oa-border">
-                      <td colSpan={span} className="p-0">
-                        <PositionEditor position={position} onClose={() => setEditing(null)} />
-                      </td>
-                    </tr>
-                  ) : null}
-                </PositionRows>
-              );
-            })}
+            ))}
           </tbody>
           {kind === "holding" && totals && totals.value !== null && !none ? (
             <tfoot data-sticky-foot className="sticky bottom-0 z-10">
@@ -802,7 +529,6 @@ export function PositionsTable({
           toggle for the rest: a card list never scrolls inside its own box (owner rule 4). */}
       <div className="md:hidden">
         <div className="flex items-center gap-1.5 border-b border-oa-border px-3 py-1.5">
-          {editButton}
           <label className="ml-auto flex items-center gap-1.5 text-[13px] text-oa-muted-fg">
             Sort
             <select
@@ -820,7 +546,7 @@ export function PositionsTable({
               }}
               className={`h-8 rounded border border-oa-border bg-oa-card pl-2 pr-1 text-[13px] text-oa-fg ${FOCUS}`}
             >
-              {anyLook ? <option value={LOOK_FIRST}>Needs a look first</option> : null}
+              {anyLook ? <option value={LOOK_FIRST}>Suggested</option> : null}
               {sortable.map((column) => (
                 <option key={column.key} value={column.key}>
                   {column.label}
@@ -847,34 +573,12 @@ export function PositionsTable({
         {none ? empty : null}
         <ul className="divide-y divide-oa-border">
           {(showAll ? sorted : sorted.slice(0, fold)).map((position) => {
-            const isEditing = editing === position.instrument_id;
-            const tint = isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : "";
-            const card = <PositionCard position={position} kind={kind} today={today} money={anyMoney} />;
+            const tint = position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : "";
             return (
               <li key={position.instrument_id}>
-                {editMode ? (
-                  // A div with the button role: the card's blocks are not allowed inside a real <button>.
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isEditing}
-                    aria-label={editWords(position)}
-                    onClick={() => choose(position)}
-                    onKeyDown={(event) => onRowKey(event, position)}
-                    className={`block cursor-pointer px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}
-                  >
-                    {card}
-                  </div>
-                ) : (
-                  <Link
-                    href={`/stock/${position.ticker}`}
-                    prefetch={false}
-                    className={`block px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}
-                  >
-                    {card}
-                  </Link>
-                )}
-                {editMode && isEditing ? <PositionEditor position={position} onClose={() => setEditing(null)} /> : null}
+                <Link href={`/stock/${position.ticker}`} prefetch={false} className={`block px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}>
+                  <PositionCard position={position} kind={kind} today={today} money={anyMoney} />
+                </Link>
               </li>
             );
           })}
@@ -898,9 +602,4 @@ export function PositionsTable({
       ) : null}
     </>
   );
-}
-
-/** A fragment with a key, so a row and its editor stay together. */
-function PositionRows({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
 }

@@ -53,7 +53,8 @@ def load_active_price_alerts(store: TraceMoneyStore) -> list[dict[str, Any]]:
         data.setdefault("kind", "price_threshold")
         alert_list.append({"id": doc.id, **data})
 
-    return alert_list
+    # A stock removed from the person's list pauses its alerts (lib/stock-alerts.ts syncAlertPauses): kept, not sent.
+    return [alert for alert in alert_list if not alert.get("paused_reason")]
 
 
 def _price_from_latest_doc(doc: dict[str, Any] | None) -> float | None:

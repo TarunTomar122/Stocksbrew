@@ -180,10 +180,109 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Steady calls in prod: working. Briefs are written by tikrr-open-briefs (after open-movers-price, ~14:57 UTC) and tikrr-close-briefs (~21:30 UTC); the first stabilised writes landed 15:08 UTC Nov 11 (16 state docs moved, history rows for AAOI/DELL/SOXL under tm_call_stability_history/{id}/calls/{day}). Gap: only ~150 of 719 briefs rebuild per day (--incremental, --brief-cap 160), so quiet stocks keep older briefs without the `stability` field until rebuilt; a cheap no-LLM pass could add it (product call).
 - [ ] Site chrome payload trim (~40KB per page) (in progress).
 - [x] Ship 23 + 23.1 live (Nov 11).
+- [ ] Since-your-last-visit briefing: changed calls, material holding moves and agent findings since the last open (judge's top ask; needs a last-visit field on the user doc).
+- [ ] Thesis agents on top of lib/thesis-watch: a checkable reason per holding, monitored nightly, surfaced in the briefing only when it breaks.
+- [ ] Judge visuals list: logos on backtest SPY/TLT inputs and AMD "What changed"; comparison bars on compare, themes vs SPY, X-ray mix vs S&P, inbox report moves; prices on inbox report cards and signals rows.
+- [ ] Word budget: the backtest, sectors, AMD overview and insiders intros, the inbox AAPL alert (28 words), the landing FAQ answers.
+- [ ] Delete the dead overview code once ship 72 has been live a day (components/portfolio-home/*.tsx, portfolio-ask-hint, shares-prompt, lib/portfolio-home/{loop,questions,focus}).
 
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-12 night: ships 74–77 live; overnight run (owner asleep: "be ambitious, quality bar must not drop")
+
+- **74 (8cc7b56):** research reports.
+  - One-tap agent chips under "What to watch next" (rule-mapped to runnable templates, validated by parseJobDraft).
+  - A shared report cache, tm_research_shared/{TICKER}: reused for anyone when ≤14 days old, written after the latest earnings, with no newer 10-Q/10-K/8-K and no call change. Unreadable dates count as stale; New York days are compared strictly.
+  - Charging is atomic and keyed TICKER:key for both run and hand-over; locks fail closed.
+  - 10 council rounds. Accepted residual risk: a rare race between a run and a hand-over can give one free report.
+- **75 (796690f):** heatmaps v2.
+  - Every item is a tile with its name and price; sqrt sizing with a 38% cap; centred labels; no chip rows; nothing dropped.
+  - Planned at 304px phones; size order holds across the screener sectors.
+- **76 (69c4c11):**
+  - share cards: /portfolio shows the holdings; news has the real move and whole one-line headlines; compare has bars and today's prices
+  - headings a step above body text (.oa-label 17px, small h2/h3 at 17/16)
+  - no gap in "What would change it" (lone caps only when a sibling shares the line)
+- **73 (afe5f73)** earlier: small text ×1.1.
+- **77 (2a4d11b):** "Since you looked …" heads /briefing. It shows real changes on your own stocks since your previous visit:
+  - call changes
+  - moves measured from the first close after the visit
+  - agent findings
+  - broken reasons
+  - results
+  - insider buys and filings
+  
+  Visits are stored additively as briefing_visits on the user doc; a failed read never uses up a visit. 5 council rounds.
+- **Codex council** hit its usage limit (back 10:25 PM); councils run through cursor-agent --model auto meanwhile.
+- **docs/data-freshness-audit.md** (new) maps how edits to your stocks reach every page. 17 bugs, including data loss: "Add to watchlist" on a held stock wiped its shares and cost. A builder is fixing the web side plus backend code (backend deploy pending).
+- **In flight:**
+  - holdings sheet hardening (council approved; ships with the audit fixes, since they share a file)
+  - compare "our pick" card (round 2)
+  - stock page news tone and visual technicals
+  - /portfolio/ideas visual (round 6)
+  - /news tone columns (round 11)
+
+### 2026-11-12 evening tick: "since you last looked" briefing (new capability) + council rounds
+
+- **New capability, building:** a "Since you last looked" module heading /briefing for signed-in users. It shows real changes on your stocks since your previous visit:
+  - call changes
+  - big moves with a confirmed reason
+  - agent findings
+  - reason checks that broke or recovered
+  - earnings out
+  - insider buys and filings
+  
+  Visits are stored additively as `briefing_visits` on the user's own doc. This was the judge's #1 for agent feel. lib/thesis-watch already covers "thesis agents" (reasons per holding, nightly checks), so the new module surfaces its breaks.
+- **Council blocks, being fixed:**
+  - heatmaps v2: briefing tiles losing price on phone, a height cap that could drop holdings, size order not holding across screener sectors
+  - news tone columns: unknown tone kept distinct, both columns balanced, no note without evidence, sentence-case headlines
+- **Also building:**
+  - research agents and shared cache
+  - the visual /portfolio/ideas
+  - the judge sweep (logos, bars, word budget, VOO and backtest layout)
+  - share cards: the /portfolio card still drew the removed overview; /news showed NVDA +2.9% on a −5% day; compare prices were from Nov 11
+
+### 2026-11-12 late: ships 70–73 live; Codex judge 6.5; owner round on heatmaps, overview, news, research, ideas
+
+- **70 (8c3af50):** live and smoke-tested.
+  - true treemaps, with a logo on every stock tile
+  - Signals as one page
+  - What moved only with a reason
+  - the My stocks grid with no stock twice
+  - QA follow-ups: /signals#reddit redirects, a zero move draws no bar, "This week, so far"
+- **71 (8027704):** the briefing rebuild after 6 council rounds. Its QA fixed two problems:
+  - weekend and overnight "today" labels
+  - premarket top news keeping the move its headline was matched to
+- **72 (ea2190f):** the My stocks overview is REMOVED (owner: "holdings directly is what i want, we dont need overview since briefing is there").
+  - /portfolio opens on Holdings; signed-in "/" goes there.
+  - Every ?tab=holdings link is now /portfolio, and the filter params are live (not CDN) keys.
+  - Holdings mobile cards plus filters: sector, call, size, kind, near level, reports soon, moving. 4 council rounds.
+  - One Edit for the list; outside Edit a row opens the stock.
+  - Dead code left in place: components/portfolio-home/*.tsx (the old overview), portfolio-ask-hint, shares-prompt, lib/portfolio-home/{loop,questions,focus}.
+- **73 (afe5f73):** small text ×1.1 inside page content (13→14.3, 13.5→14.85, 14→15.4).
+  - The owner picked this after side-by-sides; all text at 1.1x broke the phone.
+  - Navigation, fixed-height chips, leading-3 labels and heatmap tiles ([data-tile], [data-need], .oa-type-fixed) keep their size.
+- **Codex judge (live, ship 71), overall 6.5:**
+
+  | Score | /10 |
+  |---|---|
+  | UI | 6.5 |
+  | UX | 6.5 |
+  | usability | 6 |
+  | wording | 6.5 |
+  | agent feel | 5.5 |
+  | volaren similarity | 5.5 |
+  | sell | 6 |
+
+  - Top asks: a "since your last visit" briefing; layout and clipping on backtest and VOO; missing logos and comparison bars on backtest, compare, themes and inbox; word-budget cuts on the backtest, sectors, AMD and insiders intros and the FAQ.
+  - Bold idea: persistent thesis agents. lib/thesis-watch already exists; build on it.
+  - Full text: scratchpad/judge71/codex.md.
+- **In flight (builders):**
+  - heatmaps v2: every item a tile, no chip row, compressed sizing, centred labels. The QA found the planner dropping sectors and holdings; being fixed.
+  - news: positive vs mixed/negative columns; the stock-page refresh notice rebuilt small and inline
+  - research report: suggested agents per "What to watch next" item, plus a shared report cache (≤14 days, invalidated by newer earnings, filings or a call change)
+  - /portfolio/ideas rebuilt visual-first: concentration bars, figure cards, loss bars, essays folded
 
 ### 2026-11-12 night: ship 69 (emails) live; councils clear the treemaps, visuals sweep and My stocks
 

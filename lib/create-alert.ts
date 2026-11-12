@@ -16,6 +16,8 @@ export type StoredAlert = {
   condition?: string;
   target_price?: number;
   active?: boolean;
+  /** Its stock was removed from the person's list: kept and listed, but it does not fire. */
+  paused?: boolean;
 };
 
 export type CreateAlertResult =
@@ -30,7 +32,9 @@ export async function fetchStockAlerts(instrumentId?: string): Promise<StoredAle
   if (res.status === 401) return [];
   const data = (await res.json().catch(() => ({}))) as { alerts?: StoredAlert[] };
   if (!res.ok) return [];
-  return data.alerts ?? [];
+  // The on/off switches (stock page, research-ready bell) treat a paused alert as off: switching it on resumes it
+  // (lib/stock-alerts.ts createStockAlert). The Alerts tab on My stocks lists paused ones from the server instead.
+  return (data.alerts ?? []).filter((alert) => !alert.paused);
 }
 
 export async function createStockAlert(payload: CreateAlertPayload): Promise<CreateAlertResult> {
@@ -44,7 +48,9 @@ export async function createStockAlert(payload: CreateAlertPayload): Promise<Cre
   if (res.status === 401) {
     return { ok: false, error: "Sign in to get email alerts.", unauthorized: true };
   }
-  if (res.status === 409) {
+  // Only a duplicate is "already set". A 409 for the Free limit (say, turning a paused alert back on with every slot
+  // taken) is an error the person needs to see, and the alert stays off.
+  if (res.status === 409 && data.code === "alert_exists") {
     return { ok: true, alreadyExists: true };
   }
   if (res.status === 403 && data.error === "pro_required") {

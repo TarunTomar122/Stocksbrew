@@ -9,6 +9,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { RadarAsyncModal } from "@/components/radar-async-modal";
 import { RadarFreeLimitModal } from "@/components/radar-free-limit-modal";
 import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { buildBatch, needsEmptyConfirm, readDraft } from "@/lib/holding-drafts";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import {
@@ -45,6 +46,11 @@ type Props = {
   freeLimit?: number;
   ctaLabel?: string;
   triggerClassName?: string;
+  /**
+   * The list version (users/{uid}.watchlist_version) the page was read at. Sent with Save, so a list changed in another
+   * tab since then is not overwritten: the route answers 409 and the sheet keeps the draft. Left out, no check is made.
+   */
+  baseVersion?: number | null;
 };
 
 function PositionSwitch({
@@ -78,6 +84,7 @@ export function RadarBatchEditModal({
   freeLimit = 3,
   ctaLabel = "Add a stock",
   triggerClassName,
+  baseVersion = null,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -98,6 +105,10 @@ export function RadarBatchEditModal({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<"loading" | "success" | "error">("loading");
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  // The version this sheet's own last save produced, so a second save before the page refreshes is not called stale.
+  const savedVersion = useRef<number | null>(null);
+  // Set after Save on a list with every stock removed: the next Save goes through (council, Nov 12).
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
   // Track which IDs existed when modal opened — anything else is "newly added this session"
   const originalIds = useRef<Set<string>>(new Set());
 
@@ -112,6 +123,7 @@ export function RadarBatchEditModal({
     originalIds.current = new Set(initialItems.map((i) => i.instrument_id));
     setQuery("");
     setError(null);
+    setConfirmEmpty(false);
     setSearchError(null);
     setTypeaheadResults([]);
   }, [open, initialItems]);
@@ -191,6 +203,8 @@ export function RadarBatchEditModal({
   }, [query, searchIndex, typeaheadResults]);
 
   function upsert(entry: SearchEntry, positionType: PositionType) {
+    // A stock added back undoes an earlier "remove all" answer: emptying the list again asks again.
+    setConfirmEmpty(false);
     setItems((prev) => {
       const idx = prev.findIndex((i) => i.instrument_id === entry.instrument_id);
       if (idx >= 0) {
@@ -214,31 +228,13 @@ export function RadarBatchEditModal({
   }
 
   function setShares(instrumentId: string, raw: string) {
+    setError(null);
     setShareDrafts((prev) => ({ ...prev, [instrumentId]: raw }));
   }
 
   function setCost(instrumentId: string, raw: string) {
+    setError(null);
     setCostDrafts((prev) => ({ ...prev, [instrumentId]: raw }));
-  }
-
-  /** The typed cost per share when it is a real price, else null: an empty or bad box keeps the saved cost. */
-  function typedCost(instrumentId: string): number | null {
-    const raw = costDrafts[instrumentId];
-    if (raw === undefined) return null;
-    const text = raw.replace(/[$₹,]/g, "").trim();
-    if (text === "") return null;
-    const value = Number(text);
-    return Number.isFinite(value) && value > 0 && value <= 1_000_000_000 ? value : null;
-  }
-
-  /** The typed share count when it is a real number, else null: an empty or bad box keeps the saved count. */
-  function typedShares(instrumentId: string): number | null {
-    const raw = shareDrafts[instrumentId];
-    if (raw === undefined) return null;
-    const text = raw.replace(/,/g, "").trim();
-    if (text === "") return null;
-    const value = Number(text);
-    return Number.isFinite(value) && value >= 0 && value <= 1_000_000_000 ? value : null;
   }
 
   function clearDraft(instrumentId: string) {
@@ -251,6 +247,9 @@ export function RadarBatchEditModal({
     setShareDrafts(drop);
     setCostDrafts(drop);
   }
+
+  // What Save would send and any box errors, worked out on every render so each bad box says so as it is typed.
+  const draft = buildBatch(items, shareDrafts, costDrafts);
 
   function remove(instrumentId: string) {
     clearDraft(instrumentId);
@@ -274,8 +273,13 @@ export function RadarBatchEditModal({
       setLimitModalOpen(true);
       return;
     }
-    if (items.length === 0) {
-      setError("Add at least one stock.");
+    if (Object.keys(draft.errors).length > 0) {
+      setError("Fix the numbers in red first.");
+      return;
+    }
+    // Every stock can go, but a list left empty is asked about once before it is saved.
+    if (needsEmptyConfirm(items.length, initialItems.length) && !confirmEmpty) {
+      setConfirmEmpty(true);
       return;
     }
 
@@ -288,27 +292,19 @@ export function RadarBatchEditModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => {
-            const initial = initialItems.find((x) => x.instrument_id === i.instrument_id);
-            const saved = i.position_type === "holding" ? i.holding ?? initial?.holding : undefined;
-            const typed = i.position_type === "holding" ? typedShares(i.instrument_id) : null;
-            const cost = i.position_type === "holding" ? typedCost(i.instrument_id) : null;
-            // Typed numbers replace the saved ones; anything left empty keeps what was saved.
-            const holding =
-              typed !== null || cost !== null
-                ? { ...(saved ?? {}), ...(typed !== null ? { quantity: typed } : {}), ...(cost !== null ? { average_cost: cost } : {}) }
-                : saved;
-            return {
-              instrument_id: i.instrument_id,
-              position_type: i.position_type,
-              ...(holding ? { holding: { ...holding, source: "manual" as const } } : {}),
-            };
-          }),
+          items: draft.items,
+          ...(baseVersion !== null ? { base_version: Math.max(baseVersion, savedVersion.current ?? baseVersion) } : {}),
         }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data?.error === "stale_list") {
+          // Nothing was saved. The sheet stays open with the draft, and the person reloads to see the other change.
+          setModalOpen(false);
+          setError("Your stocks changed in another tab. Reload to see them.");
+          return;
+        }
         if (res.status === 409 && data?.error === "free_tier_limit_reached") {
           setModalOpen(false);
           setOpen(false);
@@ -318,6 +314,8 @@ export function RadarBatchEditModal({
         throw new Error((data?.error === "swap_limit_reached" && data?.reason) || data?.error || "batch_update_failed");
       }
 
+      const saved = (await res.json().catch(() => ({}))) as { source_version?: unknown };
+      if (typeof saved.source_version === "number") savedVersion.current = saved.source_version;
       const initialIds = new Set(initialItems.map((i) => i.instrument_id));
       const addedCount = items.filter((i) => !initialIds.has(i.instrument_id)).length;
       if (addedCount > 0) {
@@ -332,7 +330,7 @@ export function RadarBatchEditModal({
       setOpen(false);
     } catch (e) {
       setModalStatus("error");
-      setError("Could not update your Watchlist in one go. Try again.");
+      setError("Could not save your stocks in one go. Try again.");
       console.error(e);
       setTimeout(() => setModalOpen(false), 1200);
     } finally {
@@ -355,7 +353,7 @@ export function RadarBatchEditModal({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center px-0 md:px-4" role="dialog" aria-modal="true" aria-label="Edit Watchlist stocks">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center px-0 md:px-4" role="dialog" aria-modal="true" aria-label="Add or edit stocks">
           <button
             type="button"
             aria-label="Close"
@@ -368,7 +366,7 @@ export function RadarBatchEditModal({
             {/* ── Header ── */}
             <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-4 shrink-0">
               <div className="flex items-center gap-3">
-                <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Edit your Watchlist</h3>
+                <h3 className="text-[18px] font-semibold text-on-surface tracking-[-0.01em]">Add or edit stocks</h3>
                 <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant tabular-nums">
                   {items.length}{!isSubscribed && Number.isFinite(freeLimit) ? `/${freeLimit}` : ""}
                 </span>
@@ -427,6 +425,7 @@ export function RadarBatchEditModal({
                   {sortedItems.map((item) => {
                     const isNew = !originalIds.current.has(item.instrument_id);
                     const holding = item.position_type === "holding";
+                    const rowErrors = holding ? draft.errors[item.instrument_id] : undefined;
                     return (
                       <li key={item.instrument_id} className={`${ROW_GRID} items-center px-4 py-3 transition-colors ${isNew ? "tint-bull" : ""}`}>
                         <StockLogo ticker={item.ticker} market={item.instrument_id.startsWith("IN_") ? "IN" : "US"} size={30} />
@@ -452,8 +451,9 @@ export function RadarBatchEditModal({
                                 aria-label={`Shares of ${item.ticker}`}
                                 value={shareDrafts[item.instrument_id] ?? (item.holding?.quantity != null ? String(item.holding.quantity) : "")}
                                 onChange={(event) => setShares(item.instrument_id, event.target.value)}
-                                aria-invalid={Boolean(shareDrafts[item.instrument_id]?.trim()) && typedShares(item.instrument_id) === null}
-                                title="Leave it empty to keep the saved number"
+                                aria-invalid={Boolean(rowErrors?.shares)}
+                                aria-describedby={rowErrors ? `${item.instrument_id}-errors` : undefined}
+                                title="Leave it empty to clear it"
                                 className="h-9 w-full rounded-lg border border-outline-variant bg-surface px-2.5 text-right text-[14px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
                               />
                             </label>
@@ -467,8 +467,9 @@ export function RadarBatchEditModal({
                                 aria-label={`Average cost per share of ${item.ticker}`}
                                 value={costDrafts[item.instrument_id] ?? (item.holding?.average_cost != null ? String(Math.round(item.holding.average_cost * 100) / 100) : "")}
                                 onChange={(event) => setCost(item.instrument_id, event.target.value)}
-                                aria-invalid={Boolean(costDrafts[item.instrument_id]?.trim()) && typedCost(item.instrument_id) === null}
-                                title="What you paid for each share, on average. Leaving it empty keeps the saved cost."
+                                aria-invalid={Boolean(rowErrors?.cost)}
+                                aria-describedby={rowErrors ? `${item.instrument_id}-errors` : undefined}
+                                title="What you paid for each share, on average. Leave it empty to clear it."
                                 className="h-9 w-full rounded-lg border border-outline-variant bg-surface px-2.5 text-right text-[14px] tabular-nums text-on-surface outline-none focus:border-on-surface aria-[invalid=true]:border-[#ef4444]"
                               />
                             </label>
@@ -477,6 +478,17 @@ export function RadarBatchEditModal({
                           // Keeps the columns in place on wider screens when a row is only watched.
                           <span className="hidden sm:col-span-2 sm:col-start-3 sm:row-start-1 sm:block" />
                         )}
+                        {rowErrors ? (
+                          <p
+                            id={`${item.instrument_id}-errors`}
+                            role="alert"
+                            className="col-span-3 col-start-2 text-[11px] font-medium text-[#ef4444] sm:col-span-2 sm:col-start-3 sm:text-right"
+                          >
+                            {[rowErrors.shares ? `Shares: ${rowErrors.shares}` : null, rowErrors.cost ? `Avg cost: ${rowErrors.cost}` : null]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        ) : null}
                         <div className="col-start-3 row-start-1 justify-self-end sm:col-start-5">
                           <PositionSwitch
                             value={item.position_type}
@@ -551,6 +563,8 @@ export function RadarBatchEditModal({
             <div className="shrink-0 flex items-center justify-between gap-2 border-t border-outline-variant px-4 py-3 bg-surface">
               {error ? (
                 <p className="text-[12px] text-[#ef4444] font-medium">{error}</p>
+              ) : confirmEmpty && items.length === 0 ? (
+                <p className="text-[12px] font-medium text-on-surface">This removes all your stocks.</p>
               ) : !isSubscribed ? (
                 <p className="text-[11px] text-on-surface-variant">
                   {Number.isFinite(freeLimit) ? `Free plan · ${freeLimit} stocks max` : `Track as many as you like. Free covers ${FREE_COVERED_STOCKS} in full.`}
@@ -569,9 +583,9 @@ export function RadarBatchEditModal({
                   type="button"
                   onClick={() => void onSubmit()}
                   disabled={submitting}
-                  className="rounded-full bg-on-surface px-4 py-2 text-[12px] font-semibold text-surface disabled:opacity-60 hover:bg-on-surface transition-colors"
+                  className="whitespace-nowrap rounded-full bg-on-surface px-4 py-2 text-[12px] font-semibold text-surface disabled:opacity-60 hover:bg-on-surface transition-colors"
                 >
-                  {submitting ? "Saving…" : "Save & rebuild"}
+                  {submitting ? "Saving…" : confirmEmpty && items.length === 0 ? "Remove all" : "Save & rebuild"}
                 </button>
               </div>
             </div>
@@ -590,7 +604,7 @@ export function RadarBatchEditModal({
 
       <RadarAsyncModal
         open={modalOpen}
-        title="Updating Watchlist"
+        title="Saving your stocks"
         subtitle="Saved. We’re refreshing the research now."
         status={modalStatus}
       />

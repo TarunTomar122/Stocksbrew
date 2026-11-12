@@ -36,19 +36,26 @@ export function needsLook(position: Pick<PortfolioPosition, "needsAttention" | "
   return position.needsAttention || reportSoon(position.nextEarnings, today) || nearCallLevel(position);
 }
 
-/** The rows that need a look first, each group keeping the order it came in (the table's default sort). */
+/**
+ * The rows that need a look first, each group keeping the order it came in (the table's default sort). The highlighted
+ * rows (the zone tint: the price is inside its call's zone) always lead, then the other rows that need a look (an
+ * orange report date, a price near its level), then the rest. Owner, Nov 12: on Watching most names sit within 3% of
+ * their level, so with one group the tinted PLTR and META landed at the bottom of it.
+ */
 export function attentionFirst<T extends Pick<PortfolioPosition, "needsAttention" | "nextEarnings" | "price" | "zone">>(rows: T[], today: string): T[] {
-  const first: T[] = [];
+  const tinted: T[] = [];
+  const look: T[] = [];
   const rest: T[] = [];
-  for (const row of rows) (needsLook(row, today) ? first : rest).push(row);
-  return [...first, ...rest];
+  for (const row of rows) (row.needsAttention ? tinted : needsLook(row, today) ? look : rest).push(row);
+  return [...tinted, ...look, ...rest];
 }
 
 /**
  * The order the Holdings and Watching lists show, and what their sort control says about it, so the two always agree.
  * - The person picked a column: exactly that column's sort (`lookFirst` false).
- * - Nothing picked and some row in the whole list needs a look: those rows first, each group in the default sort, and
- *   the control says "Needs a look first" with no column arrow (`lookFirst` true).
+ * - Nothing picked and some row in the whole list needs a look: the highlighted rows, then the other rows that need a
+ *   look, then the rest (attentionFirst), each group in the default sort, with no column arrow; the phone select says
+ *   "Suggested" (`lookFirst` true).
  * - Nothing picked and no row needs a look: exactly the default column's sort, labelled and arrowed as that column
  *   (`lookFirst` false).
  * `every` is the whole list when `rows` is a filtered part of it, so a filter never flips the label.

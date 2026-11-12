@@ -27,7 +27,7 @@ import { getMarketDay } from "@/lib/insight-data";
 import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
 import { listStockAlerts } from "@/lib/stock-alerts";
 import { PortfolioHow, PortfolioIntro, PortfolioView } from "@/components/portfolio/portfolio-view";
-import type { PortfolioAlert, PortfolioSignal } from "@/components/portfolio/alerts-tab";
+import { AlertsTab, type PortfolioAlert, type PortfolioSignal } from "@/components/portfolio/alerts-tab";
 import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
 
@@ -81,6 +81,31 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function toPortfolioAlerts(userAlerts: Awaited<ReturnType<typeof listStockAlerts>>): PortfolioAlert[] {
+  return userAlerts
+    .map((alert): PortfolioAlert | null => {
+      const id = asString(alert.id);
+      const ticker = asString(alert.ticker);
+      const instrumentId = asString(alert.instrument_id);
+      if (!id || !ticker || !instrumentId) return null;
+      const condition = alert.condition === "above" || alert.condition === "below" ? alert.condition : null;
+      const target = typeof alert.target_price === "number" && Number.isFinite(alert.target_price) ? alert.target_price : null;
+      return {
+        id,
+        ticker: ticker.toUpperCase(),
+        instrument_id: instrumentId,
+        kind: asString(alert.kind) ?? "price_threshold",
+        condition,
+        target_price: target,
+        created_at: asString(alert.created_at),
+        note: asString(alert.note),
+        paused: alert.paused,
+        ...(alert.paused ? { pausedReason: alert.paused_reason === "plan_limit" ? ("plan_limit" as const) : ("removed" as const) } : {}),
+      };
+    })
+    .filter((alert): alert is PortfolioAlert => alert !== null);
+}
+
 export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
   const session = await getSessionUser();
   const uid = session?.uid ?? null;
@@ -94,10 +119,36 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
     );
   }
 
+  // Started with the book: the empty-list check below and the Alerts tab share this one read.
+  const alertsRead = listStockAlerts(uid, { limit: 100 }).catch(() => [] as Awaited<ReturnType<typeof listStockAlerts>>);
   const [userDoc, watchlistView] = await Promise.all([getUserDoc(uid), getWatchlistView(uid).catch(() => null)]);
   const tracked = Array.isArray(userDoc?.tracked_stocks) ? userDoc!.tracked_stocks! : [];
   const isSubscribed = resolveIsSubscribed(userDoc);
 
+  // An empty list shows the example, unless the person has paused alerts from stocks they removed: those keep the live
+  // page, so the Alerts tab can show them and turn them off (lib/stock-alerts.ts). A new account with an alert set
+  // from a stock page still gets the example and its intro.
+  const hasPausedAlerts = tracked.length === 0 && (await alertsRead).some((alert) => alert.paused);
+  if (tracked.length === 0 && hasPausedAlerts) {
+    // No stocks, so no tabs, totals, zones or flags to show: the empty-list intro, then the alerts and email switches.
+    return (
+      <>
+        <RadarPageAnalytics state="empty" trackedCount={0} isSubscribed={isSubscribed} />
+        <div className="flex flex-col gap-3">
+          <PortfolioIntro signedIn freeLimit={FREE_COVERED_STOCKS} />
+          <AlertsTab
+            alerts={toPortfolioAlerts(await alertsRead)}
+            signals={[]}
+            positions={[]}
+            isSubscribed={isSubscribed}
+            emailPrefs={{ alerts: userDoc?.email_alerts_enabled ?? true, digest: userDoc?.email_digest_enabled ?? true }}
+            example={false}
+            today={newYorkToday()}
+          />
+        </div>
+      </>
+    );
+  }
   if (tracked.length === 0) {
     return (
       <>
@@ -159,7 +210,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
       getDailyAnomalyTickers("US", anomalyTickers).catch(() => new Map()),
       getIdeaMarketData(ideaIds).catch(() => new Map()),
       getPremarketMovers("US").catch(() => null),
-      listStockAlerts(uid, { limit: 100 }).catch(() => []),
+      alertsRead,
       getFundCatalog().catch(() => new Map<string, string>()),
       // Size band and a sector for rows that lack one, for the filters (cached snapshot; empty on a miss).
       getScreenerRows(anomalyTickers).catch(() => new Map<string, ScreenerRow>()),
@@ -219,26 +270,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
   const marketDay = await getMarketDay();
   const quoteDay = marketDay?.day ?? null;
 
-  const alerts: PortfolioAlert[] = userAlerts
-    .map((alert) => {
-      const id = asString(alert.id);
-      const ticker = asString(alert.ticker);
-      const instrumentId = asString(alert.instrument_id);
-      if (!id || !ticker || !instrumentId) return null;
-      const condition = alert.condition === "above" || alert.condition === "below" ? alert.condition : null;
-      const target = typeof alert.target_price === "number" && Number.isFinite(alert.target_price) ? alert.target_price : null;
-      return {
-        id,
-        ticker: ticker.toUpperCase(),
-        instrument_id: instrumentId,
-        kind: asString(alert.kind) ?? "price_threshold",
-        condition,
-        target_price: target,
-        created_at: asString(alert.created_at),
-        note: asString(alert.note),
-      };
-    })
-    .filter((alert): alert is PortfolioAlert => alert !== null);
+  const alerts = toPortfolioAlerts(userAlerts);
 
   const signals: PortfolioSignal[] = hubRows.flatMap((hub) => {
     const levels = canSeeLevels(viewer, hub.instrument_id);
@@ -292,6 +324,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
         ideas={mergedIdeas}
         emailPrefs={{ alerts: userDoc?.email_alerts_enabled ?? true, digest: userDoc?.email_digest_enabled ?? true }}
         asOf={now.toISOString()}
+        listVersion={typeof userDoc?.watchlist_version === "number" ? userDoc.watchlist_version : 0}
         pricesAsOf={quoteDay}
         pricesWords={pricesWords(quoteDay, now)}
       />

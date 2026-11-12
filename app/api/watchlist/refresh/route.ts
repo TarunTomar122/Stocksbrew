@@ -2,19 +2,18 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
-import { rebuildAndSaveWatchlistView } from "@/lib/watchlist-view";
+import { getUserDoc } from "@/lib/watchlist";
+import { requestWatchlistViewRebuild } from "@/lib/watchlist-view-rebuild";
 
 /**
  * POST /api/watchlist/refresh
  *
- * Triggers a single watchlist-view rebuild for the authenticated user.
- * Called by the client after bulk-tracking multiple stocks in parallel —
- * so each /api/track call can skip its own rebuild (skip_refresh: true)
- * and this endpoint fires exactly once at the end.
- *
- * We bypass the per-call dedupe gate here because this is an explicit,
- * client-initiated refresh, not a redundant side-effect.
+ * Rebuilds the authenticated user's view and answers when it is saved. Called
+ * by the browser after a save (the batch modal, the Follow button). Every
+ * write to the person's stocks also queues the same rebuild on the server
+ * (lib/radar-mutations.ts); when that one is already running and has read a
+ * book at least this new, this request waits for it instead of building twice
+ * (lib/watchlist-view-rebuild.ts).
  */
 export async function POST() {
   const traceId = randomUUID();
@@ -29,12 +28,7 @@ export async function POST() {
   }
 
   const tracked = Array.isArray(userDoc.tracked_stocks) ? userDoc.tracked_stocks : [];
-  const positions =
-    userDoc.watchlist_positions && typeof userDoc.watchlist_positions === "object"
-      ? (userDoc.watchlist_positions as Record<string, "holding" | "watchlist">)
-      : {};
   const sourceVersion = Number(userDoc.watchlist_version ?? 0);
-  const isSubscribed = resolveIsSubscribed(userDoc);
 
   console.log(
     JSON.stringify({
@@ -48,11 +42,7 @@ export async function POST() {
   );
 
   try {
-    await rebuildAndSaveWatchlistView(session.uid, tracked, positions, isSubscribed, sourceVersion, {
-      preserveBriefIfFallback: true,
-      preserveDirectivesIfMissing: true,
-      preserveActivityIfThin: true,
-    });
+    await requestWatchlistViewRebuild(session.uid, sourceVersion);
     console.log(
       JSON.stringify({
         svc: "api-watchlist-refresh",

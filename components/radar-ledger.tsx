@@ -804,7 +804,8 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       const res = await fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instrument_id: instrumentId, position_type: "holding" }),
+        // triggerRadarBackgroundRefresh asks for the rebuild, so the server doesn't queue one too.
+        body: JSON.stringify({ instrument_id: instrumentId, position_type: "holding", skip_refresh: true }),
       });
       if (res.ok) {
         setStatus("done");
@@ -1161,7 +1162,8 @@ function RowMenu({ row }: { row: WatchlistRow }) {
       const res = await fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType }),
+        // An explicit move: without `move` the server keeps a holding a holding (lib/radar-mutations.ts).
+        body: JSON.stringify({ instrument_id: instrumentId, position_type: positionType, move: true, skip_refresh: true }),
       });
       setModalStatus(res.ok ? "success" : "error");
       if (res.ok) triggerRadarBackgroundRefresh(router);
@@ -1181,7 +1183,7 @@ function RowMenu({ row }: { row: WatchlistRow }) {
       const res = await fetch("/api/track", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instrument_id: instrumentId }),
+        body: JSON.stringify({ instrument_id: instrumentId, skip_refresh: true }),
       });
       setModalStatus(res.ok ? "success" : "error");
       if (res.ok) triggerRadarBackgroundRefresh(router);

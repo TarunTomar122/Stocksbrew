@@ -16,6 +16,7 @@ The two agents that answer "tell me when to sell" read in plain words:
 from __future__ import annotations
 
 import math
+import os
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -548,11 +549,13 @@ def _whole_money(value: float) -> str:
 
 
 def load_price_alerts(src: Source) -> dict[str, list[dict]]:
-    """Every live hand-set price alert, by account: active, not yet fired, a below/above rule and a price.
+    """Every live hand-set price alert, by account: active, not yet fired, not paused, a below/above rule and a price.
     The web app writes them (lib/create-alert.ts, kind "price_threshold"; older ones have no kind)."""
     out: dict[str, list[dict]] = {}
     for path, a in src.query(PRICE_ALERTS, [("active", "==", True), ("triggered", "==", False)], limit=5000):
         if a.get("kind") not in (None, "", "price_threshold") or a.get("condition") not in ("below", "above"):
+            continue
+        if a.get("paused_reason"):  # its stock was removed from the person's list (lib/stock-alerts.ts syncAlertPauses)
             continue
         target, uid = _number(a.get("target_price")), str(a.get("uid") or "")
         if not target or target <= 0 or not uid or not a.get("ticker"):
@@ -625,3 +628,86 @@ def build_price_alert(stock, alert: dict, *, now: datetime | None = None,
     return kit.render(doc, kind="price_alert", category="alerts", subject=title, preheader=line,
                       unsubscribe_token=unsubscribe_token, meta={"ticker": stock.ticker, "alert": str(alert.get("id") or "")},
                       reason="You get this because you set a price alert on stocksbrew.", dateline="Price alert")
+
+
+# ------------------------------------------------------------- earnings reminders
+
+EARNINGS_REMINDER_KIND = "earnings_24h"
+EARNINGS_REMINDER_HOUR = 9  # ET: the 15-minute run sends it once on the day before, never just after midnight
+
+
+def earnings_reminders_enabled() -> bool:
+    """Off until the owner turns it on with EARNINGS_REMINDER_ACTIVE=1 (a new email is an owner decision). Even then
+    only with mail v2 live and the old alert senders off: with LEGACY_ALERTS=1 the old sender
+    (backend/radar_alerts.py) mails its own day-before earnings note, and a person would get both."""
+    return (os.environ.get("EARNINGS_REMINDER_ACTIVE") == "1"
+            and os.environ.get("MAIL_V2_ACTIVE") == "1" and os.environ.get("LEGACY_ALERTS") != "1")
+
+
+def earnings_reminder_window(now: datetime) -> bool:
+    """From 9am ET: the run reads the toggles and the calendar only then."""
+    return now.astimezone(ET).hour >= EARNINGS_REMINDER_HOUR
+
+
+def load_earnings_calendar(src: Source, now: datetime) -> dict[tuple[str, str], tuple[date, str]]:
+    """Every report on tomorrow's date (ET), by (market, ticker), read once per run."""
+    tomorrow = (now.astimezone(ET).date() + timedelta(days=1)).isoformat()
+    out: dict[tuple[str, str], tuple[date, str]] = {}
+    for _, d in src.query("tm_earnings_events", [("event_date", "==", tomorrow)], limit=5000,
+                          select=["ticker", "event_date", "time", "market"]):
+        ticker = str(d.get("ticker") or "").upper()
+        try:
+            day = date.fromisoformat(str(d.get("event_date"))[:10])
+        except ValueError:
+            continue
+        if ticker:
+            out[(str(d.get("market") or "US").upper(), ticker)] = (day, str(d.get("time") or "").lower())
+    return out
+
+
+def load_earnings_reminders(src: Source) -> dict[str, list[dict]]:
+    """Every live "remind me the day before earnings" toggle, by account: kind earnings_24h, active, not paused.
+    The stock page writes them (components/stock-report/alert-controls.tsx). The date comes from the earnings
+    calendar at send time, not from the alert's metadata.event_date, which goes stale when a company moves its date."""
+    out: dict[str, list[dict]] = {}
+    filters = [("active", "==", True), ("triggered", "==", False), ("kind", "==", EARNINGS_REMINDER_KIND)]
+    for path, a in src.query(PRICE_ALERTS, filters, limit=5000):
+        if a.get("kind") != EARNINGS_REMINDER_KIND or a.get("paused_reason"):
+            continue
+        uid = str(a.get("uid") or "")
+        if not uid or not (a.get("ticker") or a.get("instrument_id")):
+            continue
+        out.setdefault(uid, []).append({**a, "id": path.rsplit("/", 1)[-1]})
+    return out
+
+
+def earnings_reminder_due(stock, now: datetime) -> bool:
+    """True on the calendar day before the stock's next report, from 9am ET."""
+    et = now.astimezone(ET)
+    day = getattr(stock, "earnings_date", None)
+    return day is not None and et.hour >= EARNINGS_REMINDER_HOUR and (day - et.date()).days == 1
+
+
+def build_earnings_reminder(stock, alert: dict, *, now: datetime | None = None,
+                            unsubscribe_token: str | None = None) -> kit.Email | None:
+    """"AAPL reports tomorrow after the close." and one card with today's price, with one button to the stock.
+    None when the report is not tomorrow."""
+    now = now or datetime.now(timezone.utc)
+    if not earnings_reminder_due(stock, now):
+        return None
+    time = str(getattr(stock, "earnings_time", "") or "").lower()
+    slot = {"bmo": " before the open", "amc": " after the close", "during": " during market hours"}.get(time, "")
+    title = f"{stock.ticker} reports tomorrow{slot}"
+    today = now.astimezone(ET).date()
+    period = _day(stock.price_at.astimezone(ET).date().isoformat(), today) if stock.price_at else ""
+    day = stock.earnings_date
+    line = f"Earnings {day.strftime('%A')}, {day.strftime('%b')} {day.day}{slot}."
+    doc = kit.Doc()
+    doc.h1(title + ".")
+    doc.cards([kit.Card(ticker=stock.ticker, name=stock.name, price=stock.price, move=stock.change_pct, period=period, line=line)])
+    doc.button(f"Open {stock.ticker}", kit.stock_url(stock.ticker))
+    return kit.render(doc, kind="earnings_reminder", category="alerts", subject=title, preheader=line,
+                      unsubscribe_token=unsubscribe_token,
+                      meta={"ticker": stock.ticker, "alert": str(alert.get("id") or ""), "event_date": day.isoformat()},
+                      reason="You get this because you asked for a reminder before this stock reports.",
+                      dateline="Earnings reminder")

@@ -33,7 +33,7 @@ export function ThesisWatchPreview(props: {
         <StockReason ticker={props.ticker} preview />
         <section className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
           <ReasonsStrip stocks={holdings.map((position) => ({ instrument_id: position.instrument_id, ticker: position.ticker, name: position.name }))} />
-          <PositionsTable positions={holdings} kind="holding" today={props.today} editable={false} defaultSort={{ key: "value", direction: "desc" }} totals={props.totals} />
+          <PositionsTable positions={holdings} kind="holding" today={props.today} defaultSort={{ key: "value", direction: "desc" }} totals={props.totals} />
         </section>
     </div>
   );

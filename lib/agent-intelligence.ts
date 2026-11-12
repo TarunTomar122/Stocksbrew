@@ -686,22 +686,24 @@ export async function addAgentStockToRadar(uid: string, input: { ticker: string;
   const market = input.market === "IN" ? "IN" : "US";
   const stock = await resolveAgentStock(input.ticker, market);
   try {
+    const positionType = input.positionType === "holding" ? "holding" : "watchlist";
     const result = await addRadarStock({
       uid,
       instrumentId: stock.instrument_id,
-      positionType: input.positionType === "holding" ? "holding" : "watchlist",
+      positionType,
+      // No `move`: MCP's position_type defaults to "watchlist", so an add may mark a watched stock as held but never
+      // turns a holding into a watched stock (that would drop its shares and cost).
       requestedBy: "agent",
     });
     return envelope({
       instrument: stock,
-      position_type: input.positionType === "holding" ? "holding" : "watchlist",
       ...result,
       research_status: result.research_queued ? "queued" : "ready_or_already_queued",
       next_action: {
         tool: "get_stock_intelligence",
         message: result.research_queued
           ? "Research was queued. Check the stock again later."
-          : "The stock is in Watchlist. Read its current research now.",
+          : `The stock is in ${result.position_type === "holding" ? "Holdings" : "Watchlist"}. Read its current research now.`,
       },
     }, new Date().toISOString());
   } catch (error) {

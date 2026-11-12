@@ -9,7 +9,9 @@ import { pendingFundIds } from "@/lib/import/resolve";
 import { cleanSaveRows, saveImport, type SaveSource } from "@/lib/import/save";
 import { getImportDirectory } from "@/lib/import/server";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
+import { afterResponse } from "@/lib/after-response";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
+import { requestWatchlistViewRebuild } from "@/lib/watchlist-view-rebuild";
 
 /**
  * POST /api/import/save: the reviewed rows become holdings on the signed-in
@@ -62,6 +64,9 @@ export async function POST(req: NextRequest) {
       .doc(session.uid)
       .set({ last_source_version: result.version, last_requested_at: now, requested_by: "import_save", updated_at: now }, { merge: true })
       .catch(() => undefined);
+    // The briefing, emails, Ask and MCP read the per-user view: rebuild it now rather than at the next weekday build.
+    // The rebuild also resumes alerts on a stock that comes back (lib/watchlist-view-rebuild.ts).
+    afterResponse("watchlist_view_rebuild", requestWatchlistViewRebuild(session.uid, result.version));
     if (result.added.length > 0) {
       // The activation funnel reads stock_tracked with tracked_count and first (docs/analytics.md); an import is one event.
       await captureServerEventSafe(session.uid, "stock_tracked", {

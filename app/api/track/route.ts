@@ -35,6 +35,8 @@ function trackApiLog(
 async function parseTrackPayload(req: NextRequest): Promise<{
   instrumentId: string;
   positionType: "holding" | "watchlist";
+  /** Allow turning a held stock into a watched one. Without it, adding a held stock leaves it a holding. */
+  move: boolean;
   skipRefresh: boolean;
 } | null> {
   try {
@@ -44,6 +46,7 @@ async function parseTrackPayload(req: NextRequest): Promise<{
     return {
       instrumentId: raw,
       positionType: body?.position_type === "holding" ? "holding" : "watchlist",
+      move: body?.move === true,
       skipRefresh: body?.skip_refresh === true,
     };
   } catch {
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
     trackApiLog(traceId, "warn", "post_invalid_payload", { uid: session.uid });
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
-  const { instrumentId, positionType, skipRefresh } = payload;
+  const { instrumentId, positionType, move, skipRefresh } = payload;
   const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
 
   trackApiLog(traceId, "info", "post_track_request", {
@@ -91,6 +94,8 @@ export async function POST(req: NextRequest) {
     uid: session.uid,
     instrumentId,
     positionType,
+    move,
+    skipRebuild: skipRefresh,
     mutationId: clientMutationId,
     requestedBy: skipRefresh ? "track_post_skipped" : "track_post",
   });
@@ -115,7 +120,7 @@ export async function POST(req: NextRequest) {
     // Activation: first stock, then 3+ (docs/analytics.md). A count, never positions or values.
     await captureServerEventSafe(session.uid, "stock_tracked", {
       ticker: tickerOf(instrumentId),
-      position_type: positionType,
+      position_type: result.position_type,
       tracked_count: current.length + 1,
       first: current.length === 0,
       covered: Boolean(result.covered),
@@ -125,8 +130,12 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({
     ok: true,
-    refresh_queued: true,
+    /** A server rebuild of the per-user view was queued (nothing changed, or the browser refreshes it itself). */
+    refresh_queued: result.changed && !skipRefresh,
     first_stock: !result.already_tracked && current.length === 0,
+    already_tracked: result.already_tracked,
+    /** The stock's kind now: a stock already followed keeps its own unless the request was a move. */
+    position_type: result.position_type,
     /** Whether the agent covers this stock in full (zones, the full read). */
     covered: result.covered,
   });
@@ -145,7 +154,7 @@ export async function DELETE(req: NextRequest) {
     trackApiLog(traceId, "warn", "delete_invalid_payload", { uid: session.uid });
     return NextResponse.json({ error: "invalid instrument_id" }, { status: 400 });
   }
-  const { instrumentId } = payload;
+  const { instrumentId, skipRefresh } = payload;
   const clientMutationId = req.headers.get("x-client-mutation-id") || randomUUID();
 
   trackApiLog(traceId, "info", "delete_untrack_request", {
@@ -156,6 +165,7 @@ export async function DELETE(req: NextRequest) {
   const result = await removeRadarStock({
     uid: session.uid,
     instrumentId,
+    skipRebuild: skipRefresh,
     mutationId: clientMutationId,
     requestedBy: "track_delete",
   });
@@ -174,5 +184,5 @@ export async function DELETE(req: NextRequest) {
       $insert_id: `untrack:${session.uid}:${clientMutationId}`,
     });
   }
-  return NextResponse.json({ ok: true, refresh_queued: true });
+  return NextResponse.json({ ok: true, refresh_queued: result.was_tracked && !skipRefresh });
 }

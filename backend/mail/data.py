@@ -211,9 +211,9 @@ def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news
         return None
     view = src.get(f"tm_watchlist_views/{uid}") or {}
     rows = [r for r in view.get("rows") or [] if r.get("instrument_id") and (r.get("market") or "US") == "US"]
+    # The live list only: someone who removed every US stock gets no stock rows, never the last view's (which can be
+    # days old and still list what they removed).
     tracked = [str(i) for i in (user.get("tracked_stocks") or []) if str(i).startswith("US_")]
-    if not tracked:
-        tracked = [r["instrument_id"] for r in rows]
     is_pro = is_pro_user(user)
     person = Person(
         uid=uid,
@@ -232,6 +232,11 @@ def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news
     instruments = src.get_many([f"tm_instruments/{i}" for i in ids])
     prices = src.get_many([f"tm_latest_prices/{i}" for i in ids])
     holdings = set(str(h) for h in (user.get("watchlist_holdings") or []))
+    # Holding or watching comes from the live book (users/{uid}.watchlist_positions), so a stock moved to Watching is
+    # not written up as "you hold it" until the next view build. The view row is the fallback for an old account
+    # with no positions map.
+    raw_positions = user.get("watchlist_positions")
+    live_positions = raw_positions if isinstance(raw_positions, dict) else {}
     for iid in ids:
         row = by_id.get(iid, {})
         inst = instruments.get(f"tm_instruments/{iid}", {})
@@ -240,7 +245,7 @@ def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news
             id=iid,
             ticker=ticker,
             name=clean_text(inst.get("name") or ticker, 60),
-            position="holding" if (row.get("position_type") == "holding" or iid in holdings) else "watchlist",
+            position=_position(live_positions.get(iid), row, iid in holdings),
         )
         _apply_price(stock, prices.get(f"tm_latest_prices/{iid}"), now)
         directive = row.get("directive_v2") or row.get("ai_directive") or {}
@@ -259,6 +264,12 @@ def load_person(src: Source, uid: str, *, now: datetime | None = None, with_news
     if with_news:
         _apply_news(src, person.stocks, now, hours=news_hours)
     return person
+
+
+def _position(live: Any, row: dict[str, Any], has_holding: bool) -> str:
+    if live in ("holding", "watchlist"):
+        return str(live)
+    return "holding" if (row.get("position_type") == "holding" or has_holding) else "watchlist"
 
 
 def _num(value: Any) -> float | None:

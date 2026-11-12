@@ -35,7 +35,7 @@ ALWAYS = {"welcome", "pro_welcome"}
 
 DAILY_CAP = {"alerts": 4, "product": 1}
 # a hand-set price alert fires once and the person asked for it: the alert cap never holds it back
-UNCAPPED = {"price_alert"}
+UNCAPPED = {"price_alert", "earnings_reminder"}
 
 
 def wants(user: dict[str, Any], category: str, kind: str = "") -> bool:

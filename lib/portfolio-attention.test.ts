@@ -64,7 +64,7 @@ describe("nearCallLevel", () => {
 });
 
 describe("attentionFirst", () => {
-  it("puts the rows that need a look on top, each group keeping the default sort", () => {
+  it("puts the tinted rows on top, then the other rows that need a look, each group keeping the default sort", () => {
     const rows = [
       pos("BIG", { value: 5000 }),
       pos("SOON", { value: 4000, nextEarnings: { date: "2026-11-13", time: "bmo" } }),
@@ -74,7 +74,7 @@ describe("attentionFirst", () => {
       pos("LATER", { value: 500, nextEarnings: { date: "2026-12-09", time: null } }),
     ];
     const byValue = sortPositions(rows, "value", "desc");
-    expect(attentionFirst(byValue, TODAY).map((row) => row.ticker)).toEqual(["SOON", "ZONE", "LEVEL", "BIG", "MID", "LATER"]);
+    expect(attentionFirst(byValue, TODAY).map((row) => row.ticker)).toEqual(["ZONE", "SOON", "LEVEL", "BIG", "MID", "LATER"]);
     expect(rows.filter((row) => needsLook(row, TODAY)).map((row) => row.ticker)).toEqual(["SOON", "ZONE", "LEVEL"]);
   });
 
@@ -115,5 +115,37 @@ describe("orderPositions: the order always matches what the sort control says", 
     const out = orderPositions([small, big], VALUE_DESC, false, TODAY, [small, big, flagged]);
     expect(out.lookFirst).toBe(true);
     expect(out.rows.map((row) => row.ticker)).toEqual(["BIG", "SMALL"]);
+  });
+});
+
+describe("the highlighted rows always lead (owner, Nov 12: PLTR and META at the bottom of Watching)", () => {
+  // Real-shaped watching rows from that day: every one within 3% of its Buy more level, only PLTR and META inside it.
+  const buy = (level: number) => ({ label: `Below $${level}`, tone: "bull" as const, level });
+  const watch = (ticker: string, over: Partial<PortfolioPosition>) =>
+    pos(ticker, { kind: "watchlist", value: null, shares: null, valueSource: null, stance: "accumulate", ...over });
+  const watching = [
+    watch("AMZN", { price: 268.95, dayPct: 1.04, zone: buy(267) }),
+    watch("VST", { price: 134.39, dayPct: 0.7, zone: buy(131) }),
+    watch("TXN", { price: 311.25, dayPct: 0.46, zone: buy(310) }),
+    watch("DELL", { price: 373.98, dayPct: 0.08, zone: buy(372), nextEarnings: { date: "2026-11-24", time: null } }),
+    watch("LLY", { price: 1435.45, dayPct: -0.13, zone: buy(1433) }),
+    watch("PLTR", { price: 171.72, dayPct: -0.39, zone: buy(172), needsAttention: true }),
+    watch("META", { price: 622.15, dayPct: -1.05, zone: buy(641), needsAttention: true }),
+    watch("NBIS", { price: 127.6, dayPct: -17.51, stance: "trim", zone: null }),
+  ];
+
+  it("puts the tinted rows first, then the near-level ones, then the rest, each by Day", () => {
+    const out = orderPositions(watching, { key: "dayPct", direction: "desc" }, false, TODAY);
+    expect(out.lookFirst).toBe(true);
+    expect(out.rows.map((row) => row.ticker)).toEqual(["PLTR", "META", "AMZN", "VST", "TXN", "DELL", "LLY", "NBIS"]);
+  });
+
+  it("does the same on Holdings sorted by Value", () => {
+    const rows = [
+      pos("BIG", { value: 900 }),
+      pos("TINT", { value: 100, needsAttention: true }),
+      pos("SOON", { value: 500, nextEarnings: { date: "2026-11-13", time: null } }),
+    ];
+    expect(orderPositions(rows, { key: "value", direction: "desc" }, false, TODAY).rows.map((row) => row.ticker)).toEqual(["TINT", "SOON", "BIG"]);
   });
 });

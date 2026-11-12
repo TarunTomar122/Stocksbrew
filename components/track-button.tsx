@@ -166,7 +166,8 @@ export function TrackButton({
           const res = await fetch("/api/track", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ instrument_id: instrumentId }),
+            // This button rebuilds the view itself and waits for it (flushWatchlistRebuild), so the server doesn't too.
+            body: JSON.stringify({ instrument_id: instrumentId, skip_refresh: true }),
           });
           if (!res.ok) {
             setError("Could not remove - try again.");
@@ -218,6 +219,8 @@ export function TrackButton({
           body: JSON.stringify({
             instrument_id: instrumentId,
             position_type: positionType,
+            // flushWatchlistRebuild below rebuilds the view and refreshes after it, so the server doesn't queue one too.
+            skip_refresh: true,
           }),
         });
         if (!res.ok) {

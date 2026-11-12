@@ -5,6 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { coverageAfterTrackChange, effectiveCovered, type CoverageWrite } from "@/lib/entitlements-coverage";
+import { emptySaveAllowed } from "@/lib/holding-drafts";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { maybeQueueOnDemandNews } from "@/lib/on-demand-queue";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
@@ -118,12 +119,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
+  // The list version the sheet opened with. Without it (older clients) the save goes through as before.
+  const baseVersion = typeof body?.base_version === "number" && Number.isFinite(body.base_version) ? body.base_version : null;
+  let staleVersion: number | null = null;
   const normalized = normalizeItems(body?.items);
   const items = normalized.items;
   if (normalized.hasInvalidHolding) {
     return NextResponse.json({ error: "invalid_holding_values" }, { status: 400 });
   }
-  if (items.length === 0) {
+  // An empty list is a save when it was sent on purpose: every stock removed in Add or edit stocks.
+  if (!emptySaveAllowed(body?.items, items.length)) {
     return NextResponse.json({ error: "empty_items" }, { status: 400 });
   }
   if (items.length > 300) {
@@ -170,6 +175,13 @@ export async function POST(req: NextRequest) {
     const dedupeSnap = await tx.get(eventRef);
     if (dedupeSnap.exists) {
       sourceVersion = Number(dedupeSnap.data()?.version ?? userData?.watchlist_version ?? 0);
+      return;
+    }
+    // This save replaces the whole list. If the list changed since the sheet was opened (a stock added in another tab),
+    // saving would quietly undo that change, so nothing is written and the sheet asks for a reload.
+    const storedVersion = Number(userData?.watchlist_version ?? 0);
+    if (baseVersion !== null && storedVersion !== baseVersion) {
+      staleVersion = storedVersion;
       return;
     }
 
@@ -243,6 +255,11 @@ export async function POST(req: NextRequest) {
       ).length,
     });
   });
+
+  if (staleVersion !== null) {
+    batchLog(traceId, "info", "batch_update_stale", { uid: session.uid, base_version: baseVersion, stored_version: staleVersion });
+    return NextResponse.json({ error: "stale_list", version: staleVersion }, { status: 409 });
+  }
 
   let queuedOnDemandCount = 0;
   // Research is queued for covered stocks only, so unlimited tracking on Free never means unlimited research.

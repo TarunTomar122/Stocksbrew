@@ -45,6 +45,9 @@ def notify_brief_ready(
         if not email:
             logger.info("brief_ready alert %s: no email, skipped", alert_id or instrument_id)
             continue
+        if alert.get("paused_reason"):  # the stock left the person's list (lib/stock-alerts.ts syncAlertPauses)
+            logger.info("brief_ready alert %s: paused (%s), skipped", alert_id, alert.get("paused_reason"))
+            continue
         if uid and not user_alerts_enabled(store, uid):
             logger.info("brief_ready alert %s: user %s opted out of alert emails", alert_id, uid)
             continue

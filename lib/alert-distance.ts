@@ -20,19 +20,20 @@ export function alertDistance(condition: AlertCondition | null | undefined, targ
   return { met: false, pct: ((target - price) / price) * 100 };
 }
 
-/** Closer to firing sorts first: met alerts, then the smallest move left, then alerts with nothing to measure. */
-export function closeness(distance: AlertDistance | null): number {
-  if (!distance) return Number.POSITIVE_INFINITY;
-  return distance.met ? -1 : Math.abs(distance.pct);
-}
-
-type AlertLike = { ticker: string; kind: string; condition: AlertCondition | null; target_price: number | null };
+type AlertLike = { ticker: string; kind: string; condition: AlertCondition | null; target_price: number | null; created_at?: string | null };
 
 export type AlertGroup<T extends AlertLike> = { ticker: string; alerts: Array<{ alert: T; distance: AlertDistance | null }> };
 
+/** When the alert was set, as a number to sort by; an alert with no (or a bad) date sorts after every dated one. */
+function setAt(alert: AlertLike): number {
+  const time = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;
+  return Number.isFinite(time) ? time : Number.NEGATIVE_INFINITY;
+}
+
 /**
- * One group per ticker, its alerts closest to firing first; groups ordered by their closest alert. Ties keep the
- * order the alerts came in (newest first from the server).
+ * One group per ticker, newest first (owner, Nov 12: "most recent on top"): within a stock its most recently set alert
+ * first, and the stocks ordered by their most recently set alert. Ties keep the order the alerts came in. Each alert
+ * still carries how far it is from firing, for the row to say.
  */
 export function groupAlerts<T extends AlertLike>(alerts: T[], priceOf: (alert: T) => number | null | undefined): AlertGroup<T>[] {
   const groups = new Map<string, { group: AlertGroup<T>; first: number }>();
@@ -44,10 +45,13 @@ export function groupAlerts<T extends AlertLike>(alerts: T[], priceOf: (alert: T
     groups.set(key, entry);
   });
   const ranked = [...groups.values()].map((entry) => {
-    // Array.prototype.sort is stable, so equal closeness keeps the incoming order.
-    entry.group.alerts.sort((a, b) => closeness(a.distance) - closeness(b.distance) || 0);
-    return { ...entry, best: closeness(entry.group.alerts[0]?.distance ?? null) };
+    // Array.prototype.sort is stable, so alerts set at the same moment keep the incoming order.
+    entry.group.alerts.sort((a, b) => {
+      const gap = setAt(b.alert) - setAt(a.alert);
+      return Number.isNaN(gap) ? 0 : gap;
+    });
+    return { ...entry, newest: setAt(entry.group.alerts[0]!.alert) };
   });
-  ranked.sort((a, b) => (a.best === b.best ? a.first - b.first : a.best < b.best ? -1 : 1));
+  ranked.sort((a, b) => (a.newest === b.newest ? a.first - b.first : a.newest > b.newest ? -1 : 1));
   return ranked.map((entry) => entry.group);
 }

@@ -252,6 +252,7 @@ def main() -> None:
     built = 0
     skipped = 0
     skipped_version = 0
+    skipped_stale = 0
     input_version = args.input_version.strip()
     for user in users:
         uid = user["uid"]
@@ -299,7 +300,12 @@ def main() -> None:
                 f"pulse='{payload['pulse']['headline']}'"
             )
         else:
-            store.save_watchlist_view(uid, payload)
+            # Never write back a book from before an edit made while this run was building: the user's
+            # watchlist_version and the stored view's source_version are re-checked with the write.
+            if not store.save_watchlist_view_if_current(uid, payload, source_version=source_version):
+                skipped_stale += 1
+                print(f"  [skip] {uid}: the list changed during the build (version {source_version} is behind)")
+                continue
             queued = _queue_directive_change_events(
                 store,
                 uid=uid,
@@ -313,7 +319,7 @@ def main() -> None:
         built += 1
     print(
         f"Done. Built {built}, skipped {skipped} (no tracked_stocks), "
-        f"skipped_version {skipped_version}."
+        f"skipped_version {skipped_version}, skipped_stale {skipped_stale}."
     )
 
 

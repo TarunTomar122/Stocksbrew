@@ -12,7 +12,8 @@ import { StockLogo } from "@/components/stock-logo";
 import { WholeRows } from "@/components/wire/whole-rows";
 import { groupAlerts } from "@/lib/alert-distance";
 import { createStockAlert, deleteStockAlert } from "@/lib/create-alert";
-import { limitFor } from "@/lib/entitlements";
+import { limitFor, lockCopy } from "@/lib/entitlements";
+import { dayWords, daysFromToday } from "@/lib/day-words";
 import { fmtDay, fmtMoney, type PortfolioPosition } from "@/lib/portfolio-shared";
 
 export type PortfolioAlert = {
@@ -24,7 +25,16 @@ export type PortfolioAlert = {
   target_price: number | null;
   created_at: string | null;
   note: string | null;
+  /** The alert is kept but does not fire (lib/stock-alerts.ts syncAlertPauses). */
+  paused?: boolean;
+  /** Why: its stock left the person's list, or it came back with every Free price-alert slot taken. */
+  pausedReason?: "removed" | "plan_limit";
 };
+
+/** What a paused alert says instead of its distance. */
+function pausedWords(alert: PortfolioAlert): string {
+  return alert.pausedReason === "plan_limit" ? `paused: ${lockCopy("price_alerts").title}` : "paused, not in your stocks";
+}
 
 export type PortfolioSignal = { ticker: string; title: string; body: string; tone: "bull" | "bear" | "neutral" };
 
@@ -36,6 +46,13 @@ const KIND_LABEL: Record<string, string> = {
   rsi_extreme: "Email when RSI hits an extreme",
   news_velocity: "Email when news volume jumps",
 };
+
+/** "today", "yesterday", "Monday", else the date. A page left open past midnight still says "today", not "tomorrow". */
+function setWords(createdAt: string, today: string | undefined): string {
+  const gap = today ? daysFromToday(createdAt, today) : null;
+  if (gap !== null && gap > 0) return "today";
+  return dayWords(createdAt, today) || fmtDay(createdAt);
+}
 
 function describe(alert: PortfolioAlert): string {
   if (alert.kind === "price_threshold" && alert.target_price !== null && alert.condition) {
@@ -56,6 +73,7 @@ export function AlertsTab({
   isSubscribed,
   emailPrefs,
   example,
+  today,
 }: {
   alerts: PortfolioAlert[];
   signals: PortfolioSignal[];
@@ -64,6 +82,8 @@ export function AlertsTab({
   isSubscribed: boolean;
   emailPrefs: { alerts: boolean; digest: boolean } | null;
   example: boolean;
+  /** New York day, so "set today" and "set Monday" read the same on the server and in the browser. */
+  today?: string;
 }) {
   const [alerts, setAlerts] = useState(initialAlerts);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -75,9 +95,10 @@ export function AlertsTab({
   const priceById = new Map(positions.map((position) => [position.instrument_id, position.price]));
   // Free keeps a few price alerts (lib/entitlements.ts: price_alerts); the server enforces it, this only says it.
   const priceLimit = limitFor("price_alerts", isSubscribed ? "pro" : "free");
-  const priceUsed = alerts.filter((alert) => alert.kind === "price_threshold").length;
+  // A paused alert does not fire, so it does not take one of Free's price-alert slots (lib/stock-alerts.ts).
+  const priceUsed = alerts.filter((alert) => alert.kind === "price_threshold" && !alert.paused).length;
   const inZone = positions.filter((position) => position.needsAttention && position.stance);
-  // One row per stock, its alerts closest to firing first; an alert whose condition already holds leads.
+  // One row per stock, newest first: the stocks by their most recently set alert, and within a stock its newest alert.
   const groups = groupAlerts(alerts, (alert) => priceById.get(alert.instrument_id));
 
   if (example) {
@@ -119,6 +140,12 @@ export function AlertsTab({
     setCreating(false);
     if (!result.ok) return setError(result.error);
     if (result.alreadyExists) return setNotice("You already have that alert.");
+    // Setting an alert that was paused (its stock left the list) turns that same alert back on.
+    if (result.alertId && alerts.some((item) => item.id === result.alertId)) {
+      setAlerts((current) => current.map((item) => (item.id === result.alertId ? { ...item, paused: false, pausedReason: undefined } : item)));
+      setForm((current) => ({ ...current, price: "" }));
+      return setNotice(`Alert back on. We email you when ${position.ticker} trades ${form.condition} ${fmtMoney(target)}.`);
+    }
     setAlerts((current) => [
       {
         id: result.alertId ?? `new-${Date.now()}`,
@@ -136,12 +163,15 @@ export function AlertsTab({
     setNotice(`Alert set. We email you when ${position.ticker} trades ${form.condition} ${fmtMoney(target)}.`);
   }
 
+  const pausedCount = alerts.filter((alert) => alert.paused).length;
   const field = `h-8 rounded border border-oa-border bg-oa-card px-2 text-[13px] text-oa-fg ${FOCUS}`;
 
   return (
     <div className="flex flex-col gap-3">
       <section className={CARD} aria-label="Your alerts">
-        <SectionTitle aside={`${alerts.length} active`}>Your alerts</SectionTitle>
+        <SectionTitle aside={pausedCount > 0 ? `${alerts.length - pausedCount} active, ${pausedCount} paused` : `${alerts.length} active`}>
+          Your alerts
+        </SectionTitle>
         {alerts.length === 0 ? (
           <EmptyNote title="No alerts set">
             {isSubscribed
@@ -162,15 +192,30 @@ export function AlertsTab({
                     <StockLogo ticker={group.ticker} size={18} />
                     {group.ticker}
                   </Link>
-                  <ul className="min-w-0">
+                  {(() => {
+                    // When every alert on the stock is paused for the same reason, it is said once, beside the ticker
+                    // (owner rule 1: nothing repeated per row); the rows then show just their alert.
+                    const words = group.alerts.map(({ alert }) => (alert.paused ? pausedWords(alert) : null));
+                    const shared = words[0] && words.every((word) => word === words[0]) ? words[0] : null;
+                    return (
+                  <div className="min-w-0">
+                  {shared ? (
+                    <p className="oa-mono flex min-h-11 items-center text-[11px] font-medium leading-4 text-oa-fg">{shared}</p>
+                  ) : null}
+                  <ul className={`min-w-0 ${shared ? "-mt-2" : ""}`}>
                     {group.alerts.map(({ alert, distance }) => {
                       const price = priceById.get(alert.instrument_id) ?? null;
+                      const rowPaused = alert.paused && !shared;
                       return (
                         <li key={alert.id} className="group grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-1.5">
                           <div className="min-w-0">
-                            <p className="truncate text-[13.5px] leading-5 text-oa-fg">{describe(alert)}</p>
+                            {/* Wraps on a phone rather than cutting "Email the day before earnings" short. */}
+                            <p className="text-[13.5px] leading-5 text-oa-fg sm:truncate">{describe(alert)}</p>
                             <p className="oa-mono text-[11px] leading-4 text-oa-muted-fg sm:truncate">
-                              {distance && price ? (
+                              {rowPaused ? (
+                                // A stock removed from the list keeps its alerts, but they wait until it is added back.
+                                <span className="font-medium text-oa-fg">{pausedWords(alert)}</span>
+                              ) : !alert.paused && distance && price ? (
                                 distance.met ? (
                                   // The condition is already true: say so, not a distance to a level it has passed.
                                   <>
@@ -182,8 +227,8 @@ export function AlertsTab({
                                   </>
                                 )
                               ) : null}
-                              {distance && alert.created_at ? " · " : null}
-                              {alert.created_at ? `set ${fmtDay(alert.created_at)}` : null}
+                              {(rowPaused || (!alert.paused && distance)) && alert.created_at ? " · " : null}
+                              {alert.created_at ? `set ${setWords(alert.created_at, today)}` : null}
                             </p>
                           </div>
                           <button
@@ -201,6 +246,9 @@ export function AlertsTab({
                       );
                     })}
                   </ul>
+                  </div>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
@@ -267,6 +315,8 @@ export function AlertsTab({
         ) : null}
       </section>
 
+      {/* Zones and flags are about the stocks on the list: with none, the two empty cards would say nothing. */}
+      {positions.length > 0 ? (
       <div className="grid gap-3 lg:grid-cols-2">
         <section className={CARD} aria-label="Calls in their zone">
           <SectionTitle aside={`${inZone.length}`}>Price is inside our call&apos;s zone now</SectionTitle>
@@ -325,6 +375,7 @@ export function AlertsTab({
           )}
         </section>
       </div>
+      ) : null}
 
       {emailPrefs ? (
         <section className={CARD} aria-label="Email preferences">
