@@ -79,6 +79,8 @@ export function WireFilterBar({
   return (
     <div className="oa-scroll-fade -mx-2 mb-3 flex items-center gap-2 overflow-x-auto px-4 pr-9 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
       <Link prefetch={false} href={wireHref(base, { topic: null })} aria-current={!filters.topic ? "true" : undefined} className={`${CHIP} ${!filters.topic ? CHIP_ON : CHIP_OFF}`}>
+        {/* Every kind carries its icon, "Everything" too (owner VISUALS CHECK). */}
+        <KindIcon name="news" className="size-4" />
         Everything
       </Link>
       {WIRE_TOPICS.map((topic) => {
@@ -93,6 +95,7 @@ export function WireFilterBar({
       })}
       {signedIn && mineCount !== null ? (
         <Link prefetch={false} href={wireHref(base, { mine: !filters.mine })} aria-current={filters.mine ? "true" : undefined} className={`${CHIP} ${filters.mine ? CHIP_ON : CHIP_OFF}`}>
+          <KindIcon name="portfolio" className="size-4" />
           My stocks
           <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{mineCount}</span>
         </Link>

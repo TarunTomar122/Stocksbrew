@@ -36,6 +36,9 @@ import { LatestResults } from "@/components/results/latest-results";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
+/** Words in a "news behind our call" row at most: one concise line (judges, ship 85). */
+const NEWS_FACT_WORDS = 12;
+
 /** Long research reports a free account gets each month (lib/entitlements.ts). */
 const LONG_REPORTS_FREE = limitFor("deep_research", "free");
 
@@ -303,7 +306,13 @@ export function StockReport({
   // thin for AA.") is dropped and the next one leads; "X's fresh news centers on a partnership..." says what happened.
   const { lead: briefLead } = briefLeadOf(ready);
   // "The news behind our call" as rows: the lead and the reasons, one specific fact each, with the story behind it.
-  const shortFacts = briefFacts(ready, briefLead, { ticker: stock.ticker, companyName: stock.name ?? "" });
+  // One concise line each, at most 12 words (judges, ship 85), and the sourced ones only when there are any: a row is
+  // stock-specific evidence with its story behind it, not another unsourced sentence.
+  const cutFacts = briefFacts(ready, briefLead, { ticker: stock.ticker, companyName: stock.name ?? "" })
+    .map((fact) => ({ ...fact, text: shortFact(fact.text, NEWS_FACT_WORDS) }))
+    .filter((fact) => fact.text);
+  const sourcedFacts = cutFacts.filter((fact) => fact.source);
+  const shortFacts = sourcedFacts.length ? sourcedFacts : cutFacts;
   // A brief with no clause short enough still says its lead's first sentence, rather than leave the panel empty.
   const leadSentence = shortFacts.length ? "" : wholeSentences(briefLead, 1);
   const newsFacts = leadSentence ? [{ text: leadSentence, source: null }] : shortFacts;
@@ -458,7 +467,10 @@ export function StockReport({
                   ) : null}
                   {/* The one level line: the same instruction as the word, with its price, or without it where this plan
                       does not show it (the lock beside it names what it holds). */}
-                  {ready && callWord && callUnder ? (
+                  {/* Only when the chart has no line to say it: with the call's own level drawn on the chart ("Buy more
+                      below $509"), the header does not repeat it (owner rule 1, judges ship 85). A level the chart does
+                      not draw (a buy-more-above, or no chart) keeps its line here. */}
+                  {ready && callWord && callUnder && !(data.chart && zones.length > 0) ? (
                     <p className="mt-1 max-w-[62ch] text-pretty text-[17px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
                   ) : null}
                   {/* The signals' tally by the call: counts and the top name each side, never a sentence (owner rule 7). */}

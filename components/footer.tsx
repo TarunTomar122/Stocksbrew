@@ -150,8 +150,8 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
             </IntentLink>
           </p>
           <p className="max-w-[640px] text-[12.5px] leading-5 text-oa-muted-fg">
-            Research and data for information only, not investment advice. stocksbrew does not connect to a brokerage
-            and cannot place trades. Past performance, backtested or real, does not guarantee future results.
+            {/* The required points, as short as they go: research only, not advice, no brokerage, no promise from past results. */}
+            Research only, not investment advice. No brokerage connection or trading. Past results don&apos;t guarantee future ones.
           </p>
         </div>
       </div>

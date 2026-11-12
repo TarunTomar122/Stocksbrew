@@ -27,6 +27,8 @@ import {
 
 export type StockPriceSeries = {
   ranges: ChartRange[];
+  /** The whole cleaned daily series the ranges were cut from, so a page can put today's quote on it and cut again. */
+  closes: ChartPoint[];
   source: string;
   /** True when closes are adjusted for splits and dividends. */
   adjusted: boolean;
@@ -55,6 +57,7 @@ async function loadLongSeries(symbol: string): Promise<StockPriceSeries | null> 
   if (!ranges.length) return null;
   return {
     ranges,
+    closes: series,
     source: summary.source,
     adjusted: summary.adjusted,
     firstDate: summary.firstDate,
@@ -69,7 +72,7 @@ async function loadLongSeries(symbol: string): Promise<StockPriceSeries | null> 
 /** Multi-year closes from `tm_price_history_daily`. US symbols only; null when the job has not fetched this one. */
 export const getStockLongSeries = unstable_cache(
   async (symbol: string) => loadLongSeries(symbol).catch(() => null),
-  ["stock-long-series-v1"],
+  ["stock-long-series-v2"],
   { revalidate: 3600 },
 );
 

@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   alertFromDoc,
   candidates,
+  keyLineOf,
+  levelScale,
+  outcomesOf,
   EXPIRY_DAYS,
   filingSaid,
   isWaiting,
@@ -451,6 +454,53 @@ describe("dedupe and limits", () => {
     expect(toCard(stored, null).quote).toEqual({ price: 140, dayPct: -2 });
     expect(toCard(stored, { price: 141, dayPct: -1.5, at: null }).quote).toEqual({ price: 141, dayPct: -1.5 });
     expect(readProposal(JSON.parse(JSON.stringify(stored)))?.quote).toEqual({ price: 140, dayPct: -2, at: null });
+  });
+
+  it("the record keeps answered and stale proposals, never a waiting one", () => {
+    const base = newProposal("u1", draftFor("NVDA", "e1"), new Date(NOW.getTime() - 86_400_000));
+    const accepted = { ...base, id: "a", status: "accepted" as const, decided_at: "2026-11-12T10:00:00.000Z", result: { ok: true, code: "done", message: "Alert set: NVDA below $100.", at: "2026-11-12T10:00:00.000Z" } };
+    const dismissed = { ...base, id: "d", status: "dismissed" as const, decided_at: "2026-11-11T10:00:00.000Z" };
+    const stale = { ...base, id: "x", status: "expired" as const, expired_reason: "price_past_level", updated_at: "2026-11-10T10:00:00.000Z" };
+    const lapsed = { ...base, id: "l", expires_at: "2026-11-12T00:00:00.000Z" };
+    const old = { ...base, id: "o", status: "dismissed" as const, decided_at: "2026-10-01T10:00:00.000Z" };
+    const outcomes = outcomesOf([base, accepted, dismissed, stale, lapsed, old], NOW);
+    expect(outcomes.map((entry) => [entry.id, entry.status])).toEqual([
+      ["a", "accepted"],
+      ["l", "expired"],
+      ["d", "dismissed"],
+      ["x", "expired"],
+    ]);
+    expect(outcomes[0]!.message).toBe("Alert set: NVDA below $100.");
+    // One that ran out of time is dated by its expiry, not by when a sync noticed it.
+    const timedOut = { ...base, id: "t", status: "expired" as const, expired_reason: "expired", expires_at: "2026-11-09T09:00:00.000Z", updated_at: "2026-11-12T09:00:00.000Z" };
+    expect(outcomesOf([timedOut], NOW)[0]!.at).toBe("2026-11-09T09:00:00.000Z");
+  });
+
+  it("the level bar's scale is fixed around the price, so gaps compare across cards", () => {
+    expect(levelScale(100, 100)).toEqual({ nowAt: 50, levelAt: 50, gapPct: 0 });
+    expect(levelScale(100, 97.6).levelAt).toBeCloseTo(38, 0);
+    expect(levelScale(100, 104.4).levelAt).toBeCloseTo(72, 0);
+    // A far level widens the scale and stays on the bar.
+    expect(levelScale(100, 60).levelAt).toBeGreaterThanOrEqual(0);
+    expect(levelScale(100, 60).levelAt).toBeLessThan(50);
+  });
+
+  it("the card's key line is the one figure the card does not say, in 8 words or none", () => {
+    const base = { title: "Set an alert at $33.66 after ASTS's results drop", why: ["ASTS reported on Monday and fell 8.7%."], usualPct: null };
+    const figures = [
+      { label: "Price", value: "$34.48" },
+      { label: "Move on the report", value: "−8.7%" },
+      { label: "Earnings per share", value: "Miss (−7.3%)" },
+    ];
+    expect(keyLineOf({ ...base, figures })).toBe("Earnings per share: Miss (−7.3%)");
+    // Nothing new to say: no line.
+    expect(keyLineOf({ ...base, figures: [{ label: "Usual move", value: "±4.6%" }], usualPct: 4.6 })).toBeNull();
+    expect(keyLineOf({ ...base, figures: [{ label: "A very long figure label that runs on", value: "far too long here" }] })).toBeNull();
+  });
+
+  it("an alert proposal carries its level for the card's bar", () => {
+    const card = toCard(newProposal("u1", draftFor("NVDA", "e1"), NOW), { price: 120, dayPct: -1, at: null });
+    expect(card.level).toEqual({ price: 100, label: "Alert" });
   });
 
   it("reads back what it stored and refuses anything else", () => {

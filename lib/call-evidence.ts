@@ -370,8 +370,8 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
   text += ".";
   const source = salesSource(input)?.source ?? "";
   if (!source) return null;
-  // The card: the four quarters' growth large, the fiscal year as the second bar, and the sales in dollars with how the
-  // pace compares as the line (the bars carry both percents, so the line does not repeat them).
+  // The card: the four quarters' growth large and the fiscal year as the second bar; only without that bar does a line
+  // say the sales in dollars and the pace.
   const flat = Math.abs(g0) < 0.5;
   const yearFlat = !year || Math.abs(year.pct) < 0.5;
   const pace =
@@ -382,19 +382,20 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
         : year.pct - g0 > 2
           ? `, slower than in fiscal ${year.year}`
           : `, about the pace of fiscal ${year.year}`;
+  const compared = Boolean(year && !(flat && yearFlat));
   const card: EvidenceCard = {
     figure: flat ? "0%" : signedPct(g0),
     tone: flat ? null : toneOf(g0),
     label: "sales over four quarters",
-    line: `${bigMoney(sales.revenue)} in sales${pace}.`,
-    compare:
-      year && !(flat && yearFlat)
+    // With the two growth bars the card says it all: the figure and the comparison, no sentence (judges, ship 85).
+    line: compared ? null : `${bigMoney(sales.revenue)} in sales${pace}.`,
+    compare: compared && year
         ? [
             { label: "Past four quarters", value: flat ? 0 : g0, display: flat ? "0%" : signedPct(g0) },
             { label: `Fiscal ${year.year}`, value: yearFlat ? 0 : year.pct, display: yearFlat ? "0%" : signedPct(year.pct) },
           ]
         : null,
-    compareKind: year && !(flat && yearFlat) ? "change" : null,
+    compareKind: compared ? "change" : null,
   };
   return { id: "sales", text, source, card };
 }

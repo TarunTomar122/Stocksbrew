@@ -164,6 +164,6 @@ export type SectionData = {
   reddit: ReportExtras["reddit"];
   peers: ReportExtras["peers"];
   /** The long price history's summary; its chart ranges are left out (the chart has its own copy). */
-  series: Omit<StockPriceSeries, "ranges"> | null;
+  series: Omit<StockPriceSeries, "ranges" | "closes"> | null;
   multiple: ReportData["multiple"];
 };

@@ -133,10 +133,14 @@ describe("the call and the card", () => {
 
   it("gives the card one fact and the row its figures", () => {
     expect(resultFact(read(), TODAY)).toBe("Beat by 18%, up 25% today");
-    expect(figureCells(read(), TODAY)).toEqual([
+    const cells = figureCells(read(), TODAY);
+    expect(cells.map(({ pair: _pair, ...cell }) => cell)).toEqual([
       { label: "EPS", value: "−$1.27", sub: "vs −$1.55 expected, beat by 18%", title: "EPS and estimate: Yahoo Finance, Nov 10, 6:00 PM ET", tone: "up" },
       { label: "The stock", value: "+25%", sub: "Today, usually 17%", title: "Live price, Nov 11, 2:03 PM ET", tone: "up" },
     ]);
+    // Each compares two figures as a bar pair, with only what the bars do not say under it (owner VISUALS CHECK).
+    expect(cells[0]!.pair).toEqual({ value: -1.27, versus: -1.55, labels: ["Reported", "Expected"], texts: ["−$1.27", "−$1.55"], sub: "Beat by 18%" });
+    expect(cells[1]!.pair).toMatchObject({ labels: ["This time", "Usually"], texts: ["25%", "17%"], sub: "Today" });
     expect(reportedWords(read(), TODAY)).toBe("Reported yesterday after the close");
   });
 });

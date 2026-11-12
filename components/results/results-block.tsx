@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Panel } from "@/components/stock-report/primitives";
 import type { ResultRead } from "@/lib/results/types";
 import { callLine, figureCells, reportedWords } from "@/lib/results/words";
+import { PairBar } from "@/components/oa/kit/tone";
 
 /**
  * The stock page's one results surface: the figures as one compact row (EPS against the estimate, revenue against the
@@ -51,7 +52,15 @@ export function ResultsBlock({ read, call, today }: { read: ResultRead; call: st
           >
             <dt className="oa-caption">{cell.label}</dt>
             <dd className={`oa-mono mt-0.5 text-[20px] font-semibold leading-7 tabular-nums ${TONE[cell.tone]}`}>{cell.value}</dd>
-            {cell.sub ? <dd className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{cell.sub}</dd> : null}
+            {/* Two figures compared get their bar pair, and the line under it only says what the bars do not. */}
+            {cell.pair ? (
+              <dd className="mt-1">
+                <PairBar value={cell.pair.value} versus={cell.pair.versus} labels={cell.pair.labels} texts={cell.pair.texts} className="w-full max-w-[16rem]" />
+              </dd>
+            ) : null}
+            {(cell.pair ? cell.pair.sub : cell.sub) ? (
+              <dd className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{cell.pair ? cell.pair.sub : cell.sub}</dd>
+            ) : null}
           </div>
         ))}
       </dl>

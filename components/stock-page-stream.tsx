@@ -70,7 +70,7 @@ import {
   buildChartRanges,
   callChanges,
   isLargeDisclosedTrade,
-  withLivePoint,
+  withLiveClose,
   type ChartEvent,
 } from "@/lib/stock-chart";
 import {
@@ -570,8 +570,9 @@ export async function StockPageStream({ params }: Props) {
   // New York's day, the same boundary every "in 6 days" on the site counts from (lib/calendar-shared `daysUntilET`).
   const today = todayET(now);
   const liveDay = dayInET(stock.captured_at);
-  const baseRanges = longSeries?.ranges.length ? longSeries.ranges : buildChartRanges(snapshotHistory.closes);
-  const ranges = withLivePoint(baseRanges, liveDay, stock.price);
+  // Today's quote on the whole history first, then the windows cut and thinned from it (lib/stock-chart.ts
+  // withLiveClose): each range starts one range before the live day, from the full series' own close.
+  const ranges = buildChartRanges(withLiveClose(longSeries?.closes.length ? longSeries.closes : snapshotHistory.closes, liveDay, stock.price));
   const changes = callChanges(callHistory);
   const largeTrades = (congressTrades ?? []).filter((trade) => isLargeDisclosedTrade(trade.amount_low, trade.amount_high));
   const chartEvents: ChartEvent[] = [
@@ -732,7 +733,8 @@ export async function StockPageStream({ params }: Props) {
         />
       ) : null,
     chart,
-    series: longSeries,
+    // The whole daily series stays on the server: the chart has its own cut of it.
+    series: longSeries ? { ...longSeries, closes: [] } : null,
     multiple: snapshotHistory.multiple,
     facts: stockFacts,
     // The past year's range and the yield worked out from today's price, so neither can contradict the quote.

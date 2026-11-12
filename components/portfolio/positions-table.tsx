@@ -263,9 +263,10 @@ function PositionCard({
         <div className="flex min-w-0 items-center gap-3">
           <StockLogo ticker={position.ticker} market="US" size={36} circle className="shrink-0" />
           <div className="min-w-0">
+            {/* The ticker leads; the name follows on the same line, cut with "…" (owner rule 3, judges ship 85). */}
             <div className="flex min-w-0 items-baseline gap-1.5">
-              <span className="min-w-0 truncate text-[15px] font-medium leading-5 text-oa-fg">{showName ? position.name : position.ticker}</span>
-              {showName ? <span className="oa-mono shrink-0 text-[11.5px] text-oa-muted-fg">{position.ticker}</span> : null}
+              <span className="oa-mono shrink-0 text-[15px] font-semibold leading-5 text-oa-fg">{position.ticker}</span>
+              {showName ? <span className="min-w-0 truncate text-[12.5px] text-oa-muted-fg">{position.name}</span> : null}
             </div>
             <div className="mt-0.5 flex items-baseline gap-2 text-[13.5px] leading-5">
               <span className={`${NUM} text-oa-fg`}>{position.price !== null ? fmtMoney(position.price) : <Dash />}</span>

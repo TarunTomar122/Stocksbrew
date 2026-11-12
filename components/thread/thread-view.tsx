@@ -1,7 +1,6 @@
-import Link from "next/link";
 import * as React from "react";
 
-import { AgentMark, FOCUS, NOTE_CARD, StepLink, ThreadNoteView } from "@/components/thread/thread-note";
+import { AgentMark, NOTE_CARD, StepLink, ThreadNoteView } from "@/components/thread/thread-note";
 import type { Thread, ThreadDay } from "@/lib/thread/types";
 
 /**
@@ -82,28 +81,5 @@ export function ThreadView({ thread }: { thread: Thread }) {
         </React.Fragment>
       ))}
     </div>
-  );
-}
-
-/** The rail's quiet links to the pages the thread draws from. */
-export function ThreadLinks({ example }: { example: boolean }) {
-  const links = [
-    { href: "/briefing", label: example ? "The example's briefing" : "Today's briefing", text: "Every stock's move, its reason and what is coming up." },
-    { href: "/inbox", label: "Inbox", text: "Everything your agents found, by kind." },
-    { href: "/portfolio", label: example ? "The example's stocks" : "My stocks", text: "What you own, how it is doing and our call on each." },
-  ];
-  return (
-    <nav aria-label="More on your stocks" className={`${NOTE_CARD} overflow-hidden`}>
-      <ul className="divide-y divide-oa-border">
-        {links.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} prefetch={false} className={`block px-4 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}>
-              <span className="block text-[14px] font-medium leading-5 text-oa-fg">{link.label}</span>
-              <span className="block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{link.text}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }

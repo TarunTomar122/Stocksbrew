@@ -9,9 +9,20 @@ import { OaButton } from "@/components/oa/button";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { capitalize, dayWords, etDayOf, etToday } from "@/lib/day-words";
-import type { ProposalCard, ProposalResult, WatchSummary } from "@/lib/proposals";
-import { PROPOSALS_CHANGED_EVENT, type ProposalsChangedDetail } from "@/lib/proposals-event";
-
+import {
+  levelScale,
+  type ProposalCard,
+  type ProposalLevel,
+  type ProposalResult,
+  type WatchSummary,
+} from "@/lib/proposals";
+import {
+  PROPOSAL_ANSWERED_EVENT,
+  PROPOSALS_CHANGED_EVENT,
+  type ProposalAnsweredDetail,
+  type ProposalsChangedDetail,
+} from "@/lib/proposals-event";
+import type { RecordItem } from "@/lib/thread/record";
 
 function signed(value: number): string {
   if (Math.abs(value) < 0.05) return "0.0%";
@@ -33,15 +44,32 @@ function when(at: string, today: string): string {
   return day ? capitalize(dayWords(day, today)) : "";
 }
 
-const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
+const FOCUS =
+  "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
-type CardState = { busy: "accept" | "dismiss" | null; result: ProposalResult | null; error: string | null; open: boolean; gone?: boolean };
+type CardState = {
+  busy: "accept" | "dismiss" | null;
+  result: ProposalResult | null;
+  error: string | null;
+  open: boolean;
+  gone?: boolean;
+};
 
 function RunLog({ card, today }: { card: ProposalCard; today: string }) {
   return (
-    <div className="mt-3 grid min-w-0 gap-3 border-t border-oa-border pt-3 text-[13px] leading-5 sm:grid-cols-2 sm:gap-x-6">
-      {/* The second line of the reasoning, when there is one (the first is on the card). */}
-      {card.why[1] ? <p className="min-w-0 text-pretty text-oa-fg sm:col-span-2">{card.why[1]}</p> : null}
+    <div className="grid min-w-0 gap-3 text-[13px] leading-5 sm:grid-cols-2 sm:gap-x-6">
+      {/* The second line of the reasoning, and what accepting does: the card itself keeps one line. */}
+      {card.why[1] || card.does ? (
+        <div className="min-w-0 text-pretty sm:col-span-2">
+          {card.why[1] ? <p className="text-oa-fg">{card.why[1]}</p> : null}
+          {card.does ? (
+            <p className="text-oa-muted-fg">
+              <span className="font-medium text-oa-fg">If you accept: </span>
+              {card.does}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="min-w-0">
         <p className="text-[12px] font-medium text-oa-muted-fg">What I read</p>
         <ul className="mt-1 flex flex-col gap-0.5">
@@ -49,11 +77,20 @@ function RunLog({ card, today }: { card: ProposalCard; today: string }) {
             const day = when(source.at, today);
             const label = source.href ? (
               source.href.startsWith("http") ? (
-                <a href={source.href} target="_blank" rel="noreferrer" className={`rounded text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary ${FOCUS}`}>
+                <a
+                  href={source.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`rounded text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary ${FOCUS}`}
+                >
                   {source.label}
                 </a>
               ) : (
-                <Link href={source.href} prefetch={false} className={`rounded text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary ${FOCUS}`}>
+                <Link
+                  href={source.href}
+                  prefetch={false}
+                  className={`rounded text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-primary ${FOCUS}`}
+                >
                   {source.label}
                 </Link>
               )
@@ -61,21 +98,37 @@ function RunLog({ card, today }: { card: ProposalCard; today: string }) {
               <span className="text-oa-fg">{source.label}</span>
             );
             return (
-              <li key={index} className="flex min-w-0 items-baseline justify-between gap-3">
+              <li
+                key={index}
+                className="flex min-w-0 items-baseline justify-between gap-3"
+              >
                 <span className="min-w-0 text-pretty">{label}</span>
-                {day ? <span className="shrink-0 text-[12px] text-oa-muted-fg">{day}</span> : null}
+                {day ? (
+                  <span className="shrink-0 text-[12px] text-oa-muted-fg">
+                    {day}
+                  </span>
+                ) : null}
               </li>
             );
           })}
         </ul>
       </div>
       <div className="min-w-0">
-        <p className="text-[12px] font-medium text-oa-muted-fg">What I checked</p>
+        <p className="text-[12px] font-medium text-oa-muted-fg">
+          What I checked
+        </p>
         <dl className="mt-1 flex flex-col gap-0.5">
           {card.figures.map((figure, index) => (
-            <div key={index} className="flex min-w-0 items-baseline justify-between gap-3">
-              <dt className="min-w-0 truncate text-oa-muted-fg">{figure.label}</dt>
-              <dd className="oa-mono shrink-0 tabular-nums text-oa-fg">{figure.value}</dd>
+            <div
+              key={index}
+              className="flex min-w-0 items-baseline justify-between gap-3"
+            >
+              <dt className="min-w-0 truncate text-oa-muted-fg">
+                {figure.label}
+              </dt>
+              <dd className="oa-mono shrink-0 tabular-nums text-oa-fg">
+                {figure.value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -84,45 +137,189 @@ function RunLog({ card, today }: { card: ProposalCard; today: string }) {
   );
 }
 
-/** What the agent watches for the person, as one tile: the stocks as the figure, the alerts and agents as one line. */
-function WatchTile({ watch, waiting }: { watch: WatchSummary; waiting: number }) {
-  const rows: Array<[string, number]> = [
-    ["Stocks", watch.stocks],
-    ["Price alerts set", watch.alerts],
-    ["Agents running", watch.agents],
-    ["Waiting for you", waiting],
+/** The status rows: what the agent watches and when it next checks. */
+function statusRows(watch: WatchSummary): Array<[string, string]> {
+  return [
+    ["Stocks", String(watch.stocks)],
+    ["Price alerts set", String(watch.alerts)],
+    [
+      "Agents",
+      watch.paused
+        ? `${watch.agents} running, ${watch.paused} paused`
+        : `${watch.agents} running`,
+    ],
+    ...(watch.next
+      ? ([["Next check", capitalize(watch.next)]] as Array<[string, string]>)
+      : []),
   ];
-  return (
-    <li className="hidden [@container(min-width:34rem)]:flex">
+}
+
+/**
+ * The queue's companion: what the agent watches and when it next checks (it used to sit in a short side rail). A tile
+ * beside the cards when that fills the last row; a one-row strip across the top when the cards already fill theirs
+ * (or there are none), so no row ends with an empty slot (owner rules 4 and 10).
+ */
+export function AgentStatus({
+  watch,
+  variant,
+}: {
+  watch: WatchSummary;
+  variant: "tile" | "strip";
+}) {
+  const rows = statusRows(watch);
+  const head = (
+    <span className="flex items-center gap-2.5">
+      <span
+        aria-hidden="true"
+        className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--oa-primary)_10%,transparent)] text-oa-primary"
+      >
+        <NavIcon name="agents" className="size-[16px]" />
+      </span>
+      <span className="text-[14px] font-semibold text-oa-fg">What I watch</span>
+    </span>
+  );
+  if (variant === "strip") {
+    return (
       <Link
         href="/agents"
         prefetch={false}
-        className={`oa-surface flex w-full min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 py-3 ${CARD_HOVER} ${FOCUS}`}
+        className={`oa-surface flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1.5 border border-oa-border bg-oa-card px-3.5 py-2.5 ${CARD_HOVER} ${FOCUS}`}
       >
-        <span className="flex items-center gap-2.5">
-          <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--oa-primary)_10%,transparent)] text-oa-primary">
-            <NavIcon name="agents" className="size-[16px]" />
-          </span>
-          <span className="text-[14px] font-semibold text-oa-fg">What I watch for you</span>
-        </span>
-        {/* Top-aligned rows, one figure each, so the tile reads as a list rather than a padded number. */}
-        <span className="mt-2.5 flex flex-col divide-y divide-oa-border">
-          {rows.map(([label, value]) => (
-            <span key={label} className="flex items-baseline justify-between gap-3 py-1.5 text-[13.5px] leading-5">
-              <span className="text-oa-muted-fg">{label}</span>
-              <span className="oa-mono font-semibold tabular-nums text-oa-fg">{value}</span>
+        {head}
+        {rows.map(([label, value]) => (
+          <span
+            key={label}
+            className="flex items-baseline gap-1.5 text-[13px] leading-5"
+          >
+            <span className="text-oa-muted-fg">{label}</span>
+            <span className="oa-mono font-semibold tabular-nums text-oa-fg">
+              {value}
             </span>
-          ))}
-        </span>
+          </span>
+        ))}
       </Link>
-    </li>
+    );
+  }
+  return (
+    <Link
+      href="/agents"
+      prefetch={false}
+      className={`oa-surface flex h-full w-full min-w-0 flex-col border border-oa-border bg-oa-card px-3.5 py-3 ${CARD_HOVER} ${FOCUS}`}
+    >
+      {head}
+      <span className="mt-2.5 flex flex-col divide-y divide-oa-border">
+        {rows.map(([label, value]) => (
+          <span
+            key={label}
+            className="flex items-baseline justify-between gap-3 py-1.5 text-[13.5px] leading-5"
+          >
+            <span className="shrink-0 text-oa-muted-fg">{label}</span>
+            <span className="oa-mono min-w-0 text-right font-semibold tabular-nums text-oa-fg">
+              {value}
+            </span>
+          </span>
+        ))}
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * The price against the level the proposal is about, as a small bar (owner rule 4: two numbers get a visual). The
+ * scale is fixed around the price (at least ±10%, wider for a far level), so the distance between the dot (now) and
+ * the tick (the level) reads true from card to card; each label sits on its own mark's side. The figures themselves
+ * are in the card's line.
+ */
+function LevelBar({ now, level }: { now: number; level: ProposalLevel }) {
+  const { nowAt, levelAt, gapPct } = levelScale(now, level.price);
+  const gapWords =
+    Math.abs(gapPct) < 0.05
+      ? "at today's price"
+      : `${Math.abs(gapPct).toFixed(1)}% ${gapPct < 0 ? "below" : "above"} now`;
+  const nowLabel = (
+    <span>
+      <span
+        aria-hidden="true"
+        className="mr-1 inline-block size-2 rounded-full bg-oa-primary align-[1px]"
+      />
+      Now
+    </span>
+  );
+  const levelLabel = (
+    <span>
+      {level.label} {gapWords}
+    </span>
+  );
+  const levelLeft = levelAt < nowAt;
+  return (
+    <span className="mt-2.5 block">
+      <span
+        aria-hidden="true"
+        className="relative block h-1.5 rounded-full bg-oa-accent"
+      >
+        <span
+          className="absolute top-0 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--oa-primary)_30%,transparent)]"
+          style={{
+            left: `${Math.min(nowAt, levelAt)}%`,
+            width: `${Math.abs(nowAt - levelAt)}%`,
+          }}
+        />
+        <span
+          className="absolute -top-[3px] h-3 w-0.5 -translate-x-1/2 rounded-full bg-oa-fg"
+          style={{ left: `${levelAt}%` }}
+        />
+        <span
+          className="absolute -top-[2px] size-2.5 -translate-x-1/2 rounded-full border-2 border-oa-card bg-oa-primary"
+          style={{ left: `${nowAt}%` }}
+        />
+      </span>
+      <span className="mt-1 flex justify-between gap-3 text-[12px] leading-4 text-oa-muted-fg">
+        {levelLeft ? levelLabel : nowLabel}
+        {levelLeft ? nowLabel : levelLabel}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * A report coming up: where its usual report move would take the price, as a band around the price now (the same
+ * height as the level bar, so cards side by side keep their shape). Real figures: the stock's own past reports.
+ */
+function MoveRange({ now, pct }: { now: number; pct: number }) {
+  const low = now * (1 - pct / 100);
+  const high = now * (1 + pct / 100);
+  // The band sits on the same fixed scale as the level bar (at least ±10%), so a wide usual move looks wide.
+  const half = Math.max(10, pct * 1.25);
+  const left = 50 - (pct * 50) / half;
+  const width = (pct * 100) / half;
+  return (
+    <span className="mt-2.5 block">
+      <span
+        aria-hidden="true"
+        className="relative block h-1.5 rounded-full bg-oa-accent"
+      >
+        <span
+          className="absolute top-0 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--oa-primary)_30%,transparent)]"
+          style={{ left: `${left}%`, width: `${width}%` }}
+        />
+        <span className="absolute -top-[2px] left-1/2 size-2.5 -translate-x-1/2 rounded-full border-2 border-oa-card bg-oa-primary" />
+      </span>
+      <span className="mt-1 flex justify-between gap-3 text-[12px] leading-4 text-oa-muted-fg">
+        <span className="oa-mono tabular-nums">{price(low)}</span>
+        <span>Usual report move ±{pct.toFixed(1)}%</span>
+        <span className="oa-mono tabular-nums">{price(high)}</span>
+      </span>
+    </span>
   );
 }
 
 function Mark({ ticker }: { ticker: string | null }) {
   if (ticker) return <StockLogo ticker={ticker} size={28} eager />;
   return (
-    <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-oa-border bg-oa-bg text-oa-muted-fg">
+    <span
+      aria-hidden="true"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-oa-border bg-oa-bg text-oa-muted-fg"
+    >
       <NavIcon name="agents" className="size-[16px]" />
     </span>
   );
@@ -134,7 +331,21 @@ function Mark({ ticker }: { ticker: string | null }) {
  * and the figures checked. An answered card says what happened in place of its buttons;
  * a dismissed one leaves. Opening a run log widens that card to the whole row, so its neighbours keep their height.
  */
-export function ProposalCards({ initial, watch = null, today: todayProp }: { initial: ProposalCard[]; watch?: WatchSummary | null; today?: string }) {
+export function ProposalCards({
+  initial,
+  watch = null,
+  today: todayProp,
+  statusAlone = false,
+  recordOnPage = false,
+}: {
+  initial: ProposalCard[];
+  watch?: WatchSummary | null;
+  today?: string;
+  /** With no proposals waiting, still show the status strip (on /agent, where it replaced the side rail). */
+  statusAlone?: boolean;
+  /** The page has the record ("What I did", /agent): an answered card leaves at once and its line goes there. */
+  recordOnPage?: boolean;
+}) {
   const router = useRouter();
 
   const [cards, setCards] = React.useState(initial);
@@ -142,138 +353,359 @@ export function ProposalCards({ initial, watch = null, today: todayProp }: { ini
   const today = todayProp ?? etToday();
   const headingId = React.useId();
 
-  const stateOf = (id: string): CardState => states[id] ?? { busy: null, result: null, error: null, open: false };
-  const patch = (id: string, next: Partial<CardState>) => setStates((all) => ({ ...all, [id]: { ...(all[id] ?? { busy: null, result: null, error: null, open: false }), ...next } }));
+  const stateOf = (id: string): CardState =>
+    states[id] ?? { busy: null, result: null, error: null, open: false };
+  const patch = (id: string, next: Partial<CardState>) =>
+    setStates((all) => ({
+      ...all,
+      [id]: {
+        ...(all[id] ?? { busy: null, result: null, error: null, open: false }),
+        ...next,
+      },
+    }));
 
   const waiting = cards.filter((card) => !stateOf(card.id).result?.ok).length;
   React.useEffect(() => {
-    window.dispatchEvent(new CustomEvent<ProposalsChangedDetail>(PROPOSALS_CHANGED_EVENT, { detail: { waiting } }));
+    window.dispatchEvent(
+      new CustomEvent<ProposalsChangedDetail>(PROPOSALS_CHANGED_EVENT, {
+        detail: { waiting },
+      }),
+    );
   }, [waiting]);
+
+  /**
+   * A proposal left the queue: on /agent its line goes into the record at once (PROPOSAL_ANSWERED_EVENT), and the page
+   * is read again so the record holds the stored outcome.
+   */
+  const answered = (
+    card: ProposalCard,
+    status: "accepted" | "dismissed" | "expired",
+    message: string | null,
+  ) => {
+    if (!recordOnPage) return;
+    const text = status === "accepted" && message ? message : card.title;
+    const item: RecordItem = {
+      id: `proposal:${card.id}`,
+      kind: status,
+      ticker: card.ticker,
+      text: /[.!?]$/.test(text) ? text : `${text}.`,
+      tag:
+        status === "accepted"
+          ? "Done"
+          : status === "dismissed"
+            ? "Dismissed"
+            : "Expired",
+      figure: null,
+      href: card.ticker
+        ? `/stock/${encodeURIComponent(card.ticker)}`
+        : "/agents",
+    };
+    window.dispatchEvent(
+      new CustomEvent<ProposalAnsweredDetail>(PROPOSAL_ANSWERED_EVENT, {
+        detail: { item },
+      }),
+    );
+    router.refresh();
+  };
 
   const decide = async (card: ProposalCard, decision: "accept" | "dismiss") => {
     patch(card.id, { busy: decision, error: null });
     try {
-      const response = await fetch(`/api/proposals/${encodeURIComponent(card.id)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ decision }),
-      });
-      const body = (await response.json().catch(() => null)) as { ok?: boolean; status?: string; result?: ProposalResult | null; error?: string } | null;
-      if (decision === "dismiss" && (body?.ok || body?.status === "dismissed" || body?.status === "expired")) {
+      const response = await fetch(
+        `/api/proposals/${encodeURIComponent(card.id)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ decision }),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        status?: string;
+        result?: ProposalResult | null;
+        error?: string;
+      } | null;
+      if (
+        decision === "dismiss" &&
+        (body?.ok || body?.status === "dismissed" || body?.status === "expired")
+      ) {
+        answered(
+          card,
+          body?.status === "expired" ? "expired" : "dismissed",
+          null,
+        );
         setCards((all) => all.filter((entry) => entry.id !== card.id));
         return;
       }
       if (body?.status === "expired") {
-        // The reason the facts changed, in the server's words; the card leaves a moment later.
-        patch(card.id, { busy: null, gone: true, error: body.result?.message || "The facts changed since, so this one is gone." });
-        window.setTimeout(() => setCards((all) => all.filter((entry) => entry.id !== card.id)), 2500);
+        // The reason the facts changed, in the server's words. With the record on the page the line moves there at once;
+        // elsewhere the card says it and leaves a moment later.
+        const message =
+          body.result?.message ||
+          "The facts changed since, so this one is gone.";
+        if (recordOnPage) {
+          answered(card, "expired", null);
+          setCards((all) => all.filter((entry) => entry.id !== card.id));
+          return;
+        }
+        patch(card.id, { busy: null, gone: true, error: message });
+        window.setTimeout(
+          () => setCards((all) => all.filter((entry) => entry.id !== card.id)),
+          2500,
+        );
         return;
       }
       const result = body?.result ?? null;
       if (body?.ok && result) {
+        if (result.code === "opened" && result.href) {
+          answered(card, "accepted", result.message);
+          router.push(result.href);
+          return;
+        }
+        if (recordOnPage) {
+          // Out of "Needs you" and into "What I did" at once, with what it did.
+          answered(card, "accepted", result.message);
+          setCards((all) => all.filter((entry) => entry.id !== card.id));
+          return;
+        }
         patch(card.id, { busy: null, result });
-        if (result.code === "opened" && result.href) router.push(result.href);
         return;
       }
-      patch(card.id, { busy: null, error: result?.message || body?.error || "That didn't go through. Try again in a minute." });
+      patch(card.id, {
+        busy: null,
+        error:
+          result?.message ||
+          body?.error ||
+          "That didn't go through. Try again in a minute.",
+      });
     } catch {
-      patch(card.id, { busy: null, error: "That didn't go through. Check your connection and try again." });
+      patch(card.id, {
+        busy: null,
+        error: "That didn't go through. Check your connection and try again.",
+      });
     }
   };
 
-  if (cards.length === 0) return null;
+  const status = watch && watch.stocks > 0 ? watch : null;
+  if (cards.length === 0)
+    return status && statusAlone ? (
+      <AgentStatus watch={status} variant="strip" />
+    ) : null;
 
-  // Two across: with an odd number of closed cards the last row has one empty slot, which the watch tile fills
-  // (owner rule 4). An open card takes its own row. One column (a phone) has no empty slot, so no tile.
-  const closed = cards.filter((card) => !stateOf(card.id).open).length;
-  const watchTile = watch && watch.stocks > 0 && closed % 2 === 1 ? <WatchTile watch={watch} waiting={waiting} /> : null;
+  // Two across. With an odd number of cards the last row has one empty slot, which the status tile fills; with an even
+  // number the rows are full, and the status is a strip above them (owner rule 4). One column (a phone) has no empty
+  // slot: the status is always the strip there.
+  // Decided from the cards themselves, not which run log is open, so opening one never moves the others.
+  const tile = Boolean(status) && cards.length % 2 === 1;
+  // One run log open at a time. It opens as a panel across the grid, inserted after the open card's row (two across)
+  // or right under the card (one column), with a pointer to its card: no card in the grid stretches or moves.
+  const openIndex = cards.findIndex((card) => stateOf(card.id).open);
+  const itemCount = cards.length + (tile ? 1 : 0);
+  const rowEnd =
+    openIndex < 0
+      ? -1
+      : Math.min(openIndex - (openIndex % 2) + 1, itemCount - 1);
+  const panel = (variant: "narrow" | "wide") => {
+    const card = cards[openIndex]!;
+    return (
+      <li
+        key={`log-${variant}`}
+        id={`proposal-log-${card.id}-${variant}`}
+        className={`col-span-full ${variant === "narrow" ? "[@container(min-width:34rem)]:hidden" : "hidden [@container(min-width:34rem)]:block"}`}
+      >
+        <div className="oa-surface relative border border-oa-border bg-oa-card px-3.5 pb-3.5 pt-3">
+          {/* The pointer up to its card: under the card's column. */}
+          <span
+            aria-hidden="true"
+            className="absolute -top-[7px] size-3 -translate-x-1/2 rotate-45 border-l border-t border-oa-border bg-oa-card"
+            style={{
+              left:
+                variant === "narrow"
+                  ? "2rem"
+                  : openIndex % 2 === 0
+                    ? "25%"
+                    : "75%",
+            }}
+          />
+          <p className="mb-2.5 text-[13px] font-semibold text-oa-fg">
+            How I got here
+            {card.ticker ? (
+              <span className="oa-mono font-medium text-oa-muted-fg">
+                {" "}
+                · {card.ticker}
+              </span>
+            ) : null}
+          </p>
+          <RunLog card={card} today={today} />
+        </div>
+      </li>
+    );
+  };
 
   return (
-    <section id="agent-proposals" aria-labelledby={headingId} className="min-w-0 scroll-mt-20">
-      <h2 id={headingId} className="flex items-baseline gap-2 px-1 pb-2 text-[15px] font-semibold leading-6 text-oa-fg">
-        Waiting for you
-        {waiting > 0 ? <span className="oa-mono text-[13px] font-medium tabular-nums text-oa-muted-fg">{waiting}</span> : null}
+    <section
+      id="agent-proposals"
+      aria-labelledby={headingId}
+      className="min-w-0 scroll-mt-20"
+    >
+      <h2
+        id={headingId}
+        className="flex items-baseline gap-2 px-1 pb-2 text-[15px] font-semibold leading-6 text-oa-fg"
+      >
+        Needs you
+        {waiting > 0 ? (
+          <span className="oa-mono text-[13px] font-medium tabular-nums text-oa-muted-fg">
+            {waiting}
+          </span>
+        ) : null}
       </h2>
       <div className="[container-type:inline-size]">
-        {/* Two across at most, so a row is full with an even count; an odd count gets the watch tile beside the last. */}
-        <ul className="grid grid-flow-row-dense grid-cols-1 gap-3 [@container(min-width:34rem)]:grid-cols-2">
-          {cards.map((card) => {
+        {status ? (
+          <div
+            className={`mb-3 ${tile ? "[@container(min-width:34rem)]:hidden" : ""}`}
+          >
+            <AgentStatus watch={status} variant="strip" />
+          </div>
+        ) : null}
+        <ul className="grid grid-cols-1 gap-3 [@container(min-width:34rem)]:grid-cols-2">
+          {cards.map((card, index) => {
             const state = stateOf(card.id);
             const done = state.result?.ok ? state.result : null;
-            const logId = `proposal-log-${card.id}`;
+            const logId = `proposal-log-${card.id}-narrow proposal-log-${card.id}-wide`;
             return (
-              <li
-                key={card.id}
-                className={`oa-surface flex min-w-0 flex-col border border-oa-border bg-oa-card ${CARD_HOVER} ${state.open ? "col-span-full" : ""}`}
-              >
-                {/* The card body is the run log's toggle: no link text repeated on every card (owner rule 1). */}
-                <button
-                  type="button"
-                  aria-expanded={state.open}
-                  aria-controls={logId}
-                  onClick={() => patch(card.id, { open: !state.open })}
-                  className="flex min-w-0 flex-col rounded-[inherit] px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+              <React.Fragment key={card.id}>
+                <li
+                  className={`oa-surface flex min-w-0 flex-col border bg-oa-card ${CARD_HOVER} ${state.open ? "border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]" : "border-oa-border"}`}
                 >
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    <Mark ticker={card.ticker} />
-                    <span className="block min-w-0 leading-5">
-                      <span className="oa-mono block text-[14px] font-semibold text-oa-fg">{card.ticker ?? "Your agents"}</span>
-                      {card.quote ? (
-                        <span className="oa-mono flex flex-wrap items-baseline gap-x-1.5 text-[12.5px] leading-4 tabular-nums">
-                          <span className="text-oa-muted-fg">{price(card.quote.price)}</span>
-                          {card.quote.dayPct !== null ? <span className={toneClass(card.quote.dayPct)}>{signed(card.quote.dayPct)} today</span> : null}
+                  {/* The card body is the run log's toggle: no link text repeated on every card (owner rule 1). */}
+                  <button
+                    type="button"
+                    aria-expanded={state.open}
+                    aria-controls={logId}
+                    onClick={() =>
+                      setStates((all) =>
+                        Object.fromEntries(
+                          Object.entries({
+                            ...all,
+                            [card.id]: {
+                              ...stateOf(card.id),
+                              open: !state.open,
+                            },
+                          }).map(([id, entry]) => [
+                            id,
+                            id === card.id ? entry : { ...entry, open: false },
+                          ]),
+                        ),
+                      )
+                    }
+                    className="flex min-w-0 flex-col rounded-[inherit] px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Mark ticker={card.ticker} />
+                      <span className="block min-w-0 leading-5">
+                        <span className="oa-mono block text-[14px] font-semibold text-oa-fg">
+                          {card.ticker ?? "Your agents"}
                         </span>
-                      ) : null}
+                        {card.quote ? (
+                          <span className="oa-mono flex flex-wrap items-baseline gap-x-1.5 text-[12.5px] leading-4 tabular-nums">
+                            <span className="text-oa-muted-fg">
+                              {price(card.quote.price)}
+                            </span>
+                            {card.quote.dayPct !== null ? (
+                              <span className={toneClass(card.quote.dayPct)}>
+                                {signed(card.quote.dayPct)} today
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
-                  </span>
-                  <span className="mt-2.5 block text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">{card.title}</span>
-                  {/* The one reason, always shown (owner rule 2). */}
-                  {card.why[0] ? <span className="mt-1 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{card.why[0]}</span> : null}
-                  {/* What accepting does, on the card itself (a phone has no hover); left out when the title says it. */}
-                  {card.does ? (
-                    <span className="mt-1 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                      <span className="font-medium text-oa-fg">If you accept: </span>
-                      {card.does}
+                    <span className="mt-2.5 block text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">
+                      {card.title}
                     </span>
-                  ) : null}
-                </button>
-                <div id={logId} hidden={!state.open} className="px-3.5">
-                  {state.open ? <RunLog card={card} today={today} /> : null}
-                </div>
-                <div className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-3.5 pb-3 pt-3">
-                  {state.gone ? null : done ? (
-                    <p role="status" className="min-w-0 flex-1 text-pretty text-[13px] leading-5 text-oa-fg">
-                      {done.message}
-                      {done.href && done.code !== "opened" ? (
-                        <>
-                          {" "}
-                          <Link href={done.href} prefetch={false} className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}>
-                            {done.href.startsWith("/agents") ? "Open agents" : "Open alerts"}
-                          </Link>
-                        </>
-                      ) : null}
+                    {/* One useful line, always shown (owner rules 2 and 8); the rest is in the run log. */}
+                    {card.why[0] ? (
+                      <span className="mt-1 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+                        {card.why[0]}
+                      </span>
+                    ) : null}
+                    {card.level && card.quote ? (
+                      <LevelBar now={card.quote.price} level={card.level} />
+                    ) : card.usualPct && card.quote ? (
+                      <MoveRange now={card.quote.price} pct={card.usualPct} />
+                    ) : null}
+                    {/* The run log in one line: how much was read, and the one figure the card does not say yet. */}
+                    {card.keyLine ? (
+                      <span className="mt-2 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
+                        {card.keyLine}
+                      </span>
+                    ) : null}
+                  </button>
+                  <div className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-3.5 pb-3 pt-3">
+                    {state.gone ? null : done ? (
+                      <p
+                        role="status"
+                        className="min-w-0 flex-1 text-pretty text-[13px] leading-5 text-oa-fg"
+                      >
+                        {done.message}
+                        {done.href && done.code !== "opened" ? (
+                          <>
+                            {" "}
+                            <Link
+                              href={done.href}
+                              prefetch={false}
+                              className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}
+                            >
+                              {done.href.startsWith("/agents")
+                                ? "Open agents"
+                                : "Open alerts"}
+                            </Link>
+                          </>
+                        ) : null}
+                      </p>
+                    ) : (
+                      <>
+                        <OaButton
+                          size="sm"
+                          loading={state.busy === "accept"}
+                          disabled={state.busy !== null}
+                          onClick={() => void decide(card, "accept")}
+                        >
+                          Accept
+                        </OaButton>
+                        <OaButton
+                          size="sm"
+                          variant="secondary"
+                          loading={state.busy === "dismiss"}
+                          disabled={state.busy !== null}
+                          onClick={() => void decide(card, "dismiss")}
+                        >
+                          Dismiss
+                        </OaButton>
+                      </>
+                    )}
+                  </div>
+                  {state.error ? (
+                    <p
+                      role="alert"
+                      className="-mt-1 px-3.5 pb-3 text-pretty text-[13px] leading-5 text-signal-bearish"
+                    >
+                      {state.error}
                     </p>
-                  ) : (
-                    <>
-                      <OaButton size="sm" loading={state.busy === "accept"} disabled={state.busy !== null} onClick={() => void decide(card, "accept")}>
-                        Accept
-                      </OaButton>
-                      <OaButton size="sm" variant="secondary" loading={state.busy === "dismiss"} disabled={state.busy !== null} onClick={() => void decide(card, "dismiss")}>
-                        Dismiss
-                      </OaButton>
-                    </>
-                  )}
-                </div>
-                {state.error ? (
-                  <p role="alert" className="-mt-1 px-3.5 pb-3 text-pretty text-[13px] leading-5 text-signal-bearish">
-                    {state.error}
-                  </p>
-                ) : null}
-              </li>
+                  ) : null}
+                </li>
+                {index === openIndex ? panel("narrow") : null}
+                {index === rowEnd ? panel("wide") : null}
+              </React.Fragment>
             );
           })}
-          {watchTile}
+          {tile && status ? (
+            <li className="hidden [@container(min-width:34rem)]:flex">
+              <AgentStatus watch={status} variant="tile" />
+            </li>
+          ) : null}
+          {rowEnd === cards.length ? panel("wide") : null}
         </ul>
       </div>
     </section>

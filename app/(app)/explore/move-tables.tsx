@@ -8,7 +8,7 @@ import { fitLine } from "@/lib/fit-line";
 /**
  * The day's biggest moves as two tables side by side (owner, Nov 12: "do table here left side gainers right side
  * losers"): gainers on the left, losers on the right, stacked gainers first on a phone. Each row is the logo, the
- * ticker, its confirmed reason (moves without one are not listed) cut to two lines at most, and the price over
+ * ticker, its confirmed reason (moves without one are not listed) cut to two lines (whole on a phone), and the price over
  * the move. Each table scrolls inside a box about seven and a half rows tall, so the half row at the foot says there
  * is more; the header row stays put while it scrolls, and the scroll hands back to the page at either end (no
  * overscroll containment). Both boxes are the same height. Server-rendered, no hooks.
@@ -31,9 +31,14 @@ const ROWS_IN_VIEW = 7.5;
 
 const MINUS = "−";
 
-/** The reason's room in characters: two lines of the narrow cell (a phone, or md to lg), and of the wide one (xl up). */
-const SHORT_CHARS = 52;
+/**
+ * The reason's room in characters: two lines of the narrow cell (md to xl, two tables side by side, about 22 a line),
+ * two of the wide one (xl up); a phone shows the whole reason.
+ */
+const SHORT_CHARS = 44;
 const LONG_CHARS = 80;
+/** A phone row's height allowance, in rem: about three lines of the reason plus padding (a longer reason scrolls). */
+const PHONE_ROW_REM = 4.4;
 
 function signedPct(value: number): string {
   const rounded = Number(value.toFixed(1));
@@ -52,8 +57,10 @@ function MoveTable({ title, rows, side, heightRem, when }: { title: string; rows
     <section aria-labelledby={id} className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
       {/* The box is the same height on both sides on a wide screen; on a phone each is only as tall as its rows. */}
       <div
-        style={{ "--box": `${heightRem}rem` } as React.CSSProperties}
-        className="max-h-[var(--box)] overflow-y-auto scrollbar-hide md:h-[var(--box)]"
+        // A phone's rows grow to three lines, so its box allows for taller rows (`--box-sm`); from md the rows are fixed
+        // and both boxes share one height.
+        style={{ "--box": `${heightRem}rem`, "--box-sm": `${HEAD_REM + Math.min(rows.length, ROWS_IN_VIEW) * PHONE_ROW_REM}rem` } as React.CSSProperties}
+        className="max-h-[var(--box-sm)] overflow-y-auto scrollbar-hide md:h-[var(--box)] md:max-h-[var(--box)]"
       >
         <h3
           id={id}
@@ -64,23 +71,26 @@ function MoveTable({ title, rows, side, heightRem, when }: { title: string; rows
         </h3>
         <ul>
           {rows.map((row) => (
-            <li key={row.ticker} className="h-[3.25rem] border-b border-oa-border last:border-b-0">
+            <li key={row.ticker} className="min-h-[3.25rem] border-b border-oa-border last:border-b-0 md:h-[3.25rem]">
               <Link
                 href={`/stock/${encodeURIComponent(row.ticker)}`}
                 prefetch={false}
                 aria-label={`${row.ticker}, ${signedPct(row.changePct)} ${when}`}
                 title={row.line ? `${row.name || row.ticker}: ${row.line}` : row.name || row.ticker}
-                className={`grid h-full grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
+                className={`grid h-full grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 px-3 py-2 transition-colors md:grid-cols-[5.5rem_minmax(0,1fr)_auto] md:gap-x-3 md:px-3.5 md:py-0 hover:bg-oa-accent ${FOCUS}`}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <StockLogo ticker={row.ticker} size={20} eager />
                   <span className="oa-mono truncate text-[13.5px] font-semibold text-oa-fg">{row.ticker}</span>
                 </span>
                 {/* Cut to two lines at a clause or a whole word on the server, never mid-word by the clamp (owner
-                    rule 8): the narrow cut below xl (a phone, or the two tables side by side beside the nav), the
-                    longer one from xl. The full reason is the row's hover title. */}
-                <span className="line-clamp-2 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-                  <span className="xl:hidden">{fitLine(row.line, SHORT_CHARS)}</span>
+                    rule 8): the narrow cut from md to xl (the two tables side by side), the longer one on a phone and
+                    from xl. The full reason is the row's hover title. */}
+                <span className="text-pretty text-[13px] leading-[18px] text-oa-muted-fg md:line-clamp-2">
+                  {/* A phone gives the row the room it needs: the whole reason, as many lines as it takes, never cut
+                      (council, ship 85). */}
+                  <span className="md:hidden">{row.line}</span>
+                  <span className="hidden md:inline xl:hidden">{fitLine(row.line, SHORT_CHARS)}</span>
                   <span className="hidden xl:inline">{fitLine(row.line, LONG_CHARS)}</span>
                 </span>
                 {/* The price, then the move under it (owner, Nov 12: the current price on every stock). */}

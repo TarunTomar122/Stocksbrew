@@ -101,7 +101,13 @@ export type ProposalDraft = {
   priority: number;
   /** The stock's quote when the proposal was last worked out: the card's price when a fresh read is slow. */
   quote?: ProposalQuote | null;
+  /** The level the proposal is about (the alert's price, the call's own level), for the card's price-vs-level bar. */
+  level?: ProposalLevel | null;
+  /** A report coming up: the stock's usual move on its reports (percent, unsigned), for the card's range bar. */
+  usualPct?: number | null;
 };
+
+export type ProposalLevel = { price: number; label: string };
 
 export type Proposal = ProposalDraft & {
   id: string;
@@ -629,6 +635,7 @@ function callRules(inputs: ProposalInputs): ProposalDraft[] {
           does: `Opens a practice ticket to buy ${ticker}.`,
           figures: [...callFigures, { label: "Buy-more level", value: usd(level) }],
           action: { type: "practice_ticket", ticker, side: "buy" },
+          level: { price: level, label: "Buy-more level" },
         });
       }
     } else if (change.to === "Trim" && stock.position === "holding" && fin(levels.trim_above)) {
@@ -653,6 +660,7 @@ function callRules(inputs: ProposalInputs): ProposalDraft[] {
           does: `Opens a practice ticket to sell ${ticker}.`,
           figures: [...callFigures, { label: "Sell-some level", value: usd(level) }],
           action: { type: "practice_ticket", ticker, side: "sell" },
+          level: { price: level, label: "Sell-some level" },
         });
       }
     }
@@ -722,6 +730,7 @@ function levelRules(inputs: ProposalInputs): ProposalDraft[] {
         { label: "Call", value: CALL_WORD[call] },
       ],
       action: { type: "practice_ticket", ticker, side: zone.side },
+      level: { price: zone.level, label: zone.side === "buy" ? "Buy-more level" : "Sell-some level" },
       priority: 70,
     });
   }
@@ -943,6 +952,7 @@ function earningsRules(inputs: ProposalInputs): ProposalDraft[] {
         ...(fin(report.usualPct) ? [{ label: "Usual move", value: `±${Math.round(report.usualPct * 10) / 10}%` }] : []),
       ],
       action: { type: "alert_earnings", ticker, instrument_id: stock.instrumentId, report_date: report.date, label },
+      usualPct: fin(report.usualPct) ? report.usualPct : null,
       priority: 45,
     });
   }
@@ -1093,7 +1103,7 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
   ]
     .map(fitWords)
     .filter((draft): draft is ProposalDraft => draft !== null)
-    .map((draft) => ({ ...draft, quote: draft.ticker ? inputs.quotes?.[draft.ticker] ?? null : null }));
+    .map((draft) => ({ ...draft, quote: draft.ticker ? inputs.quotes?.[draft.ticker] ?? null : null, level: draft.level ?? levelOf(draft.action) }));
   const seen = new Set<string>();
   return all
     .sort((a, b) => b.priority - a.priority || String(b.event.at).localeCompare(String(a.event.at)))
@@ -1102,6 +1112,11 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
       seen.add(draft.event.key);
       return true;
     });
+}
+
+/** The level an alert proposal is about: its new alert's price. */
+function levelOf(action: ProposalAction): ProposalLevel | null {
+  return action.type === "alert_price" ? { price: action.price, label: action.replaces ? "New alert" : "Alert" } : null;
 }
 
 /** Holds a draft to the word budgets: a title over budget drops the draft, a why line over budget is dropped. */
@@ -1150,6 +1165,8 @@ export function newProposal(uid: string, draft: ProposalDraft, now: Date): Propo
   return {
     ...draft,
     quote: draft.quote ?? null,
+    level: draft.level ?? null,
+    usualPct: draft.usualPct ?? null,
     id: proposalId(draft.event.key),
     uid,
     version: PROPOSAL_VERSION,
@@ -1168,10 +1185,10 @@ export function newProposal(uid: string, draft: ProposalDraft, now: Date): Propo
  * same event, the same action) with newer numbers or words; null when nothing changed or the action differs (then the
  * stored one stands as it was offered).
  */
-export function refreshOf(proposal: Proposal, draft: ProposalDraft): Pick<Proposal, "title" | "why" | "does" | "read" | "figures" | "quote"> | null {
+export function refreshOf(proposal: Proposal, draft: ProposalDraft): Pick<Proposal, "title" | "why" | "does" | "read" | "figures" | "quote" | "level" | "usualPct"> | null {
   if (proposalId(draft.event.key) !== proposal.id || stableJson(draft.action) !== stableJson(proposal.action)) return null;
-  const next = { title: draft.title, why: draft.why, does: draft.does, read: draft.read, figures: draft.figures, quote: draft.quote ?? proposal.quote ?? null };
-  const same = stableJson(next) === stableJson({ title: proposal.title, why: proposal.why, does: proposal.does, read: proposal.read, figures: proposal.figures, quote: proposal.quote ?? null });
+  const next = { title: draft.title, why: draft.why, does: draft.does, read: draft.read, figures: draft.figures, quote: draft.quote ?? proposal.quote ?? null, level: draft.level ?? null, usualPct: draft.usualPct ?? null };
+  const same = stableJson(next) === stableJson({ title: proposal.title, why: proposal.why, does: proposal.does, read: proposal.read, figures: proposal.figures, quote: proposal.quote ?? null, level: proposal.level ?? null, usualPct: proposal.usualPct ?? null });
   return same ? null : next;
 }
 
@@ -1230,13 +1247,63 @@ export function staleReason(proposal: Proposal, inputs: ProposalInputs): string 
   return null;
 }
 
-/** What the agent watches for the person (live price alerts, running agents), for the tile beside the cards. */
-export type WatchSummary = { stocks: number; alerts: number; agents: number };
+/**
+ * What the agent watches for the person: stocks, live price alerts, running agents, and (when the agents were read)
+ * the paused ones and the next check in words ("after the close today, from 5:30 PM ET"). The queue's status tile.
+ */
+export type WatchSummary = { stocks: number; alerts: number; agents: number; paused?: number; next?: string | null };
+
+/** A proposal the person answered, or one that went stale: one line of the activity record on /agent. */
+export type ProposalOutcome = {
+  id: string;
+  status: "accepted" | "dismissed" | "expired";
+  ticker: string | null;
+  title: string;
+  /** What happened, in the action's own words ("Alert set: NVDA below $158."); null for a dismissal or expiry. */
+  message: string | null;
+  /** When it was answered or went stale (ISO). */
+  at: string;
+};
+
+/** How far back the record keeps answered proposals. */
+export const OUTCOME_DAYS = 14;
+
+/** The answered and stale proposals of the last OUTCOME_DAYS days, newest first. Never a waiting one. */
+export function outcomesOf(proposals: Proposal[], now: Date): ProposalOutcome[] {
+  const from = now.getTime() - OUTCOME_DAYS * DAY_MS;
+  const out: ProposalOutcome[] = [];
+  for (const proposal of proposals) {
+    const expired = proposal.status === "expired" || ((proposal.status === "pending" || proposal.status === "applying") && Date.parse(proposal.expires_at) <= now.getTime());
+    const status = proposal.status === "accepted" ? "accepted" : proposal.status === "dismissed" ? "dismissed" : expired ? "expired" : null;
+    if (!status) continue;
+    // A proposal that ran out of time is dated by its expiry; one whose facts went stale, by when that was noticed.
+    const timedOut = status === "expired" && (proposal.status !== "expired" || proposal.expired_reason === "expired");
+    const at = proposal.decided_at ?? (timedOut ? proposal.expires_at : proposal.updated_at);
+    if (!Number.isFinite(Date.parse(at)) || Date.parse(at) < from) continue;
+    out.push({ id: proposal.id, status, ticker: proposal.ticker, title: proposal.title, message: status === "accepted" ? proposal.result?.message ?? null : null, at });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/**
+ * Where the price (now) and a level sit on the card's bar, in percent of its width: a fixed scale around the price, at
+ * least ±10% and wider for a far level, so the gap reads true from card to card.
+ */
+export function levelScale(now: number, level: number): { nowAt: number; levelAt: number; gapPct: number } {
+  const gapPct = ((level - now) / now) * 100;
+  const half = Math.max(10, Math.abs(gapPct) * 1.25);
+  const at = (value: number) => Math.min(100, Math.max(0, 50 + (((value - now) / now) * 100 * 50) / half));
+  return { nowAt: at(now), levelAt: at(level), gapPct };
+}
 
 /* ── the card ───────────────────────────────────────────────────────────── */
 
 /** What the browser gets: no uid, no event refs. */
 export type ProposalCard = Pick<Proposal, "id" | "kind" | "ticker" | "title" | "why" | "read" | "figures" | "status" | "result" | "created_at"> & {
+  level: ProposalLevel | null;
+  usualPct: number | null;
+  /** The one figure the card does not say yet, on the card itself (keyLineOf), or null. */
+  keyLine: string | null;
   /** What accepting does, or null when it would only repeat the title (repeatsTitle). */
   does: string | null;
   actionType: ProposalAction["type"];
@@ -1260,7 +1327,27 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     actionType: proposal.action.type,
     quote: shown ? { price: shown.price, dayPct: shown.dayPct } : null,
     does: repeatsTitle(proposal.title, proposal.does) ? null : proposal.does,
+    level: proposal.level ?? levelOf(proposal.action),
+    usualPct: proposal.usualPct ?? null,
+    keyLine: keyLineOf(proposal),
   };
+}
+
+/** Figures the card already shows elsewhere: the price and day (under the ticker). */
+const SHOWN_FIGURES = new Set(["Price", "Today"]);
+
+/**
+ * The one figure the card does not say yet ("Earnings per share: Miss (−7.3%)"), in at most 8 words, or null: the
+ * first figure whose value (sign aside) is not already in the card's title and line. The source count lives in the log.
+ */
+export function keyLineOf(proposal: Pick<Proposal, "figures" | "title" | "why" | "usualPct">): string | null {
+  const said = `${proposal.title} ${proposal.why[0] ?? ""}`.toLowerCase();
+  // The usual report move has its own band on the card.
+  const shown = (label: string) => SHOWN_FIGURES.has(label) || (label === "Usual move" && proposal.usualPct != null);
+  const main = proposal.figures.find((figure) => !shown(figure.label) && !said.includes(figure.value.replace(/^[−+-]/, "").toLowerCase()));
+  if (!main) return null;
+  const line = `${main.label}: ${main.value}`;
+  return wordCount(line) <= 8 ? line : null;
 }
 
 /**
@@ -1275,6 +1362,12 @@ export function repeatsTitle(title: string, does: string): boolean {
   const titleWords = new Set(words(title));
   const doesWords = words(does);
   return doesWords.length > 0 && doesWords.filter((word) => titleWords.has(word)).length / doesWords.length >= 0.6;
+}
+
+function readLevel(raw: unknown): ProposalLevel | null {
+  const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const price = numOrNull(data?.price);
+  return price !== null && price > 0 && typeof data?.label === "string" ? { price, label: data.label } : null;
 }
 
 function readQuote(raw: unknown): ProposalQuote | null {
@@ -1313,6 +1406,8 @@ export function readProposal(data: unknown): Proposal | null {
     action: doc.action as ProposalAction,
     priority: typeof doc.priority === "number" ? doc.priority : 0,
     quote: readQuote(doc.quote),
+    level: readLevel(doc.level),
+    usualPct: numOrNull(doc.usualPct),
     result: doc.result && typeof doc.result === "object" ? (doc.result as ProposalResult) : null,
     created_at: String(doc.created_at ?? ""),
     expires_at: String(doc.expires_at ?? ""),

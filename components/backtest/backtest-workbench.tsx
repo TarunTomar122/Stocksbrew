@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
 import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
+import { SignedBar, barDomain } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import type { HoldingQuote } from "@/lib/backtest/quotes";
 import type { BacktestRun } from "@/lib/backtest";
@@ -61,6 +62,8 @@ function hindsightSentence(caveats: Caveat[], example: boolean): string | undefi
  * (a card grid never scrolls inside its box).
  */
 function HoldingCards({ run, quotes }: { run: BacktestRun; quotes: Record<string, HoldingQuote> | undefined }) {
+  // Every holding's return on one scale with one zero line, so the cards compare at a glance (owner VISUALS CHECK).
+  const domain = barDomain(run.holdings.map((holding) => holding.total_return));
   return (
     <div className="p-3">
       {/* Two holdings share the row in halves; three or more go three (four on wide screens) to a row. */}
@@ -89,6 +92,7 @@ function HoldingCards({ run, quotes }: { run: BacktestRun; quotes: Record<string
                   ) : null}
                 </div>
                 <p className={`oa-mono mt-1.5 text-[20px] font-medium leading-7 tabular-nums ${toneOf(holding.total_return)}`}>{signedPct(holding.total_return, 0)}</p>
+                {run.holdings.length > 1 ? <SignedBar value={holding.total_return} domain={domain} className="my-1.5 !h-1.5" /> : null}
                 <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">
                   {plainPct(holding.weight, 0)} of the mix, {plainPct(holding.end_weight, 0)} at the end
                 </p>

@@ -25,6 +25,7 @@ import {
 } from "@/lib/signals-shared";
 import { moodWord } from "@/lib/tone";
 import { sentenceCase } from "@/lib/plain-copy";
+import { shortFact } from "@/components/stock-report/format";
 import { AppLink } from "@/components/oa/app-link";
 
 const CHIP = "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors sm:h-8 " + FOCUS;
@@ -69,18 +70,15 @@ function paceWords(velocity: MentionVelocity): string | null {
 }
 
 /**
- * The mood as one coloured word (Hopeful, Worried, Mixed). With no lean, or posts only counted and not read, a quiet
- * dash keeps the column lined up (owner rule 4), never a "no clear lean" phrase.
+ * The mood as one coloured word (Hopeful, Worried, Mixed). The list only has rows with a read mood (showsRedditRow);
+ * should one slip through, neutral reads "Neutral" muted and unread is blank, never a "no clear lean" phrase.
  */
 function MoodWord({ name }: { name: RedditName }) {
-  const mood = name.stanceRead && name.stance !== "neutral" ? moodWord(name.stance) : null;
-  if (!mood)
-    return (
-      <span className="text-[13px] text-oa-muted-fg">
-        <span aria-hidden="true">–</span>
-        <span className="sr-only">No clear mood</span>
-      </span>
-    );
+  // Not read yet: blank, never a dash that reads as a minus. Read and neutral: the word, muted.
+  if (!name.stanceRead) return <span className="sr-only">Mood not read yet</span>;
+  if (name.stance === "neutral") return <span className="text-[13px] text-oa-muted-fg">Neutral</span>;
+  const mood = moodWord(name.stance);
+  if (!mood) return <span className="sr-only">No clear mood</span>;
   const tone = mood.tone === "up" ? "text-signal-bullish" : mood.tone === "down" ? "text-signal-bearish" : "text-oa-muted-fg";
   return <span className={`text-[13px] font-medium ${tone}`}>{mood.word}</span>;
 }
@@ -115,7 +113,7 @@ function SaidWords({ said, pace }: { said: string | null; pace: string | null })
  * link text.
  */
 function RedditLine({ name, rank, wide, movesToday }: { name: RedditName; rank: number; wide: boolean; movesToday: ReadonlyMap<string, number> }) {
-  const said = redditHighlight(name, movesToday);
+  const said = redditRowLine(name, movesToday);
   const pace = paceWords(name.velocity);
   const cols = wide ? REDDIT_COLS_WIDE : REDDIT_COLS;
   const hasSaid = Boolean(said || pace);
@@ -228,15 +226,36 @@ function SectionTitle({ icon, children }: { icon: React.ReactNode; children: Rea
  * Reddit first (owner, Nov 12): every name Reddit is talking about in one ranked table, then the threads behind the
  * counts. The old Today tab's Reddit card was the top of this same list, so it is drawn once, here.
  */
-/** A row carries its signal (owner rule 3): a mood and one highlight, never just a ticker and a count. */
-function hasSignal(name: RedditName, movesToday: ReadonlyMap<string, number>): boolean {
-  const mood = name.stanceRead && name.stance !== "neutral" && moodWord(name.stance) !== null;
-  return mood && Boolean(redditHighlight(name, movesToday) || paceWords(name.velocity));
+/** Words in a row's line at most (judges, ship 85: one line each, AMD's ran to 22). */
+const SAID_WORDS = 12;
+
+/**
+ * What is being said, as one whole line: the first highlight (of the catalysts, then the summary) whose main clause
+ * fits in 12 words. None does: no line at all, never one cut short with "…" (owner rule 8); the row keeps its ticker,
+ * mood and counts.
+ */
+export function redditRowLine(name: Pick<RedditName, "catalysts" | "summary">, movesToday: ReadonlyMap<string, number> = new Map()): string | null {
+  const each = [...name.catalysts.map((catalyst) => ({ catalysts: [catalyst], summary: null })), { catalysts: [], summary: name.summary }];
+  for (const one of each) {
+    const fits = shortFact(redditHighlight(one, movesToday), SAID_WORDS);
+    if (fits) return fits;
+  }
+  return null;
+}
+
+/**
+ * Whether a name gets a row (owner rule 3: every row carries its mood). A fund or an index needs a clear lean
+ * (lib/signals-shared.ts inRedditList); a stock needs a read mood that leans somewhere: Hopeful, Worried or Mixed.
+ * Neutral or not yet read, it has no row. A row with its mood but no whole highlight of 12 words keeps the mood and
+ * the counts, with no line (redditRowLine).
+ */
+export function showsRedditRow(name: Pick<RedditName, "ticker" | "stance" | "stanceRead">): boolean {
+  if (!inRedditList(name as RedditName)) return false;
+  return name.stanceRead && name.stance !== "neutral" && moodWord(name.stance) !== null;
 }
 
 export function RedditSection({ data }: { data: RedditData }) {
-  const movesToday = redditMovesToday(data.names);
-  const names = rankReddit(data.names.filter((name) => inRedditList(name) && hasSignal(name, movesToday)));
+  const names = rankReddit(data.names.filter(showsRedditRow));
   const days = Math.round(data.windowHours / 24);
   return (
     <>

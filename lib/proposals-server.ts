@@ -15,6 +15,9 @@ import { etToday } from "@/lib/day-words";
 import { can } from "@/lib/entitlements";
 import { viewerFromUserDoc } from "@/lib/entitlements-server";
 import { afterResponse } from "@/lib/after-response";
+import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
+import { loadWatches } from "@/lib/agent-watch-server";
+import { agentLines } from "@/lib/portfolio-home/agent-lines";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFilingsStream } from "@/lib/filings";
 import { getLatestPriceQuotes } from "@/lib/firestore";
@@ -29,6 +32,7 @@ import {
   proposalId,
   PROPOSALS_COLLECTION,
   alertFromDoc,
+  outcomesOf,
   readProposal,
   refreshOf,
   staleReason,
@@ -41,6 +45,7 @@ import {
   type ProposalInputs,
   type ProposalQuote,
   type ProposalReason,
+  type ProposalOutcome,
   type ProposalStock,
   type WatchSummary,
   UNVERIFIED,
@@ -412,7 +417,7 @@ async function store(proposal: Proposal): Promise<boolean> {
   }
 }
 
-export type SyncResult = { waiting: Proposal[]; created: number; expired: number; complete: boolean; skipped: boolean; watch: WatchSummary | null };
+export type SyncResult = { waiting: Proposal[]; created: number; expired: number; complete: boolean; skipped: boolean; watch: WatchSummary | null; all: Proposal[] };
 
 /**
  * Work out this person's proposals and store the new ones. With `force` false (the pages), it runs at most once every
@@ -436,11 +441,11 @@ async function runSync(uid: string, options: { now?: Date; force?: boolean; doc?
   const next = nextAt ?? nextSync.get(uid) ?? 0;
   // A next time far in the future (a skewed clock) is not trusted.
   if (!options.force && now.getTime() < next && next - now.getTime() <= SYNC_EVERY_MS) {
-    return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: true, skipped: true, watch: storedWatch };
+    return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: true, skipped: true, watch: storedWatch, all: existing };
   }
   nextSync.set(uid, now.getTime() + RETRY_MS);
   const doc = options.doc !== undefined ? options.doc : await getUserDoc(uid).catch(() => null);
-  if (!doc) return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: false, skipped: true, watch: storedWatch };
+  if (!doc) return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: false, skipped: true, watch: storedWatch, all: existing };
   const { inputs, complete } = await loadProposalInputs(uid, doc, now);
 
   let expired = 0;
@@ -455,7 +460,7 @@ async function runSync(uid: string, options: { now?: Date; force?: boolean; doc?
     const reason = staleReason(proposal, inputs);
     if (reason && (await expire(uid, proposal, reason, now).catch(() => false))) {
       expired += 1;
-      kept.push({ ...proposal, status: "expired", expired_reason: reason });
+      kept.push({ ...proposal, status: "expired", expired_reason: reason, updated_at: now.toISOString() });
       continue;
     }
     // The same proposal made again today: its figures (the price) and words follow the latest read.
@@ -490,7 +495,7 @@ async function runSync(uid: string, options: { now?: Date; force?: boolean; doc?
       tx.set(syncRef, { uid, synced_at: now.toISOString(), next_at: new Date(after).toISOString(), complete, ...(watch ? { watch } : {}) }, { merge: true });
     })
     .catch(() => undefined);
-  return { waiting: waitingOf(kept, now), created, expired, complete, skipped: false, watch: watch ?? storedWatch };
+  return { waiting: waitingOf(kept, now), created, expired, complete, skipped: false, watch: watch ?? storedWatch, all: kept };
 }
 
 /** Forget the throttle (after an answer, so the next page load can offer the next proposal). */
@@ -504,7 +509,7 @@ export async function resetProposalSync(uid: string): Promise<void> {
  * the sync gets until `syncMs`, then the stored ones are shown while it finishes in the background (kept alive past
  * the response), and a slow price read leaves the cards without a price. Null when nothing could be read.
  */
-export type ProposalCardsLoad = { cards: ProposalCard[]; watch: WatchSummary | null };
+export type ProposalCardsLoad = { cards: ProposalCard[]; watch: WatchSummary | null; outcomes: ProposalOutcome[] };
 
 export async function loadProposalCards(uid: string, options: { syncMs?: number; doc?: UserDoc | null; now?: Date } = {}): Promise<ProposalCardsLoad | null> {
   const now = options.now ?? new Date();
@@ -516,7 +521,22 @@ export async function loadProposalCards(uid: string, options: { syncMs?: number;
   const stored = synced ? null : await storedRead;
   const waiting = synced?.waiting ?? (stored ? waitingOf(stored.proposals, now) : null);
   if (!waiting) return null;
-  return { cards: await proposalCards(waiting, 1200), watch: synced?.watch ?? stored?.watch ?? null };
+  const [cards, agents] = await Promise.all([proposalCards(waiting, 1200), agentsStatus(uid, etToday(now))]);
+  const counts = synced?.watch ?? stored?.watch ?? null;
+  return {
+    cards,
+    watch: counts ? { ...counts, ...(agents ? { agents: agents.running, paused: agents.paused, next: agents.next } : {}) } : null,
+    outcomes: outcomesOf(synced?.all ?? stored?.proposals ?? [], now),
+  };
+}
+
+/** The person's agents now (the same cached read as the agents list): how many run, how many are paused, the next check. */
+async function agentsStatus(uid: string, today: string): Promise<{ running: number; paused: number; next: string | null } | null> {
+  const loaded = await within(loadWatches(uid, today), 1500);
+  if (!loaded || loaded.state !== "ready") return null;
+  const { next } = agentLines(loaded.value, today, { describe: describeWatch });
+  const running = loaded.value.jobs.filter((job) => job.enabled).length;
+  return { running, paused: loaded.value.jobs.length - running, next: next ? nextCheckWords(next, today) : null };
 }
 
 /** The cards for the page: the waiting proposals with each stock's latest price and day move. */

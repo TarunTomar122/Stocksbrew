@@ -190,6 +190,28 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~23:10: batch 85 queued (local, deploy blocked); Codex judge 6.5 (agent feel 6, similarity 6)
+
+- **ship-queue (local branch, not pushed):** dcb8e90 (84, ideas visual) then cd91d1b (85: agent proposals, one quote snapshot, faster stock page, word-budget sweep with VsBar, kind icons and guard test, casing fixes).
+  - tsc and lint clean; 3770/3770 tests both ways; `next build` OK.
+  - Stock page first-load JS 250 kB (was 307).
+- **Codex judge** on local captures of the queued batch (scratchpad/judge85/codex.md):
+
+  | Score | /10 |
+  |---|---|
+  | UI | 6.5 |
+  | UX | 6.5 |
+  | usability | 6 |
+  | wording | 6 |
+  | agent feel | 6 (was 5.5) |
+  | volaren similarity | 6 (was 5.5) |
+  | sell | 6 |
+  | overall | 6.5 |
+
+  - Asks: make /agent a short "needs you" queue plus a dated activity record with accepted/dismissed history (no short rail); one line per proposal and per signal row; missing VsBars (AMD results, briefing today vs S&P, price vs level, backtest holdings); ticker-led phone rows; a shorter footer disclosure; check AMD 1Y +147% vs +126%.
+- **Next builders:** the /agent rework (proposals builder); the judge85 copy and visuals list (word-budget builder).
+- **Production:** still 402 (Vercel fair-use block); the owner must resolve it.
+
 ### 2026-11-12 ~22:20: PRODUCTION DOWN: Vercel blocked the team (fair-use limits), every page returns 402
 
 - **What happened:** ship 84's deploy failed with "Your Team exceeded our fair use limits and has been blocked", and since then stocksbrew.online returns HTTP 402 on every page. It's most likely tonight's volume: about 15 production deploys, plus judge and perf test traffic against production.

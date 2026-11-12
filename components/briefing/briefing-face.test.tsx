@@ -2,7 +2,7 @@ import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { DoCard, HeatCell } from "@/lib/briefing-face";
+import type { DoCard, HeatCell, MovedCard, WeekDay } from "@/lib/briefing-face";
 
 import { BriefingFace, type BriefingFaceProps } from "./briefing-face";
 
@@ -96,5 +96,29 @@ describe("the strip's day", () => {
   it("says today when the figures are today's", () => {
     expect(render("2026-11-14")).toContain("1.5 pts ahead today");
     expect(render(null)).toContain("1.5 pts ahead today");
+  });
+});
+
+describe("Why it moved beside the week", () => {
+  const move = (ticker: string): MovedCard => ({ ticker, name: `${ticker} Inc.`, price: 100, pct: 3, call: "Keep", href: `/stock/${ticker}`, line: `${ticker} rose after results.`, source: null, kind: "news" });
+  const week: WeekDay[] = [{ day: "2026-11-17", label: "Tuesday, next week", stocks: [{ ticker: "NVDA", name: "Nvidia", held: true, when: "after the close", price: 100, pct: 1, result: null, href: "/stock/NVDA" }] }];
+  function render(moved: MovedCard[]): string {
+    const props: BriefingFaceProps = {
+      mode: "personal", viewer: "member", date: "2026-11-12", clock: "Thu close", days: [{ day: "2026-11-12" }], archived: true, degraded: false, example: false,
+      strip: { you: null, sp500: null, gap: null, tiles: [], path: null }, topNews: [], doToday: null, heat: [], levels: [], moved, week, agentFindings: 0, sessionOpened: true,
+    };
+    return renderToStaticMarkup(<BriefingFace {...props} />);
+  }
+
+  it("lays a lone move across the row as one slim card, the reports under it", () => {
+    const html = render([move("AMD")]);
+    expect(html).toContain("AMD rose after results.");
+    expect(html).not.toContain("lg:col-span-8");
+  });
+
+  it("puts two moves beside the week, in two thirds of the row", () => {
+    const html = render([move("AMD"), move("AVGO")]);
+    expect(html).toContain("lg:col-span-8");
+    expect(html).toContain("lg:col-span-4");
   });
 });

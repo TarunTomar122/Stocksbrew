@@ -2,7 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Sparkline } from "@/components/markets/widgets";
-import { PairBar } from "@/components/oa/kit/tone";
+import { PairBar, SignedBar } from "@/components/oa/kit/tone";
 import { TileLabel, Treemap, tileClass, type TreemapLayout, type TreemapWords } from "@/components/oa/kit/treemap";
 import { KindIcon } from "@/components/oa/nav-icon";
 import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
@@ -166,11 +166,11 @@ function StockTile({ stock, line, source, fit = false }: { stock: DoCard | Moved
  * A lone Do today card across the page, in one slim row (judges, Nov 12: never stretched to the treemap's height):
  * logo and name, the line, the call, then the move and price. On a phone it is the usual card.
  */
-function SlimTile({ stock }: { stock: DoCard }) {
+function SlimTile({ stock, title }: { stock: DoCard | MovedCard; title?: string | null }) {
   const short = shortCompanyName(stock.name);
   const named = short && short.toUpperCase() !== stock.ticker ? short : null;
   return (
-    <Link href={stock.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex flex-wrap items-center gap-x-5 gap-y-2 px-3.5 py-3`}>
+    <Link href={stock.href} prefetch={false} title={title ?? undefined} className={`${CARD} ${HOVER} ${FOCUS} flex flex-wrap items-center gap-x-5 gap-y-2 px-3.5 py-3`}>
       <span className="flex min-w-0 items-center gap-2.5 sm:w-[13rem] sm:shrink-0">
         <StockLogo ticker={stock.ticker} size={28} eager />
         <span className="min-w-0 leading-5">
@@ -353,7 +353,9 @@ function YouPanel({ strip, live, date }: { strip: Strip; live: boolean; date: st
     // take the rest, so the band never has a hole in the middle.
     <div className={`flex min-w-0 flex-col gap-3 px-3.5 py-3 sm:flex-row sm:items-center sm:gap-5 ${chart ? "flex-1 lg:flex-[1_1_34rem]" : "lg:shrink-0"}`}>
       <div className="flex shrink-0 flex-col gap-1.5">
-        <div className="flex items-end gap-5">
+        {/* Beside the chart, today's two moves are one bar pair (below) that prints both figures, so the big figures are
+            not printed again (owner rule 1). */}
+        <div className={`flex items-end gap-5 ${chart && strip.you && sp ? "hidden" : ""}`}>
           {strip.you ? (
             <span className="flex flex-col">
               <span className={`oa-mono text-[24px] font-semibold leading-7 tabular-nums tracking-[-0.02em] ${toneText(toneOf(strip.you.pct))}`}>{signedPct(strip.you.pct, 1)}</span>
@@ -367,6 +369,19 @@ function YouPanel({ strip, live, date }: { strip: Strip; live: boolean; date: st
             </span>
           ) : null}
         </div>
+        {/* Beside the five-day chart, today's two moves as a bar pair (judges, ship 85: the chart covers five days, so
+            today's comparison needs its own picture), then the gap in points. */}
+        {chart && strip.you && sp ? (
+          <span className="block w-[13rem] max-w-full">
+            <PairBar
+              value={strip.you.pct}
+              versus={sp.pct}
+              labels={[strip.you.label, sp.source === "futures" ? "S&P futures" : "S&P 500"]}
+              texts={[signedPct(strip.you.pct, 1), signedPct(sp.pct, 1)]}
+              className="w-full"
+            />
+          </span>
+        ) : null}
         {gapText ? (
           <span className={`inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[12px] font-medium leading-4 ${toneText(gapTone)} bg-[color-mix(in_srgb,currentColor_10%,transparent)]`}>{gapText}</span>
         ) : null}
@@ -579,9 +594,9 @@ function Heat({ cells, beside, height }: { cells: HeatCell[]; beside: boolean; h
 /** Equal columns by how many cards there are (lib/briefing-face.ts gridColumns), written out whole for Tailwind. */
 const LG_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" };
 const XXL_COLS: Record<number, string> = { 3: "2xl:grid-cols-3", 4: "2xl:grid-cols-4", 5: "2xl:grid-cols-5" };
-/** Why it moved beside the week: a third of the row per card, the week takes the rest. */
-const MOVED_SPAN: Record<number, string> = { 1: "lg:col-span-4", 2: "lg:col-span-8" };
-const WEEK_SPAN: Record<number, string> = { 1: "lg:col-span-8", 2: "lg:col-span-4" };
+/** Two moves beside the week: a third of the row per card, the week the last third. */
+const MOVED_SPAN = "lg:col-span-8";
+const WEEK_SPAN = "lg:col-span-4";
 
 /** A fact in a word or two, for the list beside the cards: "+49% sales", "$7.40 EPS", "22× P/E". */
 function factWord(fact: LevelFact): string {
@@ -617,6 +632,8 @@ function levelCells(rows: LevelRow[]): { cards: Array<LevelRow & { fact: LevelFa
 function Levels({ rows }: { rows: LevelRow[] }) {
   const mixed = new Set(rows.map((row) => row.level.call)).size > 1;
   const { cards, listed } = levelCells(rows);
+  // One scale for every card's price-to-level bar: the furthest card sets it, never under 1%.
+  const gapSpan = Math.max(1, ...cards.map((row) => Math.abs(row.level.gapPct)));
   const cells = cards.length + (listed.length > 0 ? 1 : 0);
   // The cells were made to fill three or four columns (levelCells), at every wide size.
   const columns = { sm: 2, lg: gridColumns(cells, [3, 4]), xxl: gridColumns(cells, [3, 4]) };
@@ -637,6 +654,9 @@ function Levels({ rows }: { rows: LevelRow[] }) {
                     <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
                   </span>
                   <span className="oa-mono whitespace-nowrap text-[12px] leading-4 tabular-nums text-oa-muted-fg">{levelWords(row, mixed)}</span>
+                  {/* The price against its level as a bar from the level's line: under it runs left, over it right, all
+                      cards on one scale (judges, ship 85: two prices compared get a picture). */}
+                  <SignedBar value={row.level.gapPct} domain={[-gapSpan, gapSpan]} color="var(--oa-primary)" className="mt-1.5 !h-1.5 w-28" />
                 </span>
                 <span className="flex shrink-0 flex-col items-end leading-5">
                   {sharePrice(row.price) ? <span className="oa-mono text-[15px] font-semibold tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}
@@ -690,16 +710,15 @@ function Levels({ rows }: { rows: LevelRow[] }) {
 
 /* ── the week's reports ────────────────────────────────────────────────── */
 
-/** A lone day's stocks laid across its card: by the room the week has (beside Why it moved, `room` columns at most). */
-const ACROSS: Record<"full" | 1 | 2, string> = {
+/** A lone day's stocks laid across its card: across the page, or in one column beside two moves (`narrow`). */
+const ACROSS = {
   // Three to a row up to 2xl: four at 1280 left each row too narrow, and a move ran into "After close" (judges, ship 81).
   full: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4",
-  2: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2",
-  1: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-1",
-};
+  narrow: "grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-1",
+} as const;
 
-function DayStocks({ day, across = false, room = null }: { day: WeekDay; across?: boolean; room?: 1 | 2 | null }) {
-  const grid = ACROSS[room ?? "full"];
+function DayStocks({ day, across = false, narrow = false }: { day: WeekDay; across?: boolean; narrow?: boolean }) {
+  const grid = narrow ? ACROSS.narrow : ACROSS.full;
   return (
     <ul className={across ? grid : "flex flex-col gap-1"}>
       {day.stocks.map((stock) => {
@@ -736,18 +755,18 @@ const WEEK_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-col
 
 /**
  * The week's reports by day: a card per day in equal columns that fill the row (as many columns as days, up to five),
- * each card as tall as the row's tallest day. A lone day lays its stocks across. Beside Why it moved (`room`: the columns it
- * has room for, 2 in eight twelfths of the row, 1 in four), it keeps its own height, top-aligned.
+ * each card as tall as the row's tallest day. A lone day lays its stocks across. Beside two moves (`narrow`, a third of
+ * the row) the days stack in one column and keep their own height, top-aligned.
  */
-function Week({ days, room = null }: { days: WeekDay[]; room?: 1 | 2 | null }) {
+function Week({ days, narrow = false }: { days: WeekDay[]; narrow?: boolean }) {
   const lone = days.length === 1;
-  const cols = WEEK_COLS[Math.min(days.length, room ?? 5)];
+  const cols = WEEK_COLS[narrow ? 1 : Math.min(days.length, 5)];
   return (
     <ol aria-label="Reports by day" className={`grid grid-cols-1 gap-3 ${lone ? "" : "min-[420px]:grid-cols-2"} ${cols}`}>
       {days.map((day) => (
         <li key={day.day} className={`${CARD} min-w-0 px-3.5 py-2.5`}>
           <p className="pb-1.5 text-[12.5px] font-medium leading-5 text-oa-muted-fg">{day.label}</p>
-          <DayStocks day={day} across={lone} room={room} />
+          <DayStocks day={day} across={lone} narrow={narrow} />
         </li>
       ))}
     </ol>
@@ -832,16 +851,17 @@ export function BriefingFace(props: BriefingFaceProps) {
   const doBeside = showHeat && doCards.length >= 2 && heat.length <= HEAT_BESIDE_MAX;
   const showMoved = moved.length > 0;
   const showWeek = week.length > 0;
-  // One or two moves beside the week's reports, in the same row, so a lone card never leaves two thirds of a row
-  // empty (owner rule 4). Each side is as tall as its own content, top-aligned: nothing is stretched to the other's
-  // height around empty space (council, ship 81). Otherwise the cards keep their fixed width in the page's three or
-  // four columns (owner rule 4: never one card stretched across the row).
-  const movedBeside = showWeek && showMoved && moved.length <= 2;
+  // A lone move is one slim row across the page, like a lone Do today card (judges, ship 85: one card beside the
+  // reports left a large empty area). Two sit beside the week's reports in two thirds of the row, each side as tall
+  // as its own content, top-aligned (council, ship 81). Otherwise the cards keep their fixed width in the page's three
+  // or four columns (owner rule 4: never one card stretched across the row).
+  const movedSlim = moved.length === 1;
+  const movedBeside = showWeek && moved.length === 2;
   const movedColumns = movedBeside
-    ? { sm: moved.length, lg: moved.length, xxl: moved.length }
+    ? { sm: 2, lg: 2, xxl: 2 }
     : { sm: 2, lg: gridColumns(moved.length, [3, 4]), xxl: gridColumns(moved.length, [4, 5]) };
   const movedGrid = movedBeside
-    ? `grid grid-cols-1 gap-3 ${moved.length === 2 ? "sm:grid-cols-2" : ""} ${LG_COLS[moved.length]}`
+    ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
     : `grid grid-cols-1 gap-3 sm:grid-cols-2 ${LG_COLS[movedColumns.lg]} ${XXL_COLS[movedColumns.xxl]}`;
   return (
     // Twelve columns from `lg`: your own stocks first (Do today and the money side by side), then the market's news, the
@@ -937,21 +957,32 @@ export function BriefingFace(props: BriefingFaceProps) {
       ) : null}
 
       {showMoved ? (
-        <Section id="moved" title="Why it moved" span={movedBeside ? MOVED_SPAN[moved.length] : SPAN.all}>
-          {/* Whole rows only: a short last row folds behind "Show N more" rather than leave a gap. */}
-          <FullRows count={moved.length} columns={movedColumns} label="Moves with a confirmed reason" className={movedGrid}>
-            {moved.map((card) => (
-              <StockTile key={card.ticker} stock={card} line={card.line} source={sourceWords(card)} />
-            ))}
-          </FullRows>
+        <Section id="moved" title="Why it moved" span={movedBeside ? MOVED_SPAN : SPAN.all}>
+          {movedSlim ? (
+            <>
+              <ul aria-label="Moves with a confirmed reason" className="sm:hidden">
+                <StockTile stock={moved[0]!} line={moved[0]!.line} source={sourceWords(moved[0]!)} />
+              </ul>
+              <div className="hidden sm:block">
+                <SlimTile stock={moved[0]!} title={sourceWords(moved[0]!)} />
+              </div>
+            </>
+          ) : (
+            // Whole rows only: a short last row folds behind "Show N more" rather than leave a gap.
+            <FullRows count={moved.length} columns={movedColumns} label="Moves with a confirmed reason" className={movedGrid}>
+              {moved.map((card) => (
+                <StockTile key={card.ticker} stock={card} line={card.line} source={sourceWords(card)} />
+              ))}
+            </FullRows>
+          )}
         </Section>
       ) : null}
 
       {personal && locked && !movedBeside ? <div className={`min-w-0 ${SPAN.all}`}>{locked}</div> : null}
 
       {showWeek ? (
-        <Section id="week" title={weekTitle(week, date, sessionOpened)} span={movedBeside ? WEEK_SPAN[moved.length] : SPAN.all}>
-          <Week days={week} room={movedBeside ? (moved.length === 2 ? 1 : 2) : null} />
+        <Section id="week" title={weekTitle(week, date, sessionOpened)} span={movedBeside ? WEEK_SPAN : SPAN.all}>
+          <Week days={week} narrow={movedBeside} />
         </Section>
       ) : null}
 

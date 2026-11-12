@@ -152,12 +152,12 @@ describe("buildCallEvidence", () => {
       text: "NVDA's sales rose 83% over the last four quarters, to $303B, faster than its 65% growth in fiscal 2026.",
       source: "From the 10-Q for the quarter to Jul\u00a026, reported Aug\u00a026",
       // The fact card (owner, Nov 12: cards, not bullets): built from the numbers, the two growth rates as the bars, and
-      // a line that does not repeat what the bars show.
+      // no line beside the bars (judges, ship 85).
       card: {
         figure: "+83%",
         tone: "up",
         label: "sales over four quarters",
-        line: "$303B in sales, faster than in fiscal 2026.",
+        line: null,
         compare: [
           { label: "Past four quarters", value: 83.38, display: "+83%" },
           { label: "Fiscal 2026", value: expect.closeTo(65.47, 1), display: "+65%" },
@@ -234,7 +234,7 @@ describe("buildCallEvidence", () => {
       id: "sales",
       text: "AAPL's sales rose 15% over the last four quarters, to $479B, faster than its 6.4% growth in fiscal 2025.",
       source: "From the 10-K for the year to Sep\u00a026, reported Nov\u00a02",
-      card: { figure: "+15%", line: "$479B in sales, faster than in fiscal 2025." },
+      card: { figure: "+15%", line: null },
     });
     expect(evidence[0]!.card.compare![1]).toMatchObject({ label: "Fiscal 2025", display: "+6.4%" });
   });

@@ -28,7 +28,8 @@ describe("product language", () => {
     const landing = source("components/oa/oa-landing.tsx");
     expect(landing).toContain("{HERO_HEADLINE_LEAD}");
     expect(landing).toContain("{HERO_HEADLINE_EMPHASIS}");
-    expect(landing).toContain("{HERO_SUBHEAD}");
+    // The subhead is the meta and share description; the hero itself has no line under the headline (owner rule 8).
+    expect(landing).not.toContain("{HERO_SUBHEAD}");
   });
 
   it("keeps the first impression inside the voice rules", () => {

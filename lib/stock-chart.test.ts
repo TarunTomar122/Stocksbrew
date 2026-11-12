@@ -13,7 +13,7 @@ import {
   placeMarkers,
   thinSeries,
   unpackChartRanges,
-  withLivePoint,
+  withLiveClose,
   type ChartPoint,
 } from "@/lib/stock-chart";
 
@@ -89,26 +89,44 @@ describe("buildChartRanges", () => {
   });
 });
 
-describe("withLivePoint", () => {
-  const ranges = buildChartRanges(daily(120));
+describe("withLiveClose", () => {
+  const series = daily(120);
 
-  it("appends a newer day and recomputes the change", () => {
-    const next = withLivePoint(ranges, "2026-11-10", 50);
-    const month = next[0]!;
+  it("appends a newer day, and the ranges cut from it recompute the change", () => {
+    const month = buildChartRanges(withLiveClose(series, "2026-11-10", 50))[0]!;
     expect(month.points[month.points.length - 1]).toEqual({ date: "2026-11-10", close: 50 });
     expect(month.changePct).toBeLessThan(0);
     expect(month.low).toBe(50);
-    expect(ranges[0]!.points[ranges[0]!.points.length - 1]!.date).toBe("2026-11-09");
+    expect(series[series.length - 1]!.date).toBe("2026-11-09");
+  });
+
+  it("starts each window one window before the live day, from the full series' own close (thinned or not)", () => {
+    // Two years of daily closes: the year is thinned (more than 200 points), and its start must still be the close on
+    // the day one year before the live day, not the first point the thinning happened to keep.
+    const long = daily(800, "2026-11-09");
+    const year = buildChartRanges(withLiveClose(long, "2026-11-10", 5000)).find((range) => range.key === "1Y")!;
+    const startDay = monthsBefore("2026-11-10", 12);
+    const startClose = long.find((point) => point.date === startDay)!.close;
+    expect(year.fromDate).toBe(startDay);
+    expect(year.points[0]).toEqual({ date: startDay, close: startClose });
+    expect(year.changePct).toBeCloseTo(((5000 - startClose) / startClose) * 100, 6);
+    // High and low come from the full year, not from the thinned points.
+    const inYear = long.filter((point) => point.date >= startDay).map((point) => point.close);
+    expect(year.low).toBe(Math.min(...inYear));
+    expect(year.high).toBe(5000);
+    // The same price from the same start whichever day the stored series ends on.
+    const stale = buildChartRanges(withLiveClose(long.slice(0, -1), "2026-11-10", 5000)).find((range) => range.key === "1Y")!;
+    expect(stale.fromDate).toBe(startDay);
+    expect(stale.changePct).toBeCloseTo(year.changePct, 6);
   });
 
   it("replaces the close for the same day and ignores stale or bad quotes", () => {
-    const same = withLivePoint(ranges, "2026-11-09", 500)[0]!;
-    expect(same.points).toHaveLength(ranges[0]!.points.length);
-    expect(same.points[same.points.length - 1]!.close).toBe(500);
-    expect(same.high).toBe(500);
-    expect(withLivePoint(ranges, "2026-11-01", 1)).toEqual(ranges);
-    expect(withLivePoint(ranges, null, 10)).toBe(ranges);
-    expect(withLivePoint(ranges, "2026-11-10", 0)).toBe(ranges);
+    const same = withLiveClose(series, "2026-11-09", 500);
+    expect(same).toHaveLength(series.length);
+    expect(same[same.length - 1]!.close).toBe(500);
+    expect(withLiveClose(series, "2026-11-01", 1)).toEqual(series);
+    expect(withLiveClose(series, null, 10)).toEqual(series);
+    expect(withLiveClose(series, "2026-11-10", 0)).toEqual(series);
   });
 });
 
@@ -126,7 +144,7 @@ describe("packChartRanges", () => {
   }
 
   it("gives back exactly the same ranges, live point included", () => {
-    const ranges = withLivePoint(buildChartRanges(tradingDays(12)), "2026-11-11", 168.7899932861328);
+    const ranges = buildChartRanges(withLiveClose(tradingDays(12), "2026-11-11", 168.7899932861328));
     expect(ranges.map((range) => range.key)).toEqual(["1M", "6M", "1Y", "5Y", "MAX"]);
     const packed = packChartRanges(ranges);
     expect(packed).not.toBeNull();

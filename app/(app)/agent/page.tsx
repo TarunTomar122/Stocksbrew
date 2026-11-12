@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { BriefingAgentsGhost, BriefingAgentsStrip, BriefingExampleAgents } from "@/components/briefing/agents-strip";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { ProposalsSection } from "@/components/proposals/proposals-section";
-import { ScrollToToday } from "@/components/thread/scroll-to-today";
+import { ActivityRecord } from "@/components/thread/activity-record";
 import { ThreadComposer } from "@/components/thread/thread-composer";
 import { ThreadSkeleton } from "@/components/thread/thread-skeleton";
-import { ThreadLinks, ThreadView } from "@/components/thread/thread-view";
-import { loadWatches } from "@/lib/agent-watch-server";
+import { ThreadView } from "@/components/thread/thread-view";
 import { loadProposalCards } from "@/lib/proposals-server";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadBriefingPage } from "@/lib/briefing-data";
 import { loadExampleBriefing } from "@/lib/briefing-example";
 import { viewerFromUserDoc } from "@/lib/entitlements-server";
-import { newYorkToday } from "@/lib/portfolio-data";
+import { buildRecord, type RecordDay } from "@/lib/thread/record";
 import { loadExampleThread, loadMemberThread } from "@/lib/thread/server";
 import { threadSuggestions } from "@/lib/thread/suggest";
 import type { Thread } from "@/lib/thread/types";
@@ -36,58 +34,46 @@ const EXAMPLE_TAG = (
   </span>
 );
 
-/** The conversation on the left; the agents and the pages it draws from in the rail (owner rule 10). */
-function Layout({ thread, signedIn, rail, lead = null }: { thread: Thread; signedIn: boolean; rail: React.ReactNode; lead?: React.ReactNode }) {
+/**
+ * One column (owner rules 4 and 10: no short side rail): what needs the person (the proposals, with the agent's status
+ * beside them), then the dated record of what the agent did, then the box to ask it something.
+ */
+function Layout({ thread, record, signedIn, lead = null }: { thread: Thread; record: RecordDay[]; signedIn: boolean; lead?: React.ReactNode }) {
+  // A thread with nothing to say (no stocks yet, still reading, could not read) keeps the agent's one note saying why;
+  // the record still shows what was answered (it comes from the proposals, not the thread), and takes new answers.
+  const noteOnly = thread.status !== "ready" || thread.days.length === 0;
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-6">
-      <div className="flex min-w-0 flex-col gap-4">
-        {thread.example ? (
-          <p className="min-w-0 px-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
-            {EXAMPLE_TAG}
-            This is the example portfolio&apos;s agent, writing about real moves in its stocks. Sign in and it writes about yours.
-          </p>
-        ) : null}
-        {lead}
-        <ThreadView thread={thread} />
-        <ThreadComposer signedIn={signedIn} example={thread.example} suggestions={threadSuggestions(thread)} />
-        <ScrollToToday />
-      </div>
-      <aside className="hidden min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:flex">
-        {rail}
-        <ThreadLinks example={thread.example} />
-      </aside>
+    // On a phone the reply box and the tab bar sit over the page's foot: the column ends clear of both.
+    <div className="flex min-w-0 flex-col gap-5 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
+      {thread.example ? (
+        <p className="min-w-0 px-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
+          {EXAMPLE_TAG}
+          This is the example portfolio&apos;s agent, writing about real moves in its stocks. Sign in and it writes about yours.
+        </p>
+      ) : null}
+      {lead}
+      {noteOnly ? <ThreadView thread={thread} /> : null}
+      <ActivityRecord days={record} today={thread.today} />
+      <ThreadComposer signedIn={signedIn} example={thread.example} suggestions={threadSuggestions(thread)} />
     </div>
   );
 }
 
 async function ExampleThread() {
   const thread = await loadExampleThread({ briefing: () => loadExampleBriefing() });
-  const rail = (
-    <Suspense fallback={<BriefingAgentsGhost />}>
-      <BriefingExampleAgents today={newYorkToday()} />
-    </Suspense>
-  );
-  return <Layout thread={thread} signedIn={false} rail={rail} />;
+  return <Layout thread={thread} record={buildRecord(thread, [], thread.today)} signedIn={false} />;
 }
 
 async function MemberThread({ uid }: { uid: string }) {
-  const today = newYorkToday();
-  // The rail's one read starts now (loadWatches is React-cached on uid and day), beside the thread's own reads.
-  void loadWatches(uid, today).catch(() => null);
-  // The agent's proposals are worked out beside the thread's reads, bounded from now (lib/proposals-server.ts).
+  // The agent's proposals (and its status: agents, alerts, next check) are worked out beside the thread's reads,
+  // bounded from now (lib/proposals-server.ts loadProposalCards).
   const proposals = loadProposalCards(uid).catch(() => null);
   const doc = await getUserDoc(uid).catch(() => null);
   const viewer = viewerFromUserDoc(uid, doc);
-  const thread = await loadMemberThread({ doc, viewer, briefing: () => loadBriefingPage({ persist: false }) });
-  const rail = (
-    <Suspense fallback={<BriefingAgentsGhost />}>
-      <BriefingAgentsStrip uid={uid} today={today} inBriefing={[]} portfolio={thread.stocks > 0} />
-    </Suspense>
-  );
-  // "Waiting for you": the agent's proposals lead the page, rendered with the thread (so nothing shifts in later and
-  // the scroll to today sees them).
-  const lead = <ProposalsSection load={proposals} />;
-  return <Layout thread={thread} signedIn rail={rail} lead={lead} />;
+  const [thread, loaded] = await Promise.all([loadMemberThread({ doc, viewer, briefing: () => loadBriefingPage({ persist: false }) }), proposals]);
+  // "Needs you" leads; the record below carries each answered proposal's outcome beside the agent's notes.
+  const lead = <ProposalsSection load={Promise.resolve(loaded)} statusAlone />;
+  return <Layout thread={thread} record={buildRecord(thread, loaded?.outcomes ?? [], thread.today)} signedIn lead={lead} />;
 }
 
 async function AgentBody() {
@@ -97,7 +83,7 @@ async function AgentBody() {
 
 export default function AgentPage() {
   return (
-    <AppPage>
+    <AppPage className="!max-w-[68rem]">
       <PageHead title="Your agent" />
       <Suspense fallback={<ThreadSkeleton />}>
         <AgentBody />

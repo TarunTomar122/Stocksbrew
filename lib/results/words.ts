@@ -314,7 +314,12 @@ export function resultTone(read: ResultRead): "up" | "down" | "flat" {
 }
 
 /** One figure. `title` says where it came from: a hover title, never a line under the fact (owner rule 4). */
-export type FigureCell = { label: string; value: string; sub: string; title: string; tone: "up" | "down" | "flat" };
+/**
+ * Two figures a cell compares (reported against expected, this move against the usual one), drawn as a bar pair, with
+ * the shorter line that goes under the bars in place of `sub` (the bars carry both numbers; owner VISUALS CHECK).
+ */
+export type FigurePair = { value: number; versus: number; labels: [string, string]; texts: [string, string]; sub: string };
+export type FigureCell = { label: string; value: string; sub: string; title: string; tone: "up" | "down" | "flat"; pair?: FigurePair };
 
 /** The compact row of figures: EPS against the estimate, revenue, the outlook, the stock's move. */
 export function figureCells(read: ResultRead, today: string): FigureCell[] {
@@ -327,6 +332,7 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
       sub: `vs ${fmtEps(eps.expected)} expected, ${verdictPhrase(eps)}`,
       title: `EPS and estimate: ${eps.source}${eps.asOf ? `, ${stampWords(eps.asOf)}` : ""}`,
       tone: verdictTone(eps.verdict),
+      pair: { value: eps.actual, versus: eps.expected, labels: ["Reported", "Expected"], texts: [fmtEps(eps.actual), fmtEps(eps.expected)], sub: cap(verdictPhrase(eps)) },
     });
   }
   if (read.revenue) {
@@ -342,6 +348,18 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
       sub: expected ? [expected, growth].filter(Boolean).join(", ") : cap(growth),
       title: [revenue.expected !== null ? "Estimate: Yahoo Finance analysts" : "", `Revenue: ${revenue.source}${revenue.asOf ? `, ${stampWords(revenue.asOf)}` : ""}`].filter(Boolean).join(". "),
       tone: revenue.verdict ? verdictTone(revenue.verdict) : yoy === null || flat(yoy) ? "flat" : yoy > 0 ? "up" : "down",
+      ...(revenue.expected !== null && verdict
+        ? {
+            pair: {
+              value: revenue.value,
+              versus: revenue.expected,
+              labels: ["Reported", "Expected"] as [string, string],
+              texts: [revenueWords(revenue.value), revenueWords(revenue.expected)] as [string, string],
+              // The margin against the estimate first, as the EPS cell says it, then the year-on-year change.
+              sub: cap([verdict.replace(/^Revenue /, ""), growth].filter(Boolean).join(", ")),
+            },
+          }
+        : {}),
     });
   }
   if (read.guidance) {
@@ -362,6 +380,18 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
       sub: `${cap(moveWhen(read.move, today))}${usual}`,
       title: `${cap(read.move.source)}${read.move.asOf ? `, ${stampWords(read.move.asOf)}` : ""}`,
       tone: flat(read.move.pct) ? "flat" : read.move.pct > 0 ? "up" : "down",
+      // The move's size against a usual report's, when there is a usual one to hold it against.
+      ...(usual && read.move.usualPct !== null
+        ? {
+            pair: {
+              value: Math.abs(read.move.pct),
+              versus: read.move.usualPct,
+              labels: ["This time", "Usually"] as [string, string],
+              texts: [pctWords(read.move.pct), pctWords(read.move.usualPct)] as [string, string],
+              sub: cap(moveWhen(read.move, today)),
+            },
+          }
+        : {}),
     });
   }
   return cells;

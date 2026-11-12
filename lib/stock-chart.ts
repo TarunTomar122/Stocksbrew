@@ -124,26 +124,18 @@ export function buildChartRanges(series: ReadonlyArray<ChartPoint>, maxPoints = 
 }
 
 /**
- * Put today's quote on the end of every range. The stored series is a day or
- * so behind the live price, and the header and the chart must agree.
+ * The series with today's quote on the end (or in place of today's stored close). The stored series is a day or so
+ * behind the live price, and the header and the chart must agree. Done on the whole series, before the ranges are
+ * windowed and thinned (buildChartRanges), so each window starts one window's length before the live day and its
+ * first close, high and low come from the full history (council, ship 85).
  */
-export function withLivePoint(ranges: ChartRange[], date: string | null | undefined, price: number | null | undefined): ChartRange[] {
-  if (!isIsoDay(date) || !fin(price) || price <= 0) return ranges;
-  return ranges.map((range) => {
-    const points = [...range.points];
-    const last = points[points.length - 1];
-    if (!last || date < last.date) return range;
-    if (last.date === date) points[points.length - 1] = { date, close: price };
-    else points.push({ date, close: price });
-    const first = points[0]!;
-    return {
-      ...range,
-      points,
-      changePct: ((price - first.close) / first.close) * 100,
-      high: Math.max(range.high, price),
-      low: Math.min(range.low, price),
-    };
-  });
+export function withLiveClose(series: ReadonlyArray<ChartPoint>, date: string | null | undefined, price: number | null | undefined): ChartPoint[] {
+  const clean = cleanSeries(series);
+  if (!isIsoDay(date) || !fin(price) || price <= 0) return clean;
+  const last = clean[clean.length - 1];
+  if (!last || date < last.date) return clean;
+  if (last.date === date) return [...clean.slice(0, -1), { date, close: price }];
+  return [...clean, { date, close: price }];
 }
 
 // ─── Sending the ranges to the browser ───────────────────────────────────────

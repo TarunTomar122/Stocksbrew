@@ -3,7 +3,7 @@ import { getScreenerRows } from "@/lib/screener";
 import { getSnapshotFacts } from "@/lib/insight-data";
 import { getStockSummary } from "@/lib/stock";
 import { getStockLongSeries, getStockSnapshotHistory } from "@/lib/stock-events";
-import { buildChartRanges, withLivePoint, type ChartPoint, type ChartRange } from "@/lib/stock-chart";
+import { buildChartRanges, withLiveClose as liveOnHistory, type ChartPoint, type ChartRange } from "@/lib/stock-chart";
 import { loadFunds } from "@/lib/xray-data";
 import type { FundDoc } from "@/lib/xray";
 import type { UserDoc } from "@/lib/watchlist";
@@ -106,12 +106,9 @@ export async function loadFundPage(ticker: string, fallbackName: string): Promis
     if (close) quote = { price: close.price, changeAbs: close.changeAbs, changePct: close.changePct, capturedAt: null, closeDate: close.date };
   }
 
-  let ranges = longSeries?.ranges ?? [];
-  if (!ranges.length) {
-    const snapshots = await getStockSnapshotHistory(instrumentId).catch(() => null);
-    ranges = buildChartRanges(snapshots?.closes ?? []);
-  }
-  if (quote?.capturedAt) ranges = withLivePoint(ranges, etDay(quote.capturedAt), quote.price);
+  // Today's quote on the whole history, then the ranges cut from it (lib/stock-chart.ts withLiveClose).
+  const history = longSeries?.closes.length ? longSeries.closes : ((await getStockSnapshotHistory(instrumentId).catch(() => null))?.closes ?? []);
+  const ranges = buildChartRanges(quote?.capturedAt ? liveOnHistory(history, etDay(quote.capturedAt), quote.price) : history);
 
   const context = await insideContext(doc);
   const inside = fundLookThrough({ doc, ...context, yahooSectors: facts?.sectorWeights ?? null });
