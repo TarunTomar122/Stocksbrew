@@ -2,12 +2,13 @@ import Link from "next/link";
 
 import { FOCUS, NUM, Tag } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
+import { capitalize, dayWords } from "@/lib/day-words";
 import type { CallWord, Memo, MemoCallChange } from "@/lib/memo/types";
 import { CALL_CHIP, callShows } from "@/lib/memo/view";
 import { shortDay, weekdayName } from "@/lib/memo/week";
 
 import { callReasonText, explainCall } from "./explain";
-import { MEMO_CARD, memoGrid } from "./rows";
+import { MEMO_CARD } from "./rows";
 
 /** A call in its plain words, coloured by what it asks of you. */
 export function CallChip({ call }: { call: CallWord }) {
@@ -19,6 +20,22 @@ export function CallChip({ call }: { call: CallWord }) {
   );
 }
 
+export type CallCard = { call: MemoCallChange; was: CallWord | null; reason: string };
+
+/**
+ * The calls worth a card: only a call that ended somewhere else AND says why. "Keep, was Buy more" with no reason
+ * tells the reader nothing (owner, Nov 12: "the last card has no info so why show?").
+ */
+export function callCards(calls: MemoCallChange[], memo: Pick<Memo, "changed" | "hurt" | "look">, example: boolean): CallCard[] {
+  return calls.flatMap((call) => {
+    if (call.from === call.to) return [];
+    const explain = explainCall(memo, call, example);
+    const reason = explain.text ? callReasonText(explain.text) : null;
+    const { was } = callShows(call);
+    return reason ? [{ call, was, reason }] : [];
+  });
+}
+
 /**
  * Calls that ended the week different from how they started, as small stock cards: the call it is now and the day
  * it changed. Owner rule 9: a call stays put, and a sale never sits beside Keep or Buy more. So the call it replaced
@@ -26,28 +43,33 @@ export function CallChip({ call }: { call: CallWord }) {
  * five sessions, two changes in a week) shows the call now and its date, and the reason when the memo has one
  * (lib/memo/view.ts callShows). A call with neither shows no card. The card opens the stock, where the call lives.
  */
-export function CallChanges({ calls, memo, example }: { calls: MemoCallChange[]; memo: Pick<Memo, "changed" | "hurt" | "look">; example: boolean }) {
-  // Only a call that ended somewhere else AND says why. "Keep, was Buy more" with no reason tells the reader nothing
-  // (owner, Nov 12: "the last card has no info so why show?").
-  const cards = calls.flatMap((call) => {
-    if (call.from === call.to) return [];
-    const explain = explainCall(memo, call, example);
-    const reason = explain.text ? callReasonText(explain.text) : null;
-    const { was } = callShows(call);
-    return reason ? [{ call, was, reason }] : [];
-  });
+export function CallChanges({
+  cards,
+  today,
+  className = "min-w-0",
+  gridClassName = "grid grid-cols-2 gap-3",
+}: {
+  /** From `callCards`. */
+  cards: CallCard[];
+  /** Today in New York: the day a call changed reads "Yesterday" or "Monday" within the week. */
+  today: string;
+  /** The section's place in its row (rows.ts packedSection). */
+  className?: string;
+  /** Its card list's columns (rows.ts packedGrid). */
+  gridClassName?: string;
+}) {
   // Nothing to say: no section, not a card saying none changed (owner rule 4).
   if (cards.length === 0) return null;
   return (
-    <section aria-labelledby="memo-calls" className="min-w-0">
+    <section aria-labelledby="memo-calls" className={className}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
         <h2 id="memo-calls" className="oa-label">
           Calls that changed
         </h2>
       </div>
-      <ul className={`oa-card-grid ${memoGrid(cards.length)}`}>
+      <ul className={`oa-card-grid ${gridClassName}`}>
         {cards.map(({ call, was, reason }) => {
-          const day = `${weekdayName(call.date).slice(0, 3)} ${shortDay(call.date)}`;
+          const day = capitalize(dayWords(call.date, today)) || shortDay(call.date);
           return (
             <li key={`${call.ticker}:${call.date}`} className="min-w-0">
               <Link

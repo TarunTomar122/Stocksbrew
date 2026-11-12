@@ -63,7 +63,7 @@ export function AnalysisView({ analysis, plan, trialEligible }: { analysis: Port
         />
       ) : null}
       {analysis.risk ? <Swings module={analysis.risk} example={example} /> : null}
-      {together ? <Together module={together} weights={weights} /> : null}
+      {together ? <Together module={together} weights={weights} example={example} /> : null}
       {analysis.overlap ? <Overlap module={analysis.overlap} example={example} /> : null}
       {analysis.crashes ? <Crashes module={analysis.crashes} /> : null}
       {analysis.attribution ? <MadeTheMoney module={analysis.attribution} /> : null}

@@ -17,7 +17,19 @@ export type Weighted = HoldingRef & {
 
 /* ── 1. How the money sits ─────────────────────────────────────────────── */
 
-export type SectorShare = { sector: string; pct: number; spPct: number | null };
+/** A name shown on a sector row: one of the person's own (biggest first), or an S&P 500 leader to look at. */
+export type SectorName = HoldingRef & { idea: boolean };
+
+export type SectorShare = {
+  sector: string;
+  pct: number;
+  spPct: number | null;
+  /**
+   * Two or three names for the row: the person's own in the sector, biggest first (companies inside opened funds
+   * count); for a sector they skip or hold far less of than the S&P 500, its largest names there as ideas.
+   */
+  names: SectorName[];
+};
 
 export type ConcentrationModule = {
   /** "look-through": funds opened into their companies. "as-typed": each line as the person entered it. */
@@ -95,6 +107,8 @@ export type RiskModule = {
 
 export type MoveGroup = {
   tickers: string[];
+  /** What they are, plural, for "4 chip stocks move as one": "chip stocks", "funds", else "stocks" or "holdings". */
+  noun: string;
   weight: number;
   /** Average correlation of daily moves inside the group, -1 to 1. */
   together: number;
@@ -110,6 +124,10 @@ export type CorrelationModule = {
   /** Correlations in `order`, two decimals, symmetric, 1 on the diagonal. */
   matrix: number[][];
   groups: MoveGroup[];
+  /** The holding that moves least with the rest (weighted average correlation with the others), from three names. */
+  steadiest: (HoldingRef & { together: number }) | null;
+  /** The two holdings that move most alike. */
+  closest: { a: HoldingRef; b: HoldingRef; together: number } | null;
 };
 
 /* ── 5. Past crashes ───────────────────────────────────────────────────── */

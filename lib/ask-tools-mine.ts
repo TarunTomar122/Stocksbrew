@@ -17,11 +17,11 @@ import {
   type SignInCard,
   type WatchCard,
 } from "@/lib/ask-cards";
-import { MAX_JOBS_PER_USER, decisionLabel, describeJob, hiddenTemplateIds, planMayRun, type AgentJob, type AgentJobDraft, type AgentRun } from "@/lib/agent-jobs";
+import { CALL_WORDS, MAX_JOBS_PER_USER, decisionLabel, describeJob, hiddenTemplateIds, planMayRun, type AgentJob, type AgentJobDraft, type AgentRun } from "@/lib/agent-jobs";
 import { listJobs, listRuns } from "@/lib/agent-jobs-data";
-import { parseByRules } from "@/lib/agents-plain/parse";
+import { WATCH_KINDS as PLAIN_WATCH_KINDS, parsePlainRequest, type CallLookup, type PlainCall, type WatchKind as PlainWatchKind } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
-import { plainCatalog } from "@/lib/agents-plain/server";
+import { plainCallLookup, plainCatalog } from "@/lib/agents-plain/server";
 import { BRIEFING_DAY_RE, BRIEFING_ITEM_ID_RE, type Briefing, type BriefingItem } from "@/lib/briefing";
 import { BRIEFING_STATE_COLLECTION } from "@/lib/briefing-data";
 import { getNextEarningsCalendarEventCached } from "@/lib/earnings";
@@ -35,6 +35,7 @@ import { listMemos, readMemo } from "@/lib/memo/store";
 import type { Memo, MemoItem, MemoReason } from "@/lib/memo/types";
 import { BENCHMARK_SYMBOL, newYorkToday } from "@/lib/portfolio-data";
 import { researchStore } from "@/lib/research/store";
+import { getScreenerRows } from "@/lib/screener";
 import { cleanTicker as cleanResearchTicker, isReportKey, reportHref, type ResearchReport } from "@/lib/research/types";
 import { VERDICT_WORDS } from "@/lib/thesis-watch/rules";
 import { checkReasons, exampleReasonChecks, type CheckView } from "@/lib/thesis-watch/server";
@@ -53,7 +54,8 @@ import { getUserDoc, type UserDoc } from "@/lib/watchlist";
  *
  * Writes: none. The reason watcher runs with `persist: false`, the memo is
  * read from the store or built in memory without saving and without a model,
- * and the watch card saves an agent only when the person taps it (POST /api/agents/save from the page).
+ * and the watch card saves an agent only when the person taps it (POST /api/agents/save from the page). The watch
+ * card reads the request with the watch box's own reader and call lookup (lib/agents-plain), which only read.
  */
 
 export type MineToolContext = {
@@ -431,46 +433,97 @@ export async function briefingItemCard(context: MineToolContext, input: { ticker
 
 /* ── "Keep watching" ───────────────────────────────────────────────────────── */
 
-export const WATCH_KINDS = ["price_below", "price_above", "daily_move", "earnings_before", "insider_trade", "congress_trade", "fund_13f", "buy_zone"] as const;
-export type WatchKindInput = (typeof WATCH_KINDS)[number];
+/**
+ * Ask offers the same watches as the watch box: its kinds are the watch box's own list (lib/agents-plain/parse.ts), so
+ * a kind added there is a kind Ask can offer, and the Record below will not compile until it has words for it.
+ */
+export const WATCH_KINDS = PLAIN_WATCH_KINDS;
+export type WatchKindInput = PlainWatchKind;
+
+const CALL_TO = { buy_more: "Buy more", keep: "Keep", sell_some: "Sell some" } as const;
+const NEWS_WORDS = {
+  any: "changes",
+  busy: "gets much heavier than usual",
+  negative: "turns negative",
+  positive: "turns positive",
+} as const;
+const FILING_WORDS = {
+  any: "anything with the SEC",
+  big: "something big with the SEC",
+  "8-K": "an 8-K",
+  "10-K": "a 10-K",
+  "10-Q": "a 10-Q",
+} as const;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export type WatchInput = {
+  kind: WatchKindInput;
+  ticker?: string | null;
+  mine?: boolean;
+  level?: number | null;
+  pct?: number | null;
+  days?: number | null;
+  /** call_change: only a turn to this call. */
+  to?: keyof typeof CALL_TO | null;
+  /** news_change: which change in the news. */
+  news?: keyof typeof NEWS_WORDS | null;
+  /** sec_filing: which filings. */
+  filing?: keyof typeof FILING_WORDS | null;
+  /** weekly_review: 1 = Monday … 5 = Friday. */
+  weekday?: number | null;
+  /** They asked when to buy or sell, not to be told: the card asks before it shows the watch. */
+  offer?: boolean | null;
+};
+
+type Who = { ticker: string | null; who: string; plural: boolean };
 
 /**
- * The request typed into the agent box, in the shapes its rule reader turns
- * into an agent (pinned by lib/ask-tools-mine.test.ts). Null when the parts do
- * not make one: no stock for a stock-only kind, a number out of range.
+ * The request as typed into the watch box, one phrase per kind, in the shapes its rule reader turns into exactly one
+ * agent (pinned for every kind by lib/ask-tools-mine.test.ts). Null when the parts do not make one: no stock for a
+ * stock-only kind, a number out of range.
  */
-export function watchRequest(input: { kind: WatchKindInput; ticker?: string | null; mine?: boolean; level?: number | null; pct?: number | null; days?: number | null }): string | null {
+const REQUEST: Record<WatchKindInput, (who: Who, input: WatchInput) => string | null> = {
+  price_below: ({ ticker }, input) => levelRequest(ticker, input.level, "below"),
+  price_above: ({ ticker }, input) => levelRequest(ticker, input.level, "above"),
+  daily_move: ({ ticker }, input) => {
+    const pct = Math.round(input.pct ?? 5);
+    if (!(pct >= 1 && pct <= 50)) return null;
+    return ticker ? `Tell me when ${ticker} moves ${pct}% in a day` : `Tell me when anything I own moves ${pct}% in a day`;
+  },
+  earnings_before: ({ who, plural }, input) => {
+    const days = Math.round(input.days ?? 3);
+    if (!(days >= 1 && days <= 14)) return null;
+    return `Tell me ${days} ${days === 1 ? "day" : "days"} before ${who} ${plural ? "report" : "reports"} earnings`;
+  },
+  earnings_out: ({ who, plural }) => `Tell me when ${who} ${plural ? "report" : "reports"} earnings`,
+  fund_13f: ({ ticker }) => (ticker ? `Tell me when a fund sells ${ticker}` : null),
+  congress_trade: ({ ticker }) => (ticker ? `Tell me when a member of Congress trades ${ticker}` : null),
+  insider_trade: ({ who }) => `Tell me when insiders buy or sell ${who}`,
+  movers_list: ({ who, plural }) => `Tell me when ${who} ${plural ? "are" : "is"} on the movers list`,
+  buy_zone: ({ who, plural }) => `Tell me when ${who} ${plural ? "are" : "is"} a good price to buy`,
+  sell_zone: ({ who }) => `Tell me when to sell ${who}`,
+  call_change: ({ who }, input) => `Tell me when your call on ${who} ${input.to ? `turns to ${CALL_TO[input.to]}` : "changes"}`,
+  daily_check: ({ who }) => `Send me a summary of ${who} every market day`,
+  weekly_review: ({ who }, input) => {
+    const weekday = Math.round(input.weekday ?? 1);
+    return weekday >= 1 && weekday <= 5 ? `Send me a weekly review of ${who} every ${WEEKDAYS[weekday]}` : null;
+  },
+  sec_filing: ({ who, plural }, input) => `Tell me when ${who} ${plural ? "file" : "files"} ${FILING_WORDS[input.filing ?? "any"]}`,
+  news_change: ({ who }, input) => `Tell me when the news about ${who} ${NEWS_WORDS[input.news ?? "any"]}`,
+};
+
+function levelRequest(ticker: string | null, raw: number | null | undefined, side: "below" | "above"): string | null {
+  const level = typeof raw === "number" && Number.isFinite(raw) && raw > 0 && raw < 1_000_000 ? raw : null;
+  if (!ticker || level === null) return null;
+  return `Tell me when ${ticker} closes ${side} ${Number.isInteger(level) ? String(level) : level.toFixed(2)}`;
+}
+
+export function watchRequest(input: WatchInput): string | null {
   const ticker = tickerOf(input.ticker);
   const mine = !ticker && input.mine === true;
-  const who = ticker ?? (mine ? "my stocks" : null);
-  if (!who) return null;
-  const level = typeof input.level === "number" && Number.isFinite(input.level) && input.level > 0 && input.level < 1_000_000 ? input.level : null;
-  switch (input.kind) {
-    case "price_below":
-    case "price_above": {
-      if (!ticker || level === null) return null;
-      const shown = Number.isInteger(level) ? String(level) : level.toFixed(2);
-      return `Tell me when ${ticker} closes ${input.kind === "price_below" ? "below" : "above"} ${shown}`;
-    }
-    case "daily_move": {
-      const pct = Math.round(input.pct ?? 5);
-      if (!(pct >= 1 && pct <= 50)) return null;
-      return ticker ? `Tell me when ${ticker} moves ${pct}% in a day` : `Tell me when anything I own moves ${pct}% in a day`;
-    }
-    case "earnings_before": {
-      const days = Math.round(input.days ?? 3);
-      if (!(days >= 1 && days <= 14)) return null;
-      return `Tell me ${days} ${days === 1 ? "day" : "days"} before ${ticker ?? "my stocks"} ${ticker ? "reports" : "report"} earnings`;
-    }
-    case "insider_trade":
-      return `Tell me when insiders buy or sell ${who}`;
-    case "congress_trade":
-      return ticker ? `Tell me when a member of Congress trades ${ticker}` : null;
-    case "fund_13f":
-      return ticker ? `Tell me when a fund sells ${ticker}` : null;
-    case "buy_zone":
-      return ticker ? `Tell me when ${ticker} is a good price to buy` : null;
-  }
+  if (!ticker && !mine) return null;
+  const write = REQUEST[input.kind];
+  return write ? write({ ticker, who: ticker ?? "my stocks", plural: !ticker }, input) : null;
 }
 
 /** Whole days from one New York day to another. */
@@ -485,7 +538,7 @@ function daysFrom(today: string, day: string): number | null {
  * day-before reminder, the same rule as the reminders elsewhere in the app (lib/next-steps.ts). A report today
  * or tomorrow keeps the asked-for reminder, which then starts with the report after it, and the card says so.
  */
-async function earningsTiming(input: Parameters<typeof watchRequest>[0], now: Date): Promise<{ days: number | null; note: string | null }> {
+async function earningsTiming(input: WatchInput, now: Date): Promise<{ days: number | null; note: string | null }> {
   const ticker = tickerOf(input.ticker);
   if (input.kind !== "earnings_before" || !ticker) return { days: null, note: null };
   const asked = Math.round(input.days ?? 3);
@@ -540,7 +593,61 @@ export function watchOutlook(input: { drafts: AgentJobDraft[]; jobs: Array<Pick<
   };
 }
 
-export async function watchCard(context: MineToolContext, input: Parameters<typeof watchRequest>[0]): Promise<AskCard> {
+/** No session viewer (a stale link, say): the call lookup reads as signed out, so the call shows and its levels don't. */
+const SIGNED_OUT: Viewer = { uid: null, signedIn: false, isSubscribed: false, plan: "anon", tracked: [], covered: [], coverage: null, trialEligible: false };
+
+function dollars(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * "When should I sell NVDA?" answered from our call, in at most two short lines: the call, its own level (owner rule
+ * 8: a Sell some call shows its sell-some price, a Buy more call its buy-more price, nothing else), and how far the
+ * price is from it. Pure. `stock` is the name the read-back uses.
+ */
+export function zoneAnswer(input: { side: "buy" | "sell"; stock: string; call: PlainCall | null; price: number | null }): NonNullable<WatchCard["zone"]> {
+  const { side, stock } = input;
+  const word = input.call?.call ? (CALL_WORDS[input.call.call] as "Buy more" | "Keep" | "Sell some") : null;
+  const locked = Boolean(input.call?.locked);
+  const own = side === "sell" ? word === "Sell some" : word === "Buy more";
+  const raw = own && !locked ? (side === "sell" ? input.call?.trim_above : input.call?.add_below) : null;
+  const level = typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : null;
+  const price = typeof input.price === "number" && Number.isFinite(input.price) && input.price > 0 ? input.price : null;
+  const away = level !== null && price !== null ? Math.round((Math.abs(level - price) / price) * 1000) / 10 : null;
+  // Within a rounding of the level counts as there: "0% above" says nothing.
+  const there = level !== null && price !== null && ((side === "sell" ? price >= level : price <= level) || away === 0);
+  const gap = there ? null : away;
+  const levelName = side === "sell" ? "sell-some" : "buy-more";
+  // The price said once, in our words, so the model never adds its own line about it.
+  const trades = price !== null ? ` It trades at ${dollars(price)}.` : "";
+  let answer: string;
+  if (!word) {
+    answer = `We don't have a call on ${stock} yet, so there's no ${levelName} price.${trades}`;
+  } else if (!own) {
+    answer = `Our call on ${stock} is ${word}, so there's no ${levelName} price right now.${trades}`;
+  } else if (locked) {
+    answer = `Our call on ${stock} is ${word}. Its ${levelName} price comes with covering the stock.`;
+  } else if (level === null) {
+    answer = `Our call on ${stock} is ${word}, with no ${levelName} price set.`;
+  } else {
+    const lead = `Our call on ${stock} is ${word} ${side === "sell" ? "at" : "below"} ${dollars(level)}.`;
+    const where =
+      price === null
+        ? ""
+        : there
+          ? ` It's there now, at ${dollars(price)}.`
+          : ` That's ${gap}% ${side === "sell" ? "above" : "below"} its price of ${dollars(price)}.`;
+    answer = `${lead}${where}`;
+  }
+  return { side, call: word, level, price, gap_pct: gap, locked, answer };
+}
+
+/** The one-tap question before the watch: "gets there" only while the level is still ahead. */
+function offerLine(zone: WatchCard["zone"]): string {
+  return zone && zone.level !== null && zone.gap_pct !== null ? "Want me to tell you when it gets there?" : "Want me to tell you if that changes?";
+}
+
+export async function watchCard(context: MineToolContext, input: WatchInput): Promise<AskCard> {
   const timing = await earningsTiming(input, context.now ?? new Date());
   if (timing.days !== null) input = { ...input, days: timing.days };
   // Signed out there is no "my stocks" to watch; this would be a card about nothing.
@@ -551,21 +658,43 @@ export async function watchCard(context: MineToolContext, input: Parameters<type
   if (!request && !tickerOf(input.ticker) && input.mine !== true) {
     return errorCard("An agent watches one stock (or, signed in, every stock the person tracks). Name the stock the answer is about, or offer no agent; do not mention this in the answer.");
   }
-  if (!request) return errorCard("That is not something an agent can watch in that form. Agents watch a closing price level, a big daily move, an upcoming report, insider, Congress or fund trades, or the add level from our call.");
+  if (!request) return errorCard("That is not something an agent can watch in that form. Name one stock, and a price or a move size in range where the kind needs one.");
   const catalog = await plainCatalog();
-  const parsed = parseByRules(request, catalog, { hidden: hiddenTemplateIds() });
-  // Only a request the agent box turns into an agent with nothing refused is offered, so the button never lands on "I can't watch that yet".
-  if (parsed.spec.watches.length === 0 || parsed.spec.cannot.length > 0) {
-    return errorCard(parsed.spec.cannot[0]?.line ?? "An agent cannot watch that yet.");
+  const hidden = hiddenTemplateIds();
+  // One read of our calls serves both the read-back and the answer above it.
+  const read = plainCallLookup(context.viewer ?? SIGNED_OUT);
+  const asked = new Map<string, ReturnType<CallLookup>>();
+  const lookup: CallLookup = (tickers) => {
+    const key = [...tickers].sort().join(",");
+    if (!asked.has(key)) asked.set(key, read(tickers));
+    return asked.get(key)!;
+  };
+  // The watch box's own read (lib/agents-plain/parse.ts) with its call lookup, so a buy or sell watch reads back our
+  // real price exactly as the watch box would. The request is written in the rules' own shapes, so no model is needed.
+  const spec = await parsePlainRequest(request, catalog, { hidden, callLookup: lookup });
+  // Only a request the watch box turns into an agent with nothing refused is offered, so the button never lands on "I can't watch that yet".
+  if (spec.watches.length === 0 || spec.cannot.length > 0) {
+    return errorCard(spec.cannot[0]?.line ?? "An agent cannot watch that yet.");
   }
+
+  // A buy or sell watch on one stock answers "when?" first: our call, its level and how far the price is from it.
+  const side = input.kind === "sell_zone" ? "sell" : input.kind === "buy_zone" ? "buy" : null;
+  const single = spec.stocks.length === 1 && !spec.uses_watchlist ? spec.stocks[0]! : null;
+  let zone: WatchCard["zone"] = null;
+  if (side && single) {
+    const [calls, rows] = await Promise.all([lookup([single.ticker]).catch(() => null), getScreenerRows([single.ticker]).catch(() => null)]);
+    const row = rows?.get(single.ticker);
+    zone = zoneAnswer({ side, stock: single.name, call: calls?.[single.ticker] ?? null, price: typeof row?.price === "number" ? row.price : null });
+  }
+
   let existing: WatchCard["existing"] = [];
   let outlook: WatchCard["outlook"] = null;
-  let note: string | null = [timing.note, ...parsed.spec.watches.map((watch) => watch.note)].filter(Boolean).join(" ") || null;
-  const drafts = parsed.spec.watches.map((watch) => watch.draft);
+  let note: string | null = [timing.note, ...spec.watches.map((watch) => watch.note)].filter(Boolean).join(" ") || null;
+  const drafts = spec.watches.map((watch) => watch.draft);
   if (context.uid) {
     const jobs = await listJobs(context.uid).catch(() => null);
     if (jobs) {
-      const matches = parsed.spec.watches.map((watch) => jobs.find((job) => sameJob(job, watch.draft)) ?? null);
+      const matches = spec.watches.map((watch) => jobs.find((job) => sameJob(job, watch.draft)) ?? null);
       // "Already" only when every agent the request would make exists. Anything less is still offered.
       if (matches.every(Boolean)) existing = matches.map((job) => ({ name: job!.name, enabled: job!.enabled }));
       const plan = context.viewer?.uid === context.uid ? context.viewer.plan : null;
@@ -580,19 +709,22 @@ export async function watchCard(context: MineToolContext, input: Parameters<type
     card: "watch",
     status: existing.length > 0 ? "already" : "ready",
     request,
-    preview: parsed.spec.sentence,
+    // The watch box's read-back, word for word.
+    preview: spec.sentence,
     href: `/agents?q=${encodeURIComponent(request)}`,
     existing,
     note,
     rule: {
       // "when NVIDIA moves 5% or more in a day, up or down" reads as the rule itself without its "when".
-      what: parsed.spec.watches.map((watch) => capitalise(watch.full.replace(/^when\s+/i, ""))),
-      stocks: parsed.spec.stocks.map((stock) => ({ ticker: stock.ticker, name: stock.name })),
-      mine: parsed.spec.uses_watchlist,
+      what: spec.watches.map((watch) => capitalise(watch.full.replace(/^when\s+/i, ""))),
+      stocks: spec.stocks.map((stock) => ({ ticker: stock.ticker, name: stock.name })),
+      mine: spec.uses_watchlist,
     },
     drafts,
     outlook,
-    source: existing.length > 0 ? "Your agents" : "Nothing is set up until the person taps Set up this watch on the card",
+    zone,
+    offer: input.offer && existing.length === 0 ? offerLine(zone) : null,
+    source: existing.length > 0 ? "Your agents" : "Nothing is set up until the person taps Save this watch on the card",
     as_of: null,
     source_url: "/agents",
   } satisfies WatchCard;
@@ -665,14 +797,22 @@ export function buildMineTools(context: MineToolContext): ToolSet {
 
     suggest_watch: tool({
       description:
-        "Offer an agent that keeps watching something after this answer: a closing price level, a big daily move, a reminder before earnings, insider, Congress or fund trades, or the add level from our call. It sets nothing up: the card states the rule and has a 'Set up this watch' button, and nothing is saved until the person taps it. Call it when your answer points to something worth watching, at most once per answer.",
+        "Offer an agent that keeps watching something after this answer. The kinds are the Agents page's own: a closing price level (price_below, price_above), a big daily move (daily_move), before or after earnings (earnings_before, earnings_out), fund, Congress or insider trades (fund_13f, congress_trade, insider_trade), the day's movers list (movers_list), our buy-more price (buy_zone), our sell-some price or our call turning to Sell some (sell_zone: 'tell me when to sell X'), our call changing (call_change), a daily or weekly summary (daily_check, weekly_review), SEC filings (sec_filing) and the news turning (news_change). It sets nothing up: the card reads the watch back in the Agents page's words with a Save button, and nothing is saved until the person taps it. For buy_zone and sell_zone on one stock the card also carries zone.answer: our call, its level and how far the price is from it. Call it at most once per answer.",
       inputSchema: z.object({
         kind: z.enum(WATCH_KINDS),
         ticker: TICKER.optional().describe("The stock. Required, unless mine=true for every stock a signed-in person tracks. There is no market-wide agent"),
-        mine: z.boolean().optional().describe("Watch every stock the person tracks (daily_move, earnings_before, insider_trade only)"),
+        mine: z.boolean().optional().describe("Watch every stock the person tracks (not for price levels, fund or Congress trades)"),
         level: z.number().positive().optional().describe("Price level for price_below or price_above, from a card in this conversation"),
         pct: z.number().positive().optional().describe("Move size for daily_move, 1 to 50. Defaults to 5"),
         days: z.number().int().positive().optional().describe("Days ahead for earnings_before, 1 to 14. Defaults to 3"),
+        to: z.enum(["buy_more", "keep", "sell_some"]).optional().describe("call_change: only a turn to this call. Leave out for any change"),
+        news: z.enum(["any", "busy", "negative", "positive"]).optional().describe("news_change: which change. Defaults to any"),
+        filing: z.enum(["any", "big", "8-K", "10-K", "10-Q"]).optional().describe("sec_filing: which filings. Defaults to any"),
+        weekday: z.number().int().min(1).max(5).optional().describe("weekly_review: 1 = Monday … 5 = Friday. Defaults to Monday"),
+        offer: z
+          .boolean()
+          .optional()
+          .describe("True when the person asked WHEN to buy or sell ('when should I sell NVDA?') rather than asked to be told: the card then waits behind a one-tap question"),
       }),
       execute: async (input) => safeMine("suggest_watch", () => watchCard(context, input)),
       toModelOutput: modelView,

@@ -32,6 +32,12 @@ export function plainCall(stance: unknown): PlainCall | null {
   return null;
 }
 
+/** A call already in a reader's words ("Sell some", as an agent's finding stores it), or a pipeline stance word. */
+function callWord(value: unknown): PlainCall | null {
+  const word = String(value ?? "").trim();
+  return word === "Buy more" || word === "Keep" || word === "Sell some" ? word : plainCall(word);
+}
+
 function cleanTicker(value: unknown): string | null {
   const ticker = String(value ?? "").trim().toUpperCase();
   return TICKER_RE.test(ticker) ? ticker : null;
@@ -62,7 +68,8 @@ function usd(value: number): string {
 }
 
 function price(value: number): string {
-  return `$${value.toLocaleString("en-US", { minimumFractionDigits: value < 10 ? 2 : 0, maximumFractionDigits: 2 })}`;
+  // Whole dollars stay whole ("$250"); cents always show two places ("$251.20", never "$251.2").
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: value < 10 || !Number.isInteger(value) ? 2 : 0, maximumFractionDigits: 2 })}`;
 }
 
 function base(fields: Omit<InboxItem, "day" | "detail" | "external" | "quiet" | "locked" | "weight" | "thread" | "tone" | "exact"> & Partial<InboxItem>): InboxItem | null {
@@ -112,7 +119,27 @@ export type RunFinding = {
   level?: number | null;
   /** Earnings only: "bmo" or "amc" when known. */
   time?: string | null;
+  /** Call changes only (a call-change or sell watch), in plain words: null `call_from` when the plan does not cover the stock. */
+  call_from?: string | null;
+  call_to?: string | null;
 };
+
+/**
+ * One call change is one inbox row, whoever reported it: the call's own records (callItem) or a person's call-change
+ * or sell watch (findingItems). Both build their item from these, so the merge sees the same event: the id is the
+ * stock and the day it changed, the dedupe key the stock and the call it turned to (the merge matches it within
+ * DEDUPE_WINDOW_MS, since the watchlist job can log a Friday change on Monday). Together: ticker + call + day.
+ */
+export function callChangeId(ticker: string, day: string): string {
+  return `call:${ticker}:${day}`;
+}
+
+export function callChangeKey(ticker: string, to: PlainCall): string {
+  return `call:${ticker}:${to}`;
+}
+
+/** An agent's report of a call change outranks every call source (weights 1 to 3), so its wording is the one kept. */
+export const AGENT_CALL_WEIGHT = 10;
 
 /**
  * What the inbox knows about a stock beyond the run: what a normal day is for it (its average absolute daily
@@ -172,11 +199,12 @@ function findingPct(finding: RunFinding): number | null {
   return /^(fell|lost|dropped|slid)$/i.test(match[1]!) ? -size : size;
 }
 
-type FindingKind = "move" | "span" | "level" | "earnings" | "other";
+type FindingKind = "move" | "span" | "level" | "earnings" | "call" | "other";
 
 function findingKind(finding: RunFinding): FindingKind {
   const kind = String(finding.kind ?? "").toLowerCase();
   if (kind === "level") return "level";
+  if (kind === "call" && callWord(finding.call_to) !== null) return "call";
   // The weekly review's moves are over five sessions, not one day: never said or counted as a day's move.
   if (/\bover \w+ sessions\b/i.test(finding.headline)) return "span";
   if (kind === "earnings" || (!kind && /\breports earnings\b/i.test(finding.headline))) return "earnings";
@@ -319,6 +347,26 @@ export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyM
       // Said together below: one line per zone, so "where our call says to buy more" is said once (owner rule 1).
       levels.push({ ticker, day, zone: finding.zone, close: finding.close ?? null, level: finding.level ?? null, move });
       return;
+    } else if (kind === "call" && DAY_RE.test(day)) {
+      // A call-change or sell watch firing on a turn of our call: the same event as the inbox's own call row
+      // (callItem), under the same id and key, so the merge keeps one, and this one's words.
+      const to = callWord(finding.call_to)!;
+      const from = callWord(finding.call_from);
+      item = base({
+        id: callChangeId(ticker, day),
+        kind: "agent",
+        at,
+        exact,
+        tickers: [ticker],
+        text: sentence(finding.headline),
+        detail: finding.detail.trim() ? sentence(finding.detail) : null,
+        href: `${href}#call`,
+        source,
+        tone: from && from !== to ? (RANK[to] > RANK[from] ? "up" : "down") : to === "Buy more" ? "up" : to === "Sell some" ? "down" : "flat",
+        weight: AGENT_CALL_WEIGHT,
+        dedupeKey: callChangeKey(ticker, to),
+        thread: `call:${ticker}`,
+      });
     } else if (finding.headline.trim()) {
       item = base({
         id: `finding:${run.jobId}:${run.day}:${ticker}:${index}`,
@@ -493,7 +541,7 @@ export function callItem(change: CallChangeRecord, mode: Mode): InboxItem | null
   }
   const tone = change.from ? (RANK[change.to] > RANK[change.from] ? "up" : "down") : change.to === "Buy more" ? "up" : change.to === "Sell some" ? "down" : "flat";
   return base({
-    id: `call:${ticker}:${day}`,
+    id: callChangeId(ticker, day),
     kind: "call",
     at,
     exact: !isBareDay(change.at),
@@ -504,7 +552,7 @@ export function callItem(change: CallChangeRecord, mode: Mode): InboxItem | null
     source: "Our call",
     tone,
     weight: change.weight,
-    dedupeKey: `call:${ticker}:${change.to}`,
+    dedupeKey: callChangeKey(ticker, change.to),
     thread: `call:${ticker}`,
   });
 }

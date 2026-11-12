@@ -1,68 +1,96 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+
 import type { CorrelationModule } from "@/lib/portfolio-analysis/types";
 import { StockLogo } from "@/components/stock-logo";
 
 import { Fold } from "./fold";
 import { CARD, ChartCard, Module, NUM, SPAN, pct } from "./parts";
 
+/** At most this many group cards, so the row stays one row of cards with the diversifier and the closest pair. */
+const MAX_GROUP_CARDS = 2;
+
 /**
- * Names that move as one: the groups in one line (logos, how much money, how closely), the pairs worth naming in
- * one strip, then every pair as a heatmap across the page, ordered so close names sit together. A cell prints its
- * figure from 0.3 up; below that only its colour shows, with the figure on hover. Past twelve names the heatmap shows
- * the twelve heaviest and folds the rest behind "Show N more".
+ * Names that move as one, as what it means rather than a grid of numbers (owner, Nov 12: "what do i even get from
+ * this?? this is analysis not insights"): each group that moves as one ("4 chip stocks move as one", 43% of the
+ * money), the holding that moves least with the rest, and the pair that moves most alike, in words, no decimals.
+ * Every pair stays one quiet click away under "See every pair".
  */
-export function Together({ module, weights }: { module: CorrelationModule; weights?: Record<string, number> }) {
-  const named = namedPairs(module);
+export function Together({ module, weights, example = false }: { module: CorrelationModule; weights?: Record<string, number>; example?: boolean }) {
+  const money = example ? "of the money" : "of your money";
+  const groups = module.groups.slice(0, MAX_GROUP_CARDS);
+  // Results cached before the cards existed have neither; the cards then simply leave them out.
+  const steadiest = module.steadiest ?? null;
+  const closest = module.closest ?? null;
+  // A group of exactly the closest two already says it.
+  const pairInGroup = closest ? groups.some((group) => group.tickers.length === 2 && group.tickers.includes(closest.a.ticker) && group.tickers.includes(closest.b.ticker)) : false;
+  const cards = [
+    ...(groups.length > 0
+      ? groups.map((group) => (
+          <Insight key={group.tickers.join("-")} label="One bet in disguise" tickers={group.tickers}>
+            <p className="text-[15px] font-medium leading-5 text-oa-fg">
+              {group.tickers.length} {group.noun ?? "stocks"} move as one
+            </p>
+            <p className="text-[13px] leading-[18px] text-oa-muted-fg">
+              <span className={`${NUM} text-[22px] font-medium leading-7 text-oa-fg`}>{pct(group.weight)}</span> {money}
+            </p>
+          </Insight>
+        ))
+      : [
+          <Insight key="none" label="One bet in disguise" tickers={module.order.slice(0, 5).map((name) => name.ticker)} faint>
+            <p className="text-[15px] font-medium leading-5 text-oa-fg">{example ? "These stocks" : "Your stocks"} move fairly independently</p>
+            <p className="text-[13px] leading-[18px] text-oa-muted-fg">No three of them rise and fall as one.</p>
+          </Insight>,
+        ]),
+    steadiest ? (
+      <Insight key="steadiest" label={example ? "The steadiest diversifier" : "Your steadiest diversifier"} tickers={[steadiest.ticker]}>
+        <p className="text-[15px] font-medium leading-5 text-oa-fg">{steadiest.ticker} moves least with the rest</p>
+        <p className="text-[13px] leading-[18px] text-oa-muted-fg">
+          <span className="text-oa-fg">{followWords(steadiest.together)}.</span> {followMeaning(steadiest.together)}
+        </p>
+      </Insight>
+    ) : null,
+    closest && !pairInGroup ? (
+      <Insight key="closest" label={closest.together >= 0.4 ? "Biggest overlap" : "Closest pair"} tickers={[closest.a.ticker, closest.b.ticker]}>
+        <p className="text-[15px] font-medium leading-5 text-oa-fg">
+          {closest.a.ticker} and {closest.b.ticker} {pairWords(closest.together)}
+        </p>
+        <p className="text-[13px] leading-[18px] text-oa-muted-fg">{pairMeaning(closest.together)}</p>
+      </Insight>
+    ) : null,
+  ].filter(Boolean);
+  const cols = cards.length >= 4 ? "sm:grid-cols-2 xl:grid-cols-4" : cards.length === 3 ? "sm:grid-cols-2 lg:grid-cols-3" : cards.length === 2 ? "sm:grid-cols-2" : "";
   return (
     <Module id="together" title="Names that move as one">
-      {module.groups.length > 0 ? (
-        <ul aria-label="Groups that move together" className={`${SPAN[12]} flex flex-wrap items-center gap-x-6 gap-y-2 px-2 sm:px-0`}>
-          {module.groups.map((group) => (
-            <li key={group.tickers.join("-")} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5 text-oa-muted-fg">
-              <span className="flex items-center gap-1">
-                {group.tickers.map((ticker) => (
-                  <span key={ticker} title={ticker}>
-                    <StockLogo ticker={ticker} size={20} atOnce />
-                  </span>
-                ))}
-              </span>
-              <span>
-                <span className={`${NUM} font-medium text-oa-fg`}>{pct(group.weight)}</span> of the money, in step at{" "}
-                <span className={`${NUM} text-oa-fg`}>{corr(group.together)}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+      <div className={`${SPAN[12]} grid grid-cols-1 gap-3 lg:gap-4 ${cols}`}>{cards}</div>
+      {module.order.length >= 3 ? (
+        <details className={`${SPAN[12]} group`}>
+          <summary className="flex h-9 w-max cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-oa-muted-fg outline-none transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] sm:-ml-2 [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">See every pair</span>
+            <span className="hidden group-open:inline">Hide the pairs</span>
+          </summary>
+          <div className="mt-2">
+            <Heatmap module={module} weights={weights} />
+          </div>
+        </details>
       ) : null}
-      {named.length > 0 ? <Pairs pairs={named} /> : null}
-      {module.order.length >= 3 ? <Heatmap module={module} weights={weights} /> : null}
     </Module>
   );
 }
 
-/** The named pairs as one divided strip: a pair is a figure-width cell, so one or two pairs do not stretch to the row. */
-function Pairs({ pairs }: { pairs: Pair[] }) {
-  const n = pairs.length;
-  const span = n === 1 ? SPAN[4] : n === 2 ? SPAN[8] : SPAN[12];
-  const cols = n === 1 ? "" : n === 2 ? "sm:grid-cols-2" : n === 3 ? "lg:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4";
+/** One insight: a quiet label, the logos it is about, then its words. The cards in a row share a height (grid stretch). */
+function Insight({ label, tickers, faint = false, children }: { label: string; tickers: string[]; faint?: boolean; children: ReactNode }) {
   return (
-    <div className={`${CARD} overflow-hidden ${span}`}>
-      <ul aria-label="Pairs that move most alike" className={`grid grid-cols-1 ${cols}`}>
-        {pairs.map((pair) => (
-          <li key={`${pair.a}-${pair.b}`} className="-mb-px -mr-px flex min-w-0 flex-col gap-1 border-b border-r border-oa-border px-4 py-3">
-            <span className="flex min-w-0 items-center gap-1.5 text-[13px] leading-5 text-oa-fg">
-              <StockLogo ticker={pair.a} size={18} atOnce />
-              <StockLogo ticker={pair.b} size={18} atOnce />
-              <span className="truncate">
-                {pair.a} and {pair.b}
-              </span>
-            </span>
-            <span className="flex items-baseline gap-2">
-              <span className={`${NUM} text-[22px] font-medium leading-7 ${pair.value < 0 ? "text-oa-muted-fg" : "text-oa-fg"}`}>{pair.value.toFixed(2).replace("-", "−")}</span>
-              <span className="text-[13px] leading-[18px] text-oa-muted-fg">{pairWords(pair.value)}</span>
-            </span>
-          </li>
+    <div className={`${CARD} gap-2 px-4 py-3`}>
+      <p className="text-[12.5px] leading-4 text-oa-muted-fg">{label}</p>
+      <span className={`flex flex-wrap items-center gap-1.5 ${faint ? "opacity-60" : ""}`}>
+        {tickers.map((ticker) => (
+          <Link key={ticker} href={`/stock/${encodeURIComponent(ticker)}`} prefetch={false} title={ticker} className="rounded-full hover:ring-2 hover:ring-oa-primary">
+            <StockLogo ticker={ticker} size={26} atOnce circle />
+          </Link>
         ))}
-      </ul>
+      </span>
+      {children}
     </div>
   );
 }
@@ -76,31 +104,35 @@ function cellColor(value: number): string {
 /** Below this a pair barely moves together: its cell shows only its colour, the figure is on hover. */
 const QUIET_BELOW = 0.3;
 
-type Pair = { a: string; b: string; value: number };
-
-/**
- * The pairs worth naming in words (judges, ship 61: "label the strongest relationships plainly"): the three that move
- * most alike, at 0.4 or more, then the one pair that moves most apart, at −0.2 or less.
- */
-export function namedPairs(module: Pick<CorrelationModule, "order" | "matrix">): Pair[] {
-  const pairs: Pair[] = [];
-  module.order.forEach((row, i) => {
-    for (let j = i + 1; j < module.order.length; j += 1) {
-      const value = module.matrix[i]?.[j];
-      if (typeof value === "number" && Number.isFinite(value)) pairs.push({ a: row.ticker, b: module.order[j]!.ticker, value });
-    }
-  });
-  const alike = [...pairs].sort((x, y) => y.value - x.value).filter((pair) => pair.value >= 0.4).slice(0, 3);
-  const apart = [...pairs].sort((x, y) => x.value - y.value).find((pair) => pair.value <= -0.2);
-  return apart ? [...alike, apart] : alike;
-}
-
-/** How a pair moves, in words: "move almost as one", "move closely", "move somewhat alike", "move apart". */
+/** How a pair moves, in words: "move almost as one", "move closely together", "move loosely together", ... */
 export function pairWords(value: number): string {
   if (value < 0) return "move apart";
   if (value >= 0.85) return "move almost as one";
-  if (value >= 0.6) return "move closely";
-  return "move somewhat alike";
+  if (value >= 0.6) return "move closely together";
+  if (value >= 0.4) return "move loosely together";
+  return "barely move together";
+}
+
+/** What the closest pair means for the person, in a dozen words or fewer. */
+export function pairMeaning(value: number): string {
+  if (value >= 0.85) return "Owning both is close to owning one twice.";
+  if (value >= 0.6) return "When one drops, the other usually drops too.";
+  if (value >= 0.4) return "They often, not always, go the same way.";
+  return "Even your closest pair mostly goes its own way.";
+}
+
+/** How the steadiest name follows the rest: barely, loosely, or still closely. */
+export function followWords(value: number): string {
+  if (value < 0.3) return "Barely follows the others";
+  if (value < 0.6) return "Loosely follows the others";
+  return "Still follows the others closely";
+}
+
+/** What that means, in a dozen words or fewer. */
+export function followMeaning(value: number): string {
+  if (value < 0.3) return "It can hold up when the rest fall together.";
+  if (value < 0.6) return "It softens the swings a little.";
+  return "Nothing here really offsets the rest.";
 }
 
 function corr(value: number): string {

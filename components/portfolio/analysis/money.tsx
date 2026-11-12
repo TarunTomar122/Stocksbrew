@@ -15,7 +15,8 @@ export function MadeTheMoney({ module }: { module: AttributionModule }) {
   return (
     <Module id="made" title="What made the money, at today's mix">
       {windows.map((window) => (
-        <div key={window.key} className={`${CARD} ${SPAN[4]}`}>
+        // The three end level (self-stretch): a window with a name or two fewer only ends a row short inside its card.
+        <div key={window.key} className={`${CARD} ${SPAN[4]} lg:self-stretch`}>
           <div className="flex flex-col gap-1 border-b border-oa-border px-4 py-3">
             <p className="text-[12.5px] leading-4 text-oa-muted-fg">{window.label}</p>
             <p className={`${NUM} text-[28px] font-medium leading-9 ${toneClass(window.book)}`}>{signedPct(window.book)}</p>

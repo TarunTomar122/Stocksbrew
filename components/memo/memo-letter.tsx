@@ -1,21 +1,24 @@
 import { MoreLocked } from "@/components/oa/gate";
 import { Tag } from "@/components/oa/kit";
+import { dayWords, daysFromToday, etToday } from "@/lib/day-words";
 import type { Plan } from "@/lib/entitlements";
 import { firstFullSentence } from "@/lib/plain-copy";
 import type { Memo, MemoItem, MemoMover } from "@/lib/memo/types";
 import { cardItems } from "@/lib/memo/view";
 import { shortDay, sinceCloseWords, weekTitle, weekdayName } from "@/lib/memo/week";
 
-import { CallChanges } from "./calls";
+import { callCards, CallChanges } from "./calls";
 import { explainDays, plainFootnote } from "./explain";
 import { MemoCards } from "./cards";
 import { Movers } from "./movers";
+import { PACKED_ROW, packedGrid, packedSection, packRows, type PackedBlock } from "./rows";
 import { WeekChart } from "./week-chart";
 
 /**
  * The week's memo, picture first: a short headline over the week's line
- * against the S&P 500, the holdings that moved it, the calls that changed,
- * then what could hurt and what is worth a look as cards. Every figure comes
+ * against the S&P 500, then the holdings that moved it, the calls that
+ * changed, what could hurt, what is worth a look and the rest of the week as
+ * cards, sharing rows where they are short. Every figure comes
  * from the memo's facts; each card shows its full sentence. A memo
  * written before the page went visual has no view, so it shows its top line
  * and its sentences as cards.
@@ -28,9 +31,11 @@ function newYorkDay(iso: string): string | null {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(time);
 }
 
-function dateLine(memo: Memo): string {
+function dateLine(memo: Memo, today: string): string {
   const day = memo.writtenAt ? newYorkDay(memo.writtenAt) : null;
-  const written = day ? shortDay(day) : null;
+  // "updated today", "written Friday": the last week in words, anything older as its date.
+  const gap = day ? daysFromToday(day, today) : null;
+  const written = day ? (gap !== null && gap <= 0 && gap >= -6 ? dayWords(day, today) : shortDay(day)) : null;
   if (memo.complete) return `${shortDay(memo.monday)} to ${shortDay(memo.friday)}${written ? ` · written ${written}` : ""}`.replace(/\b([A-Z][a-z]{2}) (\d)/g, "$1\u00a0$2");
   const through = memo.endDay ? `through ${weekdayName(memo.endDay)}'s close` : "so far";
   return `${shortDay(memo.monday)} to ${shortDay(memo.friday)}, ${through}${written ? ` · updated ${written}` : ""}`.replace(/\b([A-Z][a-z]{2}) (\d)/g, "$1\u00a0$2");
@@ -58,16 +63,72 @@ function DriverLine({ movers, since }: { movers: MemoMover[]; since: string }) {
   return <p className="mt-1 text-pretty text-[14.5px] leading-[21px] text-oa-muted-fg">{text}</p>;
 }
 
+type SectionKey = "movers" | "calls" | "hurt" | "look" | "also";
+
 /**
- * The week list (`rail`) sits beside the chart only; everything under it runs the full width, in pairs, so the page
- * never shows an empty right-hand column (owner, Nov 11).
+ * The week list (`rail`) sits beside the chart only. Everything under it is packed into full-width rows
+ * (rows.ts packRows), so the page never shows an empty right-hand column (owner, Nov 11 and 12).
  */
-export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; example: boolean; plan: Plan; rail?: React.ReactNode }) {
+export function MemoLetter({
+  memo,
+  example,
+  plan,
+  rail = null,
+  today = etToday(),
+}: {
+  memo: Memo;
+  example: boolean;
+  plan: Plan;
+  rail?: React.ReactNode;
+  /** Today in New York, for the cards' day words. */
+  today?: string;
+}) {
   const view = memo.view ?? null;
   const hasView = Boolean(view);
   const hurt = cardItems(memo.hurt, hasView);
   const look = cardItems(memo.look, hasView);
   const also = cardItems(memo.changed, hasView);
+  const movers = view?.movers ?? [];
+  const calls = view ? callCards(view.calls, memo, example) : [];
+  const rows = packRows<SectionKey>([
+    { key: "movers", count: movers.length },
+    { key: "calls", count: calls.length },
+    { key: "hurt", count: hurt.length },
+    { key: "look", count: look.length },
+    { key: "also", count: also.length },
+  ]);
+  const section = (block: PackedBlock<SectionKey>) => {
+    const className = packedSection(block);
+    const across = block.unit === 12;
+    switch (block.key) {
+      case "movers":
+        return <Movers key="movers" movers={movers} memo={memo} example={example} className={className} gridClassName={packedGrid(block, "stock")} />;
+      case "calls":
+        return <CallChanges key="calls" cards={calls} today={today} className={className} gridClassName={packedGrid(block, "stock")} />;
+      default: {
+        const { title, items, watchable } =
+          block.key === "hurt"
+            ? { title: "What could hurt", items: hurt, watchable: watchHurt }
+            : block.key === "look"
+              ? { title: "Worth a look", items: look, watchable: watchLook }
+              : { title: "Also this week", items: also, watchable: watchNone };
+        return (
+          <MemoCards
+            key={block.key}
+            title={title}
+            items={items}
+            example={example}
+            watchable={watchable}
+            monday={memo.monday}
+            today={today}
+            className={className}
+            gridClassName={packedGrid(block, "text")}
+            across={across}
+          />
+        );
+      }
+    }
+  };
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-stretch">
@@ -76,7 +137,7 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
           <p className="oa-label">{weekTitle(memo)}</p>
           {example ? <Tag tone="primary">Example</Tag> : null}
           {!memo.complete ? <Tag tone="warn">In progress</Tag> : null}
-          <p className="oa-mono w-full text-[12.5px] tabular-nums text-oa-muted-fg sm:ml-auto sm:w-auto">{dateLine(memo)}</p>
+          <p className="oa-mono w-full text-[12.5px] tabular-nums text-oa-muted-fg sm:ml-auto sm:w-auto">{dateLine(memo, today)}</p>
         </header>
         <div className="px-4 pb-4 pt-3.5 sm:px-5">
           <h2 className="text-balance text-[21px] font-semibold leading-[28px] tracking-[-0.015em] text-oa-fg sm:text-[24px] sm:leading-[31px]">
@@ -99,13 +160,13 @@ export function MemoLetter({ memo, example, plan, rail = null }: { memo: Memo; e
       ) : null}
       </div>
 
-      {/* Each its own row of stock cards, the full width, so neither leaves a gap beside the other. */}
-      {view ? <Movers movers={view.movers} memo={memo} example={example} /> : null}
-      {view ? <CallChanges calls={view.calls} memo={memo} example={example} /> : null}
-
-      <MemoCards title="What could hurt" items={hurt} empty="Nothing stands out as a risk this week." example={example} watchable={watchHurt} />
-      <MemoCards title="Worth a look" items={look} empty="Nothing new to look at this week." example={example} watchable={watchLook} />
-      {also.length > 0 ? <MemoCards title="Also this week" items={also} empty="" example={example} watchable={watchNone} /> : null}
+      {/* Below the chart the sections share rows (owner, Nov 12: "could be side by side cz all empty space on
+          right"): each row holds up to four cards of one width, and its sections end level. */}
+      {rows.map((row) => (
+        <div key={row.map((block) => block.key).join("+")} className={PACKED_ROW}>
+          {row.map((block) => section(block))}
+        </div>
+      ))}
 
       {memo.heldBack > 0 && !example ? (
         <div className="oa-surface overflow-hidden border border-oa-border bg-oa-card">

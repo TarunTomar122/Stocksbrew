@@ -36,7 +36,7 @@ import type { DeepModuleId, PortfolioAnalysis } from "./types";
  * deeper ones.
  */
 
-export const ANALYSIS_VERSION = 4;
+export const ANALYSIS_VERSION = 5;
 /** A year and a little more of closes: enough for 252 daily returns. */
 const SERIES_POINTS = 300;
 /** S&P 500 funds, in the order their filings are tried for the index's own concentration. */

@@ -21,7 +21,10 @@ vi.mock("@/lib/copy-trades", async () => ({
 vi.mock("@/lib/agent-jobs-data", () => ({ listJobs: vi.fn() }));
 vi.mock("@/lib/agents-plain/limits", () => ({ consumePlainParse: vi.fn() }));
 vi.mock("@/lib/agents-plain/model", () => ({ plainModelReader: vi.fn(() => null) }));
-vi.mock("@/lib/agents-plain/server", () => ({ plainCatalog: vi.fn() }));
+vi.mock("@/lib/agents-plain/server", () => ({ plainCatalog: vi.fn(), plainCallLookup: vi.fn() }));
+vi.mock("@/lib/entitlements-server", () => ({
+  viewerFromUserDoc: (uid: string) => ({ uid, signedIn: true, isSubscribed: true, plan: "pro", tracked: [], covered: [], coverage: null, trialEligible: false }),
+}));
 
 import {
   getAgentCopyTest,
@@ -32,7 +35,7 @@ import {
 } from "@/lib/agent-feature-tools";
 import { AgentDataError } from "@/lib/agent-errors";
 import { consumePlainParse } from "@/lib/agents-plain/limits";
-import { plainCatalog } from "@/lib/agents-plain/server";
+import { plainCallLookup, plainCatalog } from "@/lib/agents-plain/server";
 import { buildCatalog } from "@/lib/agents-plain/stocks";
 import { listJobs } from "@/lib/agent-jobs-data";
 import { getCopyHub, getCopyRecord, type CopyHub, type CopyHubRow, type CopyRecordFull } from "@/lib/copy-trades";
@@ -459,6 +462,20 @@ describe("watch_in_plain_words", () => {
     expect(out.watches[0]!.agent).toMatchObject({ trigger: expect.any(Object), scope: { kind: "tickers", tickers: ["NVDA"] } });
     expect(out.capacity).toMatchObject({ running: 0, total: 0, run_limit: 20 });
     expect(out.link).toMatch(/\/agents$/);
+  });
+
+  it("reads a sell watch back with our sell-some price, through the member's own plan", async () => {
+    const lookup = vi.fn(async (tickers: string[]) => Object.fromEntries(tickers.map((ticker) => [ticker, { call: "Trim" as const, add_below: null, trim_above: 250, locked: false }])));
+    vi.mocked(plainCallLookup).mockReturnValue(lookup);
+    const out = await readAgentWatchRequest(UID, { text: "tell me when to sell NVDA" });
+    expect(lookup).toHaveBeenCalledWith(["NVDA"]);
+    expect(vi.mocked(plainCallLookup).mock.calls[0]![0]).toMatchObject({ uid: UID, signedIn: true });
+    expect(out.lead).toBe("Our call on NVIDIA is already Sell some; I'll tell you when it reaches our sell-some price ($250).");
+    expect(out.watches[0]!.agent).toMatchObject({ template: "sell-zone" });
+    // A watch with no buy or sell side never reads the member's document for it.
+    vi.mocked(plainCallLookup).mockClear();
+    await readAgentWatchRequest(UID, { text: "tell me if NVDA closes below 150" });
+    expect(plainCallLookup).not.toHaveBeenCalled();
   });
 
   it("marks an agent the member already has", async () => {

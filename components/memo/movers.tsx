@@ -7,7 +7,7 @@ import type { Memo, MemoMover } from "@/lib/memo/types";
 import { weekMoveWords } from "@/lib/memo/week";
 
 import { explainMover } from "./explain";
-import { MEMO_CARD, memoGrid } from "./rows";
+import { MEMO_CARD } from "./rows";
 
 /**
  * Who moved the week, as small stock cards (owner rule 3): the logo and ticker, the holding's share of the
@@ -15,19 +15,33 @@ import { MEMO_CARD, memoGrid } from "./rows";
  * (a report, or a move with a confirmed cause); with none, nothing is written. The ones that helped most come
  * first, the ones that hurt most last. The card opens the page with the evidence.
  */
-export function Movers({ movers, memo, example }: { movers: MemoMover[]; memo: Pick<Memo, "changed" | "hurt" | "look" | "complete">; example: boolean }) {
+export function Movers({
+  movers,
+  memo,
+  example,
+  className = "min-w-0",
+  gridClassName = "grid grid-cols-2 gap-3",
+}: {
+  movers: MemoMover[];
+  memo: Pick<Memo, "changed" | "hurt" | "look" | "complete">;
+  example: boolean;
+  /** The section's place in its row (rows.ts packedSection). */
+  className?: string;
+  /** Its card list's columns (rows.ts packedGrid). */
+  gridClassName?: string;
+}) {
   if (movers.length === 0) return null;
   // The memo's week runs from Friday's close; while it runs, "so far" keeps it apart from a five-session move.
   const when = weekMoveWords(memo.complete);
   return (
-    <section aria-labelledby="memo-movers" className="min-w-0">
+    <section aria-labelledby="memo-movers" className={className}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
         <h2 id="memo-movers" className="oa-label">
           Who moved it
         </h2>
         <p className="text-[12.5px] leading-5 text-oa-muted-fg">Points each added to or took off the week</p>
       </div>
-      <ul className={`oa-card-grid ${memoGrid(movers.length)}`}>
+      <ul className={`oa-card-grid ${gridClassName}`}>
         {movers.map((mover) => {
           const explain = explainMover(memo, mover, example);
           const href = explain.evidence?.href ?? mover.href;

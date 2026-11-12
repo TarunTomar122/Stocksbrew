@@ -156,7 +156,7 @@ export type SaveResponse = {
 };
 
 /**
- * What the card says after the person taps "Set up this watch", from the save route's answer: on, saved but paused
+ * What the card says after the person taps "Save this watch", from the save route's answer: on, saved but paused
  * (the plan's running limit, or a filing or news agent on a plan without them), already there, or not saved.
  */
 export function saveOutcome(ok: boolean, body: SaveResponse | null): SaveState {

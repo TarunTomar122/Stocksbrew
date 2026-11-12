@@ -32,7 +32,7 @@ export default async function MemoPage({ searchParams }: { searchParams: Promise
   const week = weekParam(search);
   const session = await getSessionUser();
   return (
-    <AppPage>
+    <AppPage width="dash">
       <JsonLd data={toolPageLd("/portfolio/memo")} />
       <PageHead
         title="Weekly memo"

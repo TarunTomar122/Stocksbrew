@@ -7,11 +7,12 @@ import type { CrashDriver, CrashModule } from "./types";
  * Past crashes, from lib/stress-test.ts unchanged: each episode's start-to-end adjusted return applied to today's
  * weights. It is what today's mix would have done, not what anyone earned. An episode is shown only when at least
  * MIN_COVERAGE of the money has prices for it (a holding that was not trading yet is left out, never read as flat).
- * Under the worst fall, the holdings that did the damage, most first.
+ * Under the worst fall, every holding with prices for it, the most damage first and what held up last, so the list
+ * runs as long as the episodes beside it.
  */
 
 export const MIN_COVERAGE = 80;
-export const MAX_DRIVERS = 8;
+export const MAX_DRIVERS = 15;
 
 export function buildCrashes(result: StressResult | null): CrashModule | null {
   if (!result) return null;
@@ -34,10 +35,10 @@ export function buildCrashes(result: StressResult | null): CrashModule | null {
   if (worst && worst.book < 0) {
     const source = result.episodes.find((episode) => episode.episode.id === worst.id)!;
     drivers = source.moves
-      .filter((move) => move.status === "ok" && move.contribution !== null && move.pct !== null && move.contribution < 0)
+      .filter((move) => move.status === "ok" && move.contribution !== null && move.pct !== null)
       .sort((a, b) => a.contribution! - b.contribution!)
       .slice(0, MAX_DRIVERS)
       .map((move) => ({ ticker: move.ticker, name: move.name, pct: round(move.pct!, 1), contribution: round(move.contribution!, 1) }));
   }
-  return { episodes, worst: worst && drivers.length > 0 ? { id: worst.id, drivers } : null };
+  return { episodes, worst: worst && drivers.some((driver) => driver.contribution < 0) ? { id: worst.id, drivers } : null };
 }

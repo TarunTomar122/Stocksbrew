@@ -49,6 +49,8 @@ export type ThreadInput = {
   calls: Readonly<Record<string, CallLine>>;
   /** Whether the viewer's plan shows our levels on this stock. Anything else has its levels taken out. */
   levels: (ticker: string) => boolean;
+  /** Each stock's latest price, for a note that reports no move of its own (a call change). */
+  prices?: Readonly<Record<string, number>>;
   stocks: number;
   /** Most days shown, today included. */
   maxDays?: number;
@@ -227,6 +229,8 @@ export function eventStep(item: InboxItem, reportsAhead: ReadonlyMap<string, str
   switch (item.kind) {
     case "agent": {
       if (!one) return { label: "See what your agent found", href: item.href, external: item.external };
+      // A call or sell watch that fired on a turn of our call: the step is the why, as on the call's own row.
+      if (isCallChange(item)) return { label: `See why our call on ${one} changed`, href: callHref(one) };
       const report = reportsAhead.get(one);
       return { label: report ? `Check our call on ${one} ${beforeWords(report, today)}` : `Check our call on ${one}`, href: callHref(one) };
     }
@@ -251,9 +255,25 @@ export function eventStep(item: InboxItem, reportsAhead: ReadonlyMap<string, str
   }
 }
 
-/** The figure an event shows big: the move it reports, when it reports one. */
-function eventFigure(item: InboxItem, text: string): ThreadFigure | null {
+/** A change of our call, from the call's own records or a person's call or sell watch (lib/inbox/words.ts callChangeId). */
+function isCallChange(item: InboxItem): boolean {
+  return item.id.startsWith("call:") && item.tickers.length === 1;
+}
+
+function money(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * The figure an event shows big: the move it reports, when it reports one. A change of our call reports no move, so
+ * it shows where the stock trades now.
+ */
+function eventFigure(item: InboxItem, text: string, prices?: Readonly<Record<string, number>>): ThreadFigure | null {
   if (item.move && Number.isFinite(item.move.pct)) return { value: signedPct(item.move.pct), tone: toneOf(item.move.pct) };
+  if (isCallChange(item)) {
+    const price = prices?.[item.tickers[0]!];
+    return typeof price === "number" && Number.isFinite(price) && price > 0 ? { value: money(price), tone: "flat", label: "price now" } : null;
+  }
   // Only kinds whose sentence is about a price: a fund's "raised its stake 25%" is not a move.
   if (item.kind !== "agent" && item.kind !== "alert" && item.kind !== "results") return null;
   const move = signedMove(text);
@@ -276,7 +296,7 @@ export function withoutLevels(text: string): string {
 }
 
 /** An event as a note, with the levels taken out of anything the viewer's plan does not show. Null when nothing is left. */
-export function eventNote(item: InboxItem, input: Pick<ThreadInput, "levels" | "today">, reportsAhead: ReadonlyMap<string, string>): ThreadNote | null {
+export function eventNote(item: InboxItem, input: Pick<ThreadInput, "levels" | "today" | "prices">, reportsAhead: ReadonlyMap<string, string>): ThreadNote | null {
   // A note about no stock in particular (a memo, a rebalance) is treated as gated: its levels are taken out too.
   const visible = item.tickers.length > 0 && item.tickers.every((ticker) => input.levels(ticker));
   const text = (visible ? item.text : withoutLevels(item.text)).trim();
@@ -293,7 +313,7 @@ export function eventNote(item: InboxItem, input: Pick<ThreadInput, "levels" | "
     clock,
     tickers: item.tickers,
     text,
-    figure: eventFigure(item, text),
+    figure: eventFigure(item, text, input.prices),
     reason: detail || null,
     step: eventStep(item, reportsAhead, input.today),
     source: AGENT_SOURCES.has(item.source) ? null : item.source,

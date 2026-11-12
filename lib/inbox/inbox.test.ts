@@ -7,6 +7,7 @@ import {
   agentItem,
   alertItem,
   callItem,
+  findingItems,
   changesFromDays,
   followItem,
   insiderItems,
@@ -240,6 +241,39 @@ describe("merge", () => {
     const merged = mergeInbox([[friday, monday]], SINCE, NOW);
     expect(merged).toHaveLength(1);
     expect(merged[0]!.detail).toBe("Its report beat.");
+  });
+
+  it("says a call change once when a call watch and the call's own records both report it, in the agent's words", () => {
+    // A call-change agent on a stock the person holds: the agent's finding the morning after, and the call's records.
+    const watch = findingItems(
+      run({
+        jobName: "AAPL call changes",
+        day: "2026-11-10",
+        ranAt: "2026-11-10T11:05:00Z",
+        tickers: ["AAPL"],
+        findings: [{ ticker: "AAPL", headline: "Our call on AAPL moved from Buy more to Keep", detail: "Its report beat", at: "2026-11-09", kind: "call", call_from: "Buy more", call_to: "Keep" }],
+      }),
+      "mine",
+      new Map(),
+      "2026-11-11",
+    )!;
+    expect(watch).toHaveLength(1);
+    const steady = call({ at: "2026-11-09", weight: 3, reason: "Its report beat" });
+    const fromLog = call({ at: "2026-11-09T22:10:00Z", weight: 2 });
+    const fromEvent = call({ at: "2026-11-10T13:00:00Z", weight: 1 });
+    for (const order of [[watch, [steady], [fromLog], [fromEvent]], [[fromEvent], [steady], watch, [fromLog]]]) {
+      const merged = mergeInbox(order, SINCE, NOW);
+      expect(merged).toHaveLength(1);
+      expect(merged[0]).toMatchObject({ id: "call:AAPL:2026-11-09", kind: "agent", source: "Your agent", text: "Our call on AAPL moved from Buy more to Keep.", detail: "Its report beat." });
+    }
+    // Only the call's records: still one row, in the call's words.
+    expect(mergeInbox([[steady], [fromLog]], SINCE, NOW)).toEqual([expect.objectContaining({ kind: "call", source: "Our call" })]);
+    // A different call on the same day is a different event (and the thread keeps the newer one).
+    const other = findingItems(
+      run({ ranAt: "2026-11-10T11:05:00Z", tickers: ["MSFT"], findings: [{ ticker: "MSFT", headline: "Our call on MSFT turned to Sell some", detail: "", at: "2026-11-09", kind: "call", call_from: null, call_to: "Sell some" }] }),
+      "mine",
+    )!;
+    expect(mergeInbox([watch, other, [steady]], SINCE, NOW).map((item) => item.id).sort()).toEqual(["call:AAPL:2026-11-09", "call:MSFT:2026-11-09"]);
   });
 
   it("drops an item without a usable time or text", () => {

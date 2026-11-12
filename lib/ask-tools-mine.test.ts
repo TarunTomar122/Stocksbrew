@@ -16,6 +16,9 @@ const state = vi.hoisted(() => ({
   userDoc: null as Record<string, unknown> | null,
   reports: new Map<string, Record<string, unknown>>(),
   nextEarnings: null as { event_date: string } | null,
+  /** Our call on each stock, as the watch box's call lookup returns it. */
+  ourCalls: {} as Record<string, { call: "Add" | "Hold" | "Trim" | null; add_below: number | null; trim_above: number | null; locked?: boolean }>,
+  prices: {} as Record<string, number>,
 }));
 
 vi.mock("@/lib/firebase-admin", () => ({
@@ -60,8 +63,17 @@ vi.mock("@/lib/agents-plain/server", async () => {
     { ticker: "NVDA", name: "NVIDIA Corporation", aliases: ["NVDA", "NVIDIA"], price: 168.79 },
     { ticker: "BRK.B", name: "Berkshire Hathaway", price: 480 },
   ]);
-  return { plainCatalog: async () => catalog };
+  return {
+    plainCatalog: async () => catalog,
+    plainCallLookup: (viewer: { uid: string | null }) => async (tickers: string[]) => {
+      state.calls.push(["callLookup", viewer.uid, ...tickers]);
+      return Object.fromEntries(tickers.filter((ticker) => ticker in state.ourCalls).map((ticker) => [ticker, state.ourCalls[ticker]]));
+    },
+  };
 });
+vi.mock("@/lib/screener", () => ({
+  getScreenerRows: async (tickers: string[]) => new Map(tickers.filter((ticker) => ticker in state.prices).map((ticker) => [ticker, { ticker, price: state.prices[ticker] }])),
+}));
 vi.mock("@/lib/research/store", () => ({
   researchStore: {
     get: async (uid: string, ticker: string, key: string) => {
@@ -160,7 +172,7 @@ import { buildMineTools, watchOutlook, watchRequest, WATCH_KINDS } from "@/lib/a
 import { MAX_JOBS_PER_USER } from "@/lib/agent-jobs";
 import { cardForModel } from "@/lib/ask-cards";
 import { can, limitFor } from "@/lib/entitlements";
-import { parseByRules } from "@/lib/agents-plain/parse";
+import { WATCH_KINDS as PLAIN_WATCH_KINDS, parseByRules } from "@/lib/agents-plain/parse";
 import { buildCatalog } from "@/lib/agents-plain/stocks";
 
 const viewer = (uid: string) => ({ uid, signedIn: true, isSubscribed: false, plan: "free" as const, tracked: ["US_NVDA"], covered: ["US_NVDA"], coverage: null, trialEligible: false });
@@ -179,7 +191,7 @@ function uidsAsked(): string[] {
   return state.calls.flatMap(([name, ...args]) => {
     if (name === "doc.get") return [String(args[0]).split("/")[1]!.split("__")[0]!];
     if (name === "checkReasons") return [String(args[0])];
-    if (["getUserDoc", "listJobs", "listRuns", "listMemos", "readMemo", "research.get", "research.list"].includes(name)) return [String(args[0])];
+    if (["getUserDoc", "listJobs", "listRuns", "listMemos", "readMemo", "research.get", "research.list", "callLookup"].includes(name)) return [String(args[0])];
     return [];
   });
 }
@@ -191,6 +203,8 @@ beforeEach(() => {
   state.runs = [];
   state.reports.clear();
   state.nextEarnings = null;
+  state.ourCalls = {};
+  state.prices = {};
   state.userDoc = { uid: UID, tracked_stocks: ["US_NVDA"], watchlist_positions: { US_NVDA: "holding" }, watchlist_holdings: { US_NVDA: { quantity: 10, average_cost: 120 } } };
 });
 
@@ -308,21 +322,125 @@ describe("Watch this", () => {
     { ticker: "BRK.B", name: "Berkshire Hathaway", price: 480 },
   ]);
 
-  it("every request it can write becomes exactly one agent in the agent box, with nothing refused", () => {
+  // The template the watch box saves for each kind: Ask's request must land on exactly that agent.
+  const TEMPLATE: Record<(typeof WATCH_KINDS)[number], string> = {
+    price_below: "price-level",
+    price_above: "price-level",
+    daily_move: "big-move",
+    earnings_before: "earnings-ahead",
+    earnings_out: "earnings-out",
+    fund_13f: "fund-filing",
+    congress_trade: "congress-trade",
+    insider_trade: "insider-trade",
+    movers_list: "mover",
+    buy_zone: "buy-zone",
+    sell_zone: "sell-zone",
+    call_change: "call-change",
+    daily_check: "morning-check",
+    weekly_review: "weekly-review",
+    sec_filing: "sec-filing",
+    news_change: "news",
+  };
+
+  it("offers every kind the watch box knows, and each request is read by the watch box's own rules as exactly that agent", () => {
+    expect(WATCH_KINDS).toBe(PLAIN_WATCH_KINDS);
     const cases: Array<Parameters<typeof watchRequest>[0]> = [
       ...WATCH_KINDS.map((kind) => ({ kind, ticker: "NVDA", level: 150 })),
+      // Every kind that can follow the person's stocks.
+      ...WATCH_KINDS.filter((kind) => !["price_below", "price_above", "fund_13f", "congress_trade"].includes(kind)).map((kind) => ({ kind, mine: true })),
       { kind: "price_above", ticker: "BRK.B", level: 512.5 },
       { kind: "daily_move", mine: true, pct: 4 },
       { kind: "earnings_before", mine: true, days: 1 },
-      { kind: "insider_trade", mine: true },
+      { kind: "call_change", ticker: "NVDA", to: "sell_some" },
+      { kind: "call_change", ticker: "NVDA", to: "buy_more" },
+      { kind: "call_change", ticker: "NVDA", to: "keep" },
+      ...(["busy", "negative", "positive", "any"] as const).map((news) => ({ kind: "news_change" as const, ticker: "NVDA", news })),
+      ...(["any", "big", "8-K", "10-K", "10-Q"] as const).map((filing) => ({ kind: "sec_filing" as const, ticker: "NVDA", filing })),
+      { kind: "weekly_review", ticker: "NVDA", weekday: 5 },
     ];
     for (const input of cases) {
       const request = watchRequest(input);
       expect(request, JSON.stringify(input)).not.toBeNull();
-      const parsed = parseByRules(request!, catalog, { hidden: ["earnings-out"] });
-      expect(parsed.spec.watches, request!).toHaveLength(1);
+      const parsed = parseByRules(request!, catalog, { hidden: [] });
+      expect(parsed.confident, request!).toBe(true);
       expect(parsed.spec.cannot, request!).toEqual([]);
+      expect(parsed.spec.watches.map((watch) => watch.draft.template), request!).toEqual([TEMPLATE[input.kind]]);
+      expect(parsed.spec.watches[0]!.draft.scope.kind, request!).toBe(input.mine ? "watchlist" : "tickers");
     }
+    // The settings the person asked for reach the agent.
+    const settings = (input: Parameters<typeof watchRequest>[0]) => parseByRules(watchRequest(input)!, catalog, { hidden: [] }).spec.watches[0]!.draft.trigger;
+    expect(settings({ kind: "call_change", ticker: "NVDA", to: "sell_some" })).toMatchObject({ event: "call_change", to: "Trim" });
+    expect(settings({ kind: "news_change", ticker: "NVDA", news: "negative" })).toMatchObject({ news: "negative" });
+    expect(settings({ kind: "sec_filing", ticker: "NVDA", filing: "8-K" })).toMatchObject({ filings: { forms: ["8-K"] } });
+    expect(settings({ kind: "sec_filing", ticker: "NVDA", filing: "big" })).toMatchObject({ filings: { major: true } });
+    expect(settings({ kind: "weekly_review", ticker: "NVDA", weekday: 5 })).toMatchObject({ weekday: 5 });
+    expect(settings({ kind: "news_change", ticker: "NVDA", news: "busy" })).toMatchObject({ news: "busy" });
+  });
+
+  it("answers 'when should I sell?' from our call, its level and the distance, then waits behind one tap", async () => {
+    state.ourCalls = { NVDA: { call: "Trim", add_below: null, trim_above: 250, locked: false } };
+    state.prices = { NVDA: 230 };
+    const card = await run(tools(UID), "suggest_watch", { kind: "sell_zone", ticker: "NVDA", offer: true });
+    expect(card).toMatchObject({ card: "watch", status: "ready", request: "Tell me when to sell NVDA", offer: "Want me to tell you when it gets there?" });
+    expect(card.zone).toEqual({
+      side: "sell",
+      call: "Sell some",
+      level: 250,
+      price: 230,
+      gap_pct: 8.7,
+      locked: false,
+      answer: "Our call on NVIDIA is Sell some at $250. That's 8.7% above its price of $230.",
+    });
+    // The watch box's read-back, with the real price, and the sell watch it would save.
+    expect(card.preview).toBe("Our call on NVIDIA is already Sell some; I'll tell you when it reaches our sell-some price ($250).");
+    expect(card.drafts).toEqual([expect.objectContaining({ template: "sell-zone", scope: { kind: "tickers", tickers: ["NVDA"] } })]);
+    // One read of our calls for the read-back and the answer, for this session's uid only.
+    expect(state.calls.filter(([name]) => name === "callLookup")).toEqual([["callLookup", UID, "NVDA"]]);
+    // The model reads the answer lines.
+    expect(cardForModel(card as never)).toHaveProperty("zone.answer");
+  });
+
+  it("says plainly when the call has no level of that side, and offers to say when it changes", async () => {
+    state.ourCalls = { NVDA: { call: "Hold", add_below: 150, trim_above: 250, locked: false } };
+    state.prices = { NVDA: 168.79 };
+    const sell = await run(tools(UID), "suggest_watch", { kind: "sell_zone", ticker: "NVDA", offer: true });
+    // A Keep call shows no sell-some price, even though one is stored (owner rule 8).
+    expect(sell.zone).toMatchObject({ call: "Keep", level: null, answer: "Our call on NVIDIA is Keep, so there's no sell-some price right now. It trades at $168.79." });
+    expect(sell.offer).toBe("Want me to tell you if that changes?");
+    expect(sell.preview).toBe("NVIDIA has no sell-some price right now; I'll tell you if our call turns to Sell some.");
+    const buy = await run(tools(UID), "suggest_watch", { kind: "buy_zone", ticker: "NVDA", offer: true });
+    expect(buy.zone).toMatchObject({ call: "Keep", level: null, answer: "Our call on NVIDIA is Keep, so there's no buy-more price right now. It trades at $168.79." });
+  });
+
+  it("answers the buy side the same way, and keeps the level back where the plan does not show it", async () => {
+    state.ourCalls = { NVDA: { call: "Add", add_below: 150, trim_above: null, locked: false } };
+    state.prices = { NVDA: 168.79 };
+    const buy = await run(tools(UID), "suggest_watch", { kind: "buy_zone", ticker: "NVDA", offer: true });
+    expect(buy.zone).toMatchObject({ level: 150, gap_pct: 11.1, answer: "Our call on NVIDIA is Buy more below $150. That's 11.1% below its price of $168.79." });
+    expect(buy.offer).toBe("Want me to tell you when it gets there?");
+    state.prices = { NVDA: 149.5 };
+    expect((await run(tools(UID), "suggest_watch", { kind: "buy_zone", ticker: "NVDA", offer: true })).zone).toMatchObject({ gap_pct: null, answer: "Our call on NVIDIA is Buy more below $150. It's there now, at $149.50." });
+    // A hair away from the level reads as there, never "0% below".
+    state.prices = { NVDA: 150.04 };
+    expect((await run(tools(UID), "suggest_watch", { kind: "buy_zone", ticker: "NVDA", offer: true })).zone).toMatchObject({ gap_pct: null, answer: "Our call on NVIDIA is Buy more below $150. It's there now, at $150.04." });
+    state.prices = { NVDA: 168.79 };
+    state.ourCalls = { NVDA: { call: "Add", add_below: null, trim_above: null, locked: true } };
+    const locked = await run(tools(UID), "suggest_watch", { kind: "buy_zone", ticker: "NVDA", offer: true });
+    expect(locked.zone).toMatchObject({ level: null, locked: true, answer: "Our call on NVIDIA is Buy more. Its buy-more price comes with covering the stock." });
+    expect(JSON.stringify(locked)).not.toContain("150");
+    state.ourCalls = {};
+    expect((await run(tools(UID), "suggest_watch", { kind: "sell_zone", ticker: "NVDA", offer: true })).zone).toMatchObject({ call: null, answer: "We don't have a call on NVIDIA yet, so there's no sell-some price. It trades at $168.79." });
+  });
+
+  it("asked to be told rather than when, shows the watch at once; a watch on the person's stocks has no single answer", async () => {
+    state.ourCalls = { NVDA: { call: "Trim", add_below: null, trim_above: 250, locked: false } };
+    expect(await run(tools(UID), "suggest_watch", { kind: "sell_zone", ticker: "NVDA" })).toMatchObject({ offer: null, zone: expect.objectContaining({ level: 250 }) });
+    expect(await run(tools(UID), "suggest_watch", { kind: "sell_zone", mine: true, offer: true })).toMatchObject({ card: "watch", zone: null });
+    expect(await run(tools(UID), "suggest_watch", { kind: "call_change", ticker: "NVDA", to: "sell_some" })).toMatchObject({
+      card: "watch",
+      preview: "I'll watch NVIDIA (NVDA) and tell you when our call on it turns to Sell some.",
+      zone: null,
+    });
   });
 
   it("refuses shapes the agent box cannot take", () => {

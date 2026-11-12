@@ -78,7 +78,58 @@ describe("concentration", () => {
     })!;
     expect(result.sp.largest?.ticker).toBe("NVDA");
     // A sector the book does not hold still shows the index's weight in it.
-    expect(result.sectors.find((row) => row.sector === "Health Care")).toEqual({ sector: "Health Care", pct: 0, spPct: 10 });
+    expect(result.sectors.find((row) => row.sector === "Health Care")).toEqual({ sector: "Health Care", pct: 0, spPct: 10, names: [] });
+  });
+
+  it("names the holdings on each sector row, and the index's largest as ideas where the book is light", () => {
+    const sectorOf = (ticker: string) =>
+      ({ NVDA: "Technology", MSFT: "Information Technology", AAPL: "Technology", AMZN: "Consumer Discretionary", GOOGL: "Communication Services", GOOG: "Communication Services", META: "Communication Services", JPM: "Financials" })[ticker];
+    const result = buildConcentration({
+      positions: [
+        { ticker: "NVDA", name: "NVIDIA Corporation", weight: 50, sector: "Technology", fund: false },
+        { ticker: "AAPL", name: "Apple Inc.", weight: 40, sector: "Technology", fund: false },
+        { ticker: "GOOG", name: "Alphabet Inc.", weight: 2, sector: "Communication Services", fund: false },
+        { ticker: "JPM", name: "JPMorgan", weight: 8, sector: "Financials", fund: false },
+      ],
+      xray: null,
+      benchmark: SPY,
+      spSectors: { Technology: 33, Financials: 13, "Communication Services": 10, "Consumer Discretionary": 10, "Health Care": 10 },
+      sectorOf,
+      // The filing stops short of Health Care: the screener's S&P 500 rows by company value fill it in.
+      indexRows: [
+        { ticker: "UNH", name: "UnitedHealth", sector: "Health Care", weight: 500 },
+        { ticker: "LLY", name: "Eli Lilly", sector: "Health Care", weight: 700 },
+        { ticker: "NVDA", name: "NVIDIA", sector: "Technology", weight: 4000 },
+      ],
+    })!;
+    const names = (sector: string) => result.sectors.find((row) => row.sector === sector)!.names.map((name) => `${name.ticker}${name.idea ? "?" : ""}`);
+    // Held: biggest first, no ideas while the book is not light there.
+    expect(names("Technology")).toEqual(["NVDA", "AAPL"]);
+    expect(names("Financials")).toEqual(["JPM"]);
+    // Not held: the index's largest there, biggest first.
+    expect(names("Consumer Discretionary")).toEqual(["AMZN?"]);
+    expect(names("Health Care")).toEqual(["LLY?", "UNH?"]);
+    // Far under the index (2% against 10%): the own name, then ideas, never GOOGL (the same company as GOOG).
+    expect(names("Communication Services")).toEqual(["GOOG", "META?"]);
+    expect(result.sectors.find((row) => row.sector === "Communication Services")!.names[0]!.name).toBe("Alphabet");
+  });
+
+  it("gives no ideas when there is no index to compare with", () => {
+    const result = buildConcentration({
+      positions: [
+        { ticker: "NVDA", name: "NVIDIA", weight: 60, sector: "Technology", fund: false },
+        { ticker: "VOO", name: "Vanguard S&P 500 ETF", weight: 40, sector: null, fund: true },
+      ],
+      xray: null,
+      benchmark: SPY,
+      spSectors: { Technology: 33, "Health Care": 10 },
+      sectorOf: () => "Technology",
+    })!;
+    expect(result.sectors.map((row) => [row.sector, row.names.map((name) => name.ticker)])).toEqual([
+      ["Technology", ["NVDA"]],
+      ["Funds", ["VOO"]],
+    ]);
+    expect(result.sectors.flatMap((row) => row.names).some((name) => name.idea)).toBe(false);
   });
 
   it("opens funds into companies and counts what it cannot place", () => {

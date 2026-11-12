@@ -124,10 +124,20 @@ export function planOffline(question: string): PlannedCall[] {
   if (/\bmy (agents?|watchers?|watches)\b/.test(lower)) return [{ tool: "get_my_agents", input: {} }];
   if (/\bmy\b.*\bresearch\b|\bresearch reports?\b/.test(lower)) return [{ tool: "get_my_research", input: tickers[0] ? { ticker: tickers[0] } : {} }];
   if (/\bmemo\b/.test(lower) || (mine && /\b(this|the|last) week\b|\bweekly\b/.test(lower))) return [{ tool: "get_my_week", input: {} }];
+  // "When should I sell NVDA?": our call, its level and the distance, with the watch one tap away.
+  const when = /\bwhen\b.*\b(?:should|do|would|could)\s+(?:i|we)\b.*\b(sell|trim|take profits?|buy|add)\b|\bwhen(?:'s| is)?\s+(?:a\s+|the\s+)?(?:good|right|best)\s+(?:time\s+)?to\s+(sell|trim|buy|add)\b/.exec(lower);
+  if (when && tickers.length > 0 && !/\b(tell|let|ping|alert|notify|remind)\s+(me|us)\b/.test(lower)) {
+    const verb = when[1] ?? when[2] ?? "";
+    return [{ tool: "suggest_watch", input: { kind: /sell|trim|profit/.test(verb) ? "sell_zone" : "buy_zone", ticker: tickers[0], offer: true } }];
+  }
   const watch = /\bwatch\b.*\bfor me\b|\b(keep an eye on|tell me when|let me know when|remind me|ping me)\b/.test(lower);
   if (watch && (tickers.length > 0 || mine)) {
     const ticker = tickers[0];
     const who = ticker ? { ticker } : { mine: true };
+    // "Tell me when to sell NVDA", "tell me when your call on AMD changes": the watch box's own kinds.
+    if (/\bwhen (?:to|i should|should i) (?:sell|trim)\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "sell_zone", ...who } }];
+    if (/\bwhen (?:to|i should|should i) buy\b|\bgood price to buy\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "buy_zone", ...who } }];
+    if (/\b(?:your|our|the) call\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "call_change", ...who } }];
     const level = /\b(below|under|above|over)\s*\$?(\d+(?:\.\d+)?)/.exec(lower);
     if (level && ticker) return [{ tool: "suggest_watch", input: { kind: /below|under/.test(level[1]!) ? "price_below" : "price_above", ticker, level: Number(level[2]) } }];
     if (/\b(report|reports|earnings)\b/.test(lower)) return [{ tool: "suggest_watch", input: { kind: "earnings_before", ...who } }];
@@ -320,9 +330,11 @@ export function describeCard(card: AskCard): string {
     case "briefing_item":
       return `${card.headline} ${card.why}`.trim();
     case "watch":
+      // Asked when to buy or sell: the answer is our call and its level; the card asks about the watch.
+      if (card.offer && card.zone) return card.zone.answer;
       return card.status === "already"
         ? `You already have an agent for this: ${list(card.existing.map((job) => job.name))}.`
-        : `${card.preview} Nothing is set up yet: tap Set up this watch on the card to start it.`;
+        : `${card.zone ? `${card.zone.answer} ` : ""}${card.preview} Nothing is set up yet: tap Save this watch on the card to start it.`;
     case "matches":
       return card.matches.length === 0 ? `Nothing in our catalog matches "${card.query}".` : `Closest matches: ${list(card.matches.slice(0, 4).map((match) => `${match.ticker} (${match.name})`))}.`;
     case "sign_in":

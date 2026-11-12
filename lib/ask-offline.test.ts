@@ -62,6 +62,21 @@ describe("planOffline", () => {
     expect(planOffline("What should I watch for at NVDA?").some((call) => call.tool === "suggest_watch")).toBe(false);
   });
 
+  it("sets the watch box's buy, sell and call watches when asked to be told", () => {
+    expect(planOffline("Tell me when to sell NVDA")).toEqual([{ tool: "suggest_watch", input: { kind: "sell_zone", ticker: "NVDA" } }]);
+    expect(planOffline("Let me know when NVDA is a good price to buy")).toEqual([{ tool: "suggest_watch", input: { kind: "buy_zone", ticker: "NVDA" } }]);
+    expect(planOffline("Tell me when your call on AMD changes")).toEqual([{ tool: "suggest_watch", input: { kind: "call_change", ticker: "AMD" } }]);
+  });
+
+  it("answers 'when should I sell?' with our call, and offers the watch behind one tap", () => {
+    expect(planOffline("When should I sell NVDA?")).toEqual([{ tool: "suggest_watch", input: { kind: "sell_zone", ticker: "NVDA", offer: true } }]);
+    expect(planOffline("when is a good time to buy AMD")).toEqual([{ tool: "suggest_watch", input: { kind: "buy_zone", ticker: "AMD", offer: true } }]);
+    expect(planOffline("When do I take profits on NVDA?")).toEqual([{ tool: "suggest_watch", input: { kind: "sell_zone", ticker: "NVDA", offer: true } }]);
+    const zone = { side: "sell" as const, call: "Sell some" as const, level: 250, price: 230, gap_pct: 8.7, locked: false, answer: "Our call on NVIDIA is Sell some at $250. That's 8.7% above its price of $230." };
+    const card = { card: "watch" as const, status: "ready" as const, request: "Tell me when to sell NVDA", preview: "x", href: "/agents", existing: [], note: null, zone, offer: "Want me to tell you when it gets there?", source: "", as_of: null };
+    expect(writeOffline([card])).toBe(zone.answer);
+  });
+
   it("has no plan for a question it cannot route", () => {
     expect(planOffline("Explain convexity to me")).toEqual([]);
   });

@@ -486,6 +486,26 @@ export type WatchCard = CardBase & {
     /** One sentence for before the tap. */
     line: string;
   } | null;
+  /**
+   * A buy or sell watch on one stock ("when should I sell NVDA?"): our call on it, the call's own level and how far
+   * the price is from it, read with the watch box's own call lookup (lib/agents-plain/server.ts). `answer` is at most
+   * two short lines, written here so the answer can use it as it is. The level is null where the plan does not show it.
+   */
+  zone?: {
+    side: "buy" | "sell";
+    call: "Buy more" | "Keep" | "Sell some" | null;
+    level: number | null;
+    price: number | null;
+    /** How far the price is from the level, percent, unsigned. Null without both, or once the price is there. */
+    gap_pct: number | null;
+    locked: boolean;
+    answer: string;
+  } | null;
+  /**
+   * The person asked when to buy or sell rather than to be told: the card waits behind this one-tap question ("Want me
+   * to tell you when it gets there?") and shows the watch when it is tapped. Null shows the watch at once.
+   */
+  offer?: string | null;
 };
 
 export type MatchesCard = CardBase & { card: "matches"; query: string; matches: Array<{ ticker: string; name: string }> };

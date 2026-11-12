@@ -203,6 +203,8 @@ function readFindings(raw: unknown[]): RunFinding[] {
       change_pct: num(row.change_pct),
       close: num(row.close),
       zone: row.zone === "add" || row.zone === "trim" ? row.zone : null,
+      call_from: str(row.call_from) || null,
+      call_to: str(row.call_to) || null,
       level: num(row.level) ?? null,
       time: str(row.time) || null,
     }));

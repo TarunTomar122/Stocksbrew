@@ -9,8 +9,10 @@ const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
 
 /**
  * What reports soon, where our calls sit and what the holdings should pay: the free part about the person's own
- * lines. The two-week strip (7 columns) beside the calls (5), the dividends across the page under them. When nothing
- * reports for two weeks the earnings card is one short line, so it takes the narrow side and the calls the wide one.
+ * lines. The two-week strip (7 columns) beside the calls (5), both ending level: the cards stretch to the row and the
+ * strip's day tiles grow into any height the calls add. The dividends run across the page under them. When nothing
+ * reports for two weeks the earnings card is one short line, so it sits across the page above the calls rather than
+ * beside them with an empty half.
  */
 export function Ahead({
   earnings,
@@ -27,17 +29,35 @@ export function Ahead({
 }) {
   if (!earnings && !calls && !income) return null;
   const quiet = Boolean(earnings?.next);
-  const both = Boolean(earnings && calls);
+  const beside = Boolean(earnings && calls && !quiet);
+  // Rough body heights in px (the card heads match), to pick which card gives way. The strip's tiles can grow, so a
+  // taller calls card stretches the earnings card; a taller earnings card instead scrolls its list inside the calls
+  // card's height, when that still leaves the strip and two rows.
+  const reporting = earnings ? earnings.days.reduce((sum, slot) => sum + slot.tickers.length, 0) : 0;
+  const earningsPx = 120 + 32 * Math.min(reporting, 8.25);
+  const callsPx = calls
+    ? 40 + 26 * [calls.split.buyMore, calls.split.keep, calls.split.sellSome, calls.split.none].filter((value) => value > 0).length +
+      (calls.rows.length > 0 ? 16 + 32 * Math.min(calls.rows.length, 8.25) : 0) +
+      (showUpsell && calls.withheld > 0 ? 33 : 0)
+    : 0;
+  const earningsGives = beside && callsPx < earningsPx && callsPx >= 120 + 64;
   return (
     <Module id="ahead" title="Coming up, and our calls">
-      {earnings ? <Earnings module={earnings} example={example} className={!both ? SPAN[12] : quiet ? SPAN[5] : SPAN[7]} /> : null}
-      {calls ? <Calls module={calls} showUpsell={showUpsell} example={example} className={!both ? SPAN[12] : quiet ? SPAN[7] : SPAN[5]} /> : null}
+      {earnings ? (
+        <Earnings
+          module={earnings}
+          example={example}
+          className={beside ? `${SPAN[7]} ${earningsGives ? "lg:h-0 lg:min-h-full" : "lg:self-stretch"}` : SPAN[12]}
+          fill={earningsGives}
+        />
+      ) : null}
+      {calls ? <Calls module={calls} showUpsell={showUpsell} example={example} className={beside ? `${SPAN[5]} lg:self-stretch` : SPAN[12]} wide={!beside} /> : null}
       {income ? <Income module={income} /> : null}
     </Module>
   );
 }
 
-function Earnings({ module, example, className }: { module: EarningsModule; example: boolean; className: string }) {
+function Earnings({ module, example, className, fill = false }: { module: EarningsModule; example: boolean; className: string; fill?: boolean }) {
   const money_ = example ? "the money" : "your money";
   return (
     <ChartCard
@@ -58,7 +78,7 @@ function Earnings({ module, example, className }: { module: EarningsModule; exam
       ) : (
         <>
           {/* Two rows of seven on a phone, one row of fourteen from sm. */}
-          <ol className="grid grid-cols-7 gap-1 sm:grid-cols-[repeat(14,minmax(0,1fr))]">
+          <ol className={`grid grid-cols-7 gap-1 sm:grid-cols-[repeat(14,minmax(0,1fr))] ${fill ? "shrink-0" : "lg:flex-1"}`}>
             {module.days.map((slot) => {
               const weekday = new Date(`${slot.date}T00:00:00Z`).getUTCDay();
               const weekend = weekday === 0 || weekday === 6;
@@ -80,7 +100,7 @@ function Earnings({ module, example, className }: { module: EarningsModule; exam
               );
             })}
           </ol>
-          <ul className={`${LIST} mt-3 border-t border-oa-border pt-2`}>
+          <ul className={`${LIST} mt-3 border-t border-oa-border pt-2 ${fill ? "lg:max-h-none lg:min-h-0 lg:flex-1" : ""}`}>
             {module.days.flatMap((slot) =>
               slot.tickers.map((ticker) => (
                 <li key={ticker.ticker} className="grid h-8 grid-cols-[minmax(0,1fr)_4.5rem_3.5rem] items-center gap-2">
@@ -99,31 +119,36 @@ function Earnings({ module, example, className }: { module: EarningsModule; exam
 
 const CALL_COLOR = { "Buy more": UP, Keep: FLAT, "Sell some": DOWN } as const;
 
-function Calls({ module, showUpsell, example, className }: { module: CallsModule; showUpsell: boolean; example: boolean; className: string }) {
+/**
+ * Our calls on the money: the split by call as short rows with a bar each (how much of the money each call covers),
+ * then the holdings near a level, which take the rest of the card. Across the page (`wide`) the two sit side by side.
+ */
+function Calls({ module, showUpsell, example, className, wide }: { module: CallsModule; showUpsell: boolean; example: boolean; className: string; wide: boolean }) {
   const parts = [
     { label: "Buy more", value: module.split.buyMore, color: UP },
     { label: "Keep", value: module.split.keep, color: FLAT },
     { label: "Sell some", value: module.split.sellSome, color: DOWN },
     { label: "No call", value: module.split.none, color: "var(--oa-border)" },
   ].filter((part) => part.value > 0);
+  const rows = module.rows.length > 0;
   return (
     <ChartCard title={example ? "Our calls on this mix" : "Our calls on your money"} flush className={className}>
-      <div className="px-4 pt-3">
-        <div className="flex h-3 overflow-hidden rounded-[3px]" role="img" aria-label={parts.map((part) => `${part.label} ${pct(part.value)}`).join(", ")}>
-          {parts.map((part) => (
-            <span key={part.label} style={{ width: `${part.value}%`, background: part.color }} />
-          ))}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-oa-muted-fg">
-          {parts.map((part) => (
-            <Key key={part.label} color={part.color}>
-              {part.label} <span className={`${NUM} text-oa-fg`}>{pct(part.value)}</span>
+      <div className={`flex min-h-0 flex-1 flex-col ${wide && rows ? "lg:grid lg:grid-cols-2" : ""}`}>
+      <ul className="flex flex-col gap-1.5 px-4 py-3" aria-label="The money by call">
+        {parts.map((part) => (
+          <li key={part.label} className="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-2 text-[12.5px] leading-5">
+            <Key color={part.color}>
+              <span className="text-oa-fg">{part.label}</span>
             </Key>
-          ))}
-        </div>
-      </div>
-      {module.rows.length > 0 ? (
-        <ul className={`${LIST} mt-2 border-t border-oa-border px-4 py-2`}>
+            <span className="h-2 overflow-hidden rounded-[2px] bg-oa-bg">
+              <span className="block h-full rounded-[2px]" style={{ width: `${Math.min(100, part.value)}%`, background: part.color }} />
+            </span>
+            <span className={`${NUM} text-right text-[13px] text-oa-fg`}>{pct(part.value)}</span>
+          </li>
+        ))}
+      </ul>
+      {rows ? (
+        <ul className={`${LIST} border-t border-oa-border px-4 py-2 ${wide ? "lg:border-l lg:border-t-0" : "lg:min-h-0 lg:flex-1"}`}>
           {module.rows.map((row) => (
             <li key={row.ticker} className="grid h-8 grid-cols-[5.25rem_minmax(0,1fr)_3.75rem] items-center gap-2" title={`${row.ticker} at $${row.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}>
               <Tick ticker={row.ticker} />
@@ -138,6 +163,7 @@ function Calls({ module, showUpsell, example, className }: { module: CallsModule
           ))}
         </ul>
       ) : null}
+      </div>
       {showUpsell && module.withheld > 0 ? (
         <p className="mt-auto border-t border-oa-border px-4 py-2 text-[12.5px] leading-4 text-oa-muted-fg">
           Levels on {module.withheld} more {module.withheld === 1 ? "holding come" : "holdings come"} with{" "}

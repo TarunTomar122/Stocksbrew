@@ -1412,8 +1412,9 @@ function RuleRow({ label, children }: { label: string; children: React.ReactNode
 const LINK_BUTTON = `inline-flex h-8 items-center rounded-lg border border-oa-border px-3 text-[13px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`;
 
 /**
- * "Keep watching": the agent an answer leads to, with its exact rule (what, which stocks, when it checks, how it tells
- * you) before anything is saved. Signed in, one tap saves it through the agents API (POST /api/agents/save) with the
+ * "Keep watching": the agent an answer leads to, read back in the watch box's own words, with which stocks, when it
+ * checks and how it tells you, before anything is saved. When the person asked when to buy or sell (`offer`), the card
+ * first shows only that one-tap question. Signed in, one tap saves it through the agents API (POST /api/agents/save) with the
  * card's own drafts; nothing is created without that tap, and the plan's limits apply exactly as on the Agents page.
  * Signed out, or on a card from before the rule was stored, the button opens the Agents page with the request filled in.
  */
@@ -1422,6 +1423,8 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
   // "The next check is today" depends on the reader's clock, so it is worked out in the browser, never on the server.
   const [when, setWhen] = React.useState<string | null>(null);
   React.useEffect(() => setWhen(watchWhenWords()), []);
+  // "When should I sell?" answers first; the watch waits behind one tap.
+  const [open, setOpen] = React.useState(false);
   const already = card.status === "already";
   if (already) {
     return (
@@ -1435,6 +1438,17 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
           </AppLink>
         </div>
       </div>
+    );
+  }
+  if (card.offer && !open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`inline-flex min-h-9 items-center rounded-full border border-oa-border bg-oa-card px-3.5 text-left text-[14px] font-medium leading-5 text-oa-fg transition-colors hover:bg-oa-accent ${FOCUS}`}
+      >
+        {card.offer}
+      </button>
     );
   }
   const rule = card.rule;
@@ -1454,19 +1468,10 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
   const lock = lockCopy("agents");
   return (
     <Frame label="Keep watching" right={tag}>
+      {/* The watch box's own read-back (lib/agents-plain/parse.ts), word for word, so Ask and the Agents page say one thing. */}
+      <p className="text-pretty text-[15px] font-medium leading-[22px] text-oa-fg">{card.preview}</p>
       {rule ? (
-        <dl className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13.5px] leading-5">
-          <RuleRow label="What">
-            {rule.what.length === 1 ? (
-              rule.what[0]
-            ) : (
-              <ul className="space-y-0.5">
-                {rule.what.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </RuleRow>
+        <dl className="mt-2.5 grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13.5px] leading-5">
           <RuleRow label={rule.mine || rule.stocks.length !== 1 ? "Stocks" : "Stock"}>
             {rule.mine ? (
               "Every stock you track"
@@ -1486,9 +1491,7 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
           </RuleRow>
           <RuleRow label="How">{WATCH_HOW_WORDS}</RuleRow>
         </dl>
-      ) : (
-        <p className="text-pretty text-[14px] leading-5 text-oa-fg">{card.preview}</p>
-      )}
+      ) : null}
       {card.note && !saved ? <p className="mt-2 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">{card.note}</p> : null}
       {actions.signedIn && card.outlook && !saved ? <p className="mt-2 text-pretty text-[13px] leading-5 text-oa-label">{card.outlook.line}</p> : null}
 
@@ -1529,7 +1532,7 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
           {oneTap ? (
             <>
               <OaButton size="sm" loading={save.phase === "running"} onClick={() => void confirm()}>
-                Set up this watch
+                Save this watch
               </OaButton>
               <AppLink href={card.href} className={`rounded text-[13px] text-oa-muted-fg underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
                 Change it first
@@ -1543,7 +1546,7 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
             // Signed out too: the Agents page opens the filled-in agent with its last four weeks, and asks for an
             // account only when it is saved.
             <AppLink href={card.href} className={`inline-flex h-8 items-center rounded-lg bg-oa-primary px-3 text-[13px] font-medium text-oa-primary-fg hover:opacity-90 ${FOCUS}`}>
-              Set up this watch
+              Save this watch
             </AppLink>
           )}
         </div>

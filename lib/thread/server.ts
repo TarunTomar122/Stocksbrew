@@ -55,6 +55,13 @@ export function callLines(rows: Map<string, ScreenerRow>, levels: (ticker: strin
   return out;
 }
 
+/** Each stock's latest price from its screener row, for the notes that report no move of their own. */
+export function pricesFrom(rows: Map<string, ScreenerRow>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [ticker, row] of rows) if (typeof row.price === "number" && Number.isFinite(row.price) && row.price > 0) out[ticker] = row.price;
+  return out;
+}
+
 /**
  * The morning read for the thread: the briefing's own read, with the holdings' move set against the S&P 500 when the
  * index is priced on the same session (the example's briefing already says it that way).
@@ -118,6 +125,7 @@ function assemble(common: Common, input: { example: boolean; inbox: InboxResult 
     group: { total: common.group.tickers.length, holdings: common.group.holdings },
     calls: callLines(input.rows, common.levels, common.today),
     levels: common.levels,
+    prices: pricesFrom(input.rows),
     stocks: common.tickers.length,
   });
 }

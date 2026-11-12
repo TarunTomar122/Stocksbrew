@@ -6,12 +6,13 @@ import { anyOf, watchEarningsManyHref, watchMovesHref } from "@/lib/agents-plain
 import { pct } from "@/lib/memo/format";
 import type { FactKind, MemoItem, MemoVisual } from "@/lib/memo/types";
 
+import { cardWords, type NextUp } from "./card-words";
 import { MiniBars } from "./mini-bars";
 
 /**
- * A section of the memo as cards: one figure, a short line that reads on
- * from it, a small picture where one helps, and the memo's full sentence
- * always shown under it (owner, Nov 11: no "Why" toggle). The whole card opens
+ * A section of the memo as cards: one figure, a short label that reads on
+ * from it, and a small picture or the other stocks it covers where they help
+ * (owner, Nov 12: a figure, a label and one line at most). The whole card opens
  * its evidence page, so no link words repeat on every card; the watches the
  * cards suggest are one or two links on the section's heading, not one per
  * card (owner, Nov 11). Memos written before the cards existed show their
@@ -125,33 +126,57 @@ function Visual({ visual, example }: { visual: MemoVisual; example: boolean }) {
   );
 }
 
-function Card({ item, example }: { item: MemoItem; example: boolean }) {
-  const card = item.card ?? null;
-  const single = item.tickers.length === 1 ? item.tickers[0]! : null;
-  const figureTone = card?.sign === "up" ? "text-signal-bullish" : card?.sign === "down" ? "text-signal-bearish" : "text-oa-fg";
+/** "Then [logo] AVGO Thursday": the other stocks a card covers, named once each instead of "then one more". */
+function NextLine({ next, moreCount }: { next: NextUp[]; moreCount: number }) {
   return (
-    <li className="oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3.5 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent">
+    <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-5 text-oa-muted-fg">
+      <span>Then</span>
+      {next.map((up) => (
+        <span key={up.ticker} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <StockLogo ticker={up.ticker} size={16} eager />
+          <span className={`${NUM} font-medium text-oa-fg`}>{up.ticker}</span>
+          {up.when ? <span>{up.when}</span> : null}
+        </span>
+      ))}
+      {moreCount > 0 ? <span className="whitespace-nowrap">and {moreCount} more</span> : null}
+    </p>
+  );
+}
+
+function Card({ item, example, monday, today, across }: { item: MemoItem; example: boolean; monday: string; today: string; across: boolean }) {
+  const card = item.card ?? null;
+  const words = cardWords(item, monday, today);
+  // The card leads with the stock its figure is about: the only one, or the first of a report or dividend list.
+  const lead = item.tickers.length === 1 || (words && words.next.length > 0) ? item.tickers[0]! : null;
+  const figureTone = card?.sign === "up" ? "text-signal-bullish" : card?.sign === "down" ? "text-signal-bearish" : "text-oa-fg";
+  const visual = card?.visual ? <Visual visual={card.visual} example={example} /> : null;
+  return (
+    <li className="oa-surface relative flex h-full min-w-0 flex-col border border-oa-border bg-oa-card p-3.5 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent">
+      {/* Where the facts come from sits in the hover title, not as a line on the card (owner rule 4). */}
       <Link
         href={item.href}
         prefetch={false}
-        aria-label={card ? `${card.figure} ${card.label}: ${item.linkLabel}` : item.linkLabel}
+        title={item.source || undefined}
+        aria-label={words ? `${words.figure} ${words.label}: ${item.linkLabel}` : item.linkLabel}
         className={`absolute inset-0 z-0 rounded-[inherit] ${FOCUS}`}
       />
-      <div className="flex items-start gap-3">
-        <span className="mt-1">{single ? <StockLogo ticker={single} size={24} eager /> : <Icon kind={item.kind} />}</span>
-        {card ? (
-          <p className="min-w-0">
-            <span className={`${NUM} block text-[22px] font-semibold leading-7 tracking-[-0.01em] ${figureTone}`}>{card.figure}</span>
-            <span className="block text-pretty text-[14px] leading-5 text-oa-fg">{card.label}</span>
-          </p>
-        ) : (
-          <p className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{item.text}</p>
-        )}
+      <div className={`flex flex-col ${across ? "lg:flex-row lg:items-center lg:gap-8" : ""}`}>
+        <div className={`flex min-w-0 items-start gap-3 ${across ? "lg:flex-1" : ""}`}>
+          <span className="mt-1">{lead ? <StockLogo ticker={lead} size={24} eager /> : <Icon kind={item.kind} />}</span>
+          {words ? (
+            <div className="min-w-0">
+              <p>
+                <span className={`${NUM} block text-[22px] font-semibold leading-7 tracking-[-0.01em] ${figureTone}`}>{words.figure}</span>
+                <span className="block text-pretty text-[14px] leading-5 text-oa-fg">{words.label}</span>
+              </p>
+              {words.next.length > 0 ? <NextLine next={words.next} moreCount={words.moreCount} /> : null}
+            </div>
+          ) : (
+            <p className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">{item.text}</p>
+          )}
+        </div>
+        {visual ? <div className={across ? "lg:flex-1 lg:[&>*]:mt-0" : ""}>{visual}</div> : null}
       </div>
-      {card?.visual ? <Visual visual={card.visual} example={example} /> : null}
-      {/* No paragraph under the figure and its label (owner, Nov 12: a card is a figure, a few words and one line):
-          the card's one line is where it comes from. The full sentence is on the page the card opens. */}
-      <p className="mt-auto pt-2.5 text-[12px] leading-4 text-oa-muted-fg">{item.source}</p>
     </li>
   );
 }
@@ -159,20 +184,35 @@ function Card({ item, example }: { item: MemoItem; example: boolean }) {
 export function MemoCards({
   title,
   items,
-  empty,
   example,
   watchable,
+  monday,
+  today,
+  className = "min-w-0",
+  gridClassName = "grid grid-cols-1 gap-3 sm:grid-cols-2",
+  across = false,
 }: {
   title: string;
   items: MemoItem[];
-  empty: string;
   example: boolean;
   /** Which items get an agent as their action: every risk, and a report coming up. */
   watchable: (item: MemoItem) => boolean;
+  /** The memo's Monday, to read the cards' stored dates ("Nov 19") with their year. */
+  monday: string;
+  /** Today in New York, for "Today" and "Thursday" in place of dates. */
+  today: string;
+  /** The section's place in its row (rows.ts packedSection). */
+  className?: string;
+  /** Its card list's columns (rows.ts packedGrid). */
+  gridClassName?: string;
+  /** A lone card on a wide row: its picture sits beside the figure, not under it. */
+  across?: boolean;
 }) {
+  // Nothing to show: no section, not a card saying so (owner rule 4).
+  if (items.length === 0) return null;
   const watches = watchesFor(items.filter(watchable));
   return (
-    <section aria-label={title} className="min-w-0">
+    <section aria-label={title} className={className}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1 pb-2">
         <h2 className="oa-label">{title}</h2>
         {watches.length > 0 ? (
@@ -190,19 +230,11 @@ export function MemoCards({
           </p>
         ) : null}
       </div>
-      {items.length > 0 ? (
-        <ul
-          // Every card one column wide (owner rule 4): an odd last card keeps its width, and on wide screens the
-          // columns are as many as fit (auto-fill), so a lone card does not stretch over the row.
-          className="oa-card-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]"
-        >
-          {items.map((item) => (
-            <Card key={item.id} item={item} example={example} />
-          ))}
-        </ul>
-      ) : (
-        <p className="oa-surface border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">{empty}</p>
-      )}
+      <ul className={`oa-card-grid ${gridClassName}`}>
+        {items.map((item) => (
+          <Card key={item.id} item={item} example={example} monday={monday} today={today} across={across} />
+        ))}
+      </ul>
     </section>
   );
 }

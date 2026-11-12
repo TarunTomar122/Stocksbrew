@@ -5,32 +5,40 @@ import { ChartCard, Key, LIST, MINE, Module, NUM, SPAN, Tick, pct } from "./part
 
 const VIA = "color-mix(in srgb, var(--oa-primary) 35%, transparent)";
 
+/** The fund grid's height in company rows (32px each): its head, padding and a 42px row per fund, less the list's own. */
+function gridRows(funds: number): number {
+  return Math.ceil((56 + 42 * funds) / 32);
+}
+
 /**
  * Same stocks inside the funds: what the funds add to each company (7 columns) beside how much the funds repeat each
- * other (5). Two funds are one number, which sits in the company card's head rather than as a short card that would
- * end halfway down beside the list; three or more get the grid.
+ * other (5), both ending level: the company list takes the grid's height and scrolls inside past it. Two funds are
+ * one number, which sits in the company card's head; three or more get the grid. A list too short to reach the
+ * grid's height runs across the page in two columns with the grid under it, rather than ending halfway beside it.
  */
 export function Overlap({ module, example }: { module: OverlapModule; example: boolean }) {
   const pair = module.matrix && module.matrix.funds.length === 2 ? module.matrix : null;
   const grid = module.matrix && module.matrix.funds.length > 2 ? module.matrix : null;
   const companies = module.companies.length > 0;
+  const beside = Boolean(grid && companies && module.companies.length + (module.closed.length > 0 ? 1 : 0) >= gridRows(grid.funds.length));
   return (
     <Module id="overlap" title={example ? "What the funds add" : "What your funds add"}>
       {companies ? (
         <Companies
           module={module}
-          className={grid ? SPAN[7] : SPAN[12]}
+          className={beside ? `${SPAN[7]} lg:h-0 lg:min-h-full` : SPAN[12]}
           shared={pair ? `${pair.funds[0]} and ${pair.funds[1]} share ${pct(pair.pct[0]![1]!)}` : null}
           // Alone on the row, the list runs in two columns rather than stretching each bar across the page.
-          split={!grid}
+          split={!beside}
+          fill={beside}
         />
       ) : null}
-      {grid ? <Matrix matrix={grid} className={companies ? SPAN[5] : `${SPAN[5]} lg:col-start-1`} /> : null}
+      {grid ? <Matrix matrix={grid} className={beside ? SPAN[5] : SPAN[12]} /> : null}
     </Module>
   );
 }
 
-function Companies({ module, className, shared, split }: { module: OverlapModule; className: string; shared: string | null; split: boolean }) {
+function Companies({ module, className, shared, split, fill }: { module: OverlapModule; className: string; shared: string | null; split: boolean; fill: boolean }) {
   const max = Math.max(1, ...module.companies.map((row) => row.weight));
   return (
     <ChartCard
@@ -46,7 +54,7 @@ function Companies({ module, className, shared, split }: { module: OverlapModule
       flush
     >
       {/* Alone on the row it runs in two columns, whole (a height cap would spill CSS columns sideways); beside the grid it is a capped table. */}
-      <ul className={`px-4 py-2 ${split ? "max-lg:max-h-[16.5rem] max-lg:overflow-y-auto max-lg:[scrollbar-width:none] lg:columns-2 lg:gap-x-10 [&::-webkit-scrollbar]:hidden" : LIST}`}>
+      <ul className={`px-4 py-2 ${split ? "max-lg:max-h-[16.5rem] max-lg:overflow-y-auto max-lg:[scrollbar-width:none] lg:columns-2 lg:gap-x-10 [&::-webkit-scrollbar]:hidden" : fill ? `${LIST} lg:max-h-none lg:min-h-0 lg:flex-1` : LIST}`}>
         {module.companies.map((row) => (
           <li key={row.ticker} className="grid h-8 break-inside-avoid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[6rem_minmax(0,1fr)_3rem]">
             <Tick ticker={row.ticker} />

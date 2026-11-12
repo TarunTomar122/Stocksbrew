@@ -8,7 +8,7 @@ import { ChartCard, FigureStrip, Key, MINE, Module, NUM, SP, SPAN, day, monthNam
 /**
  * What drives the swings: three figures in one strip across the page (how far the mix moves when the S&P 500 moves
  * 1%, how much it goes up and down in a year, its largest fall), then the year as two lines with that fall marked
- * (8 columns) beside each holding's weight against its share of the swings (4).
+ * (8 columns) beside each holding's weight against its share of the swings (4), the two charts ending level.
  */
 export function Swings({ module, example }: { module: RiskModule; example: boolean }) {
   const subject = example ? "This mix" : "Your mix";
@@ -39,7 +39,7 @@ export function Swings({ module, example }: { module: RiskModule; example: boole
       <PathChart
         module={module}
         title={module.sessions >= 240 ? "Today's mix, past year" : `Today's mix ${span}`}
-        className={scatter ? SPAN[8] : SPAN[12]}
+        className={scatter ? `${SPAN[8]} lg:self-stretch` : SPAN[12]}
       />
       {scatter ? <Scatter module={module} /> : null}
     </Module>
@@ -91,7 +91,8 @@ function PathChart({ module, title, className }: { module: RiskModule; title: st
         </>
       }
     >
-      <div className="relative h-[220px] pl-10 lg:h-[260px]">
+      {/* Beside the scatter both charts take the row's height (self-stretch), the plot growing into it. */}
+      <div className="relative h-[220px] pl-10 lg:h-auto lg:min-h-[260px] lg:flex-1">
         {ticks.map((tick) => (
           <span
             key={tick}
@@ -213,9 +214,9 @@ function Scatter({ module }: { module: RiskModule }) {
     placeLabels(points.map((point) => ({ ticker: point.ticker, x: at(point.weight), y: at(point.share), size: point.weight + Math.abs(point.share) }))).map((label) => [label.ticker, label.side]),
   );
   return (
-    <ChartCard title="Size against share of the swings" aside={<span>above the line: more swing than size</span>} className={SPAN[4]}>
+    <ChartCard title="Size against share of the swings" aside={<span>above the line: more swing than size</span>} className={`${SPAN[4]} lg:self-stretch`}>
       <p className="mb-1 text-[11.5px] leading-4 text-oa-muted-fg">share of swings</p>
-      <div className="relative ml-1 mr-2 h-[220px] border-b border-l border-oa-border lg:h-[236px]">
+      <div className="relative ml-1 mr-2 h-[220px] border-b border-l border-oa-border lg:h-auto lg:min-h-[236px] lg:flex-1">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
           <line x1={at(lo)} y1={100 - at(lo)} x2="100" y2={100 - at(hi)} stroke="var(--oa-border)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
         </svg>

@@ -241,6 +241,8 @@ export function askUIStream(run: AskRun) {
             // stock, so those count. A price level the model picked still does not.
             const kind = (toolResult.input as { kind?: unknown } | undefined)?.kind;
             if (toolResult.output.card === "watch" && (kind === "daily_move" || kind === "earnings_before")) outputs.push(toolResult.output.request);
+            // "When should I sell?" is answered from our call, its level and the price, read from our own stores.
+            if (toolResult.output.card === "watch" && toolResult.output.zone) outputs.push(toolResult.output.zone);
             continue;
           }
           outputs.push(isAskCard(toolResult.output) ? cardForModel(toolResult.output) : toolResult.output);

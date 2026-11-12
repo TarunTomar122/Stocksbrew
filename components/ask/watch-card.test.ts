@@ -34,9 +34,10 @@ function html(card: WatchCard, signedIn: boolean): string {
 const text = (markup: string) => markup.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/\s+/g, " ");
 
 describe("the watch card", () => {
-  it("states the rule: what, which stock, when it checks and how it tells you", () => {
+  it("reads the watch back in the watch box's words, then which stock, when it checks and how it tells you", () => {
     const shown = text(html(BASE, true));
-    expect(shown).toContain("What NVIDIA moves 5% or more in a day, up or down");
+    expect(shown).toContain(BASE.preview);
+    expect(shown).not.toContain("What NVIDIA");
     expect(shown).toMatch(/Stock NVDA NVIDIA/);
     expect(shown).toMatch(/When Every weekday after the close, from 5:30 PM ET\./);
     expect(shown).toContain("How An email and a note on your Agents page, only on a day it happens.");
@@ -44,7 +45,7 @@ describe("the watch card", () => {
 
   it("signed in, offers a one-tap setup (a button, not a link) and a way to change it first", () => {
     const markup = html(BASE, true);
-    expect(markup).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Set up this watch/);
+    expect(markup).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Save this watch/);
     expect(markup).toContain(`href="${BASE.href.replace(/&/g, "&amp;")}"`);
     expect(text(markup)).not.toContain("Nothing is set up");
   });
@@ -52,7 +53,7 @@ describe("the watch card", () => {
   it("signed out, the same button opens the Agents page with the request filled in", () => {
     const markup = html(BASE, false);
     expect(markup).not.toMatch(/<button/);
-    expect(markup).toMatch(/<a[^>]*href="\/agents\?q=[^"]+"[^>]*>Set up this watch<\/a>/);
+    expect(markup).toMatch(/<a[^>]*href="\/agents\?q=[^"]+"[^>]*>Save this watch<\/a>/);
   });
 
   it("warns before the tap when the plan would save it paused, and sends a full account to its agents", () => {
@@ -64,11 +65,22 @@ describe("the watch card", () => {
     expect(text(full)).toContain("Open your agents");
   });
 
+  it("asked when to sell, shows only the one-tap question until it is tapped", () => {
+    const zone = { side: "sell" as const, call: "Sell some" as const, level: 250, price: 230, gap_pct: 8.7, locked: false, answer: "Our call on NVIDIA is Sell some at $250." };
+    const markup = html({ ...BASE, zone, offer: "Want me to tell you when it gets there?" }, true);
+    expect(markup).toMatch(/<button[^>]*type="button"[^>]*>Want me to tell you when it gets there\?<\/button>/);
+    expect(text(markup)).not.toContain(BASE.preview);
+    expect(markup).not.toContain("Save this watch");
+    // Already set up: no question, just what they have.
+    const have = text(html({ ...BASE, status: "already", existing: [{ name: "When to sell NVDA", enabled: true }], offer: null, zone }, true));
+    expect(have).toContain("You already have an agent for this: When to sell NVDA.");
+  });
+
   it("a card stored before the rule existed shows its preview and a link", () => {
     const { rule: _rule, drafts: _drafts, outlook: _outlook, ...old } = BASE;
     const markup = html(old as WatchCard, true);
     expect(text(markup)).toContain(BASE.preview.replace(/'/g, "'"));
     expect(markup).not.toMatch(/<button/);
-    expect(markup).toMatch(/<a[^>]*href="\/agents\?q=[^"]+"[^>]*>Set up this watch<\/a>/);
+    expect(markup).toMatch(/<a[^>]*href="\/agents\?q=[^"]+"[^>]*>Save this watch<\/a>/);
   });
 });

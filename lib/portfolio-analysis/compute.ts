@@ -79,10 +79,12 @@ export function computeMarketAnalysis(input: {
 }): MarketAnalysis {
   const lines = input.lines.filter((line) => line.weight > 0);
   const opened = Boolean(input.xray && input.xray.funds.some((fund) => fund.status === "ok"));
-  const concentrationTyped = buildConcentration({ positions: lines, xray: null, benchmark: input.benchmarkFund, spSectors: input.spSectors, nameOf: input.nameOf });
-  const concentrationLook = opened
-    ? buildConcentration({ positions: lines, xray: input.xray, benchmark: input.benchmarkFund, spSectors: input.spSectors, nameOf: input.nameOf })
-    : null;
+  // The S&P 500's largest names per sector, as ideas on the sector rows: the fund's filing, then the screener's rows.
+  const sectorOf = (ticker: string) => input.rows.get(ticker)?.sector ?? null;
+  const indexRows = input.spRows.map((row) => ({ ticker: row.symbol, name: row.name, sector: row.sector, weight: row.market_cap ?? 0 }));
+  const sides = { benchmark: input.benchmarkFund, spSectors: input.spSectors, nameOf: input.nameOf, sectorOf, indexRows };
+  const concentrationTyped = buildConcentration({ positions: lines, xray: null, ...sides });
+  const concentrationLook = opened ? buildConcentration({ positions: lines, xray: input.xray, ...sides }) : null;
 
   const aligned = chooseWindow(lines, input.benchmark, input.series);
 
@@ -101,7 +103,11 @@ export function computeMarketAnalysis(input: {
     concentrationLook,
     overlap: buildOverlap(input.xray),
     risk: buildRisk(lines, aligned),
-    correlation: buildCorrelation(lines, aligned),
+    correlation: buildCorrelation(
+      lines,
+      aligned,
+      Object.fromEntries(lines.map((line) => [line.ticker, { industry: input.rows.get(line.ticker)?.industry ?? null, sector: line.sector, fund: line.fund }])),
+    ),
     crashes: buildCrashes(input.stress),
     attribution: buildAttribution(lines, input.rows, input.spyReturns, input.screenerDay),
     lean: buildLean({

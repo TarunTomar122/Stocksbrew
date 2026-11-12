@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { InboxItem, UpcomingReport } from "@/lib/inbox/types";
+import { findingItems } from "@/lib/inbox/words";
 
 import { againstMarket, buildThread, dayName, eventNote, sessionMoves, sessionSentence, upcomingNote, type ThreadInput } from "./build";
 import { threadSuggestions } from "./suggest";
@@ -162,6 +163,51 @@ describe("event notes", () => {
     expect(note.source).toBe("Our call");
     expect(note.figure).toBeNull();
     expect(note.step!.label).toBe("See why our call on AAPL changed");
+  });
+
+  it("draws a saved sell or call watch firing as an ordinary note, with the stock, what happened and the price", () => {
+    // From the real inbox builder, so the finding's shape is the one an agent run stores (lib/agent-jobs.ts).
+    const [turned] = findingItems(
+      {
+        jobId: "job0000001",
+        jobName: "When to sell AMD",
+        day: "2026-11-11",
+        ranAt: "2026-11-11T21:35:00Z",
+        decision: "notify",
+        summary: "Our call on AMD moved from Keep to Sell some.",
+        tickers: ["AMD"],
+        findings: [{ ticker: "AMD", headline: "Our call on AMD moved from Keep to Sell some", detail: "", at: "2026-11-11", kind: "call", call_from: "Keep", call_to: "Sell some" }],
+      },
+      "mine",
+      new Map(),
+      TODAY,
+    )!;
+    const call = eventNote(turned!, { levels: () => true, today: TODAY, prices: { AMD: 238.4 } }, new Map())!;
+    expect(call).toMatchObject({ kind: "event", tickers: ["AMD"], text: "Our call on AMD moved from Keep to Sell some.", source: null });
+    expect(call.figure).toEqual({ value: "$238.40", tone: "flat", label: "price now" });
+    expect(call.step).toEqual({ label: "See why our call on AMD changed", href: "/stock/AMD#call" });
+    // Without a price, the note still stands, with no figure made up.
+    expect(eventNote(turned!, { levels: () => true, today: TODAY }, new Map())!.figure).toBeNull();
+
+    const [zone] = findingItems(
+      {
+        jobId: "job0000002",
+        jobName: "When to sell ORCL",
+        day: "2026-11-11",
+        ranAt: "2026-11-11T21:35:00Z",
+        decision: "notify",
+        summary: "ORCL closed at $251.20.",
+        tickers: ["ORCL"],
+        findings: [{ ticker: "ORCL", headline: "ORCL rose 3.10% to $251.20", detail: "", at: "2026-11-11", kind: "level", zone: "trim", level: 250, close: 251.2, change_pct: 3.1 }],
+      },
+      "mine",
+      new Map(),
+      TODAY,
+    )!;
+    const sell = eventNote(zone!, { levels: () => true, today: TODAY, prices: { ORCL: 251.2 } }, new Map())!;
+    expect(sell.tickers).toEqual(["ORCL"]);
+    expect(sell.text).toBe("ORCL closed at $251.20 yesterday, at or above $250, where our call says to sell some.");
+    expect(sell.figure).toEqual({ value: "+3.1%", tone: "up" });
   });
 });
 

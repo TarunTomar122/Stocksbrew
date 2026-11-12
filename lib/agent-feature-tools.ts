@@ -8,9 +8,9 @@ import { MAX_JOBS_PER_USER, hiddenTemplateIds } from "@/lib/agent-jobs";
 import { listJobs } from "@/lib/agent-jobs-data";
 import { consumePlainParse } from "@/lib/agents-plain/limits";
 import { plainModelReader } from "@/lib/agents-plain/model";
-import { MAX_REQUEST_CHARS, parseByRules, parsePlainRequest } from "@/lib/agents-plain/parse";
+import { MAX_REQUEST_CHARS, parseByRules, parsePlainRequest, type CallLookup } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
-import { plainCatalog } from "@/lib/agents-plain/server";
+import { plainCallLookup, plainCatalog } from "@/lib/agents-plain/server";
 import {
   COPY_HUB_PATH,
   COPY_LIMITS,
@@ -34,6 +34,7 @@ import {
 import { buildDividendRead, monthName, type PlannedPayment } from "@/lib/dividend-plan";
 import { holdingSeeds, loadDividendPlan } from "@/lib/dividend-plan-data";
 import { limitFor } from "@/lib/entitlements";
+import { viewerFromUserDoc } from "@/lib/entitlements-server";
 import { isValidSourceSlug } from "@/lib/follow-shared";
 import { freshnessInfo } from "@/lib/freshness";
 import type { TheRead } from "@/lib/insights";
@@ -568,7 +569,10 @@ export async function readAgentWatchRequest(uid: string, input: { text: string }
   const reader = rules.confident ? null : plainModelReader();
   const meter = await consumePlainParse("pro", uid, Boolean(reader));
   if (!meter.allowed) throw new AgentDataError("That's a lot of requests for one day. Try again tomorrow.", "plain_parse_limit", 429);
-  const spec = await parsePlainRequest(text, catalog, { hidden, rules, model: meter.model ? reader : null });
+  // Our call on a stock a buy or sell watch names, so the read-back says the real price, as on the Agents page. The
+  // member's own plan decides which levels show; their document is read only when such a watch is asked for.
+  const callLookup: CallLookup = async (tickers) => plainCallLookup(viewerFromUserDoc(uid, await getUserDoc(uid).catch(() => null)))(tickers);
+  const spec = await parsePlainRequest(text, catalog, { hidden, rules, model: meter.model ? reader : null, callLookup });
   const limited = Boolean(reader) && !meter.model ? (meter.reason === "model" ? "model" : "busy") : spec.limited ? "model" : null;
 
   const jobs = await listJobs(uid).catch(() => null);
