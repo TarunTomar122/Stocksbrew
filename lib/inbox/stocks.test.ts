@@ -150,7 +150,7 @@ describe("reports coming up", () => {
       href: "/stock/NVDA#call",
       figures: [
         { value: "−5.5%", tone: "down", text: "A normal day is a move of about 2.0% either way." },
-        { value: "3.2%", tone: "flat", text: "Its usual move on a report." },
+        { value: "3.2%", tone: "flat", text: "A report usually moves NVDA about 3.2%." },
       ],
       note: "Check our call on NVDA before the report.",
     });

@@ -339,7 +339,8 @@ function stockRead(moves: Insight | null, reports: Insight | null, items: InboxI
         tone: move.pct > 0 ? "up" : move.pct < 0 ? "down" : "flat",
         text: move.normalPct !== null ? `A normal day is a move of about ${move.normalPct.toFixed(1)}% either way.` : moves.text,
       },
-      { value: usualWord(report.usualPct), tone: "flat", text: "Its usual move on a report." },
+      // A whole sentence under the figure (judges, ship 46: "Its usual move on a report." read as a fragment).
+      { value: usualWord(report.usualPct), tone: "flat", text: `A report usually moves ${ticker} about ${usualWord(report.usualPct)}.` },
     ],
     // What else the two cards said (a confirmed reason, other unusual moves, the week's other reports), then the step.
     note: [moves.soWhat, reports.soWhat, flagReportStep(ticker)].filter(Boolean).join(" "),

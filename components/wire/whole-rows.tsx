@@ -4,7 +4,7 @@ import * as React from "react";
 
 /**
  * A list that scrolls inside a box ending on a whole row, never halfway through one (owner rule 5). The box is about
- * `rem` tall (`wideRem` from the `sm` width up; nothing is cut below `minWidth`): it is cut back to the bottom of the
+ * `rem` tall (`wideRem` from `wideFrom`, the `sm` width by default, up; nothing is cut below `minWidth`): it is cut back to the bottom of the
  * last row that fits, and a list only a little taller than the box shows whole rather than hiding a sliver. Rows are
  * the elements marked `data-row`, or else the items of the first list inside; items side by side in a grid end level,
  * so a row of cards counts as one. The class's own max height (keep it the same as `rem`) holds until the page has
@@ -14,6 +14,7 @@ import * as React from "react";
 export function WholeRows({
   rem,
   wideRem,
+  wideFrom = 640,
   minWidth = 0,
   cue = false,
   className = "",
@@ -21,8 +22,10 @@ export function WholeRows({
 }: {
   /** The most the box may be, in rem. */
   rem: number;
-  /** The same from the `sm` width (640px) up, when it differs. */
+  /** The same from `wideFrom` up, when it differs. */
   wideRem?: number;
+  /** Where `wideRem` starts, in px: the `sm` width (640) unless a list changes shape later (two columns from `lg`). */
+  wideFrom?: number;
   /** From this viewport width up (px); below it the list is not cut. */
   minWidth?: number;
   /** Fade the bottom edge while rows are hidden below it. */
@@ -50,7 +53,7 @@ export function WholeRows({
     const node = box.current;
     if (!node) return;
     const active = window.matchMedia(`(min-width: ${minWidth}px)`);
-    const wide = window.matchMedia("(min-width: 640px)");
+    const wide = window.matchMedia(`(min-width: ${wideFrom}px)`);
     const measure = () => {
       if (!active.matches) {
         setMax("none");
@@ -102,7 +105,7 @@ export function WholeRows({
       active.removeEventListener("change", later);
       wide.removeEventListener("change", later);
     };
-  }, [rem, wideRem, minWidth, look]);
+  }, [rem, wideRem, wideFrom, minWidth, look]);
 
   const fade = cue && more ? "linear-gradient(to bottom, #000 calc(100% - 2.5rem), transparent)" : undefined;
   const style: React.CSSProperties = {

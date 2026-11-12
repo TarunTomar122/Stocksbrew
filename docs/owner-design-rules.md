@@ -37,6 +37,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 ## 5. Lists and tables
 
 - Lists show about 8 rows (the screener about 14) in a fixed height and scroll inside, with no visible scrollbar. If we have 20 names, show all 20 in the scroll ("if we have 20 names why only showing 8?"). Never cut to 4-5.
+- An inner scroll never traps the thumb: when a list reaches its end, the page keeps scrolling (no `overscroll-contain` on page lists; only popovers, sheets and dialogs may contain their scroll). The owner caught this on a phone: "when i scroll inside a table and reach the end... it doesnt then scroll the entire page".
 - Every ticker in a list, table or alert shows its logo, and logos load at once.
 - No decorative bars where the number already says it. Tone summaries use one figure ("75% negative"), not two counts.
 

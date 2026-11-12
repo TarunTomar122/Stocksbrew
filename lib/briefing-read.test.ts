@@ -113,12 +113,14 @@ describe("briefingRead", () => {
     expect(plain.figure).toBeUndefined();
     const reports = { NVDA: { usualPct: 5.94, usualKind: "median" as const, normalPct: 2.02, vsDay: "about three times a normal day" } };
     const card = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports })!.insights[0]!;
-    expect(card.text).toBe("NVDA reports earnings on Tuesday after the close.");
-    expect(card.figure).toEqual({ value: "5.9%", label: "its usual move on a report" });
-    expect(card.soWhat).toBe("Its usual report move is about three times NVDA's normal day of 2.0%. Check our call on NVDA before the report.");
+    // One whole sentence says what the figure is (judges, ship 46), so the figure carries no fragment beside it.
+    expect(card.text).toBe("NVDA reports earnings on Tuesday after the close, and a report usually moves it about 5.9%.");
+    expect(card.figure).toEqual({ value: "5.9%" });
+    expect(card.soWhat).toBe("That is about three times NVDA's normal day of 2.0%. Check our call on NVDA before the report.");
     // One report is not a pattern: its move, the normal day, no "times".
     const single = briefingRead({ ...base, date: "2026-11-11" }, grouped, null, Date.now(), { reports: { NVDA: { usualPct: 12.4, usualKind: "single", normalPct: 2, vsDay: null } } })!.insights[0]!;
-    expect(single.figure).toEqual({ value: "12%", label: "its move after its last report" });
+    expect(single.figure).toEqual({ value: "12%" });
+    expect(single.text).toBe("NVDA reports earnings on Tuesday after the close, and its last report moved it 12%.");
     expect(single.soWhat).toBe("A normal day for NVDA is a move of about 2.0%. Check our call on NVDA before the report.");
   });
 

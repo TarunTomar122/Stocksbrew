@@ -155,7 +155,7 @@ export function InboxList({
           <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
         ) : null
       ) : (
-        <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
+        <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto">
           {ahead.length > 0 ? (
             <section aria-label="Reports coming up" className="border-t border-oa-border first:border-t-0">
               <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">Coming up</h3>

@@ -80,7 +80,7 @@ describe("stocks in the news", () => {
     const quotes = { NVDA: { pct: -3.2, name: "NVIDIA" }, AAPL: { pct: 0.4, name: "Apple" } };
     const rows = stockBuzz(fresh, { labels, quotes, nowMs: NOW, previous: [item({ tickers: ["NVDA"], hoursAgo: 30 })] });
     expect(rows.map((row) => row.ticker)).toEqual(["NVDA", "AAPL", "XYZ"]);
-    expect(rows[0]!.lead.title).toBe("Nvidia board opens probe");
+    expect(rows[0]!.lead?.title).toBe("Nvidia board opens probe");
     expect(rows[0]!.tones).toEqual({ positive: 0, negative: 1, neutral: 1 });
     expect(rows[0]!.prevCount).toBe(1);
     expect(rows[0]!.share + rows[1]!.share + rows[2]!.share).toBeLessThanOrEqual(101);
@@ -200,7 +200,8 @@ describe("toneWord", () => {
   it("says the clear lean, else a neutral majority or a mixed read, else nothing", () => {
     expect(toneWord({ positive: 6, negative: 1, neutral: 1 }, 8)?.text).toBe("75% positive");
     expect(toneWord({ positive: 1, negative: 1, neutral: 6 }, 10)).toEqual({ text: "60% neutral", side: "neutral" });
-    expect(toneWord({ positive: 3, negative: 2, neutral: 1 }, 6)).toEqual({ text: "Mixed", side: "mixed" });
+    // A split with no lead has no figure to show, so nothing is said (no bare "Mixed").
+    expect(toneWord({ positive: 3, negative: 2, neutral: 1 }, 6)).toBeNull();
     // Too few toned stories say nothing: the cell stays empty.
     expect(toneWord({ positive: 1, negative: 0, neutral: 1 }, 20)).toBeNull();
   });

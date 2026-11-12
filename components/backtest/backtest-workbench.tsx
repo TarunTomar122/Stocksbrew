@@ -51,7 +51,7 @@ function hindsightSentence(caveats: Caveat[], example: boolean): string | undefi
 /** Holdings as cards: the logo, its own return big, and how its share of the mix moved. Rows fill edge to edge. */
 function HoldingCards({ run }: { run: BacktestRun }) {
   return (
-    <div className="max-h-[22rem] overflow-y-auto overscroll-contain p-3">
+    <div className="max-h-[22rem] overflow-y-auto p-3">
       <ul className="flex flex-wrap gap-2">
         {run.holdings.map((holding) => (
           <li key={holding.symbol} className="min-w-[7.75rem] flex-1 basis-[calc(50%-0.5rem)]">
@@ -144,7 +144,7 @@ function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
     <>
       <Panel title="Year by year">
         {/* About eight years tall; older years scroll inside. */}
-        <div className="max-h-[21rem] overflow-y-auto overscroll-contain">
+        <div className="max-h-[21rem] overflow-y-auto">
           <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} bars={false} />
         </div>
       </Panel>
@@ -191,6 +191,12 @@ export function BacktestWorkbench({
   const [benchmark, setBenchmark] = React.useState(initialSetup.benchmark);
   const [cost, setCost] = React.useState(String(initialSetup.cost_bps));
   const [response, setResponse] = React.useState<GatedBacktestResponse | null>(initialResponse);
+  // Dates left open run from the first day both have prices to the latest close. Until someone types in a field it
+  // shows the day the run on screen really used rather than an empty dd/mm/yyyy (judges, ship 46); once typed in, it
+  // shows exactly what was typed, so it can be cleared or edited a part at a time, and a run sends only that.
+  const [typed, setTyped] = React.useState({ start: Boolean(initialSetup.start), end: Boolean(initialSetup.end) });
+  const ranFrom = response?.ok ? response.result.period.start : "";
+  const ranTo = response?.ok ? response.result.period.end : lastDate ?? "";
   // Still showing the page's example, until the first run of your own.
   const [showingExample, setShowingExample] = React.useState(example);
   // Which ready-made mix the form shows as picked; a run of your own clears it.
@@ -398,11 +404,11 @@ export function BacktestWorkbench({
         <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 border-t border-oa-border px-3.5 py-2.5">
           <label className="min-w-0">
             <span className="oa-caption">From</span>
-            <input type="date" className={`${FIELD} oa-mono mt-1`} value={start} min={firstDate ?? undefined} max={lastDate ?? undefined} onChange={(event) => setStart(event.target.value)} />
+            <input type="date" className={`${FIELD} oa-mono mt-1`} value={typed.start ? start : ranFrom} min={firstDate ?? undefined} max={lastDate ?? undefined} onChange={(event) => { setStart(event.target.value); setTyped((was) => ({ ...was, start: true })); }} />
           </label>
           <label className="min-w-0">
             <span className="oa-caption">To</span>
-            <input type="date" className={`${FIELD} oa-mono mt-1`} value={end} min={firstDate ?? undefined} max={lastDate ?? undefined} onChange={(event) => setEnd(event.target.value)} />
+            <input type="date" className={`${FIELD} oa-mono mt-1`} value={typed.end ? end : ranTo} min={firstDate ?? undefined} max={lastDate ?? undefined} onChange={(event) => { setEnd(event.target.value); setTyped((was) => ({ ...was, end: true })); }} />
           </label>
           <label className="col-span-2 min-w-0">
             <span className="oa-caption">Rebalance</span>

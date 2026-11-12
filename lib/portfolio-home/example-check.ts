@@ -431,8 +431,8 @@ function usualWord(value: number): string {
 }
 
 /**
- * The step after a flagged move, from real data only: "NVDA reports on Tuesday after the close, and its usual move on
- * a report is 3.2%. Check our call on it before then." With no report in the next two weeks, the step is the call
+ * The step after a flagged move, from real data only: "NVDA reports on Tuesday after the close, and a report usually
+ * moves it about 3.2%. Check our call on it before then." With no report in the next two weeks, the step is the call
  * itself. `when` is the report day in words ("on Tuesday", lib/earnings-season.ts whenWords). Pure.
  */
 export function flagStepWords(input: {
@@ -446,7 +446,7 @@ export function flagStepWords(input: {
   // A report today only counts after the close: before the open it may already be out, and "before then" is gone.
   const ahead = gap !== null && (gap >= 1 || (gap === 0 && report?.session === "after the close"));
   if (report && gap !== null && ahead && gap <= STEP_REPORT_DAYS) {
-    const usual = input.usualPct !== null && Number.isFinite(input.usualPct) && input.usualPct > 0 ? `, and its usual move on a report is ${usualWord(input.usualPct)}` : "";
+    const usual = input.usualPct !== null && Number.isFinite(input.usualPct) && input.usualPct > 0 ? `, and a report usually moves it about ${usualWord(input.usualPct)}` : "";
     return `${ticker} reports ${report.when}${report.session ? ` ${report.session}` : ""}${usual}. Check our call on it before then.`;
   }
   return `Check our call on ${ticker} before you act on the move.`;

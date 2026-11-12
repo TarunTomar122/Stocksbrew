@@ -24,16 +24,17 @@ export function StockReportSkeleton() {
         <div className="order-1 min-w-0">
           <PanelBone>
             <div className="px-3.5 pt-3.5 sm:px-4 sm:pt-4">
+              {/* The call word and the name on one line, as the header draws them. */}
               <div className="flex items-center gap-3">
-                <Bone className="size-9 shrink-0" />
-                <div>
+                <Bone className="size-10 shrink-0" />
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <Bone className="h-10 w-40" />
                   <Bone className="h-6 w-48" />
-                  <Bone className="mt-1.5 h-4 w-56 max-w-full" />
                 </div>
               </div>
-              <div className="mt-3 grid gap-x-6 gap-y-3 md:grid-cols-[auto_minmax(0,1fr)]">
+              <div className="mt-2 grid gap-x-6 gap-y-3 md:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col gap-1.5">
-                  <Bone className="h-9 w-56" />
+                  <Bone className="h-6 w-56" />
                   <Bone className="h-3 w-36" />
                   <Bone className="h-6 w-48 rounded-full" />
                 </div>
@@ -51,14 +52,6 @@ export function StockReportSkeleton() {
             </div>
             <div className="px-3.5 pb-3 sm:px-4">
               <Bone className="h-[240px] w-full sm:h-[300px]" />
-            </div>
-            <div className="hidden grid-cols-4 gap-x-6 gap-y-2.5 border-t border-oa-border px-4 py-3 md:grid">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index}>
-                  <Bone className="h-3 w-16" />
-                  <Bone className="mt-1.5 h-4 w-20" />
-                </div>
-              ))}
             </div>
           </PanelBone>
         </div>

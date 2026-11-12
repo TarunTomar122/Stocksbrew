@@ -1,5 +1,5 @@
 import type { Briefing } from "@/lib/briefing";
-import { moveFacts, type CloseSeries } from "@/lib/briefing-move-facts";
+import { monthChange, moveFacts, type CloseSeries } from "@/lib/briefing-move-facts";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { noteDegradedRender } from "@/lib/next-render";
 import { etDayOfStamp } from "@/lib/quote-time";
@@ -46,14 +46,14 @@ const readCloses = sharedCache(readClosesUncached, ["briefing-move-closes-v1"], 
  */
 export async function briefingMoveFacts(briefing: Briefing): Promise<Record<string, string[]> | undefined> {
   // Worth knowing's cards (its stocks come from `also_today`), then the quiet stocks in the side rail, which get one
-  // short fact each (lib/briefing-move-facts.ts quietFact).
+  // short fact each (lib/briefing-move-facts.ts quietFacts).
   const moves = new Map<string, MoveToMeasure>();
   for (const item of briefing.also_today) {
     const ticker = item.ticker?.trim().toUpperCase();
     if (!ticker || moves.has(ticker) || item.day_change_pct == null || !Number.isFinite(item.day_change_pct)) continue;
     const quoted = etDayOfStamp(item.price_as_of ?? null);
     const day = quoted ?? etDayOfStamp(item.as_of) ?? briefing.date;
-    moves.set(ticker, { pct: item.day_change_pct, day, exactDay: quoted !== null });
+    moves.set(ticker, { pct: item.day_change_pct, day, exactDay: quoted !== null, price: item.price ?? null });
   }
   // A quiet stock carries no quote time of its own: the portfolio's price time stands in (a guess without one).
   const quietQuoted = etDayOfStamp(briefing.portfolio?.as_of ?? null);
@@ -61,13 +61,27 @@ export async function briefingMoveFacts(briefing: Briefing): Promise<Record<stri
   for (const name of briefing.quiet?.names ?? []) {
     const ticker = name.ticker?.trim().toUpperCase();
     if (!ticker || moves.has(ticker) || name.day_change_pct == null || !Number.isFinite(name.day_change_pct)) continue;
-    moves.set(ticker, { pct: name.day_change_pct, day: quietDay, exactDay: quietQuoted !== null });
+    moves.set(ticker, { pct: name.day_change_pct, day: quietDay, exactDay: quietQuoted !== null, price: name.price ?? null });
   }
   return stockMoveFacts(moves);
 }
 
-/** One stock's move to measure: its percent, the day it closed there, and whether that day is known (a quote time). */
-export type MoveToMeasure = { pct: number; day: string; exactDay: boolean };
+/**
+ * One stock's move to measure: its percent, the day it closed there, whether that day is known (a quote time), and
+ * its price on that day, which ends its month (lib/briefing-move-facts.ts monthChange) as on My stocks.
+ */
+export type MoveToMeasure = { pct: number; day: string; exactDay: boolean; price?: number | null };
+
+/** The S&P 500 fund whose sessions count every stock's month, as on My stocks (lib/portfolio-data.ts BENCHMARK_SYMBOL). */
+const BENCHMARK = "SPY";
+
+/** The last close before `day`, for a month's end when the move has no price of its own. */
+function closeBefore(series: CloseSeries, day: string): number | null {
+  for (let i = Math.min(series.dates.length, series.closes.length) - 1; i >= 0; i--) {
+    if (series.dates[i]! < day) return series.closes[i]!;
+  }
+  return null;
+}
 
 /**
  * Price facts for each stock's move, most telling first (lib/briefing-move-facts.ts), from its cached closes: the
@@ -83,7 +97,7 @@ export async function stockMoveFacts(moves: ReadonlyMap<string, MoveToMeasure>):
   try {
     // Each stock against the one deadline: a slow read leaves only its own card without a fact.
     const series = await Promise.all(
-      tickers.map((ticker) =>
+      [...tickers, BENCHMARK].map((ticker) =>
         Promise.race([
           readCloses(ticker).catch((error) => {
             console.warn(`[briefing] closes for ${ticker} failed:`, error instanceof Error ? error.message : error);
@@ -95,11 +109,19 @@ export async function stockMoveFacts(moves: ReadonlyMap<string, MoveToMeasure>):
     );
     // Too slow: the cached signed-out copy built without some facts is not kept for long (lib/next-render.ts).
     if (series.includes("late")) noteDegradedRender();
+    const spy = series[tickers.length];
+    const benchmark = spy && spy !== "late" ? spy : null;
     const out: Record<string, string[]> = {};
     tickers.forEach((ticker, index) => {
       const move = moves.get(ticker)!;
       const closes = series[index];
-      const facts = closes && closes !== "late" ? moveFacts(move.pct, closes, move.day, { exactDay: move.exactDay }) : [];
+      if (!closes || closes === "late") return;
+      // The month My stocks shows (monthChange): SPY's sessions, ending at the move's own price. Without SPY, no month
+      // at all rather than a second way of counting it.
+      const before = closeBefore(closes, move.day);
+      const now = typeof move.price === "number" && move.price > 0 ? move.price : before !== null ? before * (1 + move.pct / 100) : null;
+      const month = benchmark ? monthChange(closes, benchmark, move.day, now) : null;
+      const facts = moveFacts(move.pct, closes, move.day, { exactDay: move.exactDay, month });
       if (facts.length > 0) out[ticker] = facts;
     });
     return Object.keys(out).length > 0 ? out : undefined;

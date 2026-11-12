@@ -8,7 +8,7 @@ import Link from "next/link";
 export const WATCH_FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 export const WATCH_LINK = `font-medium text-oa-primary hover:underline ${WATCH_FOCUS} rounded`;
 /** Fixed height for about eight short rows, then it scrolls with no visible bar. */
-export const WATCH_LIST = "scrollbar-hide max-h-[32rem] divide-y divide-oa-border overflow-y-auto overscroll-contain";
+export const WATCH_LIST = "scrollbar-hide max-h-[32rem] divide-y divide-oa-border overflow-y-auto";
 
 /**
  * A watch that is not set up: what it would watch, opening the agents page with it filled in (nothing is saved there

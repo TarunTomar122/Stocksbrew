@@ -8,11 +8,13 @@ import { fmtPlanDay } from "@/lib/dividend-plan";
 import { memoFacts, toolHref, type MemoFact } from "@/lib/portfolio-home/focus";
 import { TOOL_GROUPS, toolCard, type ToolId } from "@/lib/portfolio-home/pick";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
-import { ATTENTION, bookLead, extraFacts, signedDollars, signedPct, stockCards, type StockCard } from "@/lib/portfolio-home/stocks";
+import { callHref } from "@/lib/portfolio-home/example-check";
+import { loadExampleFlagStep } from "@/lib/portfolio-home/example-check-server";
+import { ATTENTION, bookLead, extraFacts, leadParts, nextReportStep, signedDollars, signedPct, stockCards, type BookSource, type StockCard } from "@/lib/portfolio-home/stocks";
 
 /**
- * My stocks, about the person's stocks (owner, Nov 11): how they did today and over the past week against the
- * S&P 500, then every holding as a small card (move, gain, our call with its own level, and the one thing that
+ * My stocks, about the person's stocks (owner, Nov 11): one read on how they did today and over the past week against
+ * the S&P 500 with the next step, then every holding as a small card (move, gain, our call with its own level, and the one thing that
  * matters for it now), the ones that need the person first. The portfolio tools are a quiet line of links with
  * their figures at the bottom, not cards. Each part waits only for its own sources (lib/portfolio-home/server.ts).
  */
@@ -28,95 +30,90 @@ function tone(value: number | null): string {
 
 /* ── the lead: how the stocks did ──────────────────────────────────────── */
 
-function Stat({ caption, figure, figureTone, sub }: { caption: string; figure: string; figureTone: number | null; sub: string[] }) {
-  return (
-    <div className="min-w-0 px-3 py-2.5 sm:px-4 sm:py-3">
-      {/* Whole, never cut with "…" (owner rule 8): the captions are short enough for a phone's third. */}
-      <p className="text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">{caption}</p>
-      <p className={`oa-mono mt-0.5 text-[17px] font-semibold leading-6 tracking-[-0.01em] tabular-nums sm:text-[20px] sm:leading-7 ${tone(figureTone)}`}>{figure}</p>
-      {/* Each part stays on one line ("S&P +1.6%" never splits on a phone); a narrow tile wraps between the parts. */}
-      <p className="oa-mono text-[11.5px] leading-4 tabular-nums text-oa-muted-fg sm:text-[12px]">
-        {sub.length === 0
-          ? "\u00a0"
-          : sub.map((part, index) => (
-              <React.Fragment key={index}>
-                {index > 0 ? " · " : ""}
-                <span className="whitespace-nowrap">{part}</span>
-              </React.Fragment>
-            ))}
-      </p>
-    </div>
-  );
+const TONE_TEXT = { up: "text-signal-bullish", down: "text-signal-bearish" } as const;
+
+/** How long the lead waits for the example agents' flag before its step falls back to the next report. */
+const STEP_MS = 1200;
+
+/** The step after the lead: the example agents' flag and what to do about it, else the soonest report on a holding. */
+async function leadStep(source: BookSource): Promise<{ ticker: string; step: string } | null> {
+  if (source.mode === "example") {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), STEP_MS);
+    });
+    const flag = await Promise.race([loadExampleFlagStep().catch(() => null), late]).finally(() => clearTimeout(timer));
+    if (flag) return { ticker: flag.ticker, step: flag.step };
+  }
+  return nextReportStep(source);
 }
 
-/** ["+1.2%", "S&P +0.4%"], or the S&P alone when the figure above is already the percent. */
-function versus(pct: number | null, market: number | null): string[] {
-  return [pct !== null ? signedPct(pct) : null, market !== null ? `S&P ${signedPct(market)}` : null].filter((part): part is string => part !== null);
-}
-
+/**
+ * How the stocks did, as one read (judges, ship 46: three money tiles were counts, not a read): the headline against
+ * the S&P 500, the day, the last five trading days and the total gain inside plain sentences, each with its baseline,
+ * and the next step (the flagged holding's report, or the soonest report on one), which opens that stock at our call.
+ */
 export async function BookLead({ load }: { load: HomeLoad }) {
   const book = await load.book;
   if (book.state !== "ready") return null;
   const lead = bookLead(book.value);
   if (!lead) return null;
-  const stats: Array<{ key: string; caption: string; figure: string; figureTone: number | null; sub: string[] }> = [];
-  if (lead.today) {
-    const { dollars, pct, marketPct, label } = lead.today;
-    stats.push(
-      dollars !== null
-        ? { key: "day", caption: label, figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
-        : { key: "day", caption: `${label}, on average`, figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
-    );
-  }
-  if (lead.week) {
-    // The last five sessions (weekMove), said as trading days so it is not read as the memo's week so far.
-    const { dollars, pct, marketPct } = lead.week;
-    stats.push(
-      dollars !== null
-        ? { key: "week", caption: "Last 5 days", figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
-        : { key: "week", caption: "Last 5 days, on average", figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
-    );
-  }
-  if (lead.gain) {
-    const { dollars, pct, counted, of } = lead.gain;
-    stats.push({
-      key: "gain",
-      caption: "Total gain",
-      figure: signedDollars(dollars),
-      figureTone: dollars,
-      sub: [pct !== null ? signedPct(pct) : null, counted < of ? `${counted} of ${of} stocks` : null].filter((part): part is string => part !== null),
-    });
-  }
-  const cols = ["", "grid-cols-1", "grid-cols-2", "grid-cols-3"][stats.length] ?? "grid-cols-3";
+  const parts = leadParts(lead, book.value.mode === "example");
   return (
-    <section aria-labelledby="book-head" className="min-w-0">
-      <h2 id="book-head" className={`${H2} px-1 pb-2.5`}>
+    <section aria-labelledby="book-head" className={`${CARD} px-4 py-3.5 sm:px-5`}>
+      <h2 id="book-head" className={H2}>
         {lead.headline}
       </h2>
-      {stats.length > 0 ? (
-        <div className={`${CARD} grid ${cols} divide-x divide-oa-border`}>
-          {stats.map((stat) => (
-            <Stat key={stat.key} caption={stat.caption} figure={stat.figure} figureTone={stat.figureTone} sub={stat.sub} />
+      {parts.length > 0 ? (
+        <p className="mt-1.5 text-pretty text-[14px] leading-[21px] text-oa-muted-fg">
+          {parts.map((sentence, index) => (
+            <React.Fragment key={index}>
+              {index > 0 ? " " : null}
+              {sentence.map((part, at) =>
+                part.tone ? (
+                  <span key={at} className={`oa-mono font-semibold tabular-nums ${TONE_TEXT[part.tone]}`}>
+                    {part.text}
+                  </span>
+                ) : (
+                  <React.Fragment key={at}>{part.text}</React.Fragment>
+                ),
+              )}
+            </React.Fragment>
           ))}
-        </div>
+        </p>
       ) : null}
+      {/* The step streams in on its own, so the read never waits on the agents' runs (owner rule 11). */}
+      <React.Suspense fallback={null}>
+        <LeadStep source={book.value} />
+      </React.Suspense>
     </section>
+  );
+}
+
+async function LeadStep({ source }: { source: BookSource }) {
+  const step = await leadStep(source);
+  if (!step) return null;
+  return (
+    <Link
+      href={callHref(step.ticker)}
+      prefetch={false}
+      data-track-links="insight_clicked"
+      data-track-insight-kind="home-lead-step"
+      className={`-mx-4 -mb-3.5 mt-3 flex items-center gap-2.5 border-t border-oa-border px-4 py-2.5 text-pretty text-[14px] leading-5 text-oa-fg transition-colors hover:bg-oa-accent sm:-mx-5 sm:px-5 ${FOCUS}`}
+    >
+      <StockLogo ticker={step.ticker} size={20} eager />
+      <span className="min-w-0">{step.step}</span>
+    </Link>
   );
 }
 
 export function BookLeadGhost() {
   return (
-    <div aria-hidden="true" className="min-w-0">
-      <Bar className="mx-1 mb-3 mt-1 h-4 w-72" />
-      <div className={`${CARD} grid grid-cols-3 divide-x divide-oa-border`}>
-        {[0, 1, 2].map((cell) => (
-          <div key={cell} className="px-4 py-3">
-            <Bar className="h-3 w-16" />
-            <Bar className="mt-2 h-5 w-20" />
-            <Bar className="mt-1.5 h-3 w-24" />
-          </div>
-        ))}
-      </div>
+    <div aria-hidden="true" className={`${CARD} px-4 py-3.5 sm:px-5`}>
+      <Bar className="h-5 w-80 max-w-full" />
+      <Bar className="mt-2.5 h-3.5 w-full" />
+      <Bar className="mt-1.5 h-3.5 w-2/3" />
+      <Bar className="mt-4 h-4 w-3/4" />
     </div>
   );
 }
@@ -282,7 +279,7 @@ export async function StockList({ load }: { load: HomeLoad }) {
       {/* Every holding the header counts is in view: about eight cards on a phone and five rows side by side, the rest
           scrolling inside a box that ends on a whole row, with no visible bar (owner rule 5). The cap before the page
           measures it is close to the measured one (firstCap). */}
-      <FitCards className={`scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto overscroll-contain sm:grid-cols-2 ${firstCap(cards.length)}`}>
+      <FitCards className={`scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto sm:grid-cols-2 ${firstCap(cards.length)}`}>
         {cards.map((card, index) => (
           <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} wide={index === cards.length - 1 && cards.length % 2 === 1} />
         ))}

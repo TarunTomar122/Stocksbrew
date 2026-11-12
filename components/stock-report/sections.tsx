@@ -211,7 +211,7 @@ export function OverviewSection({ data }: SectionProps) {
 
       {stats.length ? (
         <Panel label="Key figures">
-          <StatGrid items={stats} columns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4" />
+          <StatGrid items={stats} />
         </Panel>
       ) : null}
 
@@ -560,7 +560,6 @@ export function EarningsSection({ data }: SectionProps) {
       {next && nextIn != null && nextIn >= 0 ? (
         <Panel label="Next report">
           <StatGrid
-            columns="grid-cols-2 sm:grid-cols-4"
             items={[
               { label: "Date", value: fmtDate(next.event_date), sub: relativeDays(nextIn) },
               { label: "When", value: next.time === "bmo" ? "Before the market opens" : next.time === "amc" ? "After the market closes" : "During market hours" },

@@ -60,7 +60,8 @@ async function ReadSlot({
   const shown = marketTodaySteps(marketTodayRead(read, news, sectorLine));
   if (!shown) return null;
   // Every point shows, on a phone too: there are at most three, and none waits behind a button (owner rule 2).
-  return <TheRead read={shown} label="Today's read" />;
+  // Each card as tall as its own words (owner rule 4): a short card is not padded out to its longest neighbour.
+  return <TheRead read={shown} label="Today's read" className="[&_ul]:items-start" />;
 }
 
 /**
@@ -73,7 +74,7 @@ function SectorList({ rows }: { rows: DeskSector[] }) {
   if (sorted.length < 4) return null;
   return (
     <Panel label="How each sector did today" right={<Link prefetch={false} href="/sectors" className={`text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg ${FOCUS}`}>All sectors</Link>}>
-      <ul className="gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:overscroll-contain scrollbar-hide sm:columns-2 lg:columns-3">
+      <ul className="gap-x-8 max-sm:max-h-[16.25rem] max-sm:overflow-y-auto max-sm:scrollbar-hide sm:columns-2 lg:columns-3">
         {sorted.map((row) => (
           <li key={row.id} className="break-inside-avoid">
             <Link
@@ -162,9 +163,11 @@ function StockMoves({ movers, today, facts = null }: { movers: DeskData["movers"
       {/* With one move the takeaway only repeats it ("AIRJW moved most, −11.8%"); it says something once there are several. */}
       {takeaway && rows.length > 1 ? <p className="text-pretty px-2 pb-2 text-[14px] leading-5 text-oa-muted-fg sm:px-3">{takeaway}</p> : null}
       {cards.length > 0 ? (
-        // About three rows of cards, then they scroll inside (no bar shown) in a box that ends on a whole row, its
-        // bottom edge fading while more cards wait below, so a phone showing four of them still says there are more.
-        <WholeRows rem={30} wideRem={24} cue className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide sm:max-h-[24rem]">
+        // About eight cards in view (owner rule 5: never cut to four or five), then they scroll inside (no bar shown)
+        // in a box that ends on a whole row, its bottom edge fading while more cards wait below: eight one-card rows on
+        // a phone, three rows of three on a wide screen. The phone's box is about a screen tall, so its scroll hands
+        // over to the page at either end and can never trap a thumb inside it.
+        <WholeRows rem={58} wideRem={24} cue className="max-h-[58rem] overflow-y-auto scrollbar-hide sm:max-h-[24rem]">
           <StockCardGrid wide>
             {cards.map(({ row, sentence }, index) => (
               <StockCard
@@ -191,7 +194,7 @@ function StockMoves({ movers, today, facts = null }: { movers: DeskData["movers"
       {/* Moves with no reason we could confirm: a chip each, not an empty card (owner rules 4 and 7). Three whole rows of
           chips, the rest scrolling inside. */}
       {bare.length > 0 ? (
-        <WholeRows rem={8.5} className={`max-h-[8.5rem] overflow-y-auto overscroll-contain scrollbar-hide ${told.length > 0 ? "mt-3" : ""}`}>
+        <WholeRows rem={8.5} className={`max-h-[8.5rem] overflow-y-auto scrollbar-hide ${told.length > 0 ? "mt-3" : ""}`}>
           <StockChipRow label={told.length > 0 ? "Also moved" : "Biggest stock moves"}>
             {bare.map((row) => (
               <StockChip

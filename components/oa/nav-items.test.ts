@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKETING_LINKS, PLACES, isMarketingPath, myStocksViewOf, placeFor, sectionFor, stripCurrent, stripItems, stripOrder, trailFor } from "@/components/oa/nav-items";
+import { MARKETING_LINKS, PLACES, isMarketingPath, myStocksViewOf, placeFor, sectionFor, sectionsNow, stripCurrent, stripItems, stripOrder, trailFor } from "@/components/oa/nav-items";
 
 const place = (path: string) => placeFor(path)?.label ?? null;
 const sectionOf = (path: string) => sectionFor(path)?.label ?? null;
@@ -180,8 +180,16 @@ describe("My stocks on the phone strip", () => {
     expect(labels.slice(0, 5)).toEqual(["Overview", "Holdings", "Watching", "Alerts", "Weekly memo"]);
     expect(labels.filter((label) => label === "Overview")).toHaveLength(1);
     expect(labels).toContain("Taxes");
-    // Every other place keeps its sections as they are.
-    expect(stripItems(placeFor("/briefing")!)).toBe(placeFor("/briefing")!.sections);
+    // Every other place keeps its sections as they are, except Premarket outside the premarket session.
+    const today = placeFor("/briefing")!.sections;
+    expect(stripItems(placeFor("/briefing")!, true)).toEqual(today);
+    expect(stripItems(placeFor("/briefing")!, false).map((item) => item.href)).toEqual(today.filter((item) => item.href !== "/premarket").map((item) => item.href));
+  });
+
+  it("shows Premarket only while the premarket session is on", () => {
+    const today = placeFor("/briefing")!.sections;
+    expect(sectionsNow(today, true).some((item) => item.href === "/premarket")).toBe(true);
+    expect(sectionsNow(today, false).some((item) => item.href === "/premarket")).toBe(false);
   });
 
   it("lights the tab on show on the overview page, and the section elsewhere", () => {

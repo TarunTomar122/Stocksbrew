@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
 import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
+import { getMarketSessionState } from "@/lib/market-session";
 
 /** Same name as app/api/auth/session/route.ts and lib/auth-server.ts. */
 const SESSION_COOKIE_NAME = "tikrr_session";
@@ -29,6 +30,15 @@ export function middleware(request: NextRequest) {
       appendVaryAccept(response.headers);
       return response;
     }
+  }
+
+  // Premarket is a before-the-open read. From the 9:30 ET open (and overnight, on weekends and holidays) it would
+  // be the last session's numbers dressed as today's, so the address goes to Market today (owner, Nov 12).
+  if (request.nextUrl.pathname === "/premarket" && getMarketSessionState().kind !== "premarket") {
+    const todayUrl = request.nextUrl.clone();
+    todayUrl.pathname = "/explore";
+    todayUrl.search = "";
+    return NextResponse.redirect(todayUrl, 307);
   }
 
   // Signals is Reddit and the President now; its old movers tab was another copy of Market today's list. Done here

@@ -39,14 +39,17 @@ function CompanyCard({ group, filters, fill = "" }: { group: CompanyGroup; filte
         </span>
       </header>
       {/* No footer count: the tone above is the card's one figure (owner rule 5), and the card itself opens the rest. */}
-      <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
-        {items.map((item, index) => (
-          // A phone shows two headlines a card, so its bounded feed holds more than one company at a time.
-          <li key={item.id} className={index >= 2 ? "max-sm:hidden" : undefined}>
-            <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
-          </li>
-        ))}
-      </ul>
+      {/* A followed company whose stories were all bait keeps its card (lib/wire-companies.ts) with no empty list band. */}
+      {items.length ? (
+        <ul className="flex flex-1 flex-col gap-2.5 px-4 py-3">
+          {items.map((item, index) => (
+            // A phone shows two headlines a card, so its bounded feed holds more than one company at a time.
+            <li key={item.id} className={index >= 2 ? "max-sm:hidden" : undefined}>
+              <HeadlineLine item={item} companyName={group.name ?? ""} className="relative z-10" />
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <Link
         href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: group.ticker, theme: null })}
         prefetch={false}
@@ -64,7 +67,7 @@ function CompanyGrid({ groups, filters, more = null }: { groups: CompanyGroup[];
       rem={FEED_REM}
       wideRem={FEED_WIDE_REM}
       cue
-      className="scrollbar-hide overflow-y-auto overscroll-contain max-h-[34rem] sm:max-h-[50rem]"
+      className="scrollbar-hide overflow-y-auto max-h-[34rem] sm:max-h-[50rem]"
     >
       <CardGrid cols={2}>
         {groups.map((group, index) => (

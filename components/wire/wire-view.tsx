@@ -184,7 +184,7 @@ export function WireStream({
     <Panel flush>
       {/* About eight headlines at a time, the rest scrolling inside (owner rule 5), so one stock's two weeks of news never
           make the page endless on a phone. "Show more" is the box's last row, so new headlines land where the reader is. */}
-      <WholeRows rem={36} cue className="scrollbar-hide max-h-[36rem] overflow-y-auto overscroll-contain">
+      <WholeRows rem={36} cue className="scrollbar-hide max-h-[36rem] overflow-y-auto">
         {days.map((group) => (
           <div key={group.day}>
             {/* Not the kit's sticky StreamDay: inside a Panel (overflow hidden) its mobile offset covers the first row. */}

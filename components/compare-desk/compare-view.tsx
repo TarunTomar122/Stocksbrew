@@ -11,7 +11,7 @@ import { CallTag, EarningsDate, MarkSlot, Unknown, ZoneTag, fieldHasMark, fieldM
 import { StockLogo } from "@/components/stock-logo";
 import { getCompareData, getCompareDataCached } from "@/lib/compare";
 import { buildCompareRead } from "@/lib/compare-insights";
-import { buildCompareTable, describeDifferences, type CompareTableGroup } from "@/lib/compare-shared";
+import { buildCompareTable, describeDifferences, figureLabel, withChartReturns, type CompareTableGroup } from "@/lib/compare-shared";
 import { ownCallLevel } from "@/lib/call-level";
 import { callLine } from "@/components/stock-report/call-line";
 import { WholeRowsBox } from "./whole-rows-box";
@@ -113,6 +113,7 @@ function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; r
         const reason = row?.call_reason ? wholeSentences(plainCallReason(withoutVagueChange(row.call_reason)), 1) : "";
         const figure = reason ? deriveFigure(reason) : null;
         const sign = figure && /[1-9]/.test(figure.value) ? /^[+\u2212-]/.exec(figure.value)?.[0] : undefined;
+        const label = figure ? figureLabel(reason, figure.value) : null;
         // The call's own price against today's, as on the stock page (components/stock-report/call-line.ts), only when
         // the row still has it: rows arrive with levels stripped where the viewer's plan does not show them.
         const level = levelLine(row);
@@ -125,16 +126,21 @@ function CallCards({ symbols, rows, className = "mt-3" }: { symbols: string[]; r
             data-track-ticker={symbol}
             className="oa-surface relative flex min-w-0 flex-col border border-oa-border bg-oa-bg px-3.5 pb-3 pt-3 transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent"
           >
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <span className="inline-flex min-w-0 items-center gap-2">
+            {/* The figure and what it is wrap under the stock on a narrow card rather than run over its call. */}
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="inline-flex shrink-0 items-center gap-2">
                 <StockLogo ticker={symbol} size={20} />
                 <span className={`${NUM} text-[15px] font-medium text-oa-fg`}>{symbol}</span>
                 <CallTag call={row?.call} />
               </span>
               {figure ? (
-                <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[22px] font-semibold leading-7 tracking-[-0.02em] text-oa-fg`}>
-                  {figure.value}
-                  {sign ? <ToneGlyph tone={sign === "+" ? "up" : "down"} className="size-2.5" decorative /> : null}
+                <span className="ml-auto inline-flex shrink-0 items-baseline gap-2">
+                  {/* What the figure is, beside it at reading size, never as a caption over it (owner rule 6). */}
+                  {label ? <span className="text-[13px] leading-5 text-oa-muted-fg">{label}</span> : null}
+                  <span className={`${NUM} inline-flex items-center gap-1.5 text-[22px] font-semibold leading-7 tracking-[-0.02em] text-oa-fg`}>
+                    {figure.value}
+                    {sign ? <ToneGlyph tone={sign === "+" ? "up" : "down"} className="size-2.5" decorative /> : null}
+                  </span>
                 </span>
               ) : null}
             </div>
@@ -171,7 +177,8 @@ export async function CompareView({
 }) {
   const [data, benchmarkRows] = await Promise.all([cached ? getCompareDataCached([...symbols]).catch(() => getCompareData(symbols)) : getCompareData(symbols), getScreenerRows(["SPY"]).catch(() => new Map<string, ScreenerRow>())]);
   // The call is open to everyone; price zones only on stocks this viewer covers.
-  const rows: Array<ScreenerRow | null> = data.rows.map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
+  // Returns over the chart's own periods come from the chart's lines, so the table and the legend agree.
+  const rows: Array<ScreenerRow | null> = withChartReturns(data.rows, data.chart.ranges).map((row) => (row && !canSeeLevels(viewer, row.symbol) ? withoutZones(row) : row));
   const groups = buildCompareTable(rows);
   const benchmark = benchmarkRows.get("SPY") ?? null;
   const differences = describeDifferences(rows, benchmark);
@@ -264,7 +271,7 @@ export async function CompareView({
       <Panel flush>
         {/* About eight rows tall and scrolls inside (no visible bar), with the stocks pinned on top so every row stays
             readable. The better figure in each row is in bold. */}
-        <WholeRowsBox className="scrollbar-hide relative max-h-[27rem] overflow-auto overscroll-contain">
+        <WholeRowsBox className="scrollbar-hide relative max-h-[27rem] overflow-auto">
           <table className="w-full border-collapse max-sm:table-fixed" style={{ minWidth: `${7 + symbols.length * 6.5}rem` }}>
             <thead>
               <tr>

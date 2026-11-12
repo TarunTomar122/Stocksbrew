@@ -185,6 +185,38 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~04:50 UTC, ship 46 live (6fb1a48): the call as the stock page heading, one NVDA flag from briefing to inbox to the call (lead, overnight loop)
+
+- **Round 18A:**
+  - **Briefing:** "Your other stocks today" is 9 cards with one fact each, full width under both columns; the rail and main column end together. Worth knowing leaves out the hero's stock. The example's own agents row shows "1 of 3 flagged" with an NVDA chip. The hedged Reddit mood line is gone (no per-post sentiment to measure).
+  - **Continuity:** the briefing and inbox say the same flag ("Your agent flagged NVDA's 5.5% drop on Nov 10. … Check our call on NVDA before the report.") and both open /stock/NVDA#call.
+  - **Inbox and My stocks:** inbox other stocks get a measured fact; the UNH card spans its row.
+  - **Landing:** funds carry no call.
+- **Round 18B:**
+  - **Stock page:** "Buy more" is the heading, with one instruction ("Buy more on a dip below today's $343.") and the price beneath. The lock beside it names what the plan holds back. What changed rows are the link, with sources named once. The mechanics line is gone.
+  - **News:** tone shows where 3+ stories are labelled; no dashes.
+  - **Calendar:** PPI and IPO cards carry real context; weekdays size to their events.
+  - **Compare:** labelled "Percent return".
+  - **Explore:** cards end with our call.
+- **Verified:** 2897 tests in both modes, tsc and eslint clean, both builders' QA passes fixed. VPS pulled. 10 pages return 200.
+- **Open:** VOO's month reads −1.7% on the briefing/inbox but −2.4% on My stocks (two calculations). NVDA's own news (the Bernstein downgrade) left the briefing with the Worth knowing dedupe.
+- **Judges on live 46** (scratchpad/judge46):
+  - Codex: UI 7, UX 7, usability 7, wording 7, agent feel 7, similarity 7, sell 6, overall 7. Its best yet: agent feel and similarity both reached 7.
+  - Cursor: UI 7, UX 7, usability 7, wording 6, agent feel 7, similarity 6, sell 6, overall 7.
+  - Asks:
+    - Facts must agree across pages (COST, VOO month; compare chart vs table).
+    - Inbox other stocks as cards, with varied fact shapes.
+    - Full sentences instead of fragments.
+    - My stocks: NVDA's call, one read instead of money tiles, a time on each agent row (owner rule 10).
+    - Landing: three watches that ran.
+    - JPM: one line over the call, KPI labels, legal line, sourced change conditions, casing.
+    - News: no motive inference, no bare "Mixed", ~8-row lists, clickbait titles.
+    - Mobile lists ~8.
+    - Compare labels.
+    - Market today padding.
+    - Backtest "To" date.
+  - All routed to rounds 19A and 19B.
+
 ### 2026-11-12 ~04:40 UTC, ship 45 (7ceffa3, backend only): stock briefs open on what happened, not on the coverage (lead, overnight loop)
 
 - **Round 17 cause.** 282 of 721 stored briefs open on the coverage. 137 of those were our own fallback ("Recent company-specific coverage is thin for X…"): the wrong-ticker check in `build_no_news_intelligence_doc` read "RSI" as another ticker and threw the model's body away. The no-news prompt also asked for "State that no company-specific development was verified".

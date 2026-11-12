@@ -31,7 +31,7 @@ describe("the example inbox's other stocks", () => {
       { ticker: "MSFT", dayPct: -2.2, reason: null, fact: "Down 4.1% in a month" },
       { ticker: "XOM", dayPct: 1.3, reason: "Exxon rose with oil after OPEC held output.", fact: null },
     ]);
-    expect(out.watching).toEqual([{ ticker: "AMD", dayPct: 7.3, reason: null, fact: "Twice a normal day" }]);
+    expect(out.watching).toEqual([{ ticker: "AMD", dayPct: 7.3, reason: null, fact: "Twice its normal 3.8% day" }]);
   });
 
   it("is nothing with fewer than two lines, or without a price day", () => {

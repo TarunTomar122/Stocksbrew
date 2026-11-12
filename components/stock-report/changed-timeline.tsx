@@ -77,7 +77,7 @@ export function ChangedTimeline({ items, nowIso, ticker }: { items: StockTimelin
       // Draw the rest the moment someone scrolls the box, in case the browser never goes idle.
       onScroll={drawn ? undefined : () => setDrawn(true)}
       tabIndex={0}
-      className="scrollbar-hide relative max-h-[34rem] overflow-y-auto overscroll-contain outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border sm:max-h-[19.5rem]"
+      className="scrollbar-hide relative max-h-[34rem] overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border sm:max-h-[19.5rem]"
       style={more ? FADE_BOTTOM : undefined}
     >
       {shown.map((item) => (

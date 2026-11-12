@@ -1,4 +1,4 @@
-import { quietFact } from "@/lib/briefing-move-facts";
+import { quietFacts, reportSoonWords } from "@/lib/briefing-move-facts";
 import type { ExamplePortfolio } from "@/lib/portfolio-data";
 
 import { shortDay } from "./merge";
@@ -18,8 +18,8 @@ export type ExampleHoldingRow = {
   /** The confirmed reason for the day's move, from the same research as the stock's page, or null. */
   reason: string | null;
   /**
-   * With no confirmed reason: one measured fact about the move, the same short words the briefing's other stocks say
-   * ("Twice a normal day", "Down 4.1% in a month", lib/briefing-move-facts.ts quietFact), or null.
+   * With no confirmed reason: one measured fact, picked as the briefing's other stocks pick theirs ("Twice its normal
+   * 1.0% day", "Down 4.1% in a month", "Reports Tuesday after the close", lib/briefing-move-facts.ts quietFacts), or null.
    */
   fact: string | null;
 };
@@ -48,11 +48,13 @@ export function exampleHoldings(
   reasons: Readonly<Record<string, string>> = {},
   /** Price facts by ticker, most telling first (lib/briefing-move-facts-server.ts stockMoveFacts). */
   facts: Readonly<Record<string, readonly string[]>> = {},
+  /** New York today, for a report coming up in the next two weeks; null leaves reports out. */
+  today: string | null = null,
 ): ExampleHoldings | null {
   if (!example?.pricesAsOf) return null;
   const skipped = new Set([...skip].map((ticker) => ticker.toUpperCase()));
   // The watched names sit in `watching` (lib/portfolio-shared.ts buildPortfolio), not in `positions`.
-  const lines = (list: ReadonlyArray<{ ticker: string; kind: string; dayPct: number | null }> | undefined, kind: "holding" | "watchlist") =>
+  const lines = (list: ReadonlyArray<{ ticker: string; kind: string; dayPct: number | null; nextEarnings?: { date: string; time?: string | null } | null }> | undefined, kind: "holding" | "watchlist") =>
     (list ?? [])
       .filter((position) => position.kind === kind && fin(position.dayPct) && !skipped.has(position.ticker.toUpperCase()))
       .map((position) => ({
@@ -60,19 +62,22 @@ export function exampleHoldings(
         dayPct: position.dayPct as number,
         reason: reasons[position.ticker.toUpperCase()]?.trim() || null,
         fact: null as string | null,
+        report: today ? reportSoonWords(position.nextEarnings ?? null, today) : null,
       }))
       .sort((a, b) => Math.abs(b.dayPct) - Math.abs(a.dayPct) || a.ticker.localeCompare(b.ticker));
   const rows = lines(example.portfolio.positions, "holding");
   const watching = lines(example.portfolio.watching, "watchlist");
   if (rows.length + watching.length < 2) return null;
-  // A line without a confirmed reason gets one measured fact, worked out in the order shown so no two say the same
-  // words (owner rule 1); a line with a reason keeps just that.
-  const used = new Set<string>();
-  for (const row of [...rows, ...watching]) {
-    if (row.reason) continue;
-    row.fact = quietFact(facts[row.ticker.toUpperCase()], used);
-    if (row.fact) used.add(row.fact);
-  }
+  // A card without a confirmed reason gets one measured fact, worked out in the order shown so no two say the same
+  // words and neighbours say different kinds of thing (owner rule 1, judges ship 46); a card with a reason keeps just
+  // that. The same picker as the briefing's other stocks (lib/briefing-move-facts.ts quietFacts).
+  const all = [...rows, ...watching];
+  const picked = quietFacts(
+    all.map((row) => ({ ticker: row.ticker, pct: row.dayPct, facts: facts[row.ticker.toUpperCase()], report: row.report })),
+    new Set(all.filter((row) => row.reason).map((row) => row.ticker)),
+  );
+  for (const row of all) row.fact = row.reason ? null : (picked.get(row.ticker) ?? null);
+  const strip = (row: (typeof all)[number]): ExampleHoldingRow => ({ ticker: row.ticker, dayPct: row.dayPct, reason: row.reason, fact: row.fact });
   const market = fin(example.marketPct) ? `S&P 500 ${example.marketPct >= 0 ? "+" : "−"}${Math.abs(example.marketPct).toFixed(1)}%` : null;
-  return { title: `The example's other stocks on ${shortDay(example.pricesAsOf)}`, market, rows, watching };
+  return { title: `The example's other stocks on ${shortDay(example.pricesAsOf)}`, market, rows: rows.map(strip), watching: watching.map(strip) };
 }

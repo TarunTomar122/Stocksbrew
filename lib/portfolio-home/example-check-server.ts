@@ -101,7 +101,7 @@ export type ExampleFlagStep = FlaggedMove & { step: string };
 
 /**
  * The move the example's agents flagged on one of its holdings, with the step after it ("NVDA reports on Tuesday after
- * the close, and its usual move on a report is 3.2%. Check our call on it before then."), for My stocks and the home
+ * the close, and a report usually moves it about 3.2%. Check our call on it before then."), for My stocks and the home
  * page. The same cached runs, snapshot and report history the briefing reads. Null when no single holding was
  * flagged lately, or the reads failed.
  */

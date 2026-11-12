@@ -140,6 +140,30 @@ describe("buildStockTimeline", () => {
     expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase (JPM) takes lead role in a major AI IPO"]);
   });
 
+  it("tells a bait headline by its plain summary when it names the stock, or leaves it out", () => {
+    const { items } = buildStockTimeline({
+      ticker: "JPM",
+      companyName: "JPMorgan Chase & Co.",
+      now,
+      news: [
+        article({
+          id: "b3",
+          url: "https://example.com/b3",
+          title: "JPMorgan Predicted Strong Wegovy Pill Sales (and Was Right). Is Novo Nordisk Stock a Buy Now?",
+          summary: "Novo Nordisk lived up to expectations for its Wegovy pill in the third quarter, but it still has more work ahead.",
+        }),
+        article({ id: "b1", url: "https://example.com/b1", title: "Here's How Much You Would Have Made Owning JPMorgan Chase Stock In The Last 5 Years", summary: "" }),
+        article({
+          id: "b2",
+          url: "https://example.com/b2",
+          title: "JPMorgan Chase & Co. (JPM) is Attracting Investor Attention: Here is What You Should Know",
+          summary: "JPMorgan agreed to buy a payments startup for $1.2 billion on Monday. More details followed.",
+        }),
+      ],
+    });
+    expect(items.map((item) => item.title)).toEqual(["JPMorgan agreed to buy a payments startup for $1.2 billion on Monday."]);
+  });
+
   it("is empty when nothing is stored", () => {
     expect(buildStockTimeline({ ticker: "X", now })).toEqual({ items: [], upcoming: [] });
   });

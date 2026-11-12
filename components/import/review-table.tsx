@@ -351,7 +351,7 @@ export function ReviewTable({
           </span>
         ) : null}
       </p>
-      <div className={`hidden border-t border-oa-border sm:block ${fixedHeight ? "max-h-[27rem] overflow-y-auto overscroll-contain" : ""}`}>
+      <div className={`hidden border-t border-oa-border sm:block ${fixedHeight ? "max-h-[27rem] overflow-y-auto" : ""}`}>
         <table className="w-full table-fixed border-collapse text-[13px]">
           <thead className={fixedHeight ? "sticky top-0 z-[1] bg-oa-card" : ""}>
             <tr className="border-b border-oa-border text-left">
@@ -383,7 +383,7 @@ export function ReviewTable({
           </tbody>
         </table>
       </div>
-      <ul className={`divide-y divide-oa-border border-t border-oa-border sm:hidden ${fixedHeight ? "max-h-[36rem] overflow-y-auto overscroll-contain" : ""}`}>
+      <ul className={`divide-y divide-oa-border border-t border-oa-border sm:hidden ${fixedHeight ? "max-h-[36rem] overflow-y-auto" : ""}`}>
         {rows.map((row) => (
           <li key={row.key} className={`flex flex-col gap-2 px-3 py-3 ${row.status === "unknown" || isRepeat(row) ? "bg-oa-bg" : ""}`}>
             <div className="flex items-start justify-between gap-3">

@@ -119,13 +119,13 @@ export async function OaLanding() {
             </Suspense>
           </section>
 
-          {/* the rest of what it does, each with one live finding from the example portfolio; every finding streams in on its own */}
+          {/* the example's three agents and what each found on its last real run: the pitch is what the demo did */}
           <section id="what-it-does" className="scroll-mt-24">
             <SectionHead
-              title="Everything it watches for you."
-              lede="Each finding below comes from an example portfolio and live data. Add your stocks and it does the same for yours."
-              href="/portfolio"
-              hrefLabel="See the example portfolio"
+              title="Three agents watch the example portfolio."
+              lede="Each one checks the example's stocks every market day and writes only when it finds something. Here is what each found on its last run. Set them up on your stocks and they do the same for you."
+              href="/agents"
+              hrefLabel="Set one up"
             />
             <AgentDoes />
           </section>

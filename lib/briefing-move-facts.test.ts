@@ -73,13 +73,88 @@ describe("moveFacts", () => {
   });
 });
 
-describe("quietFact", () => {
-  it("cuts the first telling fact to one short line, never the normal day on its own", async () => {
-    const { quietFact } = await import("./briefing-move-facts");
-    expect(quietFact(["A normal day moves it about 1.1%", "Still down 21.9% over the past month"])).toBe("Down 21.9% in a month");
-    expect(quietFact(["About twice a normal 1.0% day", "Up 4.3% over the past month"])).toBe("Twice a normal day");
-    expect(quietFact(["Its biggest drop since Sep 2"])).toBe("Biggest drop since Sep 2");
-    expect(quietFact(["A normal day moves it about 1.1%"])).toBeNull();
-    expect(quietFact(undefined)).toBeNull();
+describe("one month for every page", () => {
+  it("counts the month on the S&P 500's sessions, so a stock missing a close is measured over the same days", async () => {
+    const { monthChange, windowStart } = await import("./briefing-move-facts");
+    const spy = series(Array.from({ length: 30 }, () => 0.1), "2026-10-01");
+    const day = spy.dates[spy.dates.length - 1]!;
+    const window = windowStart(spy, day, 21)!;
+    expect(window.stored).toBe(true);
+    expect(window.from).toBe(spy.dates[spy.dates.length - 1 - 21]);
+    // The stock's own closes lack the last two days: the start is still SPY's, and the end is the price given.
+    const stock = { dates: spy.dates.slice(0, -2), closes: spy.dates.slice(0, -2).map(() => 100) };
+    expect(monthChange(stock, spy, day, 110)).toBeCloseTo(10, 6);
+    // Today not stored yet: the window ends at today all the same.
+    const next = "2026-11-02";
+    expect(windowStart(spy, next, 21)!.stored).toBe(false);
+    // A Saturday is no session: the window is the one ending on Friday's close.
+    const weekdays = { dates: [] as string[], closes: [] as number[] };
+    for (let at = Date.parse("2026-09-01T12:00:00Z"); at <= Date.parse("2026-10-30T12:00:00Z"); at += 86_400_000) {
+      if ([0, 6].includes(new Date(at).getUTCDay())) continue;
+      weekdays.dates.push(new Date(at).toISOString().slice(0, 10));
+      weekdays.closes.push(100);
+    }
+    expect(windowStart(weekdays, "2026-10-31", 21)).toEqual(windowStart(weekdays, "2026-10-30", 21));
+    // A weekday not stored yet is today's session on top.
+    expect(windowStart(weekdays, "2026-11-02", 21)!.start).toBe(windowStart(weekdays, "2026-10-30", 21)!.start + 1);
+    expect(monthChange(stock, null, day, 110)).toBeNull();
+    expect(monthChange(stock, spy, day, null)).toBeNull();
+  });
+
+  it("uses the month it is given in place of its own", () => {
+    const quiet = [4, ...Array.from({ length: 120 }, (_, index) => (index % 2 ? -1 : 1))];
+    expect(moveFacts(0.9, series(quiet), "2026-12-31", { month: -2.44 })).toContain("Still down 2.4% over the past month");
+    expect(moveFacts(0.9, series(quiet), "2026-12-31", { month: null }).some((fact) => /month/.test(fact))).toBe(false);
+  });
+});
+
+describe("quietFacts", () => {
+  it("never gives two neighbouring cards the same kind of sentence when another real fact is there", async () => {
+    const { quietFacts } = await import("./briefing-move-facts");
+    const picked = quietFacts([
+      { ticker: "MSFT", pct: -2.24, facts: ["A normal day moves it about 1.7%", "Down 4.1% over the past month"] },
+      { ticker: "AAPL", pct: 2.09, facts: ["A normal day moves it about 1.3%", "Up 4.3% over the past month"] },
+      { ticker: "COST", pct: 2.01, facts: ["About twice a normal 1.0% day", "Up 14.1% over the past month"] },
+      { ticker: "JPM", pct: 0.38, facts: ["A normal day moves it about 1.0%", "Up 3.6% over the past month"] },
+    ]);
+    expect([...picked.values()]).toEqual(["Down 4.1% in a month", "One and a half times its normal 1.3% day", "Up 14.1% in a month", "Under half its normal 1.0% day"]);
+  });
+
+  it("leads with a report in the next two weeks and gives a confirmed reason no fact", async () => {
+    const { quietFacts } = await import("./briefing-move-facts");
+    const picked = quietFacts(
+      [
+        { ticker: "NVDA", pct: 2.9, facts: ["Up 4.0% over the past month"], report: "Reports Nov 17 after the close" },
+        { ticker: "XOM", pct: 1.3, facts: ["Up 2.0% over the past month"] },
+      ],
+      new Set(["XOM"]),
+    );
+    expect(picked.get("NVDA")).toBe("Reports Nov 17 after the close");
+    expect(picked.get("XOM")).toBeNull();
+  });
+
+  it("never repeats words and says nothing rather than a guess", async () => {
+    const { quietFacts } = await import("./briefing-move-facts");
+    const picked = quietFacts([
+      { ticker: "A", pct: 1, facts: ["Up 4.0% over the past month"] },
+      { ticker: "B", pct: 1, facts: ["Up 4.0% over the past month"] },
+      { ticker: "C", pct: null, facts: ["A normal day moves it about 1.0%"] },
+    ]);
+    expect([...picked.values()]).toEqual(["Up 4.0% in a month", null, null]);
+  });
+
+  it("words the move against a normal day at every size, and a report only within two weeks", async () => {
+    const { normalDayWords, reportSoonWords } = await import("./briefing-move-facts");
+    expect(normalDayWords(3.1, 1)).toBe("Three times its normal 1.0% day");
+    expect(normalDayWords(-2, 1)).toBe("Twice its normal 1.0% day");
+    expect(normalDayWords(1, 1)).toBe("About its normal 1.0% day");
+    expect(normalDayWords(0.6, 1)).toBe("Smaller than its normal 1.0% day");
+    expect(normalDayWords(0.2, 1)).toBe("Under half its normal 1.0% day");
+    expect(reportSoonWords({ date: "2026-11-17", time: "amc" }, "2026-11-12")).toBe("Reports Nov 17 after the close");
+    expect(reportSoonWords({ date: "2026-11-13", time: "bmo" }, "2026-11-12")).toBe("Reports tomorrow before the open");
+    expect(reportSoonWords({ date: "2026-12-10", time: null }, "2026-11-12")).toBeNull();
+    expect(reportSoonWords({ date: "2026-11-12", time: "bmo" }, "2026-11-12")).toBeNull();
+    expect(reportSoonWords({ date: "2026-11-12", time: null }, "2026-11-12")).toBeNull();
+    expect(reportSoonWords({ date: "2026-11-12", time: "amc" }, "2026-11-12")).toBe("Reports today after the close");
   });
 });

@@ -76,7 +76,7 @@ export function BriefingAgentsCard({ loaded, today }: StripProps & { loaded: Loa
     );
   }
 
-  const { lines, paused, sharedDay, ownTimes, sharedTime, next } = agentLines(loaded.value, today, { describe: describeWatch });
+  const { lines, paused, next } = agentLines(loaded.value, today, { describe: describeWatch });
   return (
     <section aria-labelledby="briefing-agents-label" className={CARD}>
       <Head manage>Your agents</Head>
@@ -88,10 +88,10 @@ export function BriefingAgentsCard({ loaded, today }: StripProps & { loaded: Loa
         <>
           <ul className={`${AGENT_LIST} border-t border-oa-border`}>
             {lines.map((line) => (
-              <AgentRow key={line.id} line={line} showDay={!sharedDay} showTime={ownTimes && Boolean(sharedDay)} />
+              <AgentRow key={line.id} line={line} ranToday={today} />
             ))}
           </ul>
-          <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={paused} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
+          <AgentFoot nextWords={next ? nextCheckWords(next, today) : null} paused={paused} />
         </>
       )}
     </section>

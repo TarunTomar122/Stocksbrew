@@ -179,10 +179,10 @@ describe("buildCallEvidence", () => {
   it("gives Keep a measurable way up and down, tied to the report and the rule's move", () => {
     const { conditions } = buildCallEvidence(base());
     expect(conditions).toEqual([
-      "The Nov\u00a017 report could raise the call if it beats the $2.49 a share analysts expect and sales growth stays above 65%.",
-      "It could lower the call if it misses the $2.49 forecast or shows sales growth below 42%.",
+      "The Nov\u00a017 report could raise the call if it beats the $2.49 a share analysts expect and sales growth stays above 65%, its pace in fiscal 2026.",
+      "It could lower the call if it misses the $2.49 forecast or shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.",
       // 4 x 1% daily swing = 4% in a day; x sqrt(5) = 9% in a week.
-      "So could a day in which NVDA falls 4% more than the S&P 500 or a week in which it falls 9% more.",
+      "So could a day in which NVDA falls 4% more than the S&P 500, about four times the 1% it usually moves apart from the index in a day, or a week in which it falls 9% more.",
     ]);
     // Never a second call beside this one.
     expect(conditions.join(" ")).not.toMatch(/buy more|sell some|keep/i);
@@ -190,7 +190,7 @@ describe("buildCallEvidence", () => {
 
   it("moves Buy more only one step, to Keep", () => {
     const { conditions } = buildCallEvidence(base({ call: "Add" }));
-    expect(conditions[0]).toBe("The Nov\u00a017 report could lower the call if it misses the $2.49 forecast or shows sales growth below 42%.");
+    expect(conditions[0]).toBe("The Nov\u00a017 report could lower the call if it misses the $2.49 forecast or shows sales growth below 42%, half its 83% growth over the four quarters to Jul\u00a026.");
     expect(conditions.join(" ")).not.toMatch(/raise|sell some|buy more/i);
   });
 
@@ -213,7 +213,7 @@ describe("buildCallEvidence", () => {
   it("uses only the stock's own moves when there is no report to name, never the market's", () => {
     const { conditions } = buildCallEvidence(base({ sales: null, nextReport: null, calendar: [] }));
     expect(conditions).toEqual([
-      "A day in which NVDA falls 4% more than the S&P 500 or a week in which it falls 9% more could lower the call.",
+      "A day in which NVDA falls 4% more than the S&P 500, about four times the 1% it usually moves apart from the index in a day, or a week in which it falls 9% more could lower the call.",
     ]);
   });
 

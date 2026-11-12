@@ -210,7 +210,7 @@ function RedditTable({ names, wide = false, all = names }: { names: RedditName[]
 }
 
 // About eight rows in view, then the list scrolls inside with no bar showing (owner rule 5).
-const REDDIT_SCROLL = "max-h-[36rem] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const REDDIT_SCROLL = "max-h-[36rem] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 function ThreadList({ threads }: { threads: RedditThread[] }) {
   if (!threads.length) return null;
@@ -446,7 +446,7 @@ function SeeAll({ href, children }: { href: string; children: React.ReactNode })
  * The Today cards' lists: one fixed height, about eight Reddit rows (each with its line of what is said), scrolling inside with no bar showing (owner
  * rule), so the two cards end level and neither leaves an empty block under its rows.
  */
-const TODAY_SCROLL = "max-h-[32rem] overflow-y-auto lg:h-[32rem] overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const TODAY_SCROLL = "max-h-[32rem] overflow-y-auto lg:h-[32rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export function TodayTab({
   pick,

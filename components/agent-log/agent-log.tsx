@@ -32,7 +32,7 @@ export function agentLogTitle(log: Pick<AgentLog, "when">): string {
  * is no taller than the box: its header stays and the rows scroll inside, with no visible bar (owner rule 5).
  */
 const FIT_CARD = "lg:flex lg:max-h-full lg:min-h-0 lg:flex-col";
-const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain scrollbar-hide";
+const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto scrollbar-hide";
 
 /**
  * The briefing rail's status line (`fit`), at every width: what ran, its figure, when (owner rule 10: agent status

@@ -138,31 +138,32 @@ export function Row({
   );
 }
 
-/** A grid of label-over-figure cells, hairlines between them. */
-export function StatGrid({
-  items,
-  columns = "grid-cols-2 sm:grid-cols-4",
-}: {
-  items: Array<{ label: string; value: ReactNode; sub?: ReactNode; tone?: Tone; title?: string }>;
-  columns?: string;
-}) {
+/**
+ * A panel's figures as one-line facts: the label on the left at reading size, the figure on the right, one or two
+ * columns of ruled rows. No small caption over a big number (owner rule 6). Labels wrap rather than cut off.
+ */
+export function StatGrid({ items }: { items: Array<{ label: string; value: ReactNode; sub?: ReactNode; tone?: Tone; title?: string }> }) {
   if (!items.length) return null;
+  const half = Math.ceil(items.length / 2);
+  // Two columns from md read top to bottom, like the key facts; a phone gets one column.
+  const columns = items.length > 2 ? [items.slice(0, half), items.slice(half)] : [items];
   return (
-    <div className="overflow-hidden">
-      {/* Hairlines are cell borders, pulled 1px past the clip so the outer edge never doubles up and a short last row stays paper. */}
-      <dl className={`-mb-px -mr-px grid ${columns}`}>
-        {items.map((item) => (
-          <div key={item.label} title={item.title} className="min-w-0 border-b border-r border-oa-border px-3.5 py-2.5 sm:px-4">
-            <dt className="truncate text-[12px] leading-4 text-oa-muted-fg">{item.label}</dt>
-            <dd className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-[15px] font-medium leading-6 text-oa-fg ${NUM}`}>
-              <span className="truncate">{item.value}</span>
-              {/* Only good and bad get a mark: a neutral mark next to a number reads as a minus sign. */}
-              {item.tone && item.tone !== "flat" ? <ToneGlyph tone={item.tone} /> : null}
-            </dd>
-            {item.sub ? <dd className="truncate text-[12px] leading-4 text-oa-muted-fg">{item.sub}</dd> : null}
-          </div>
-        ))}
-      </dl>
+    <div className={`grid px-3.5 py-1 sm:px-4 ${columns.length > 1 ? "md:grid-cols-2 md:gap-x-8" : ""}`}>
+      {columns.map((column, index) => (
+        <dl key={index} className={index > 0 ? "max-md:border-t max-md:border-oa-border" : ""}>
+          {column.map((item) => (
+            <div key={item.label} title={item.title} className="flex min-h-[38px] items-center justify-between gap-4 border-b border-oa-border py-1.5 last:border-b-0">
+              <dt className="min-w-0 text-pretty text-[14px] leading-5 text-oa-muted-fg">{item.label}</dt>
+              <dd className={`${NUM} flex shrink-0 items-center gap-1.5 text-right text-[15px] font-medium leading-[22px] text-oa-fg`}>
+                <span>{item.value}</span>
+                {/* Only good and bad get a mark: a neutral mark next to a number reads as a minus sign. */}
+                {item.tone && item.tone !== "flat" ? <ToneGlyph tone={item.tone} /> : null}
+                {item.sub ? <span className="text-[13px] font-normal text-oa-muted-fg">{item.sub}</span> : null}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ))}
     </div>
   );
 }

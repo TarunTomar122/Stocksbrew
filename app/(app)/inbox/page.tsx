@@ -89,7 +89,8 @@ function exampleMoves(portfolio: NonNullable<Awaited<ReturnType<typeof loadExamp
     const ticker = position.ticker.toUpperCase();
     if (skip.has(ticker) || moves.has(ticker) || typeof position.dayPct !== "number" || !Number.isFinite(position.dayPct)) continue;
     const quoted = etDayOfStamp(portfolio.quotedAt[position.ticker] ?? null);
-    moves.set(ticker, { pct: position.dayPct, day: quoted ?? portfolio.pricesAsOf, exactDay: quoted !== null });
+    // Its price ends its month, so the month is the one My stocks shows (lib/briefing-move-facts.ts monthChange).
+    moves.set(ticker, { pct: position.dayPct, day: quoted ?? portfolio.pricesAsOf, exactDay: quoted !== null, price: position.price });
   }
   return moves;
 }
@@ -124,7 +125,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
           stockMoveFacts(exampleMoves(portfolio, said)).catch(() => undefined),
         ])
       : [{}, undefined];
-  const holdings = exampleHoldings(portfolio, said, reasons, facts ?? {});
+  const holdings = exampleHoldings(portfolio, said, reasons, facts ?? {}, inbox.today);
   const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">

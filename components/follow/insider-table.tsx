@@ -201,7 +201,7 @@ export function InsiderTable({
             // would sit at its row's place far below and stretch the page by the whole hidden list.
             aria-label="Insider trades, newest filing first"
             tabIndex={0}
-            className="relative max-h-[36rem] divide-y divide-oa-border overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border md:max-h-[23.5rem] [&::-webkit-scrollbar]:hidden"
+            className="relative max-h-[42rem] divide-y divide-oa-border overflow-y-auto outline-none [scrollbar-width:none] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border md:max-h-[23.5rem] [&::-webkit-scrollbar]:hidden"
             style={more ? FADE_BOTTOM : undefined}
           >
             {visible.map((item, index) =>

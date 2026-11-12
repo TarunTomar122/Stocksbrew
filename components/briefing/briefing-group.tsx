@@ -252,7 +252,7 @@ export function BriefingGroupCard({
   names?: readonly string[];
   /** Spans that let the last card fill its row (./stock-card.tsx `stockGridFill`). */
   fill?: string;
-  /** Say "you watch it" under the name of a watched stock; off when the section says it once for several. */
+  /** Say "You watch AMD." under a watched stock's ticker; off when the section says it once for several. */
   watchTag?: boolean;
   /** The first open card of its stock on the page: it carries the `brief-<ticker>` id the agents strip links to. */
   anchor?: boolean;
@@ -267,6 +267,9 @@ export function BriefingGroupCard({
   // its reason, sources and actions, the next update included, and the face's extra line steps aside.
   const others = group.lines.filter((line) => line !== main && rowWords(line, group) && (expanded || line !== words.moreLine));
   const subject = ticker ?? group.name;
+  // A stock you only watch says so in one short sentence where its name would be ("You watch AMD."), never the name
+  // and a fragment after it (judges, ship 46).
+  const watchWords = watchTag && ticker && group.relation === "watching" ? `You watch ${ticker}.` : null;
 
   return (
     <StockCard
@@ -275,7 +278,7 @@ export function BriefingGroupCard({
       id={anchor && ticker ? `brief-${ticker}` : undefined}
       className="scroll-mt-20"
       ticker={ticker}
-      name={group.name}
+      name={watchWords ? "" : group.name}
       figure={move != null ? signedPct(move, 1) : null}
       tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
       sentence={words.sentence || null}
@@ -287,7 +290,7 @@ export function BriefingGroupCard({
       expanded={expanded}
       fill={fill}
       // Held and watched said apart, as on My stocks: a stock you only watch says so under its name.
-      tag={watchTag && ticker && group.relation === "watching" ? "you watch it" : null}
+      tag={watchWords}
       cover={
         <button
           type="button"

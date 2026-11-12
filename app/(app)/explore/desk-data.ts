@@ -99,7 +99,8 @@ export type DeskStock = {
   count: number;
   share: number;
   tones: ToneCounts;
-  lead: { title: string; url: string; source: string; publishedAt: string };
+  /** Null when every story about it is bait (lib/wire-companies.ts `plainStory`). */
+  lead: { title: string; url: string; source: string; publishedAt: string } | null;
 };
 
 export type DeskNews = { stocks: DeskStock[]; read: TheRead | null };
@@ -187,12 +188,14 @@ export const loadDeskWire = section<DeskData["wire"]>(
         count: row.count,
         share: row.share,
         tones: row.tones,
-        lead: {
-          title: row.lead.title,
-          url: row.lead.url,
-          source: row.lead.source,
-          publishedAt: row.lead.publishedAt,
-        },
+        lead: row.lead
+          ? {
+              title: row.lead.title,
+              url: row.lead.url,
+              source: row.lead.source,
+              publishedAt: row.lead.publishedAt,
+            }
+          : null,
       })),
       // Every line: the page's read picks the one about a stock it does not already name.
       read: reading.read,

@@ -640,7 +640,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
  */
 function DayBody({ past, children }: { past: boolean; children: React.ReactNode }) {
   return (
-    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[26rem] lg:overflow-y-auto lg:overscroll-contain ${past ? "max-lg:hidden" : ""}`}>
+    <WholeRows rem={DAY_REM} minWidth={1024} cue className={`scrollbar-hide lg:max-h-[26rem] lg:overflow-y-auto ${past ? "max-lg:hidden" : ""}`}>
       {children}
     </WholeRows>
   );

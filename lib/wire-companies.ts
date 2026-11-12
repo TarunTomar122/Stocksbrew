@@ -4,6 +4,7 @@
  * Pure, so the grouping and the noise rules can be tested without a store.
  */
 
+import { firstFullSentence } from "@/lib/plain-copy";
 import type { NewsLabel, NewsLabels, ToneCounts } from "@/lib/wire-read";
 import type { WireItem } from "@/lib/wire-shared";
 
@@ -75,6 +76,67 @@ export function isForeignLanguage(title: string): boolean {
   return accented / letters.length > 0.15;
 }
 
+/**
+ * Headlines written to make someone click rather than to say what happened (owner rule 8): "Dear Nebius stock fans,
+ * mark your calendars", "Nebius is rocketing 15% higher, here's what could move shares next", "Should you buy?",
+ * "What you should know", a first-person pitch ("I'd buy…"), the "$1,000 investment" sums. The feed leaves them out,
+ * or says the story with the publisher's own first sentence when that sentence is plain (`plainStory`).
+ */
+const BAIT_PATTERNS: RegExp[] = [
+  /^dear\b/i,
+  /\bhere['’]s\b|\bhere is\b/i,
+  /\bshould you\b/i,
+  /\bwhat you (?:should|need to) know\b/i,
+  /\b(?:a )?buy (?:right )?now\b(?!,? pay later)/i,
+  /\bthis much\b/i,
+  /\b(?:rocketing|skyrocketing)\b/i,
+  /^prediction:/i,
+  // The "$1,000 investment" sums; a deal "worth $10 billion" is news and stays.
+  /\$\s?\d[\d,]*k? investment\b|\bwould have made\b/i,
+  // A first-person pitch opening the headline or one of its sentences ("I'd buy Dutch Bros…"); capital "I" only, and
+  // not a quote after "says" or a colon ("Huang: I think…").
+  /(?:^|[.!?]\s+)I(?:['’](?:d|m|ll|ve)| (?:just|would|will|think))\b/,
+  // A question about what to do with the stock ("Is it time to sell or load up?", "Is it still a buy?", "Who's right?"),
+  // not any question that mentions a sale ("Will the Fed hold rates?").
+  /(?:\bis (?:it|now)\b|\ba (?:buy|sell)\b|\btime to\b|\btoo late\b|\bload up\b|\bhold or fold\b|\bwho['’]s right\b)[^?]*\?\s*$/i,
+];
+
+export function isBaitTitle(title: string): boolean {
+  const text = title.trim();
+  return BAIT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/**
+ * Publisher openers that only describe the coverage or the site ("Zacks.com users have been watching…", "is on the AI
+ * Stocks Dominating List of Biggest Winners", "Key Takeaways"), never what happened.
+ */
+const BOILERPLATE = /zacks\.com|\blist of\b|key takeaways|get prepared|brokerage recommendation|right combination of|\bwe know about\b|\bworth (?:exploring|knowing)\b/i;
+
+/**
+ * The publisher's own first sentence, when it plainly says what happened: a full sentence ending in a full stop, eight
+ * words or more, not itself bait or site boilerplate. Never anything we wrote: an empty string when there is none.
+ */
+export function plainExcerpt(item: Pick<WireItem, "excerpt" | "excerptOrigin">): string {
+  if (!item.excerpt || !item.excerptOrigin) return "";
+  const sentence = firstFullSentence(item.excerpt).trim();
+  if (!/[a-z0-9%)]\.$/i.test(sentence) || sentence.length > 220) return "";
+  if (sentence.split(/\s+/).length < 8) return "";
+  // "Why investing for the long run could reap huge rewards." is a teaser, not what happened.
+  if (/^(?:why|how|what|who|when|which)\b/i.test(sentence)) return "";
+  if (isBaitTitle(sentence) || BOILERPLATE.test(sentence)) return "";
+  return sentence;
+}
+
+/**
+ * A story as the feed shows it: as it came when its headline says what happened; told by the publisher's plain first
+ * sentence when the headline is bait; null (left out of the feed, still counted) when there is no such sentence.
+ */
+export function plainStory(item: WireItem): WireItem | null {
+  if (!isBaitTitle(item.title)) return item;
+  const sentence = plainExcerpt(item);
+  return sentence ? { ...item, title: sentence } : null;
+}
+
 export function storyWeight(item: WireItem): number {
   return item.sourceKind === "press_release" ? PRESS_RELEASE_WEIGHT : 1;
 }
@@ -139,7 +201,11 @@ export function groupByCompany(
     // Capped, so a penny stock up 200% on one press release does not top the page.
     const score = group.score + (pct === null ? 0 : Math.min(Math.abs(pct), 15) * 0.5);
     if (!followed && score < MIN_SCORE) continue;
-    const ordered = [...group.items].sort(better);
+    // Every story counts above; only the ones that say what happened are shown (bait headlines are left out, or told by
+    // the publisher's plain first sentence). A company with none of those has no card (it would be a card of nothing),
+    // unless the viewer follows it: then its card stays, with its move and story count.
+    const ordered = group.items.map(plainStory).filter((item): item is WireItem => item !== null).sort(better);
+    if (!ordered.length && !followed) continue;
     const tones = { positive: 0, negative: 0, neutral: 0 };
     for (const item of group.items) {
       const label = labelFor(labels, item, ticker);

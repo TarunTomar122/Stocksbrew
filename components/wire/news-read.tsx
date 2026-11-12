@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type * as React from "react";
 
 import { Delta, FOCUS, NUM, Panel } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
@@ -16,8 +15,13 @@ export function when(iso: string): string {
   return etDay(iso) === etDay(Date.now()) ? time : `${ET_WEEKDAY.format(new Date(iso))} ${time}`;
 }
 
-/** About eight rows of Most talked about (each with its top story under it), cut back to its last whole row (WholeRows). */
-const LIST_REM = 32;
+/**
+ * About eight stocks of Most talked about in view (owner rule 5), the rest scrolling inside a box cut back to its last
+ * whole row (WholeRows): eight rows of one column on a phone (each row is the ticker line and its top story, about
+ * 5rem), and four rows of two columns on a wide screen.
+ */
+const LIST_REM = 42;
+const LIST_WIDE_REM = 18;
 
 /**
  * "75% negative" (or "Leans negative" when the side is a clear lean of fewer than half the stories), only when the
@@ -79,10 +83,10 @@ export function HeadlineLine({ item, companyName = "", className = "" }: { item:
 
 /** The top story about a stock, as one line in sentence case, without a trailing full stop. */
 export function buzzHighlight(row: Pick<StockBuzz, "lead" | "name">): string {
-  return headlineWords(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
+  return row.lead ? headlineWords(row.lead.title, row.name ?? "").replace(/[.!]+$/, "") : "";
 }
 
-/** A ranked row's tone ("75% negative", "62% neutral", "Mixed"), coloured by side, with the counts for screen readers. */
+/** A ranked row's tone ("75% negative", "62% neutral"), coloured by side, with the counts for screen readers. */
 function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
   const word = toneWord(counts, stories);
   if (!word) return null;
@@ -101,7 +105,7 @@ function RowTone({ counts, stories }: { counts: ToneCounts; stories: number }) {
 /**
  * The stocks with the most coverage right now, most first (owner, Nov 11: "where info about positive or negative talk
  * and highlight?"). Each row: rank, logo and ticker, the tone of its news where the labels support one (toneWord: "75%
- * negative", "62% neutral", "Mixed"; an empty cell otherwise), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
+ * negative", "62% neutral"; an empty cell otherwise), the day's move, and its top story written out underneath. No coverage bars (owner rule 5): the order already
  * says who is talked about most. Every stock shows, about eight rows at a time with the rest scrolling inside.
  */
 export function TalkedAbout({
@@ -119,18 +123,23 @@ export function TalkedAbout({
   if (rows.length === 0) return null;
   // The tone column only when some stock's news has a tone the labels support; otherwise the moves sit right after the ticker.
   const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
-  // About eight rows in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
-  const frame = "max-h-[32rem]";
-  // Full width: two columns read top to bottom (1 to 7, then 8 on), in a grid so the rows of both columns line up.
-  const half = Math.ceil(rows.length / 2);
-  const list = wide ? "lg:grid lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[repeat(var(--rows),auto)]" : "";
+  // About eight stocks in view, the rest scrolling inside and the box ending on a whole row (owner rule 5).
+  // Full width: two columns read across (1 and 2, then 3 and 4), so the eight in view are the top eight and scrolling
+  // brings the next pair, never the bottom of one column beside the top of the other.
+  const list = wide ? "lg:grid lg:grid-cols-2" : "";
   const cols = toned ? "grid-cols-[1.25rem_minmax(0,1fr)_auto_3.75rem]" : "grid-cols-[1.25rem_minmax(0,1fr)_3.75rem]";
   return (
     <Panel flush label="Most talked about" className={className}>
-      <WholeRows rem={LIST_REM} cue className={`scrollbar-hide overflow-y-auto overscroll-contain ${frame}`}>
-        <ol className={list} style={wide ? ({ "--rows": half } as React.CSSProperties) : undefined}>
+      <WholeRows
+        rem={LIST_REM}
+        wideRem={wide ? LIST_WIDE_REM : undefined}
+        wideFrom={wide ? 1024 : undefined}
+        cue
+        className={`scrollbar-hide overflow-y-auto max-h-[42rem] ${wide ? "lg:max-h-[18rem]" : ""}`}
+      >
+        <ol className={list}>
           {rows.map((row, index) => (
-            <li key={row.ticker} className={`border-b border-oa-border hover:bg-oa-accent ${wide ? (index >= half ? "lg:border-l" : "") : "last:border-b-0"}`}>
+            <li key={row.ticker} className={`border-b border-oa-border hover:bg-oa-accent ${wide ? (index % 2 === 1 ? "lg:border-l" : "") : "last:border-b-0"}`}>
               <Link
                 href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: row.ticker, theme: null })}
                 prefetch={false}
@@ -151,7 +160,7 @@ export function TalkedAbout({
                   <span className="text-right">{row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}</span>
                 </span>
                 {/* The top story, whole and in sentence case, so the row says what the talk is about. */}
-                <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span>
+                {row.lead ? <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span> : null}
               </Link>
             </li>
           ))}

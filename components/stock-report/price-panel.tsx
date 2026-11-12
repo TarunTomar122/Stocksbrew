@@ -172,6 +172,8 @@ export function PricePanel({
   const range = ranges.find((item) => item.key === activeKey) ?? ranges[ranges.length - 1];
   const points = useMemo(() => range?.points ?? [], [range]);
   const markers = useMemo(() => placeMarkers(points, events), [points, events]);
+  // The marker lane only takes room when there are markers; without it the month labels sit right under the line.
+  const plotBottom = markers.length ? "bottom-11" : "bottom-6";
   // One legend entry per letter: Congress and insider trades share "T".
   const markerKinds = useMemo(() => {
     const seen = new Set<string>();
@@ -303,13 +305,13 @@ export function PricePanel({
       </div>
 
       <div
-        className="relative h-[210px] w-full select-none sm:h-[340px]"
+        className="relative mb-3 h-[210px] w-full select-none sm:h-[340px]"
         role="img"
         aria-label={`${ticker} price, ${range.label} range: ${money(points[0]!.close, currency)} on ${fmtDate(points[0]!.date)} to ${money(last, currency)} on ${fmtDate(points[n - 1]!.date)}, ${signedPct(range.changePct)}. ${markers.length} marked events.`}
       >
         {/* plot */}
         <div
-          className="absolute bottom-11 left-0 right-14 top-1 touch-pan-y"
+          className={`absolute ${plotBottom} left-0 right-14 top-1 touch-pan-y`}
           onPointerMove={onMove}
           onPointerDown={onMove}
           onPointerLeave={() => setHover(null)}
@@ -444,7 +446,7 @@ export function PricePanel({
         </div>
 
         {/* price axis */}
-        <div className="absolute bottom-11 right-0 top-1 w-14" aria-hidden="true">
+        <div className={`absolute ${plotBottom} right-0 top-1 w-14`} aria-hidden="true">
           {ticks
             .filter((tick) => Math.abs(y(tick) - lastY) > 7)
             .map((tick) => (
@@ -460,7 +462,8 @@ export function PricePanel({
           </span>
         </div>
 
-        {/* event lane */}
+        {/* event lane, only when there are events to mark */}
+        {markers.length ? (
         <div className="absolute bottom-5 left-0 right-14 h-5 border-t border-oa-border">
           {markers.map((marker) => (
             <button
@@ -484,13 +487,14 @@ export function PricePanel({
             </button>
           ))}
         </div>
+        ) : null}
 
         {/* time axis */}
         <div className="absolute bottom-0 left-0 right-14 h-4" aria-hidden="true">
           {marks.map((mark, index) => (
             <span
               key={`${mark.label}-${mark.x}`}
-              className={`oa-mono absolute bottom-0 -translate-x-1/2 text-[13px] leading-none text-oa-muted-fg ${index % 2 === 1 ? "hidden sm:block" : ""}`}
+              className={`oa-mono absolute top-0 -translate-x-1/2 text-[13px] leading-none text-oa-muted-fg ${index % 2 === 1 ? "hidden sm:block" : ""}`}
               style={{ left: `${mark.x}%` }}
             >
               {mark.label}

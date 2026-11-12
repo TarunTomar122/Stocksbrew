@@ -61,7 +61,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
 
   return (
     <>
-      <div data-phone-section="view" className="min-w-0">
+      <div data-phone-section="view" className="order-1 min-w-0">
         <Panel
           id="changed"
           label="What changed"
@@ -94,7 +94,7 @@ export function StockReportBelow({ data, extras }: { data: ReportData; extras: R
 
       {/* The deeper report as tabs, in the order of SECTION_LABELS. */}
       {railSections.length ? (
-        <div data-phone-section={reportChip ? "report" : "view"} className="min-w-0">
+        <div data-phone-section={reportChip ? "report" : "view"} className="order-3 min-w-0">
           <ReportSections sections={railSections} data={sectionData} />
         </div>
       ) : null}

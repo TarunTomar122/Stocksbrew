@@ -1,3 +1,4 @@
+import { MONTH_SESSIONS, closeOnOrBefore, monthChange, windowStart } from "@/lib/briefing-move-facts";
 import { fmtPlanDay } from "@/lib/dividend-plan";
 import { whenWords } from "@/lib/earnings-season";
 import type { CallWord } from "@/lib/portfolio-ideas/types";
@@ -401,26 +402,89 @@ export function bookLead(source: BookSource): BookLead | null {
   return { headline, today, week: source.week, gain };
 }
 
+/**
+ * The lead as one read (judges, ship 46: three money tiles were counts with no read): the figures inside plain
+ * sentences, each against its baseline. Parts tagged with a tone so the page can colour the money. "They made $1,549
+ * today. Over the last five trading days they lost $3,293 (2.5%), against a 0.9% fall for the S&P 500. In all they
+ * are up $13,150, or 11.3%." Empty when there is nothing past the headline.
+ */
+export type ReadPart = { text: string; tone?: "up" | "down" };
+
+function toneOfValue(value: number): "up" | "down" | undefined {
+  return Math.abs(value) < 0.005 ? undefined : value > 0 ? "up" : "down";
+}
+
+/** "a 0.9% fall for the S&P 500", "a 0.4% rise", "a flat S&P 500". */
+function marketWords(pct: number): string {
+  if (Math.abs(pct) < 0.05) return "a flat S&P 500";
+  return `a ${Math.abs(pct).toFixed(1)}% ${pct > 0 ? "rise" : "fall"} for the S&P 500`;
+}
+
+export function leadParts(lead: BookLead, example: boolean): ReadPart[][] {
+  const they = example ? "They" : "Your stocks";
+  const out: ReadPart[][] = [];
+  const today = lead.today;
+  if (today && today.dollars !== null && Math.abs(today.dollars) >= 0.5) {
+    const when = today.label === "Today" ? "today" : `on ${today.label}`;
+    out.push([{ text: `${they} ${today.dollars >= 0 ? "made" : "lost"} ` }, { text: dollars(today.dollars), tone: toneOfValue(today.dollars) }, { text: ` ${when}.` }]);
+  }
+  const week = lead.week;
+  if (week && fin(week.pct)) {
+    const versus = week.marketPct !== null && fin(week.marketPct) ? `, against ${marketWords(week.marketPct)}` : "";
+    const who = out.length > 0 ? "they" : example ? "they" : "your stocks";
+    out.push(
+      week.dollars !== null
+        ? [
+            { text: `Over the last five trading days ${who} ${week.dollars >= 0 ? "gained" : "lost"} ` },
+            { text: dollars(week.dollars), tone: toneOfValue(week.dollars) },
+            { text: ` (${Math.abs(week.pct).toFixed(1)}%)${versus}.` },
+          ]
+        : [{ text: `Over the last five trading days ${who} ${week.pct >= 0 ? "rose" : "fell"} ` }, { text: `${Math.abs(week.pct).toFixed(1)}%`, tone: toneOfValue(week.pct) }, { text: ` on average${versus}.` }],
+    );
+  }
+  const gain = lead.gain;
+  if (gain && fin(gain.dollars)) {
+    // Only the stocks with a known cost count towards the gain, said so when that is not all of them.
+    const who = gain.counted < gain.of ? `In all, the ${gain.counted} of ${gain.of} with a known cost are` : "In all they are";
+    out.push([
+      { text: `${who} ${gain.dollars >= 0 ? "up" : "down"} ` },
+      { text: dollars(gain.dollars), tone: toneOfValue(gain.dollars) },
+      { text: `${gain.pct !== null && fin(gain.pct) ? `, or ${Math.abs(gain.pct).toFixed(1)}%` : ""}.` },
+    ]);
+  }
+  return out;
+}
+
+/** A report this many days ahead or closer is the lead's next step. */
+const STEP_REPORT_DAYS = 14;
+
+/**
+ * The next step under the lead when no agent flag gives one: the soonest report on a holding in the next two weeks
+ * ("NVDA reports on Nov 17 after the close. Check our call on it before then."), else null. Funds have no report.
+ */
+export function nextReportStep(source: Pick<BookSource, "portfolio" | "today">): { ticker: string; step: string } | null {
+  let best: { ticker: string; date: string; time: string | null; weight: number } | null = null;
+  for (const position of source.portfolio.positions) {
+    const next = position.nextEarnings;
+    if (position.kind !== "holding" || !next || !/^\d{4}-\d{2}-\d{2}$/.test(next.date)) continue;
+    const gap = Math.round((Date.parse(`${next.date}T12:00:00Z`) - Date.parse(`${source.today}T12:00:00Z`)) / 86_400_000);
+    // A report today counts only after the close: before the open it may already be out.
+    if (gap < 0 || gap > STEP_REPORT_DAYS || (gap === 0 && next.time !== "amc")) continue;
+    // The soonest; on one day, the bigger holding.
+    const weight = fin(position.weight) ? position.weight : 0;
+    if (!best || next.date < best.date || (next.date === best.date && weight > best.weight)) best = { ticker: position.ticker, date: next.date, time: next.time ?? null, weight };
+  }
+  if (!best) return null;
+  const session = best.time === "amc" ? " after the close" : best.time === "bmo" ? " before the open" : "";
+  return { ticker: best.ticker, step: `${best.ticker} reports ${whenWords(best.date, source.today)}${session}. Check our call on it before then.` };
+}
+
 /* ── the past week, from stored closes ─────────────────────────────────── */
 
 const WEEK_SESSIONS = 5;
 /** The week is said only when the stocks it covers hold at least this share of the value. */
 const WEEK_MIN_COVER = 0.8;
 
-/** The close on `day`, else the last one before it within a few days (a fund's close can be a day late). */
-function closeOnOrBefore(series: DailySeries | undefined, day: string): number | null {
-  if (!series) return null;
-  const floor = new Date(Date.parse(`${day}T00:00:00Z`) - 4 * 86_400_000).toISOString().slice(0, 10);
-  for (let i = Math.min(series.dates.length, series.closes.length) - 1; i >= 0; i--) {
-    const date = series.dates[i]!;
-    if (date > day) continue;
-    if (date < floor) return null;
-    return fin(series.closes[i]) && series.closes[i]! > 0 ? series.closes[i]! : null;
-  }
-  return null;
-}
-
-const MONTH_SESSIONS = 21;
 const MONTH_IN_LINE_POINTS = 0.5;
 
 /**
@@ -446,22 +510,16 @@ export function monthWords(month: MonthMove): string {
 export function monthMoves(input: { positions: PortfolioPosition[]; series: Map<string, DailySeries>; benchmark: DailySeries | null; pricesDay: string | null; marketPct: number | null }): Record<string, MonthMove> {
   const out: Record<string, MonthMove> = {};
   const spy = input.benchmark;
-  const day = input.pricesDay;
-  if (!spy || !day) return out;
-  let last = Math.min(spy.dates.length, spy.closes.length) - 1;
-  while (last >= 0 && spy.dates[last]! > day) last--;
-  if (last < 0) return out;
-  const stored = spy.dates[last] === day;
-  const start = stored ? last - MONTH_SESSIONS : last - (MONTH_SESSIONS - 1);
-  if (start < 0) return out;
-  const from = spy.dates[start]!;
-  const spyEnd = stored ? spy.closes[last]! : input.marketPct !== null ? spy.closes[last]! * (1 + input.marketPct / 100) : null;
-  const marketPct = spyEnd !== null ? (spyEnd / spy.closes[start]! - 1) * 100 : null;
+  // The one month every page counts (lib/briefing-move-facts.ts monthChange): SPY's 21 sessions up to the prices.
+  const window = windowStart(spy, input.pricesDay, MONTH_SESSIONS);
+  if (!spy || !window) return out;
+  const spyEnd = window.stored ? spy.closes[window.last]! : input.marketPct !== null ? spy.closes[window.last]! * (1 + input.marketPct / 100) : null;
+  const marketPct = spyEnd !== null ? (spyEnd / spy.closes[window.start]! - 1) * 100 : null;
   for (const position of input.positions) {
     if (position.kind !== "holding" || !fin(position.price) || position.price! <= 0) continue;
-    const then = closeOnOrBefore(input.series.get(position.ticker), from);
-    if (then === null) continue;
-    out[position.ticker] = { pct: (position.price! / then - 1) * 100, marketPct };
+    const pct = monthChange(input.series.get(position.ticker), spy, input.pricesDay, position.price);
+    if (pct === null) continue;
+    out[position.ticker] = { pct, marketPct };
   }
   return out;
 }
@@ -476,16 +534,11 @@ export function monthMoves(input: { positions: PortfolioPosition[]; series: Map<
 export function weekMove(input: { positions: PortfolioPosition[]; series: Map<string, DailySeries>; benchmark: DailySeries | null; pricesDay: string | null; marketPct: number | null }): WeekMove | null {
   const spy = input.benchmark;
   const day = input.pricesDay;
-  if (!spy || !day) return null;
-  let last = Math.min(spy.dates.length, spy.closes.length) - 1;
-  while (last >= 0 && spy.dates[last]! > day) last--;
-  if (last < 0) return null;
-  const stored = spy.dates[last] === day;
-  const start = stored ? last - WEEK_SESSIONS : last - (WEEK_SESSIONS - 1);
-  if (start < 0) return null;
-  const from = spy.dates[start]!;
-  const spyEnd = stored ? spy.closes[last]! : input.marketPct !== null ? spy.closes[last]! * (1 + input.marketPct / 100) : null;
-  const marketPct = spyEnd !== null ? (spyEnd / spy.closes[start]! - 1) * 100 : null;
+  const window = windowStart(spy, day, WEEK_SESSIONS);
+  if (!spy || !day || !window) return null;
+  const from = window.from;
+  const spyEnd = window.stored ? spy.closes[window.last]! : input.marketPct !== null ? spy.closes[window.last]! * (1 + input.marketPct / 100) : null;
+  const marketPct = spyEnd !== null ? (spyEnd / spy.closes[window.start]! - 1) * 100 : null;
   const held = input.positions.filter((position) => position.kind === "holding" && fin(position.price) && position.price! > 0);
   const all = input.positions.filter((position) => position.kind === "holding");
   const withShares = held.filter((position) => fin(position.shares) && position.shares! > 0);

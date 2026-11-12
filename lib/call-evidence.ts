@@ -35,6 +35,7 @@ export const MARKET_DROP_PCT = 4.0;
 export const MARKET_DROP_SESSIONS = 5;
 
 const SESSION_WORDS: Record<number, string> = { 3: "three", 4: "four", 5: "five", 6: "six" };
+const TIMES_WORDS: Record<number, string> = { 2: "twice", 3: "three times", 4: "four times", 5: "five times", 6: "six times" };
 export const MIN_HOLD_SESSIONS = 12;
 
 export type DailyClose = { date: string; close: number };
@@ -420,7 +421,23 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
   const g0 = input.sales && fin(input.sales.growthPct) ? input.sales.growthPct : null;
   const year = input.sales ? lastYearGrowth(input.sales.history, input.sales.revenue) : null;
   const bars = growthBars(g0, year?.pct ?? null);
-  const slowdown = bars.down === null ? "" : bars.down === 0 ? "shows sales shrinking" : `shows sales growth below ${bars.down}%`;
+  // Where each sales bar comes from, said beside it (owner rule 9): today's pace over the four quarters to the last
+  // report's quarter end, or the last fiscal year's.
+  const behind = input.sales ? reportBehind(input.reports, input.sales.capturedAt) : null;
+  const quarterEnd = behind?.periodEnd ? day(behind.periodEnd, input.today) : "";
+  const fourQuarters = quarterEnd ? `the four quarters to ${quarterEnd}` : "the last four quarters";
+  const paceOf = (bar: number): string =>
+    g0 !== null && bar === Math.floor(g0)
+      ? `, its pace over ${fourQuarters}`
+      : year && bar === Math.floor(year.pct)
+        ? `, its pace in fiscal ${year.year}`
+        : "";
+  const slowdown =
+    bars.down === null
+      ? ""
+      : bars.down === 0
+        ? "shows sales shrinking"
+        : `shows sales growth below ${bars.down}%${g0 !== null && bars.down === Math.round(g0 / 2) ? `, half its ${pct(g0)} growth over ${fourQuarters}` : ""}`;
 
   // Before the call has stood its minimum time, a change that took it up can only be undone by a report.
   const holdUntil = input.steady?.since ? addSessions(input.steady.since, MIN_HOLD_SESSIONS) : null;
@@ -429,9 +446,14 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
   // The rule watches a one-day and a one-week move of the stock's own against the market, and a market drop.
   const dayBar = swing !== null ? Math.round(MOVE_SIGMA * swing * 100) : null;
   const weekBar = swing !== null ? Math.round(MOVE_SIGMA * swing * Math.sqrt(MOVE_WEEK_SESSIONS) * 100) : null;
+  // The day's bar against the stock's own usual day (owner rule 9: say why a 4% fall matters), from the same swing:
+  // "about four times the 1.1% it usually moves apart from the index in a day". The ratio is of the two figures as shown, so it never disagrees with them.
+  const usual = swing !== null ? Number((swing * 100).toFixed(1)) : null;
+  const times = dayBar !== null && usual !== null && usual > 0 ? TIMES_WORDS[Math.round(dayBar / usual)] : undefined;
+  const usualDay = times && usual !== null ? `, about ${times} the ${usual}% it usually moves apart from the index in a day,` : "";
   const ownMoves =
     fallsCount && dayBar !== null && weekBar !== null && dayBar >= 3
-      ? [`a day in which ${t} falls ${dayBar}% more than the S&P 500`, `a week in which it falls ${weekBar}% more`]
+      ? [`a day in which ${t} falls ${dayBar}% more than the S&P 500${usualDay}`, `a week in which it falls ${weekBar}% more`]
       : [];
   // Only the stock's own moves: the market-wide drop (a week in which the S&P 500 falls 4%) still moves the call in the
   // backend rule, but it says nothing about this stock, so it is not listed (council, Nov 11).
@@ -440,10 +462,10 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
   // Phrased as what would change the call, never as a second call: the other call words are not named.
   const lines: string[] = [];
   if (call === "Hold") {
-    const holds = bars.up !== null ? `sales growth stays above ${bars.up}%` : "";
+    const holds = bars.up !== null ? `sales growth stays above ${bars.up}%${paceOf(bars.up)}` : "";
     if (forecast && holds) lines.push(`${Report} could raise the call if it beats ${forecast} and ${holds}.`);
     else if (forecast) lines.push(`${Report} could raise the call if it beats ${forecast}.`);
-    else if (bars.up !== null) lines.push(`${Report} could raise the call if it keeps sales growth above ${bars.up}%.`);
+    else if (bars.up !== null) lines.push(`${Report} could raise the call if it keeps sales growth above ${bars.up}%${paceOf(bars.up)}.`);
   }
   if (call === "Add" || call === "Hold") {
     const lower = [missed, slowdown].filter(Boolean);
@@ -457,10 +479,10 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
   }
   if (call === "Trim") {
     if (forecast && bars.recover !== null) {
-      lines.push(`${Report} could raise the call if it beats ${forecast} and ${bars.recover === 0 ? "sales start growing again" : `sales growth gets back above ${bars.recover}%`}.`);
+      lines.push(`${Report} could raise the call if it beats ${forecast} and ${bars.recover === 0 ? "sales start growing again" : `sales growth gets back above ${bars.recover}%${paceOf(bars.recover)}`}.`);
     } else if (forecast) lines.push(`${Report} could raise the call if it beats ${forecast}.`);
     else if (bars.recover !== null) {
-      lines.push(`${Report} could raise the call if it ${bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%`}.`);
+      lines.push(`${Report} could raise the call if it ${bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%${paceOf(bars.recover)}`}.`);
     }
   }
   // No "Short of that, the call stands until at least Nov 25." after these: it explains the steady-call rule rather

@@ -1,9 +1,7 @@
 import Link from "next/link";
 
-import { StockLogo } from "@/components/stock-logo";
+import { StockCard, StockCardGrid, stockGridFill } from "@/components/briefing/stock-card";
 import type { ExampleHoldingRow, ExampleHoldings } from "@/lib/inbox/example-holdings";
-
-const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
 /** "+2.1%", "−0.4%", "0.0%" (no sign on a move that rounds to nothing). */
 function signed(value: number): string {
@@ -11,78 +9,62 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(1)}%`;
 }
 
-function toneOf(value: number): string {
-  if (Math.abs(value) < 0.05) return "text-oa-muted-fg";
-  return value > 0 ? "text-signal-bullish" : "text-signal-bearish";
-}
-
-/** One stock on one line: logo, ticker, the confirmed reason or one measured fact, and the day's move. The line opens it. */
-function Line({ row, className = "" }: { row: ExampleHoldingRow; className?: string }) {
-  return (
-    <li className={`border-b border-oa-border ${className}`}>
-      <Link
-        href={`/stock/${encodeURIComponent(row.ticker)}`}
-        prefetch={false}
-        className={`grid min-h-11 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2 transition-colors hover:bg-oa-accent sm:px-5 ${FOCUS}`}
-      >
-        <span className="flex items-center gap-2">
-          <StockLogo ticker={row.ticker} size={22} />
-          <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
-        </span>
-        {/* The confirmed reason; without one, a measured fact about the move ("Twice a normal day"), never a guessed
-            reason (owner rule 7); nothing when neither is there. */}
-        <span className="min-w-0 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{row.reason ?? row.fact ?? ""}</span>
-        <span className={`oa-mono text-right text-[14px] font-semibold tabular-nums ${toneOf(row.dayPct)}`}>{signed(row.dayPct)}</span>
-      </Link>
-    </li>
-  );
+/** "AMD, CAT and LLY". */
+function joined(tickers: string[]): string {
+  return tickers.length > 1 ? `${tickers.slice(0, -1).join(", ")} and ${tickers[tickers.length - 1]}` : (tickers[0] ?? "");
 }
 
 /**
- * The example's other stocks under the read: one plain line each (logo, ticker, the day's move, and the confirmed
- * reason, or else one measured fact about the move, as the briefing's other stocks say it). Weight and cost are My
- * stocks', not repeated here (judges, ship 42). What it holds, then what it watches as one line of chips. The day and the S&P 500 are said once, above. About eight lines show; a longer
- * list scrolls inside with no visible bar (owner rule 5).
+ * The example's other stocks under the read, as small cards like the briefing's (owner rule 3): the logo, the day's
+ * move as the one big figure, and the confirmed reason as its sentence, or else one measured fact as its highlight,
+ * picked so neighbouring cards say different kinds of thing (lib/inbox/example-holdings.ts). Weight and cost are My
+ * stocks', not repeated here (judges, ship 42). What it holds first, then what it watches, said once above the cards
+ * (owner rule 1). The day and the S&P 500 are said once, in the head. An odd last card fills its row (owner rule 4).
+ * Each card opens its stock.
  */
 export function ExampleHoldingRows({ holdings }: { holdings: ExampleHoldings }) {
+  const cards: ExampleHoldingRow[] = [...holdings.rows, ...holdings.watching];
+  const watched = holdings.watching.map((row) => row.ticker);
+  const watchLine =
+    holdings.rows.length > 0 && watched.length > 0
+      ? watched.length === 1
+        ? `It also watches ${watched[0]}, without holding it.`
+        : `${joined(watched)} are stocks it watches rather than holds.`
+      : null;
   return (
-    <section aria-label={holdings.title} className="oa-surface min-w-0 overflow-hidden border border-oa-border bg-oa-card">
-      <header className="flex items-baseline justify-between gap-3 border-b border-oa-border px-4 pb-2 pt-3 sm:px-5">
+    <section aria-label={holdings.title} className="min-w-0">
+      <header className="flex items-baseline justify-between gap-3 px-1 pb-2.5">
         <h2 className="min-w-0 text-pretty text-[15px] font-semibold leading-6 text-oa-fg">{holdings.title}</h2>
         {holdings.market ? <span className="oa-mono shrink-0 whitespace-nowrap text-[13px] tabular-nums text-oa-muted-fg">{holdings.market}</span> : null}
       </header>
-      {/* Two lines side by side from `sm`, so a short line does not leave a wide empty middle; an odd last line
-          takes the whole row (owner rule 4). About eight show; a longer list scrolls inside, no visible bar (rule 5). */}
-      {holdings.rows.length > 0 ? (
-        <ul aria-label="It holds" className="scrollbar-hide -mb-px grid max-h-[24rem] grid-cols-1 overflow-y-auto overscroll-contain sm:grid-cols-2">
-          {holdings.rows.map((row, index) => (
-            <Line
+      {watchLine ? <p className="mb-2.5 text-pretty px-1 text-[13.5px] leading-5 text-oa-muted-fg">{watchLine}</p> : null}
+      <StockCardGrid dense>
+        {cards.map((row, index) => {
+          const figure = signed(row.dayPct);
+          return (
+            <StockCard
               key={row.ticker}
-              row={row}
-              className={`sm:[&:nth-child(odd)]:border-r ${index === holdings.rows.length - 1 && holdings.rows.length % 2 === 1 ? "sm:col-span-2 sm:!border-r-0" : ""}`}
+              ticker={row.ticker}
+              name=""
+              eagerLogo
+              figure={figure}
+              tone={Math.abs(row.dayPct) < 0.05 ? "flat" : row.dayPct > 0 ? "up" : "down"}
+              // The confirmed reason; without one, a measured fact, never a guessed reason (owner rule 7).
+              sentence={row.reason}
+              fact={row.reason ? null : row.fact}
+              fill={stockGridFill(index, cards.length, false, true)}
+              cover={
+                <Link
+                  prefetch={false}
+                  href={`/stock/${encodeURIComponent(row.ticker)}`}
+                  aria-label={[row.ticker, figure, row.reason ?? row.fact].filter(Boolean).join(", ")}
+                  className="absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+                />
+              }
             />
-          ))}
-        </ul>
-      ) : null}
-      {/* What it watches: one quiet line of logo chips with their move, not more rows (owner rules 5, 6). */}
-      {holdings.watching.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-oa-border px-4 py-2.5 sm:px-5">
-          <span className="mr-1 text-[13px] leading-5 text-oa-muted-fg">It also watches</span>
-          {holdings.watching.map((row) => (
-            <Link
-              key={row.ticker}
-              href={`/stock/${encodeURIComponent(row.ticker)}`}
-              prefetch={false}
-              title={row.reason ?? row.fact ?? undefined}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border border-oa-border bg-oa-bg pl-1.5 pr-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
-            >
-              <StockLogo ticker={row.ticker} size={18} />
-              <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
-              <span className={`oa-mono text-[13px] tabular-nums ${toneOf(row.dayPct)}`}>{signed(row.dayPct)}</span>
-            </Link>
-          ))}
-        </div>
-      ) : null}
+          );
+        })}
+      </StockCardGrid>
     </section>
   );
 }

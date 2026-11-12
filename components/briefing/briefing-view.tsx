@@ -28,7 +28,7 @@ import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { sectionWords } from "./card-words";
 import { StockCard, StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
-import { quietFact } from "@/lib/briefing-move-facts";
+import { quietFacts, reportSoonWords } from "@/lib/briefing-move-facts";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import Link from "next/link";
 
@@ -162,18 +162,31 @@ function quietHead(asOf: string | null | undefined, date: string, archived: bool
  * you watch, said once above the cards when there are several, so no tag repeats on each (owner rule 1). An odd last
  * card spans what its row has left (owner rule 4). Each card opens its stock.
  */
-function QuietCards({ head, names, facts }: { head: string; names: Briefing["quiet"]["names"]; facts?: Readonly<Record<string, readonly string[]>> }) {
+function QuietCards({
+  head,
+  names,
+  facts,
+  today,
+}: {
+  head: string;
+  names: Briefing["quiet"]["names"];
+  facts?: Readonly<Record<string, readonly string[]>>;
+  /** The briefing's own day, for a report coming up; null on a saved briefing, whose dates have passed. */
+  today: string | null;
+}) {
   const held = names.filter((name) => name.relation !== "watching");
   const watched = names.filter((name) => name.relation === "watching");
   const ordered = [...held, ...watched];
-  // Worked out in the order shown, so no two cards say the same words (owner rule 1).
-  const used = new Set<string>();
-  const factBy = new Map<string, string | null>();
-  for (const name of ordered) {
-    const fact = quietFact(facts?.[name.ticker.toUpperCase()], used);
-    if (fact) used.add(fact);
-    factBy.set(name.ticker, fact);
-  }
+  // Worked out in the order shown, so no two cards say the same words and neighbours say different kinds of thing
+  // (owner rule 1, judges ship 46): a report soon, its biggest move in a while, against a normal day, or its month.
+  const factBy = quietFacts(
+    ordered.map((name) => ({
+      ticker: name.ticker,
+      pct: name.day_change_pct,
+      facts: facts?.[name.ticker.toUpperCase()],
+      report: today && name.earnings_date ? reportSoonWords({ date: name.earnings_date, time: name.earnings_time }, today) : null,
+    })),
+  );
   const watchTickers = watched.map((name) => name.ticker);
   const watchLine =
     held.length > 0 && watchTickers.length > 1
@@ -196,7 +209,7 @@ function QuietCards({ head, names, facts }: { head: string; names: Briefing["qui
               figure={figure}
               tone={move == null ? "flat" : move >= 0 ? "up" : "down"}
               fact={fact}
-              tag={held.length > 0 && watchTickers.length === 1 && name.relation === "watching" ? "you watch it" : null}
+              tag={held.length > 0 && watchTickers.length === 1 && name.relation === "watching" ? `You watch ${name.ticker}.` : null}
               fill={stockGridFill(index, ordered.length, false, true)}
               cover={
                 <Link
@@ -769,7 +782,7 @@ export function BriefingView({
           card above. */}
       {personal && briefing.quiet.names.length > 0 ? (
         <div className="col-span-full min-w-0">
-          <QuietCards head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)} names={briefing.quiet.names} facts={archived ? undefined : moveFacts} />
+          <QuietCards head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)} names={briefing.quiet.names} facts={archived ? undefined : moveFacts} today={archived ? null : briefing.date} />
         </div>
       ) : null}
 

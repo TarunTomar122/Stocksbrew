@@ -39,7 +39,7 @@ describe("the example's flagged move", () => {
   it("ties the flag to the next report when it is close, else to the call", () => {
     const report = (day: string, session = "after the close") => ({ day, when: "on Nov 17", session });
     expect(flagStepWords({ ticker: "NVDA", report: report("2026-11-17"), usualPct: 3.2, today: "2026-11-11" })).toBe(
-      "NVDA reports on Nov 17 after the close, and its usual move on a report is 3.2%. Check our call on it before then.",
+      "NVDA reports on Nov 17 after the close, and a report usually moves it about 3.2%. Check our call on it before then.",
     );
     expect(flagStepWords({ ticker: "NVDA", report: report("2026-11-17"), usualPct: null, today: "2026-11-11" })).toBe("NVDA reports on Nov 17 after the close. Check our call on it before then.");
     expect(flagStepWords({ ticker: "NVDA", report: report("2026-11-26"), usualPct: 3.2, today: "2026-11-11" })).toBe("Check our call on NVDA before you act on the move.");

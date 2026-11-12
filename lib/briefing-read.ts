@@ -144,18 +144,24 @@ function earningsInsight(item: BriefingItem, history?: BriefingReportHistory | n
   const baseline = !history || !normal
     ? null
     : history.vsDay
-      ? `Its usual report move is ${history.vsDay.replace(/ a normal day$/, ` ${item.ticker}'s normal day`)} of ${normal}.`
+      ? `That is ${history.vsDay.replace(/ a normal day$/, ` ${item.ticker}'s normal day`)} of ${normal}.`
       : `A normal day for ${item.ticker} is a move of about ${normal}.`;
+  // The usual move said as a whole sentence beside the report day (judges, ship 46: "3.2% its usual move on a report"
+  // read as a fragment): the figure stands alone, the sentence says what it is.
+  const usual = history
+    ? history.usualKind === "single"
+      ? `its last report moved it ${usualWord(history.usualPct)}`
+      : history.usualKind === "mean"
+        ? `a report moves it ${usualWord(history.usualPct)} on average`
+        : `a report usually moves it about ${usualWord(history.usualPct)}`
+    : null;
   return {
     id: `earnings-${item.id}`,
     tone: "flat",
-    text: `${item.ticker} ${rest.replace(/\.$/, "")}.`,
+    text: `${item.ticker} ${rest.replace(/\.$/, "")}${usual ? `, and ${usual}` : ""}.`,
     ...(history
       ? {
-          figure: {
-            value: usualWord(history.usualPct),
-            label: history.usualKind === "single" ? "its move after its last report" : history.usualKind === "mean" ? "its average move on a report" : "its usual move on a report",
-          },
+          figure: { value: usualWord(history.usualPct) },
           soWhat: [baseline, step].filter(Boolean).join(" "),
         }
       : {}),

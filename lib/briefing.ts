@@ -125,6 +125,11 @@ export type BriefingQuietName = {
   ticker: string;
   relation: "holding" | "watching";
   day_change_pct: number | null;
+  /** The price the move ends at, which also ends the stock's month (lib/briefing-move-facts.ts monthChange). */
+  price?: number | null;
+  /** Its next report, for a quiet card's fact when it is close (absent on briefings saved before it existed). */
+  earnings_date?: string | null;
+  earnings_time?: "bmo" | "amc" | "during" | null;
 };
 
 /**
@@ -1925,6 +1930,9 @@ export function buildBriefing(input: BriefingInput): Briefing {
       ticker: position.ticker,
       relation: position.relation,
       day_change_pct: position.day_change_pct,
+      price: position.price,
+      earnings_date: position.earnings_date,
+      earnings_time: position.earnings_time,
     }))
     .sort((a, b) => Math.abs(b.day_change_pct ?? 0) - Math.abs(a.day_change_pct ?? 0) || a.ticker.localeCompare(b.ticker));
 

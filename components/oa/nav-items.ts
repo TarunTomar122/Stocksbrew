@@ -226,9 +226,17 @@ export const MY_STOCKS_VIEW_ITEMS: ReadonlyArray<NavItem & { view: MyStocksView 
   { view: "alerts", label: "Alerts", href: "/portfolio?tab=alerts", match: [], icon: "alerts" },
 ];
 
+/** Premarket's own address: a section the nav shows only before the open (components/oa/use-premarket-open.ts). */
+export const PREMARKET_HREF = "/premarket";
+
+/** A place's sections as the nav shows them now: Premarket only while the premarket session is on. */
+export function sectionsNow<T extends NavItem>(sections: readonly T[], premarketOpen: boolean): T[] {
+  return premarketOpen ? [...sections] : sections.filter((item) => item.href !== PREMARKET_HREF);
+}
+
 /** The pills of a place's phone strip: its sections, with My stocks' overview split into its tabs. */
-export function stripItems(place: NavPlace): NavItem[] {
-  if (place.href !== "/portfolio") return place.sections;
+export function stripItems(place: NavPlace, premarketOpen = false): NavItem[] {
+  if (place.href !== "/portfolio") return sectionsNow(place.sections, premarketOpen);
   return [...MY_STOCKS_VIEW_ITEMS, ...place.sections.filter((item) => item.href !== "/portfolio")];
 }
 

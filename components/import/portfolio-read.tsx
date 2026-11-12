@@ -147,7 +147,7 @@ export function PortfolioReadView({
           <span className="text-[12.5px] text-oa-muted-fg">Our call is a view, not advice</span>
         </div>
         {/* About eight stocks, then the list scrolls inside (owner rule for long lists). */}
-        <ul className="max-h-[48rem] divide-y divide-oa-border overflow-y-auto overscroll-contain">
+        <ul className="max-h-[48rem] divide-y divide-oa-border overflow-y-auto">
           {sorted.map((stock) => (
             <StockRow key={stock.instrument_id} stock={stock} today={today} />
           ))}
@@ -159,7 +159,7 @@ export function PortfolioReadView({
             <h2 className="oa-label">Earnings in the next 30 days</h2>
           </div>
           {/* About eight rows, then the list scrolls inside. */}
-          <ul className="max-h-[21rem] divide-y divide-oa-border overflow-y-auto overscroll-contain">
+          <ul className="max-h-[21rem] divide-y divide-oa-border overflow-y-auto">
             {result.upcoming.map((item) => (
               <li key={item.ticker} className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
                 <span className="flex items-center gap-2">

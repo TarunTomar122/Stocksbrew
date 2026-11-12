@@ -19,6 +19,7 @@ import {
 } from "@/components/oa/nav-items";
 import { MY_STOCKS_SELECT_EVENT, MY_STOCKS_VIEW_EVENT } from "@/components/portfolio/my-stocks-tabs";
 import { NavIcon } from "@/components/oa/nav-icon";
+import { usePremarketOpen } from "@/components/oa/use-premarket-open";
 
 const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -32,12 +33,13 @@ const FOCUS =
  */
 export function PlaceStrip() {
   const pathname = usePublicPathname() ?? "/";
+  const premarketOpen = usePremarketOpen();
   const place = placeFor(pathname);
   // My stocks' overview has tabs (Overview, Holdings, Watching, Alerts) that switch in the browser. Below lg they are
   // pills here, so the page draws no second tab bar; which one is lit comes from the address, read in the browser
   // (the server draws the overview), and from the page when it switches in place.
   const [view, setView] = React.useState<MyStocksView | null>(null);
-  const items = place ? stripItems(place) : [];
+  const items = place ? stripItems(place, premarketOpen) : [];
   const current = place ? stripCurrent(place, pathname, view) : null;
   // My stocks' tabs keep their places at the front (Overview, Holdings, Watching, Alerts): moving the lit one first
   // would push Overview and Holdings into "More" and reshuffle the pills on every tap.

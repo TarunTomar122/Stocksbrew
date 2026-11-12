@@ -67,8 +67,8 @@ function CurveLines({ curve }: { curve: TreasuryCurve }) {
   const lo = Math.min(...values);
   const hi = Math.max(...values);
   const span = hi - lo || 1;
-  const width = 120;
-  const height = 32;
+  const width = 96;
+  const height = 28;
   const x = (index: number) => (points.length > 1 ? (index / (points.length - 1)) * width : 0);
   const y = (value: number) => height - 2 - ((value - lo) / span) * (height - 4);
   const line = (pick: (point: (typeof points)[number]) => number | null) =>
@@ -161,7 +161,7 @@ function stocksCard(data: MarketsData): Card | null {
     label: "VIX, the market's fear gauge",
     text: `Options traders expect the S&P 500 to swing about ${daily.toFixed(1)}% a day.`,
     more: spxMove,
-    visual: vix.spark.length > 1 ? <Sparkline values={vix.spark} tone="flat" width={120} height={28} /> : null,
+    visual: vix.spark.length > 1 ? <Sparkline values={vix.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
 
@@ -242,7 +242,7 @@ function commoditiesCard(data: MarketsData): Card | null {
       label: `${subject}, ${later} over ${front}`,
       text,
       more: dollar,
-      visual: lead.spark.length > 1 ? <Sparkline values={lead.spark} tone="flat" width={120} height={28} /> : null,
+      visual: lead.spark.length > 1 ? <Sparkline values={lead.spark} tone="flat" width={96} height={28} /> : null,
     };
   }
   if (!dxy) return null;
@@ -255,7 +255,7 @@ function commoditiesCard(data: MarketsData): Card | null {
     tone: "flat",
     label: "the dollar index",
     text: dollar ?? "The dollar against six major currencies.",
-    visual: dxy.spark.length > 1 ? <Sparkline values={dxy.spark} tone="flat" width={120} height={28} /> : null,
+    visual: dxy.spark.length > 1 ? <Sparkline values={dxy.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
 
@@ -279,7 +279,7 @@ function optionsCard(data: MarketsData): Card | null {
     tone: "flat",
     label: average != null && average > 0 ? `puts per call, 20-day average ${average.toFixed(2)}` : "puts per call",
     text,
-    visual: ratio.spark.length > 1 ? <Sparkline values={ratio.spark} tone="flat" width={120} height={28} /> : null,
+    visual: ratio.spark.length > 1 ? <Sparkline values={ratio.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
 
@@ -322,11 +322,16 @@ function MarketCard({ card }: { card: Card }) {
           </p>
           <p className="text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">{card.label}</p>
         </div>
-        {card.logo ? <StockLogo ticker={card.logo} size={24} eager className="mt-1 shrink-0" /> : null}
+        {/* The small picture sits beside the figure, where a fund's logo sits on its card, not on a row of its own at
+            the foot, so a card without one has no padded band where the picture would be (owner rule 4). */}
+        {card.logo ? (
+          <StockLogo ticker={card.logo} size={24} eager className="mt-1 shrink-0" />
+        ) : card.visual ? (
+          <div className="mt-1 shrink-0">{card.visual}</div>
+        ) : null}
       </div>
       <p className="mt-2 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{card.text}</p>
       {card.more ? <p className="mt-1 text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{card.more}</p> : null}
-      {card.visual ? <div className="mt-auto pt-3">{card.visual}</div> : null}
       {/* The whole card opens its part of /markets; no link words repeated on every card. */}
       <Link
         href={card.href}
@@ -354,7 +359,8 @@ export function MarketCards({
   );
   if (!cards.length) return null;
   return (
-    <ul role="list" className={`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
+    // Each card as tall as its own words (owner rule 4): a short card is not stretched to its longest neighbour.
+    <ul role="list" className={`grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
       {cards.map((card) => (
         <MarketCard key={card.key} card={card} />
       ))}

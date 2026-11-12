@@ -19,7 +19,7 @@ import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
 import { briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
-import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
+import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
 import { NO_EXTRAS, toSectionData } from "./section-data";
 import { sectionAvailability } from "./sections";
@@ -170,35 +170,6 @@ function CallNextSteps({ ticker, steps }: { ticker: string; steps: CallSteps }) 
         </li>
       ) : null}
     </ul>
-  );
-}
-
-/**
- * The key stats under the chart: a ruled table, label on the left and the
- * figure on the right at reading size, two columns from md. Reads like a
- * fact sheet rather than a strip of captions.
- */
-function KeyStats({ items }: { items: Array<{ label: string; value: ReactNode; sub?: ReactNode }> }) {
-  // Labels are plain words ("Company value", "Today's range"), so they wrap rather than cut off.
-  if (!items.length) return null;
-  const half = Math.ceil(items.length / 2);
-  const columns = [items.slice(0, half), items.slice(half)].filter((column) => column.length);
-  return (
-    <div className="grid px-3.5 py-1.5 sm:px-4 md:grid-cols-2 md:gap-x-8">
-      {columns.map((column, index) => (
-        <dl key={index} className={index > 0 ? "max-md:border-t max-md:border-oa-border" : ""}>
-          {column.map((item) => (
-            <div key={item.label} className="flex min-h-[38px] items-center justify-between gap-4 border-b border-oa-border py-1.5 last:border-b-0">
-              <dt className="min-w-0 text-pretty text-[15px] leading-[22px] text-oa-muted-fg">{item.label}</dt>
-              <dd className={`${NUM} shrink-0 text-right text-[15px] font-medium leading-[22px] text-oa-fg`}>
-                {item.value}
-                {item.sub ? <span className="ml-1.5 text-[13px] font-normal text-oa-muted-fg">{item.sub}</span> : null}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ))}
-    </div>
   );
 }
 
@@ -459,7 +430,7 @@ export function StockReport({
   // What would change the call goes in the strip under the header, unless it is the side column's only content.
   const stripChange = showLock || callSteps ? changeBox : null;
 
-  const stats = headerStats.length ? <KeyStats items={headerStats} /> : null;
+  const stats = headerStats.length ? <StatGrid items={headerStats} /> : null;
   // On a phone the page below the chart is one part at a time (PhoneSections).
   // Signed out, the lock's "Sign in" is the one next step under the call (owner rule 1): no alerts box beside it,
   // since setting an alert needs the same account. Follow stays (on a phone, in its own part).
@@ -481,16 +452,32 @@ export function StockReport({
         <div className="order-1 min-w-0">
           <Panel>
             <header className="px-3.5 pb-3 pt-3 sm:px-4 sm:pt-3.5">
-              {/* No "Research › Technology" trail over the name (owner rule 6: no small label above a heading). Search
-                  engines still get the page's BreadcrumbList JSON-LD (components/seo/stock-page-schema.tsx). */}
+              {/* One line on top (owner rule 6: no small label over a big heading): the call word large, the company
+                  beside it at reading size, so the name never sits as a caption over the call. Without a call the
+                  name leads alone. The exchange, sector and size line sits under the call's dates. No "Research ›
+                  Technology" trail either; search engines still get the page's BreadcrumbList JSON-LD
+                  (components/seo/stock-page-schema.tsx). */}
               <div className="flex min-w-0 items-center gap-3">
-                <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={36} eager />
-                <div className="min-w-0 flex-1">
-                  <h1 className="flex flex-wrap items-baseline gap-x-2 text-[18px] font-medium leading-6 tracking-tight text-oa-fg sm:text-[20px] sm:leading-7">
+                <StockLogo ticker={stock.ticker} logoUrl={stock.logo_url} market={market} size={ready && callWord ? 40 : 36} eager />
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  {ready && callWord ? (
+                    <p
+                      className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] sm:text-[40px] sm:leading-[46px]"
+                      style={{ color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }}
+                    >
+                      {callWord}
+                    </p>
+                  ) : null}
+                  <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[18px] font-medium leading-6 tracking-tight text-oa-fg sm:text-[20px] sm:leading-7">
                     <span className="min-w-0">{stock.name}</span>
                     <span className="oa-mono text-[14px] font-semibold text-oa-muted-fg">{stock.ticker}</span>
                   </h1>
-                  {subline ? <p className="text-pretty text-[13px] leading-5 text-oa-muted-fg sm:truncate">{subline}</p> : null}
+                  {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
+                  {ready && callWord && data.gate.example ? (
+                    <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
+                      Example, open to everyone
+                    </Tag>
+                  ) : null}
                 </div>
                 {/* Follow is a quiet outline: the call is the one coloured thing up here. */}
                 <div className="oa-track-outline hidden shrink-0 sm:block">
@@ -505,36 +492,22 @@ export function StockReport({
                   />
                 </div>
               </div>
+              {/* Without a call there is no big word, so the exchange and sector line stays under the name. */}
+              {!(ready && callWord) && subline ? <p className="mt-0.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">{subline}</p> : null}
 
-              {/* The call is the page's heading (owner rules 8 and 10): the word large, one line under it that says the same
-                  instruction with its level, and today's price as the figure under that. The page's one lock sits beside
-                  the level line; the reasons and what would change the call are the strip under the header. */}
-              <div className={`mt-3 grid gap-x-6 gap-y-3 md:items-start ${!ready || showLock || callSteps || changeBox ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""}`}>
+              {/* The call is the page's heading (owner rules 8 and 10): the word large on the top line, one line under it
+                  that says the same instruction with its level, and today's price as the figure under that. The page's
+                  one lock sits beside the level line; the reasons and what would change the call are the strip under
+                  the header. */}
+              <div className={`mt-2 grid gap-x-6 gap-y-3 md:items-start ${!ready || showLock || callSteps || changeBox ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,23rem)]" : ""}`}>
                 {/* id "call": the briefing and the example check link here. */}
                 <section
                   id={ready ? "call" : undefined}
                   aria-label={ready ? `Our call on ${stock.ticker}` : `${stock.ticker} price`}
                   className="min-w-0 scroll-mt-16 lg:scroll-mt-4"
                 >
-                  {ready && (callWord || meaning) ? (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {callWord ? (
-                        <h2
-                          className="text-[34px] font-semibold leading-[40px] tracking-[-0.02em] sm:text-[40px] sm:leading-[46px]"
-                          style={{ color: callTone ? TONE_COLOR[callTone] : "var(--oa-fg)" }}
-                        >
-                          {callWord}
-                        </h2>
-                      ) : (
-                        <h2 className="text-pretty text-[22px] font-semibold leading-7 tracking-tight text-oa-fg">{meaning}</h2>
-                      )}
-                      {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
-                      {data.gate.example ? (
-                        <Tag tone="primary" className="!font-sans !text-[12.5px] !normal-case !tracking-normal">
-                          Example, open to everyone
-                        </Tag>
-                      ) : null}
-                    </div>
+                  {ready && !callWord && meaning ? (
+                    <h2 className="text-pretty text-[22px] font-semibold leading-7 tracking-tight text-oa-fg">{meaning}</h2>
                   ) : null}
                   {/* The one level line: the same instruction as the word, with its price, or without it where this plan
                       does not show it (the lock beside it names what it holds). */}
@@ -562,6 +535,7 @@ export function StockReport({
                   </div>
                   {/* How long the call has stood and when we last looked at it again, quiet under the price. */}
                   {ready && callDates ? <p className="mt-2 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
+                  {ready && callWord && subline ? <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{subline}</p> : null}
                 </section>
 
                 {/* Beside the call: the page's one lock, or, where nothing is locked, the call's next step, or what would
@@ -644,8 +618,6 @@ export function StockReport({
               <Missing className="border-t border-oa-border">We do not have enough price history for {stock.ticker} to draw a chart yet.</Missing>
             )}
 
-            {/* On a phone the read comes before the key facts, so they are printed again below it. */}
-            {stats ? <div className="hidden border-t border-oa-border md:block">{stats}</div> : null}
           </Panel>
         </div>
 
@@ -788,28 +760,28 @@ export function StockReport({
           </Panel>
           </div>
 
-          {stats ? (
-            <div data-phone-section="facts" className="md:hidden">
-              <Panel label="Key facts">{stats}</Panel>
-            </div>
-          ) : null}
         </div>
 
         {/* ── what changed, then the sections: streamed in under the rest (below.tsx) ── */}
+        {/* What changed (order-1, below.tsx), then the key facts as one-line rows (order-2), then the report's tabs
+            (order-3): the facts sit under the news on every screen, not as a grid of small labels over big numbers
+            between the chart and the read (owner rule 6). No legal line here: the site footer carries it. */}
         <div className="order-4 flex min-w-0 flex-col gap-4">
           {below}
 
+          {stats ? (
+            <div data-phone-section="facts" className="order-2 min-w-0">
+              <Panel label="Key facts">{stats}</Panel>
+            </div>
+          ) : null}
+
           {/* Signed out, the full-report box is the one lock and it names the long report; with no box (an open stock),
               the link is the way in. */}
-          {market === "US" && (data.gate.plan !== "anon" || data.gate.levels) ? <LongReportLink ticker={stock.ticker} /> : null}
-
-          <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">
-            {/* The one legal line, at the foot of the page, linked to how calls are made. */}
-            <Link prefetch={false} href="/docs/methodology" className="hover:underline focus-visible:underline focus-visible:outline-none">
-              Our view, not investment advice.
-            </Link>{" "}
-            Prices can be delayed.
-          </p>
+          {market === "US" && (data.gate.plan !== "anon" || data.gate.levels) ? (
+            <div className="order-4 min-w-0">
+              <LongReportLink ticker={stock.ticker} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

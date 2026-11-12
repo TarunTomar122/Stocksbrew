@@ -16,7 +16,8 @@ import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
 import { etDay } from "@/lib/insight-format";
-import { CALL_PLAIN, headlineCase, plainAction } from "@/lib/plain-copy";
+import { CALL_PLAIN, headlineCase, plainAction, shortCompanyName } from "@/lib/plain-copy";
+import { isBaitTitle, plainExcerpt } from "@/lib/wire-companies";
 
 /** The ledger's call ("Add") as a reader sees it ("Buy more"); anything else as it came. */
 const callWord = (call: string): string => CALL_PLAIN[call as keyof typeof CALL_PLAIN] ?? call;
@@ -101,6 +102,28 @@ export type StockTimelineInput = {
 };
 
 const DAY_MS = 86_400_000;
+
+/**
+ * A headline that says what happened, as the row shows it: a bait headline ("Is Novo Nordisk stock a buy now?",
+ * "Here's how much you would have made…") is told by the publisher's plain first sentence when the summary has one,
+ * and left out otherwise (owner rule 8, the same test as /news: lib/wire-companies.ts `plainStory`). Never invented.
+ */
+function sayingHeadline(shown: string, summary: string | null | undefined, ticker: string, companyName: string): string | null {
+  if (!isBaitTitle(shown)) return shown;
+  const sentence = plainExcerpt({ excerpt: summary ?? "", excerptOrigin: summary ? "summary" : "" });
+  // On a stock's own page the sentence must name the stock: "JPMorgan predicted Wegovy sales… Is Novo Nordisk a buy?"
+  // retold as "Novo Nordisk lived up to expectations…" is not something that changed for JPMorgan.
+  // The ticker as written (so "NOW" or "ON" never matches an ordinary word), and the company's own first word unless it
+  // is a common one ("The", "Bank", "American"), else its whole short name, both with their capitals.
+  const short = shortCompanyName(companyName).trim();
+  const first = short.split(/\s+/)[0] ?? "";
+  const name = first.length >= 3 && !GENERIC_NAME_WORDS.has(first.toLowerCase()) ? first : short;
+  const names = [ticker, name].filter((word) => word.length >= 2).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return sentence && names.length && new RegExp(`(?<![A-Za-z0-9])(?:${names.join("|")})(?![A-Za-z0-9])`).test(sentence) ? sentence : null;
+}
+
+/** A company name's first word that names nothing on its own ("The Trade Desk", "Bank of America", "First Solar"). */
+const GENERIC_NAME_WORDS = new Set(["the", "bank", "american", "general", "first", "united", "national", "new", "global", "international", "southern", "western", "eastern", "northern"]);
 
 /**
  * A source headline as a person would write it (owner rule 8): Scraped Title Case goes to sentence case and stray
@@ -338,9 +361,11 @@ export function buildStockTimeline(input: StockTimelineInput): {
   for (const article of input.news ?? []) {
     if (!article.title || !article.published_at) continue;
     // Compared as shown (publisher tail off), so "X - Benzinga" here and "X" from the brief are one story.
-    const shown = timelineHeadline(article.title, article.source_name, input.companyName ?? "");
-    if (isDuplicate(shown, article.url)) continue;
-    remember(shown, article.url);
+    const cased = timelineHeadline(article.title, article.source_name, input.companyName ?? "");
+    if (isDuplicate(cased, article.url)) continue;
+    remember(cased, article.url);
+    const shown = sayingHeadline(cased, article.summary, ticker, input.companyName ?? "");
+    if (!shown) continue;
     const tone = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : "flat";
     items.push({
       id: `news-${article.id || article.url}`,
@@ -361,9 +386,11 @@ export function buildStockTimeline(input: StockTimelineInput): {
     if (!title || !event.timestamp) continue;
     // A bank quoted as the analyst ("JPMorgan says Strategy could face...") is not news about the bank.
     if (!firmIsSubject(ticker, title)) continue;
-    const shown = timelineHeadline(title, event.source_name, input.companyName ?? "");
-    if (isDuplicate(shown, event.article_url)) continue;
-    remember(shown, event.article_url);
+    const cased = timelineHeadline(title, event.source_name, input.companyName ?? "");
+    if (isDuplicate(cased, event.article_url)) continue;
+    remember(cased, event.article_url);
+    const shown = sayingHeadline(cased, event.summary, ticker, input.companyName ?? "");
+    if (!shown) continue;
     const label = (event.sentiment_label ?? "").toLowerCase();
     items.push({
       id: `evt-${event.event_id ?? title}`,

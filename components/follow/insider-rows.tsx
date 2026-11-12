@@ -100,7 +100,7 @@ export function ClusterCard({ cluster }: { cluster: InsiderCluster }) {
  */
 export function ClusterRows({ clusters }: { clusters: InsiderCluster[] }) {
   return (
-    <ul className="max-h-[31rem] divide-y divide-oa-border overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <ul className="max-h-[31rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {clusters.map((cluster) => {
         const who = clusterMembersLine(cluster);
         return (

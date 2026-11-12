@@ -108,7 +108,7 @@ export default async function ResearchHubPage({ params }: Props) {
               <h2 className="oa-label">Your reports on {ticker}</h2>
             </div>
             {/* About eight rows tall, then it scrolls inside. */}
-            <ul className="max-h-[30rem] overflow-y-auto overscroll-contain">
+            <ul className="max-h-[30rem] overflow-y-auto">
               {mine.map((item) => (
                 <li key={item.key} className="border-b border-oa-border last:border-b-0">
                   <Link

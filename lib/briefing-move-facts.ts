@@ -1,5 +1,5 @@
 import { typicalDailyMove } from "@/lib/calendar-insights";
-import { vsDayWords } from "@/lib/earnings-season";
+import { vsDayWords, whenWords } from "@/lib/earnings-season";
 import { shortDay } from "@/lib/read-format";
 
 /**
@@ -19,7 +19,7 @@ const SAME_MOVE_PP = 0.2;
 /** A move at least this many times a normal day says so ("About twice a normal day"). */
 const VS_DAY_MIN = 1.75;
 /** The month is the last 21 sessions, today's included. */
-const MONTH_SESSIONS = 21;
+export const MONTH_SESSIONS = 21;
 /** A month that moved less than this says nothing worth a card. */
 const MONTH_MIN_PCT = 1;
 
@@ -37,7 +37,17 @@ function sinceDay(day: string, moveDay: string): string {
  * a last close that already holds this same move is left out, so the move is never measured against itself. Empty
  * when the history is too short to say anything.
  */
-export function moveFacts(pct: number, series: CloseSeries | null | undefined, moveDay: string, options: { exactDay?: boolean } = {}): string[] {
+export function moveFacts(
+  pct: number,
+  series: CloseSeries | null | undefined,
+  moveDay: string,
+  /**
+   * `month`: the stock's month already worked out the one way every page works it out (monthChange), so the briefing,
+   * the inbox and My stocks never show two figures for one month (judges, ship 46: VOO −1.7% here, −2.4% there).
+   * Null leaves the month out; undefined counts it from this series.
+   */
+  options: { exactDay?: boolean; month?: number | null } = {},
+): string[] {
   if (!series || !Number.isFinite(pct) || pct === 0) return [];
   const points: Array<{ date: string; close: number }> = [];
   const n = Math.min(series.dates.length, series.closes.length);
@@ -88,37 +98,172 @@ export function moveFacts(pct: number, series: CloseSeries | null | undefined, m
   }
 
   // Where the month stands with today's move in it: "Still down 5.1% over the past month" after a gain.
-  const monthAgo = points[points.length - MONTH_SESSIONS];
-  // Only from a series that runs up to the move (a cached copy a session or more behind would count the wrong month).
-  const lastGap = (Date.parse(`${moveDay}T12:00:00Z`) - Date.parse(`${points[points.length - 1]!.date}T12:00:00Z`)) / 86_400_000;
-  if (monthAgo && lastGap <= 4) {
-    const now = points[points.length - 1]!.close * (1 + pct / 100);
-    const month = (now / monthAgo.close - 1) * 100;
-    if (Math.abs(month) >= MONTH_MIN_PCT) {
-      const words = `${month > 0 ? "up" : "down"} ${Math.abs(month).toFixed(1)}% over the past month`;
-      out.push(month > 0 === up ? capitalise(words) : `Still ${words}`);
-    }
+  let month: number | null = null;
+  if (options.month !== undefined) month = options.month !== null && Number.isFinite(options.month) ? options.month : null;
+  else {
+    const monthAgo = points[points.length - MONTH_SESSIONS];
+    // Only from a series that runs up to the move (a cached copy a session or more behind would count the wrong month).
+    const lastGap = (Date.parse(`${moveDay}T12:00:00Z`) - Date.parse(`${points[points.length - 1]!.date}T12:00:00Z`)) / 86_400_000;
+    if (monthAgo && lastGap <= 4) month = ((points[points.length - 1]!.close * (1 + pct / 100)) / monthAgo.close - 1) * 100;
+  }
+  if (month !== null && Math.abs(month) >= MONTH_MIN_PCT) {
+    const words = `${month > 0 ? "up" : "down"} ${Math.abs(month).toFixed(1)}% over the past month`;
+    out.push(month > 0 === up ? capitalise(words) : `Still ${words}`);
   }
   return out;
 }
 
-/**
- * The one short fact for a stock with nothing new today (the briefing's "Your other stocks" list, judges ship 42:
- * ticker and move alone said nothing). Its biggest move in a while, how its move compares with a normal day, or where
- * its month stands, cut to fit one line beside the ticker. Never "A normal day moves it about 1.1%": on a quiet list
- * that reads the same on every row (owner rule 1). A fact in `used` (said on a row above) is passed over for the next.
- * Null when nothing else is there.
- */
-export function quietFact(facts: readonly string[] | null | undefined, used: ReadonlySet<string> = new Set()): string | null {
-  for (const fact of facts ?? []) {
-    if (/^A normal day moves it\b/.test(fact)) continue;
-    const short = fact
-      .replace(/^Its biggest /, "Biggest ")
-      .replace(/^About (.+?) a normal [\d.]+% day$/, (_whole, times: string) => `${times.charAt(0).toUpperCase()}${times.slice(1)} a normal day`)
-      .replace(/^Still (up|down) /, (_whole, way: string) => `${way.charAt(0).toUpperCase()}${way.slice(1)} `)
-      .replace(/ over the past month$/, " in a month");
-    // Two rows never say the same words (owner rule 1): the next fact, else nothing.
-    if (!used.has(short)) return short;
+/* ── one month, worked out one way ─────────────────────────────────────── */
+
+/** The close on `day`, else the last one before it within four days (a fund's close can be a day late). */
+export function closeOnOrBefore(series: CloseSeries | null | undefined, day: string): number | null {
+  if (!series) return null;
+  const floor = new Date(Date.parse(`${day}T00:00:00Z`) - 4 * 86_400_000).toISOString().slice(0, 10);
+  for (let i = Math.min(series.dates.length, series.closes.length) - 1; i >= 0; i--) {
+    const date = series.dates[i]!.slice(0, 10);
+    if (date > day) continue;
+    if (date < floor) return null;
+    const close = series.closes[i];
+    return typeof close === "number" && Number.isFinite(close) && close > 0 ? close : null;
   }
   return null;
+}
+
+/**
+ * Where a window of `sessions` ending on `day` starts, counted on the S&P 500's own sessions (SPY's closes), so a
+ * stock whose stored closes miss a day is still measured over the same days as every other: the start day, SPY's
+ * index of it and of its last close up to `day`, and whether `day` itself is stored yet. Null when SPY does not
+ * reach that far back.
+ */
+export function windowStart(benchmark: CloseSeries | null | undefined, day: string | null | undefined, sessions: number): { from: string; start: number; last: number; stored: boolean } | null {
+  if (!benchmark || !day) return null;
+  let last = Math.min(benchmark.dates.length, benchmark.closes.length) - 1;
+  while (last >= 0 && benchmark.dates[last]!.slice(0, 10) > day) last--;
+  if (last < 0) return null;
+  // A weekend day is no session of its own: its prices are the last session's, as if that day were stored.
+  const weekend = [0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay());
+  const stored = benchmark.dates[last]!.slice(0, 10) === day || weekend;
+  const start = stored ? last - sessions : last - (sessions - 1);
+  if (start < 0) return null;
+  return { from: benchmark.dates[start]!.slice(0, 10), start, last, stored };
+}
+
+/**
+ * A stock's month, percent: from its close on the month's first day (windowStart over MONTH_SESSIONS) to `now`, its
+ * price on `day`. The one calculation My stocks, the briefing, the inbox and the home page all read, so one stock
+ * never shows two months (judges, ship 46). Null without a close that far back.
+ */
+export function monthChange(series: CloseSeries | null | undefined, benchmark: CloseSeries | null | undefined, day: string | null | undefined, now: number | null | undefined): number | null {
+  if (typeof now !== "number" || !Number.isFinite(now) || now <= 0) return null;
+  const window = windowStart(benchmark, day, MONTH_SESSIONS);
+  const then = window ? closeOnOrBefore(series, window.from) : null;
+  return then !== null ? (now / then - 1) * 100 : null;
+}
+
+/* ── the quiet cards' facts, varied ────────────────────────────────────── */
+
+/** What a fact is about, so two neighbouring cards never say the same kind of sentence (owner rule 1). */
+export type FactShape = "report" | "since" | "day" | "month" | "reason";
+
+/** One stock on a quiet list: its move, its price facts (moveFacts) and its report day in words, when within two weeks. */
+export type QuietStock = { ticker: string; pct: number | null; facts?: readonly string[] | null; report?: string | null };
+
+const TIMES = ["", "", "Twice", "Three times", "Four times", "Five times", "Six times", "Seven times", "Eight times", "Nine times", "Ten times"];
+
+/**
+ * The move against the stock's own normal day, in words with the normal day's size: "Twice its normal 1.0% day",
+ * "Under half its normal 1.3% day". Every size says something real, so a small move on a quiet list has a fact too.
+ */
+export function normalDayWords(pct: number, normal: number): string | null {
+  if (!Number.isFinite(pct) || !Number.isFinite(normal) || normal <= 0) return null;
+  const ratio = Math.abs(pct) / normal;
+  const day = `its normal ${normal.toFixed(1)}% day`;
+  if (ratio >= 2.5) return `${TIMES[Math.round(ratio)] ?? `${Math.round(ratio)} times`} ${day}`;
+  if (ratio >= VS_DAY_MIN) return `Twice ${day}`;
+  if (ratio >= 1.25) return `One and a half times ${day}`;
+  if (ratio >= 0.75) return `About ${day}`;
+  if (ratio >= 0.5) return `Smaller than ${day}`;
+  return `Under half ${day}`;
+}
+
+type Candidate = { shape: FactShape; text: string; rank: number };
+
+/** Each fact a quiet card could say, with how telling it is (lower first). */
+function candidates(stock: QuietStock): Candidate[] {
+  const out: Candidate[] = [];
+  if (stock.report) out.push({ shape: "report", text: stock.report, rank: 0 });
+  for (const fact of stock.facts ?? []) {
+    const since = /^Its biggest (gain|drop) (.+)$/.exec(fact);
+    if (since) {
+      out.push({ shape: "since", text: `Biggest ${since[1]} ${since[2]}`, rank: 1 });
+      continue;
+    }
+    const month = /^(?:Still )?(up|down) ([\d.]+)% over the past month$/i.exec(fact);
+    if (month) {
+      const size = Number(month[2]);
+      out.push({ shape: "month", text: `${month[1]!.charAt(0).toUpperCase()}${month[1]!.slice(1).toLowerCase()} ${month[2]}% in a month`, rank: size >= 5 ? 2.5 : 3 });
+      continue;
+    }
+    // "About twice a normal 1.0% day" or "A normal day moves it about 1.3%": the normal day, read against the move.
+    const normal = /normal ([\d.]+)% day$/.exec(fact) ?? /^A normal day moves it about ([\d.]+)%$/.exec(fact);
+    if (normal && stock.pct !== null && Number.isFinite(stock.pct)) {
+      const size = Number(normal[1]);
+      const words = normalDayWords(stock.pct, size);
+      const ratio = Math.abs(stock.pct) / size;
+      if (words) out.push({ shape: "day", text: words, rank: ratio >= VS_DAY_MIN ? 2 : ratio >= 1.25 ? 3.5 : ratio < 0.5 ? 4 : 5 });
+    }
+  }
+  return out.sort((a, b) => a.rank - b.rank);
+}
+
+/** Saying the same kind of sentence as the card before costs this much; each earlier use of the kind costs one. */
+const SAME_AS_LAST = 4;
+
+/**
+ * One fact for each card on a quiet list (the briefing's other stocks, the inbox's), in the order shown: the most
+ * telling fact each stock has, unless the card before it says the same kind of sentence, in which case its next
+ * best of another kind (owner rule 1, judges ship 46: seven cards all "Up x% in a month"). Kinds used often already
+ * cost a little more, so the list mixes them. A stock with a confirmed reason (`reasons`) says that and nothing else.
+ * Never two cards with the same words. Null for a stock with nothing to say.
+ */
+export function quietFacts(stocks: readonly QuietStock[], reasons: ReadonlySet<string> = new Set()): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  const used = new Set<string>();
+  const counts: Partial<Record<FactShape, number>> = {};
+  let last: FactShape | null = null;
+  for (const stock of stocks) {
+    if (reasons.has(stock.ticker)) {
+      out.set(stock.ticker, null);
+      last = "reason";
+      continue;
+    }
+    let best: Candidate | null = null;
+    let bestCost = Infinity;
+    for (const candidate of candidates(stock)) {
+      if (used.has(candidate.text)) continue;
+      const cost = candidate.rank + (candidate.shape === last ? SAME_AS_LAST : 0) + (counts[candidate.shape] ?? 0);
+      if (cost < bestCost) {
+        best = candidate;
+        bestCost = cost;
+      }
+    }
+    out.set(stock.ticker, best?.text ?? null);
+    if (best) {
+      used.add(best.text);
+      counts[best.shape] = (counts[best.shape] ?? 0) + 1;
+    }
+    last = best?.shape ?? null;
+  }
+  return out;
+}
+
+/** "Reports Tuesday after the close", "Reports Nov 20": a report within two weeks of `today`, else null. */
+export function reportSoonWords(report: { date: string; time?: string | null } | null | undefined, today: string): string | null {
+  if (!report || !/^\d{4}-\d{2}-\d{2}$/.test(report.date) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return null;
+  const gap = Math.round((Date.parse(`${report.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+  if (gap < 0 || gap > 14) return null;
+  const session = report.time === "amc" ? " after the close" : report.time === "bmo" ? " before the open" : "";
+  // A report today counts only after the close: before the open, or at an unknown time, it may already be out.
+  if (gap === 0 && report.time !== "amc") return null;
+  return `Reports ${whenWords(report.date, today).replace(/^on /, "")}${session}`;
 }

@@ -36,6 +36,58 @@ export function legacyCompareSymbols(query: Record<string, string | string[] | u
   return parseCompareSymbols(query.symbols ?? query.t ?? query.tickers ?? query.stocks ?? "");
 }
 
+/** The chart range whose return is the table's figure for the same period. */
+const CHART_RETURN_FIELD: Record<string, "ret_1m" | "ret_ytd" | "ret_1y" | "ret_5y"> = { "1M": "ret_1m", YTD: "ret_ytd", "1Y": "ret_1y", "5Y": "ret_5y" };
+
+const NEW_YORK_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+
+/**
+ * The rows with their 1-month, this-year, 1-year and 5-year returns taken from the chart's own lines, so the table,
+ * the differences and the read say the same figure as the chart's legend (judges, ship 46: NVDA's year was −9.84% in
+ * the chart and −9.78% in the table, two calculations from two start days). Only when the chart runs to the row's own
+ * price day: a chart a day behind keeps the row's figures rather than mixing yesterday's return with today's price.
+ */
+export function withChartReturns<Row extends ScreenerRow | null>(
+  rows: ReadonlyArray<Row>,
+  ranges: ReadonlyArray<{ key: string; endDate: string; series: ReadonlyArray<{ symbol: string; pct: number | null }> }>,
+): Row[] {
+  return rows.map((row) => {
+    if (!row) return row;
+    const priced = row.price_at && Number.isFinite(Date.parse(row.price_at)) ? NEW_YORK_DAY.format(new Date(row.price_at)) : null;
+    let next: ScreenerRow | null = null;
+    for (const range of ranges) {
+      const field = CHART_RETURN_FIELD[range.key];
+      if (!field || (priced && range.endDate < priced)) continue;
+      const pct = range.series.find((line) => line.symbol === row.symbol)?.pct;
+      if (!isFiniteNumber(pct)) continue;
+      next = { ...(next ?? row), [field]: pct };
+    }
+    return (next ?? row) as Row;
+  });
+}
+
+/**
+ * What a call card's figure is, in two or three words beside it (owner rules 6 and 7: "42%" alone needs the paragraph
+ * to say it is sales growth), read from the words around the figure in its own sentence. Null when they do not say.
+ */
+export function figureLabel(reason: string, value: string): string | null {
+  const bare = value.replace(/^[+\u2212-]/, "");
+  // The figure whole, so "42%" is never found inside "142%".
+  const at = reason.search(new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  if (at < 0) return null;
+  const before = reason.slice(0, at).toLowerCase();
+  const after = reason.slice(at + bare.length).toLowerCase();
+  const span = /^\s+(?:over|in) the (?:past|last) (five trading days|week|month|three months|six months|year|12 months)\b/.exec(after)?.[1] ?? null;
+  const when = span === "five trading days" ? "five trading days" : span === "12 months" || span === "year" ? "past year" : span ? `past ${span}` : null;
+  // "sales grew 42%", "revenue fell 5%".
+  if (/\b(?:sales|revenue)\s+(?:grew|rose|jumped|climbed|increased|fell|dropped|declined|shrank)(?:\s+by)?\s*$/.test(before)) {
+    return `sales growth${when ? `, ${when}` : ""}`;
+  }
+  // "NVIDIA fell 13% over the past five trading days".
+  if (when && /\b(?:fell|rose|gained|dropped|climbed|lost|slid|jumped)\s*$/.test(before)) return when === "five trading days" ? "in five trading days" : `in the ${when}`;
+  return null;
+}
+
 export type CompareGroupId = "price" | "valuation" | "growth" | "profitability" | "balance" | "read" | "earnings";
 
 export type CompareGroup = { id: CompareGroupId; label: string; fields: string[] };

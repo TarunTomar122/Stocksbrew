@@ -5,9 +5,11 @@ import {
   buildCompareTable,
   compareHref,
   describeDifferences,
+  figureLabel,
   legacyCompareSymbols,
   parseCompareSymbols,
   tallyWins,
+  withChartReturns,
 } from "./compare-shared";
 import type { ScreenerRow } from "./screener-shared";
 
@@ -157,5 +159,24 @@ describe("what separates them", () => {
     const [row] = describeDifferences([a, b]);
     expect(row).toMatchObject({ topic: "Profit", figure: "−4%" });
     expect(row!.text).toBe("A's operating margin, against −20% for B. Both lose money running the business.");
+  });
+});
+
+describe("call card figures and chart returns", () => {
+  it("says what a call card's figure is, from its own sentence", () => {
+    expect(figureLabel("Advanced Micro Devices' sales grew 42% over the past year, and its report on Nov 3 beat profit forecasts by 9.5%.", "42%")).toBe("sales growth, past year");
+    expect(figureLabel("NVIDIA fell 13% over the past five trading days while other chip stocks rose 5.8%.", "\u221213%")).toBe("in five trading days");
+    expect(figureLabel("It pays a 2.2% dividend.", "2.2%")).toBeNull();
+  });
+
+  it("takes the table's returns from the chart's lines when the chart runs to the price day", () => {
+    const ranges = [
+      { key: "1Y", endDate: "2026-11-11", series: [{ symbol: "NVDA", pct: -9.84 }] },
+      { key: "6M", endDate: "2026-11-11", series: [{ symbol: "NVDA", pct: 3 }] },
+    ];
+    const row: ScreenerRow = { symbol: "NVDA", ret_1y: -9.78, price_at: "2026-11-11T20:59:00Z" };
+    expect(withChartReturns([row, null], ranges)[0]?.ret_1y).toBe(-9.84);
+    // A chart a day behind the price keeps the row's own figure.
+    expect(withChartReturns([{ ...row, price_at: "2026-11-12T20:59:00Z" }], ranges)[0]?.ret_1y).toBe(-9.78);
   });
 });

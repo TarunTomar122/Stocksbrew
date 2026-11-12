@@ -7,7 +7,7 @@ import { Bar } from "@/components/oa/kit/skeleton";
 import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { agentLines, type AgentLine } from "@/lib/portfolio-home/agent-lines";
-import { loadExampleAgentsSource, loadExampleFlagStep } from "@/lib/portfolio-home/example-check-server";
+import { loadExampleAgentsSource } from "@/lib/portfolio-home/example-check-server";
 import { focusNoticed, prioritise } from "@/lib/portfolio-home/focus";
 import { watchPlan } from "@/lib/portfolio-home/loop";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
@@ -53,7 +53,7 @@ const VERDICT_CHIP: Record<Verdict, { figure: string; tone: "up" | "down" | null
 };
 
 /** The reason watcher as one more row, from the same checks the stock cards read. */
-async function ReasonRow({ load, showDay }: { load: HomeLoad; showDay: boolean }) {
+async function ReasonRow({ load, ranToday }: { load: HomeLoad; ranToday: string }) {
   const reasons = await load.sources.reasons;
   if (!reasons || reasons.state !== "ready" || reasons.value.checks.length === 0) return null;
   const checks = reasons.value.checks;
@@ -71,7 +71,7 @@ async function ReasonRow({ load, showDay }: { load: HomeLoad; showDay: boolean }
     chips: off.slice(0, 3).map((check) => ({ ticker: check.ticker, ...VERDICT_CHIP[check.verdict] })),
     more: Math.max(0, off.length - 3),
   };
-  return <AgentRow line={line} showDay={showDay} />;
+  return <AgentRow line={line} ranToday={ranToday} />;
 }
 
 /** The watches the person's stocks would want, from the findings on their holdings; none when nothing calls for one. */
@@ -105,7 +105,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
         {mine ? (
           <ul className="border-t border-oa-border empty:hidden">
             <Suspense fallback={null}>
-              <ReasonRow load={load} showDay />
+              <ReasonRow load={load} ranToday={today} />
             </Suspense>
           </ul>
         ) : null}
@@ -115,7 +115,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
 
   const own = signedIn && agents.state === "ready" && agents.value.jobs.length > 0 ? agents.value : null;
   if (own) {
-    const { lines, paused, sharedDay, ownTimes, sharedTime, next } = agentLines(own, today, { describe: describeWatch });
+    const { lines, paused, next } = agentLines(own, today, { describe: describeWatch });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head manage>Your agents</Head>
@@ -126,26 +126,28 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
         ) : (
           <>
             <ul className={AGENT_LIST}>
+              {/* Each row says when it ran, even when they all ran together (owner rule 10). */}
               {lines.map((line) => (
-                <AgentRow key={line.id} line={line} showDay={!sharedDay} showTime={ownTimes && Boolean(sharedDay)} />
+                <AgentRow key={line.id} line={line} ranToday={today} />
               ))}
               {mine ? (
                 <Suspense fallback={null}>
-                  <ReasonRow load={load} showDay />
+                  <ReasonRow load={load} ranToday={today} />
                 </Suspense>
               ) : null}
             </ul>
-            <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={paused} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
+            <AgentFoot nextWords={next ? nextCheckWords(next, today) : null} paused={paused} />
           </>
         )}
       </section>
     );
   }
 
-  // Signed out: the example's own agents, with what their latest real runs found. They open the agents page.
-  const [example, step] = !signedIn ? await Promise.all([loadExampleAgentsSource(), loadExampleFlagStep().catch(() => null)]) : [null, null];
+  // Signed out: the example's own agents, with what their latest real runs found. They open the agents page. The
+  // step after the flag (its report, then our call) is the lead's, at the top of the page, so it is not said twice.
+  const example = !signedIn ? await loadExampleAgentsSource() : null;
   if (example) {
-    const { lines, sharedDay, ownTimes, sharedTime, next } = agentLines(example, today, { hrefFor: () => "/agents" });
+    const { lines, next } = agentLines(example, today, { hrefFor: () => "/agents" });
     return (
       <section aria-labelledby="agents-head" className={CARD}>
         <Head>
@@ -154,22 +156,12 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           Agents
         </Head>
         <ul className={AGENT_LIST}>
+          {/* Each row says when it ran, even when they all ran together (owner rule 10). */}
           {lines.map((line) => (
-            <AgentRow key={line.id} line={line} showDay={!sharedDay} showTime={ownTimes && Boolean(sharedDay)} />
+            <AgentRow key={line.id} line={line} ranToday={today} />
           ))}
         </ul>
-        <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={0} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
-        {/* What the flag means for the holding and what to do next, so the agent reads as working for you (judges,
-            ship 42). Real data only: the flagged run, the stock's next report and its usual move on one. */}
-        {step ? (
-          <Link
-            href={`/stock/${encodeURIComponent(step.ticker)}`}
-            prefetch={false}
-            className="block border-t border-oa-border px-4 py-2.5 text-pretty text-[13.5px] leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
-          >
-            {step.step}
-          </Link>
-        ) : null}
+        <AgentFoot nextWords={next ? nextCheckWords(next, today) : null} paused={0} />
         <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5">
           <Link href="/agents" prefetch={false} className={WATCH_LINK}>
             Set one up for your stocks
@@ -191,7 +183,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
       {mine ? (
         <ul className="border-t border-oa-border empty:hidden">
           <Suspense fallback={null}>
-            <ReasonRow load={load} showDay />
+            <ReasonRow load={load} ranToday={today} />
           </Suspense>
         </ul>
       ) : null}

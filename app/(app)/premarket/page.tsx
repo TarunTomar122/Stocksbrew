@@ -129,7 +129,7 @@ function GapperList({ id, title, rows, verb }: { id: string; title: string; rows
     <section id={id} aria-labelledby={`${id}-label`} className="scroll-mt-20">
       <SectionHead id={`${id}-label`} title={title} count={`${rows.length} ${rows.length === 1 ? "stock" : "stocks"}`} />
       {told.length > 0 ? (
-        <WholeRows rem={30} className="max-h-[30rem] overflow-y-auto overscroll-contain scrollbar-hide">
+        <WholeRows rem={30} className="max-h-[30rem] overflow-y-auto scrollbar-hide">
           <StockCardGrid wide>
             {told.map((row, index) => (
               <GapperCard key={row.ticker} row={row} fill={stockGridFill(index, told.length, true)} />

@@ -235,7 +235,7 @@ export function ResearchReportView({ report, actions }: { report: PublicReport; 
           </span>
         </summary>
         {/* About eight rows tall, then it scrolls inside (owner rule for long lists). */}
-        <ol className="flex max-h-[20rem] flex-col divide-y divide-oa-border overflow-y-auto overscroll-contain border-t border-oa-border">
+        <ol className="flex max-h-[20rem] flex-col divide-y divide-oa-border overflow-y-auto border-t border-oa-border">
           {report.sources.map((source) => (
             <li key={source.id} id={`src-${source.id}`} className="flex gap-3 px-4 py-2 sm:px-5">
               <span className={`${NUM} w-7 shrink-0 text-[12.5px] leading-5 text-oa-muted-fg`}>{source.id.slice(1)}</span>

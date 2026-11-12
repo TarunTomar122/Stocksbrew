@@ -116,7 +116,7 @@ export function StockCard({
   expanded?: boolean;
   /** Spans that stretch the last card over its row's empty columns (`stockGridFill`); an opened card takes the row anyway. */
   fill?: string;
-  /** A short word after the name, e.g. "you watch it" on a stock the person watches rather than holds. */
+  /** A short line under the ticker, e.g. "You watch AMD." on a stock the person watches rather than holds. */
   tag?: string | null;
   /** Load the logo with the page (owner rule 5: logos load at once), for cards in the first screens. */
   eagerLogo?: boolean;

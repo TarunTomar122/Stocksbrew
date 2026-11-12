@@ -13,7 +13,7 @@
  */
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
-import { better, isForeignLanguage, labelFor, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
+import { better, isForeignLanguage, labelFor, plainStory, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
 import { headlineCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -93,10 +93,9 @@ export function toneLean(counts: ToneCounts, stories: number = totalOf(counts)):
 /**
  * A ranked row's tone (owner rule 3: each row of a ranked list carries its mood), said only where the labels support
  * one: the clear lean when there is one (`toneLean`, "75% negative"), else, with at least `MIN_TONED` stories toned,
- * "62% neutral" when most stories are neutral, or "Mixed" when both sides have at least two stories and neither leads
- * twice over. Null otherwise: too few toned stories say nothing, and the cell is left empty rather than a dash.
+ * "62% neutral" when most stories are neutral. Null otherwise (a split with no lead included): too few toned stories say nothing, and the cell is left empty rather than a dash.
  */
-export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)): { text: string; side: "positive" | "negative" | "neutral" | "mixed" } | null {
+export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)): { text: string; side: "positive" | "negative" | "neutral" } | null {
   const lean = toneLean(counts, stories);
   if (lean) return { text: lean.text, side: lean.side };
   const labelled = totalOf(counts);
@@ -104,7 +103,7 @@ export function toneWord(counts: ToneCounts, stories: number = totalOf(counts)):
   const base = Math.max(stories, labelled);
   const neutral = counts.neutral / base;
   if (neutral >= 0.5) return { text: `${Math.round(neutral * 100)}% neutral`, side: "neutral" };
-  if (counts.positive >= 2 && counts.negative >= 2) return { text: "Mixed", side: "mixed" };
+  // Both sides with no lead is left unsaid: "Mixed" carried no figure (owner rules 3 and 5: one figure or nothing).
   return null;
 }
 
@@ -178,8 +177,8 @@ export type StockBuzz = {
   /** Share of all stock mentions in the window, in whole percent. */
   share: number;
   tones: ToneCounts;
-  /** The one headline to read first. */
-  lead: WireItem;
+  /** The one headline to read first: one that says what happened (`plainStory`), null when every story is bait. */
+  lead: WireItem | null;
   /** Recency-weighted coverage; the ranking key. */
   score: number;
   latestAt: string;
@@ -222,7 +221,9 @@ export function stockBuzz(
   for (const [ticker, group] of byTicker) {
     // The headline to read first: a publisher's story about this company that says something, newest first.
     const pull = (item: WireItem) => storyRelevance(item) + ((labelFor(labels, item, ticker)?.tone ?? "neutral") !== "neutral" ? 0.3 : 0);
-    const lead = [...group.items].sort((a, b) => pull(b) - pull(a) || (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))[0]!;
+    // Bait headlines ("Dear Nebius stock fans…") never lead: told by the publisher's plain first sentence, or skipped.
+    const plain = group.items.map(plainStory).filter((item): item is WireItem => item !== null);
+    const lead = plain.sort((a, b) => pull(b) - pull(a) || (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0))[0] ?? null;
     rows.push({
       ticker,
       name: nameOf(quotes, ticker),
@@ -378,6 +379,7 @@ function rose(pct: number): string {
 
 /** The lead headline as a person would write it, quoted, for "the top story" lines. */
 function topStory(row: StockBuzz, lead = "The top story"): string | null {
+  if (!row.lead) return null;
   const title = headlineCase(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
   return title ? `${lead}: “${title}”.` : null;
 }
@@ -416,8 +418,11 @@ export function marketRead(input: MarketReadInput): TheRead | null {
         ? `${leader.ticker} ${rose(leader.pct)} today on ${leader.count} stories${toneBit}.`
         : `${leader.ticker} drew ${leader.count} stories in the last day${toneBit}.`;
     let soWhat: string | undefined;
-    if (lean && leader.pct !== null && Math.abs(leader.pct) >= 2 && (lean.side === "negative") === leader.pct > 0) {
-      soWhat = leader.pct > 0 ? "Buyers are looking past the bad headlines so far." : "Sellers are ignoring the good headlines so far.";
+    // A price and a tone pointing opposite ways: the sentence above already says both, and nothing more is said, since
+    // why buyers or sellers did it ("looking past the bad headlines") is a motive the figures do not show (owner rule 7).
+    const against = Boolean(lean && leader.pct !== null && Math.abs(leader.pct) >= 2 && (lean.side === "negative") === leader.pct > 0);
+    if (against) {
+      // Nothing to add: the price and the tone are both in the sentence.
     } else if (surge && leader.pct !== null && Math.abs(leader.pct) < 1) {
       soWhat = "All that news has barely moved the stock so far.";
     } else if (surge && leader.pct !== null && Math.abs(leader.pct) >= 2) {

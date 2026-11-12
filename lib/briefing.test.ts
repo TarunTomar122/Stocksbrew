@@ -240,7 +240,7 @@ describe("buildBriefing: nothing to report", () => {
       input({ positions: [position({ ticker: "AAPL", price: null, day_change_pct: null })] }),
     );
     expect(briefing.needs_you).toEqual([]);
-    expect(briefing.quiet.names[0]).toEqual({ ticker: "AAPL", relation: "holding", day_change_pct: null });
+    expect(briefing.quiet.names[0]).toMatchObject({ ticker: "AAPL", relation: "holding", day_change_pct: null });
     expect(briefing.quiet.text).toBe("The one name you track is quiet.");
     expect(briefing.quiet.text).not.toContain("0.00%");
   });

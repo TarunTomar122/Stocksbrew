@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupByCompany, isForeignLanguage, marketHeadlines, titleKey } from "@/lib/wire-companies";
+import { groupByCompany, isBaitTitle, isForeignLanguage, marketHeadlines, plainStory, titleKey } from "@/lib/wire-companies";
 import type { WireItem } from "@/lib/wire-shared";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
@@ -116,5 +116,65 @@ describe("wire by company", () => {
       { sinceMs: SINCE },
     );
     expect(rows.map((row) => row.title)).toEqual(["Fed holds rates"]);
+  });
+});
+
+describe("bait headlines", () => {
+  it("knows a headline written to be clicked from one that says what happened", () => {
+    for (const title of [
+      "Dear Nebius stock fans, mark your calendars for November 12",
+      "Nebius Group (NBIS) is rocketing 15% higher — here’s what could move shares next",
+      "Analyst says Sandisk Corp. (SNDK) offers more than 100% upside. Should you buy?",
+      "Samsara Inc. (IOT) outpaces stock market gains: What you should know",
+      "Why CoreWeave Inc. (CRWV) is surging this much",
+      "I'd buy Dutch Bros shares without any hesitation right now",
+      "Here's how much a $1000 investment in Badger Meter made 10 years ago would be worth today",
+      "Nebius stock dropped 30% in a week. Is it time to sell or load up?",
+      "Is trending stock Abbott Laboratories (ABT) a buy now?",
+    ]) {
+      expect(isBaitTitle(title), title).toBe(true);
+    }
+    for (const title of [
+      "Nvidia worth 25% less without Jensen Huang as CEO, Yorkville Ives says",
+      "Tesla extends Cybertruck production to clear backlog, Musk says",
+      "Affirm shares jump as buy now, pay later volumes grow",
+      "Oracle stock gets a boost after CoreWeave earnings",
+      "Super Micro names new CFO in Q4 shake-up",
+      "Pfizer deal could be worth up to $10 billion",
+      "Will the Fed hold rates in December?",
+      "Musk to sell $5 billion of Tesla stock?",
+      "Jensen Huang: I think demand is still rising",
+    ]) {
+      expect(isBaitTitle(title), title).toBe(false);
+    }
+  });
+
+  it("tells a bait story by the publisher's plain first sentence, or leaves it out", () => {
+    const told = plainStory(
+      item({
+        title: "Oracle stock gets a boost. Here's what's next for tech giant's AI push.",
+        excerpt: "Oracle Chief Financial Officer Hilary Maxson said the company will add 7 gigawatts of data center capacity. More follows.",
+        excerptOrigin: "publisher",
+      }),
+    );
+    expect(told?.title).toBe("Oracle Chief Financial Officer Hilary Maxson said the company will add 7 gigawatts of data center capacity.");
+    // Site boilerplate and a question are not a plain sentence: the story is left out rather than retold.
+    expect(plainStory(item({ title: "Why CoreWeave Inc. (CRWV) is surging this much", excerpt: "CoreWeave Inc. (NASDAQ:CRWV) is on the AI Stocks Dominating List of Biggest Winners.", excerptOrigin: "publisher" }))).toBeNull();
+    expect(plainStory(item({ title: "Should you buy Airbnb?", excerpt: "Is there more upside ahead?", excerptOrigin: "publisher" }))).toBeNull();
+    // A plain headline is untouched.
+    const plain = item({ title: "Tesla extends Cybertruck production to clear backlog" });
+    expect(plainStory(plain)).toBe(plain);
+  });
+
+  it("shows only plain stories on a company's card, still counting every one", () => {
+    const groups = groupByCompany(
+      [
+        item({ tickers: ["NBIS"], title: "Dear Nebius stock fans, mark your calendars for November 12" }),
+        item({ tickers: ["NBIS"], title: "Nebius signs a $3 billion capacity deal with Meta" }),
+      ],
+      { sinceMs: SINCE, quotes: { NBIS: { pct: 15, name: "Nebius Group" } } },
+    );
+    expect(groups[0]?.count).toBe(2);
+    expect(groups[0]?.items.map((story) => story.title)).toEqual(["Nebius signs a $3 billion capacity deal with Meta"]);
   });
 });

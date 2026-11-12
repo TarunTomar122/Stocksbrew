@@ -4,7 +4,8 @@ import { IntentLink } from "@/components/oa/intent-link";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 
 import { NavIcon } from "@/components/oa/nav-icon";
-import { MORE_LINKS, PLACES, placeFor, sectionFor, type NavItem, type NavPlace } from "@/components/oa/nav-items";
+import { MORE_LINKS, PLACES, placeFor, sectionFor, sectionsNow, type NavItem, type NavPlace } from "@/components/oa/nav-items";
+import { usePremarketOpen } from "@/components/oa/use-premarket-open";
 
 const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -48,6 +49,7 @@ function SectionRow({ item, current }: { item: NavItem; current: boolean }) {
  */
 export function SidebarNav() {
   const pathname = usePublicPathname() ?? "/";
+  const premarketOpen = usePremarketOpen();
   const place = placeFor(pathname);
   const current = sectionFor(pathname, place);
   return (
@@ -55,14 +57,15 @@ export function SidebarNav() {
       <ul className="flex flex-col gap-0.5">
         {PLACES.map((item) => {
           const active = item === place;
-          const showSections = active && item.sections.length > 1;
+          const sections = sectionsNow(item.sections, premarketOpen);
+          const showSections = active && sections.length > 1;
           return (
             <li key={item.href}>
               <PlaceRow place={item} active={active} current={active && !showSections && pathname === item.href} />
               {showSections ? (
                 <ul className="mb-2 ml-[21px] mt-0.5 flex flex-col gap-px border-l border-oa-border pl-2">
-                  {item.sections.map((sub, index) => {
-                    const heading = sub.group && sub.group !== item.sections[index - 1]?.group ? sub.group : null;
+                  {sections.map((sub, index) => {
+                    const heading = sub.group && sub.group !== sections[index - 1]?.group ? sub.group : null;
                     return (
                       <li key={sub.href}>
                         {/* A group label, not a link (owner, Nov 11: "feels like I can click them"): small capitals, quieter than any row. */}
