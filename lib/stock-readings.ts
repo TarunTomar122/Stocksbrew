@@ -41,7 +41,14 @@ export function roundPct(value: number): string {
 
 function cents(marginPct: number): string {
   const n = Math.round(Math.abs(marginPct));
+  // A loss bigger than the sale itself reads as dollars ("$1.45"), not "145 cents".
+  if (n >= 100) return `$${(Math.abs(marginPct) / 100).toFixed(2)}`;
   return `${n} ${n === 1 ? "cent" : "cents"}`;
+}
+
+/** Under half a cent either way rounds to "0 cents", which reads as nonsense ("loses 0 cents"): call it break-even. */
+function breaksEven(marginPct: number): boolean {
+  return Math.abs(marginPct) < 0.5;
 }
 
 /** `financial_history` arrives newest first with "TTM" at the head. */
@@ -98,6 +105,9 @@ export function marginReading(facts: StockFacts | null | undefined): Reading | n
     base && fin(base.operating_margin_pct) && Math.abs(base.operating_margin_pct - now) >= 2
       ? `, ${now > base.operating_margin_pct ? "up" : "down"} from ${base.operating_margin_pct < 0 ? "a loss of " : ""}${cents(base.operating_margin_pct)} in ${base.period}`
       : "";
+  if (breaksEven(now)) {
+    return { statement: `It about breaks even at the operating line${baseText}.`, tone: "neutral", verdict: "Breaking even" };
+  }
   if (now >= 0) {
     return {
       statement: `It keeps ${cents(now)} of every revenue dollar as operating profit${baseText}.`,
@@ -214,9 +224,11 @@ export function businessHeadline(facts: StockFacts | null | undefined, balanceSh
         : "Revenue is flat on a year ago"
     : null;
   const marginPart = fin(margin)
-    ? margin >= 0
-      ? `${cents(margin)} of every dollar becomes operating profit`
-      : `it loses ${cents(margin)} on every dollar of sales`
+    ? breaksEven(margin)
+      ? "it about breaks even on its sales"
+      : margin >= 0
+        ? `${cents(margin)} of every dollar becomes operating profit`
+        : `it loses ${cents(margin)} on every dollar of sales`
     : null;
   const cashPart = fcfRow && fin(fcfRow.free_cash_flow)
     ? fcfRow.free_cash_flow >= 0
