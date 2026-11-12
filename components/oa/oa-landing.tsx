@@ -122,7 +122,7 @@ export async function OaLanding() {
             <SectionHead
               title="What we'd do with each stock you own."
               lede="No broker login, so nothing here can touch your money."
-              href="/portfolio?tab=holdings"
+              href="/portfolio"
               hrefLabel="Add your stocks"
             />
             <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>

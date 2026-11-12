@@ -99,10 +99,10 @@ export const PLACES: NavPlace[] = [
     match: ["/import"],
     icon: "portfolio",
     blurb: "What you own and watch, and how it is doing",
-    // The overview first (with the holdings editor as its tabs), then the tools in the order you would use them:
-    // see what you have, plan ahead, act.
+    // The holdings first (with Watching and Alerts as their tabs; the overview went on Nov 12: "we dont need overview
+    // since briefing is there"), then the tools in the order you would use them: see what you have, plan ahead, act.
     sections: [
-      section("Overview", "/portfolio", "portfolio", ["/import"]),
+      section("Holdings", "/portfolio", "portfolio", ["/import"]),
       section("Weekly memo", "/portfolio/memo", "briefing", [], "Your stocks"),
       section("Analysis", "/portfolio/xray", "portfolio", [], "Your stocks"),
       section("Earnings season", "/portfolio/earnings", "calendar", [], "Plan ahead"),
@@ -213,16 +213,15 @@ export function stripOrder(place: NavPlace | NavItem[], current: NavItem | null)
   return [...items.slice(at), ...items.slice(0, at)];
 }
 
-/** The views of My stocks' overview page (components/portfolio/my-stocks-tabs.tsx draws them as tabs from lg up). */
-export type MyStocksView = "overview" | "holdings" | "watching" | "alerts";
+/** The views of My stocks' /portfolio page (components/portfolio/my-stocks-tabs.tsx draws them as tabs from lg up). */
+export type MyStocksView = "holdings" | "watching" | "alerts";
 
 /**
  * My stocks' own tabs as phone strip pills. Below lg the strip is the page's one level of navigation, so the tabs
  * join it instead of drawing a second bar under it (owner, Nov 11: "Overview" twice on a phone).
  */
 export const MY_STOCKS_VIEW_ITEMS: ReadonlyArray<NavItem & { view: MyStocksView }> = [
-  { view: "overview", label: "Overview", href: "/portfolio", match: ["/import"], icon: "portfolio" },
-  { view: "holdings", label: "Holdings", href: "/portfolio?tab=holdings", match: [], icon: "portfolio" },
+  { view: "holdings", label: "Holdings", href: "/portfolio", match: ["/import"], icon: "portfolio" },
   { view: "watching", label: "Watching", href: "/portfolio?tab=watching", match: [], icon: "portfolio" },
   { view: "alerts", label: "Alerts", href: "/portfolio?tab=alerts", match: [], icon: "alerts" },
 ];
@@ -235,20 +234,20 @@ export function sectionsNow<T extends NavItem>(sections: readonly T[], premarket
   return premarketOpen ? [...sections] : sections.filter((item) => item.href !== PREMARKET_HREF);
 }
 
-/** The pills of a place's phone strip: its sections, with My stocks' overview split into its tabs. */
+/** The pills of a place's phone strip: its sections, with My stocks' /portfolio split into its tabs. */
 export function stripItems(place: NavPlace, premarketOpen = false): NavItem[] {
   if (place.href !== "/portfolio") return sectionsNow(place.sections, premarketOpen);
   return [...MY_STOCKS_VIEW_ITEMS, ...place.sections.filter((item) => item.href !== "/portfolio")];
 }
 
 /**
- * The strip pill that is lit: the section the path sits in, or on My stocks' overview page the tab on show
- * (`view`, read from the address in the browser; the overview when unknown).
+ * The strip pill that is lit: the section the path sits in, or on My stocks' /portfolio the tab on show (`view`, read
+ * from the address in the browser; the holdings when unknown).
  */
 export function stripCurrent(place: NavPlace, pathname: string, view: MyStocksView | null): NavItem | null {
   const section = sectionFor(pathname, place);
   if (place.href !== "/portfolio" || section?.href !== "/portfolio") return section;
-  const shown = pathname === "/portfolio" ? view ?? "overview" : "overview";
+  const shown = pathname === "/portfolio" ? view ?? "holdings" : "holdings";
   return MY_STOCKS_VIEW_ITEMS.find((item) => item.view === shown) ?? null;
 }
 
@@ -258,8 +257,7 @@ export function myStocksViewOf(search: string): MyStocksView {
   const tab = (params.get("tab") ?? "").toLowerCase();
   if (tab === "watching" || tab === "alerts") return tab;
   if (tab === "holdings" || tab === "positions" || tab === "analytics") return "holdings";
-  if (params.get("reasons") === "1") return "holdings";
-  return "overview";
+  return "holdings";
 }
 
 /** The icon of the section (or place) that owns a path: page titles and link lists use it, so a place looks the same everywhere. */

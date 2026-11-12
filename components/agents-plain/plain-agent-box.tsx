@@ -385,7 +385,7 @@ export function PlainAgentBox({
           {emptyList ? (
             <p className="mt-3 text-pretty text-[13.5px] leading-5 text-oa-fg">
               You don&apos;t track any stocks yet, so this has nothing to watch until you add some in{" "}
-              <Link href="/portfolio?tab=holdings" className="font-medium underline underline-offset-2">
+              <Link href="/portfolio" className="font-medium underline underline-offset-2">
                 My stocks
               </Link>
               .

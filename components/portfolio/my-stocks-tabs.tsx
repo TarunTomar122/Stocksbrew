@@ -4,17 +4,16 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 /**
- * The tabs of My stocks: the overview, the holdings editor's three views and taxes, drawn the same way on each of
+ * The tabs of My stocks: the holdings editor's three views and taxes, drawn the same way on each of
  * them. Everything lives under /portfolio (the old /watchlist pages redirect here, next.config.js). The holdings,
  * watching and alerts views are one client page, so switching between them passes `onSelect` and stays in the
- * browser; the overview and taxes are their own loads.
+ * browser; taxes is its own load. The overview went on Nov 12 (owner: "we dont need overview since briefing is there").
  */
 
-export type MyStocksTab = "overview" | "holdings" | "watching" | "alerts" | "taxes";
+export type MyStocksTab = "holdings" | "watching" | "alerts" | "taxes";
 
 export const MY_STOCKS_TABS: ReadonlyArray<{ id: MyStocksTab; label: string; href: string }> = [
-  { id: "overview", label: "Overview", href: "/portfolio" },
-  { id: "holdings", label: "Holdings", href: "/portfolio?tab=holdings" },
+  { id: "holdings", label: "Holdings", href: "/portfolio" },
   { id: "watching", label: "Watching", href: "/portfolio?tab=watching" },
   { id: "alerts", label: "Alerts", href: "/portfolio?tab=alerts" },
   { id: "taxes", label: "Taxes", href: "/portfolio/taxes" },

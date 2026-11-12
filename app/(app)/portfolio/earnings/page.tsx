@@ -26,7 +26,7 @@ export default function EarningsSeasonPage() {
       <PageHead
         title="Earnings season"
         crumb={
-          <Link href="/portfolio?tab=holdings" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
+          <Link href="/portfolio" className="underline decoration-oa-border underline-offset-2 hover:text-oa-fg">
             Portfolio
           </Link>
         }
@@ -95,7 +95,7 @@ async function Planner() {
         ) : session ? (
           <>
             You are not tracking any stocks yet, so this is the example portfolio.{" "}
-            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio" className="font-medium text-oa-primary hover:underline">
               Add the stocks you own or watch in Portfolio
             </Link>{" "}
             to plan your own earnings season.
@@ -103,7 +103,7 @@ async function Planner() {
         ) : (
           <>
             This is an example portfolio with made-up share counts and real report dates.{" "}
-            <Link href="/portfolio?tab=holdings" className="font-medium text-oa-primary hover:underline">
+            <Link href="/portfolio" className="font-medium text-oa-primary hover:underline">
               Sign in and add your stocks
             </Link>{" "}
             to see the reports coming for yours.

@@ -20,6 +20,8 @@ import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import { buildHubRows } from "@/lib/watchlist-hub-data";
 import { FUNDS_SECTOR, loadExamplePortfolio, loadPortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { getFundCatalog } from "@/lib/funds/server";
+import { getScreenerRows } from "@/lib/screener";
+import type { ScreenerRow } from "@/lib/screener-shared";
 import { pricesWords } from "@/lib/portfolio-prices";
 import { getMarketDay } from "@/lib/insight-data";
 import type { PortfolioRowInput, PortfolioTab } from "@/lib/portfolio-shared";
@@ -30,7 +32,7 @@ import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { RadarPageAnalytics } from "@/components/radar-page-analytics";
 
 /**
- * The holdings editor under My stocks (/portfolio?tab=holdings, watching or alerts; it was /watchlist until Nov 11):
+ * The holdings editor under My stocks (/portfolio, watching or alerts; it was /watchlist until Nov 11):
  * the person's holdings as an editable table (shares, average cost, remove), the stocks they watch, and their alerts.
  * Signed out or with nothing tracked, it is the example portfolio under a line on how to start. Every read and write
  * is the one /watchlist made; only the address changed.
@@ -148,7 +150,7 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
 
   const ideasBase = buildIdeas(watchlistView?.suggestions);
   const ideaIds = collectIdeaInstrumentIds(ideasBase);
-  const [rowsPriced, labelsById, radarStockStates, earningsDocs, anomaliesByTicker, ideaMarket, premarketDoc, userAlerts, funds] =
+  const [rowsPriced, labelsById, radarStockStates, earningsDocs, anomaliesByTicker, ideaMarket, premarketDoc, userAlerts, funds, screenerRows] =
     await Promise.all([
       overlayLatestPrices(rowsBase).catch(() => rowsBase),
       getInstrumentLabels(instrumentIds).catch(() => new Map()),
@@ -159,6 +161,8 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
       getPremarketMovers("US").catch(() => null),
       listStockAlerts(uid, { limit: 100 }).catch(() => []),
       getFundCatalog().catch(() => new Map<string, string>()),
+      // Size band and a sector for rows that lack one, for the filters (cached snapshot; empty on a miss).
+      getScreenerRows(anomalyTickers).catch(() => new Map<string, ScreenerRow>()),
     ]);
   // Price zones are part of covering a stock. A Free account that follows more
   // than its covered limit (accounts from before the limit, or after Pro ends)
@@ -189,11 +193,13 @@ export async function HoldingsStream({ tab }: { tab: PortfolioTab }) {
     // A fund gets no call of ours and counts as a fund, not a sector (lib/funds).
     const fund = funds.has(hub.ticker.toUpperCase());
     const levels = !fund && canSeeLevels(viewer, hub.instrument_id);
+    const screened = screenerRows.get(hub.ticker.toUpperCase());
     return {
       instrument_id: hub.instrument_id,
       ticker: hub.ticker,
       name: fund && hub.name.toUpperCase() === hub.ticker.toUpperCase() ? funds.get(hub.ticker.toUpperCase()) ?? hub.name : hub.name,
-      sector: fund ? FUNDS_SECTOR : asString(raw?.sector_label) ?? asString(raw?.instrument_sector),
+      sector: fund ? FUNDS_SECTOR : asString(raw?.sector_label) ?? asString(raw?.instrument_sector) ?? asString(screened?.sector),
+      cap_tier: fund ? null : screened?.cap_tier ?? null,
       kind: hub.position_type,
       price: hub.price,
       day_change_pct: hub.day_change_pct,

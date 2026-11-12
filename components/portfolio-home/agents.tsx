@@ -48,7 +48,7 @@ async function reasonLine(load: HomeLoad): Promise<AgentLine | null> {
   const off = checks.filter((check) => check.verdict !== "holds");
   const line: AgentLine = {
     id: "reasons",
-    href: "/portfolio?tab=holdings&reasons=1",
+    href: "/portfolio?reasons=1",
     kind: "reasons",
     name: "Your reasons",
     rule: "Checks the reasons you gave for owning your stocks.",

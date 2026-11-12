@@ -120,14 +120,14 @@ async function exampleDividends(): Promise<DividendSource | null> {
   const seeds = await exampleSeeds();
   if (!seeds || seeds.length === 0) return null;
   const { plan } = await loadDividendPlan(seeds);
-  return { plan, read: buildDividendRead(plan, { example: true, editHref: "/portfolio?tab=holdings" }) };
+  return { plan, read: buildDividendRead(plan, { example: true, editHref: "/portfolio" }) };
 }
 
 async function userDividends(userDoc: UserDoc): Promise<DividendSource | null> {
   const seeds = holdingSeeds(userDoc);
   if (seeds.length === 0) return null;
   const { plan } = await loadDividendPlan(seeds);
-  return { plan, read: buildDividendRead(plan, { example: false, editHref: "/portfolio?tab=holdings" }) };
+  return { plan, read: buildDividendRead(plan, { example: false, editHref: "/portfolio" }) };
 }
 
 /** What the reason watcher found on the person's holdings (lib/thesis-watch), checked and stored as on Portfolio. */

@@ -83,7 +83,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Signed-in people skip the landing page and go straight to their holdings
-  // (/portfolio?tab=holdings). Only the cookie's presence is checked here (the
+  // (/portfolio). Only the cookie's presence is checked here (the
   // edge cannot verify it); a stale cookie just lands on the signed-out view,
   // the example portfolio's. `/?home=1` keeps the landing page reachable for
   // someone who is signed in.
@@ -99,7 +99,7 @@ export function middleware(request: NextRequest) {
     // if I'm signed in").
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = "/portfolio";
-    homeUrl.search = "?tab=holdings";
+    homeUrl.search = "";
     const response = NextResponse.redirect(homeUrl, 307);
     response.headers.set("Cache-Control", "private, no-store");
     appendVaryAccept(response.headers);

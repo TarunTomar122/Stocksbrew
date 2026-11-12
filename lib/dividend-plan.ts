@@ -511,7 +511,7 @@ export type DividendReadOptions = {
  */
 export function buildDividendRead(plan: DividendPlan, options: DividendReadOptions = {}): TheRead | null {
   const example = options.example === true;
-  const editHref = options.editHref ?? "/portfolio?tab=holdings";
+  const editHref = options.editHref ?? "/portfolio";
   if (plan.stocks.length === 0) return null;
   const payers = plan.stocks.filter((s) => s.perShare > 0);
 

@@ -69,23 +69,23 @@ describe("placeFor and sectionFor", () => {
     expect(sectionOf("/stock/NVDA")).toBeNull();
   });
 
-  it("opens My stocks on its overview and lights each tool by the longest prefix", () => {
+  it("opens My stocks on its holdings and lights each tool by the longest prefix", () => {
     expect(PLACES.find((item) => item.label === "My stocks")!.href).toBe("/portfolio");
-    expect(sectionOf("/portfolio")).toBe("Overview");
+    expect(sectionOf("/portfolio")).toBe("Holdings");
     expect(sectionOf("/portfolio/memo")).toBe("Weekly memo");
     expect(sectionOf("/portfolio/xray")).toBe("Analysis");
     expect(sectionOf("/portfolio/earnings")).toBe("Earnings season");
     expect(sectionOf("/portfolio/goal")).toBe("Goal planner");
     expect(sectionOf("/portfolio/ideas")).toBe("Rebalancing ideas");
     expect(sectionOf("/portfolio/taxes")).toBe("Taxes");
-    expect(sectionOf("/import")).toBe("Overview");
+    expect(sectionOf("/import")).toBe("Holdings");
     expect(sectionOf("/practice")).toBe("Practice account");
   });
 
   it("groups the My stocks tools the way you use them: your stocks, plan ahead, act", () => {
     const sections = PLACES.find((item) => item.label === "My stocks")!.sections;
     expect(sections.map((item) => [item.label, item.group ?? null])).toEqual([
-      ["Overview", null],
+      ["Holdings", null],
       ["Weekly memo", "Your stocks"],
       ["Analysis", "Your stocks"],
       ["Earnings season", "Plan ahead"],
@@ -185,8 +185,9 @@ describe("My stocks on the phone strip", () => {
 
   it("shows My stocks' tabs as pills, once each, then the other pages", () => {
     const labels = stripItems(mine).map((item) => item.label);
-    expect(labels.slice(0, 5)).toEqual(["Overview", "Holdings", "Watching", "Alerts", "Weekly memo"]);
-    expect(labels.filter((label) => label === "Overview")).toHaveLength(1);
+    expect(labels.slice(0, 4)).toEqual(["Holdings", "Watching", "Alerts", "Weekly memo"]);
+    expect(labels.filter((label) => label === "Holdings")).toHaveLength(1);
+    expect(labels).not.toContain("Overview");
     expect(labels).toContain("Taxes");
     // Every other place keeps its sections as they are, except Premarket outside the premarket session.
     const today = placeFor("/briefing")!.sections;
@@ -200,22 +201,22 @@ describe("My stocks on the phone strip", () => {
     expect(sectionsNow(today, false).some((item) => item.href === "/premarket")).toBe(false);
   });
 
-  it("lights the tab on show on the overview page, and the section elsewhere", () => {
-    expect(stripCurrent(mine, "/portfolio", null)?.label).toBe("Overview");
+  it("lights the tab on show on /portfolio, and the section elsewhere", () => {
+    expect(stripCurrent(mine, "/portfolio", null)?.label).toBe("Holdings");
     expect(stripCurrent(mine, "/portfolio", "watching")?.label).toBe("Watching");
     expect(stripCurrent(mine, "/portfolio/memo", "watching")?.label).toBe("Weekly memo");
     expect(stripCurrent(mine, "/portfolio/taxes", null)?.label).toBe("Taxes");
-    expect(stripCurrent(mine, "/import", null)?.label).toBe("Overview");
+    expect(stripCurrent(mine, "/import", null)?.label).toBe("Holdings");
     // The lit pill is one of the strip's own items, so the strip can find it.
     expect(stripItems(mine)).toContain(stripCurrent(mine, "/portfolio", "alerts"));
   });
 
   it("reads the view from the address the way the page does", () => {
-    expect(myStocksViewOf("")).toBe("overview");
+    expect(myStocksViewOf("")).toBe("holdings");
     expect(myStocksViewOf("?tab=watching")).toBe("watching");
     expect(myStocksViewOf("?tab=Alerts")).toBe("alerts");
     expect(myStocksViewOf("?tab=positions")).toBe("holdings");
     expect(myStocksViewOf("?reasons=1")).toBe("holdings");
-    expect(myStocksViewOf("?tab=nonsense")).toBe("overview");
+    expect(myStocksViewOf("?tab=nonsense")).toBe("holdings");
   });
 });

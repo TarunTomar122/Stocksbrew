@@ -243,7 +243,7 @@ function addZoneInsight(items: BriefingItem[], index: IndexMove): Insight | null
       ? `The ${index.name} is down ${pct(index.change_pct, 2)}, so most got there with the market. Reread a call before adding.`
       : "Reread a call before adding.",
     tickers: named,
-    action: { label: "Open your list", href: "/portfolio?tab=holdings" },
+    action: { label: "Open your list", href: "/portfolio" },
   };
 }
 

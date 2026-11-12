@@ -9,6 +9,7 @@
  * shows a dash. A holding with no share count has no value, no weight and no
  * gain; it is never counted as zero.
  */
+import type { CapTier } from "@/lib/screener-shared";
 import { callWord } from "@/lib/stock-chart";
 
 
@@ -33,6 +34,8 @@ export type PortfolioRowInput = {
   reason?: string | null;
   /** Fallback when the earnings calendar has nothing for the ticker. */
   earnings_date?: string | null;
+  /** The screener's size band, for the Holdings and Watching size filter. */
+  cap_tier?: CapTier | null;
 };
 
 export type HoldingInput = {
@@ -85,6 +88,8 @@ export type PortfolioPosition = {
   /** Annualised volatility of daily returns over the last year, percent. */
   volatility: number | null;
   sinceSaved: SinceSaved | null;
+  /** The screener's size band ("mega" to "micro"), when known. */
+  capTier?: CapTier | null;
 };
 
 export type AllocationSlice = { label: string; weight: number; value: number | null; count: number };
@@ -342,6 +347,7 @@ export function buildPortfolio(inputs: PortfolioInputs): Portfolio {
       volatility: annualisedVolatility([...returns.values()]),
       sinceSaved:
         row.kind === "holding" ? performanceSince(holding?.updated_at, series, inputs.benchmark) : null,
+      capTier: row.cap_tier ?? null,
     };
   });
 
@@ -559,7 +565,8 @@ export function parsePortfolioTab(value: string | null | undefined): PortfolioTa
 }
 
 /**
- * Which view of the holdings editor a /portfolio request opens, or null for the overview. The old /watchlist
+ * Which view of the holdings editor a /portfolio request opens, or null when it names none (the page opens the
+ * holdings then). The old /watchlist
  * addresses arrive with their query (next.config.js), so ?tab=positions and ?tab=analytics open the holdings, and so
  * does ?reasons=1 (the reasons sheet sits on the holdings).
  */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ANON_PREFIX, anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
+import { FILTER_PARAMS } from "@/lib/portfolio-filters";
 
 const view = (url: string, country: string | null = null) => {
   const parsed = new URL(url, "https://www.stocksbrew.online");
@@ -14,8 +15,11 @@ describe("anonViewPath", () => {
     expect(view("/briefing")).toBe(`${ANON_PREFIX}/briefing`);
     expect(view("/explore")).toBe(`${ANON_PREFIX}/explore`);
     expect(view("/portfolio")).toBe(`${ANON_PREFIX}/portfolio`);
-    // The holdings editor's tabs and the reasons sheet are live pages.
-    expect(view("/portfolio?tab=holdings")).toBeNull();
+    // The other tabs, the reasons sheet and the list filters are live pages.
+    expect(view("/portfolio?tab=watching")).toBeNull();
+    expect(view("/portfolio?sector=technology")).toBeNull();
+    // Every filter key, so a new filter cannot be served the unfiltered cached copy (lib/portfolio-filters.ts).
+    for (const key of FILTER_PARAMS) expect(view(`/portfolio?${key}=1`)).toBeNull();
     expect(view("/portfolio?reasons=1")).toBeNull();
     expect(view("/")).toBe(ANON_PREFIX);
   });

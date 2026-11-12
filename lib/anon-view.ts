@@ -44,9 +44,9 @@ const STOCK_PAGE_RE = /^\/stock\/[A-Z0-9][A-Z0-9.-]{0,15}$/;
 const CACHED_PAGES = new Map<string, readonly string[]>([
   ["/briefing", ["day"]],
   ["/explore", []],
-  // Signed out, My stocks is the example portfolio: the same page for everyone. Its other tabs (?tab=holdings,
-  // watching, alerts) and ?reasons=1 are live pages.
-  ["/portfolio", ["tab", "reasons"]],
+  // Signed out, My stocks is the example portfolio's holdings: the same page for everyone. Its other tabs (?tab=
+  // watching, alerts), ?reasons=1 and the list filters (lib/portfolio-filters.ts FILTER_PARAMS) are live pages.
+  ["/portfolio", ["tab", "reasons", "sector", "call", "size", "type", "near", "reports", "moving"]],
 ]);
 
 /**

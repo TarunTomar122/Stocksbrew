@@ -50,7 +50,7 @@ export function FreeToolHero({
           All tools
         </Link>
         <Link
-          href="/portfolio?tab=holdings"
+          href="/portfolio"
           className="inline-flex h-10 items-center rounded-full bg-oa-primary px-4 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:bg-[color-mix(in_srgb,var(--oa-primary)_88%,black)] active:translate-y-px active:scale-[0.98]"
         >
           Open Watchlist

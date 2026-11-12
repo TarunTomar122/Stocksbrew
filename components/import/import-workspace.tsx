@@ -347,11 +347,11 @@ export function ImportWorkspace({
           <ThesisStep
             stocks={saved.stocks.slice(0, 20)}
             onDone={() => {
-              router.push("/portfolio?tab=holdings");
+              router.push("/portfolio");
             }}
           />
         </section>
-        <Link href="/portfolio?tab=holdings" className="self-start px-2 text-[14px] text-oa-muted-fg underline underline-offset-4 hover:text-oa-fg sm:px-0">
+        <Link href="/portfolio" className="self-start px-2 text-[14px] text-oa-muted-fg underline underline-offset-4 hover:text-oa-fg sm:px-0">
           Go to your portfolio
         </Link>
       </div>

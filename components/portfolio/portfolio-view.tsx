@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AlertsTab,
@@ -25,6 +25,7 @@ import {
   SectionTitle,
   signTone,
 } from "@/components/portfolio/parts";
+import { PositionFilterBar } from "@/components/portfolio/position-filters";
 import { PositionsTable } from "@/components/portfolio/positions-table";
 import { MY_STOCKS_SELECT_EVENT, MyStocksTabs, type MyStocksTab } from "@/components/portfolio/my-stocks-tabs";
 import { ImportButton } from "@/components/import/import-button";
@@ -46,6 +47,17 @@ import {
   type PortfolioPosition,
   type PortfolioTab,
 } from "@/lib/portfolio-shared";
+import {
+  activeCount,
+  applyFilters,
+  filterOptions,
+  NO_FILTERS,
+  parseFilters,
+  readableQuery,
+  usableFilters,
+  writeFilters,
+  type PositionFilters,
+} from "@/lib/portfolio-filters";
 import { signInWithGoogle } from "@/lib/sign-in";
 
 /** The header's day-change label when the prices are not today's: "Yesterday", "Monday" within the week, else null. */
@@ -250,16 +262,59 @@ export function PortfolioView({
   const { totals, positions, watching } = portfolio;
   const everything = [...positions, ...watching];
 
-  function choose(next: PortfolioTab) {
-    setTab(next);
-    // Keep the tab in the URL without a server round trip (/portfolio alone is the overview, so Holdings says so).
+  // Each list keeps its own filters while the tabs switch; the URL holds the open tab's (?sector=…&call=…), so a link
+  // shares them and a reload keeps them (lib/portfolio-filters).
+  const searchParams = useSearchParams();
+  const [filterState, setFilterState] = useState<{ positions: PositionFilters; watching: PositionFilters }>(() => {
+    // Choices a link names that these rows do not offer are dropped here, so they cannot switch back on later.
+    const fromUrl = parseFilters(searchParams);
+    return {
+      positions: initialTab === "positions" || initialTab === "analytics" ? usableFilters(fromUrl, filterOptions(positions, today)) : NO_FILTERS,
+      watching: initialTab === "watching" ? usableFilters(fromUrl, filterOptions(watching, today)) : NO_FILTERS,
+    };
+  });
+  const holdingOptions = useMemo(() => filterOptions(positions, today), [positions, today]);
+  const watchOptions = useMemo(() => filterOptions(watching, today), [watching, today]);
+  const holdingFilters = usableFilters(filterState.positions, holdingOptions);
+  const watchFilters = usableFilters(filterState.watching, watchOptions);
+
+  /** Writes the URL without a server round trip; the filters' commas stay readable (?sector=energy,technology). */
+  function writeUrl(edit: (params: URLSearchParams) => void) {
     const url = new URL(window.location.href);
-    url.searchParams.set("tab", next === "positions" ? "holdings" : next);
-    url.searchParams.delete("reasons");
-    window.history.replaceState(window.history.state, "", url.toString());
+    edit(url.searchParams);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${readableQuery(url.search)}${url.hash}`);
   }
 
-  // My stocks' own tabs: Holdings, Watching and Alerts switch here, in the browser; Overview and Taxes are links.
+  function setListFilters(list: "positions" | "watching", next: PositionFilters) {
+    setFilterState((current) => ({ ...current, [list]: next }));
+    writeUrl((params) => writeFilters(params, next));
+  }
+
+  function choose(next: PortfolioTab) {
+    setTab(next);
+    // Keep the tab in the URL without a server round trip (/portfolio alone is the holdings).
+    writeUrl((params) => {
+      if (next === "positions") params.delete("tab");
+      else params.set("tab", next);
+      params.delete("reasons");
+      writeFilters(params, next === "positions" ? holdingFilters : next === "watching" ? watchFilters : NO_FILTERS);
+    });
+  }
+
+  // The app router puts back the URL it knows whenever the page data refreshes (a save in the editor), which would drop
+  // the tab and filters written above; so they are written again after every refresh, and on first load.
+  const syncUrl = useRef(() => {});
+  syncUrl.current = () =>
+    writeUrl((params) => {
+      if (tab === "positions") params.delete("tab");
+      else params.set("tab", tab);
+      writeFilters(params, tab === "positions" ? holdingFilters : tab === "watching" ? watchFilters : NO_FILTERS);
+    });
+  useEffect(() => {
+    syncUrl.current();
+  }, [portfolio]);
+
+  // My stocks' own tabs: Holdings, Watching and Alerts switch here, in the browser; Taxes is a link.
   const pageTab: MyStocksTab = tab === "watching" ? "watching" : tab === "alerts" ? "alerts" : "holdings";
   function selectPageTab(next: MyStocksTab): boolean {
     if (next === "holdings") choose("positions");
@@ -279,9 +334,10 @@ export function PortfolioView({
     return () => window.removeEventListener(MY_STOCKS_SELECT_EVENT, onSelect);
   }, []);
 
-  // Tracking is unlimited on every plan and these are the person's own stocks, so every row shows.
-  const shownPositions = positions;
-  const shownWatching = watching;
+  // Tracking is unlimited on every plan and these are the person's own stocks, so every row shows that the filters keep.
+  const shownPositions = applyFilters(positions, holdingFilters, today);
+  const shownWatching = applyFilters(watching, watchFilters, today);
+  const holdingsFiltered = activeCount(holdingFilters) > 0;
 
   const missingShares = totals.holdings - totals.valued;
   return (
@@ -330,7 +386,7 @@ export function PortfolioView({
                   {totals.value === null
                     ? totals.holdings === 0
                       ? "No holdings yet"
-                      : "Choose Edit on a holding and enter the shares to see what it is worth"
+                      : "Choose Edit, then a holding, and enter its shares to see what it is worth"
                     : `Total value · ${totals.valued} holding${totals.valued === 1 ? "" : "s"}${missingShares > 0 ? `, ${missingShares} more without shares` : ""}`}
                 </span>
               </div>
@@ -428,11 +484,20 @@ export function PortfolioView({
         className="flex flex-col gap-3"
       >
         {tab === "positions" ? (
+          <div className="flex flex-col gap-2">
+          <PositionFilterBar
+            filters={holdingFilters}
+            options={holdingOptions}
+            onChange={(next) => setListFilters("positions", next)}
+            shown={shownPositions.length}
+            total={positions.length}
+            noun="holdings"
+          />
           <section className={CARD}>
             {positions.length === 0 ? (
               <EmptyNote title="Nothing marked as a holding yet">
                 {watching.length > 0
-                  ? "Open Watching, tap a stock you own and choose I own this. Then enter the shares."
+                  ? "In Watching, tap Edit, pick a stock you own and choose I own this."
                   : "Add the stocks you own and the ones you are watching."}
               </EmptyNote>
             ) : (
@@ -443,6 +508,10 @@ export function PortfolioView({
               )}
               <PositionsTable
                 positions={shownPositions}
+                // The bar above has Clear all, so the note only says what happened. The table stays mounted, so its
+                // sort and Edit survive a filter that leaves nothing.
+                empty={<EmptyNote title="Nothing matches these filters" />}
+                columnsFrom={positions}
                 kind="holding"
                 today={today}
                 editable={!example}
@@ -451,7 +520,8 @@ export function PortfolioView({
                     ? { key: "value", direction: "desc" }
                     : { key: "ticker", direction: "asc" }
                 }
-                totals={totals}
+                // The total covers every holding, so it waits while a filter hides some.
+                totals={holdingsFiltered ? undefined : totals}
               />
               </>
             )}
@@ -464,10 +534,20 @@ export function PortfolioView({
               </p>
             ) : null}
           </section>
+          </div>
         ) : null}
 
         {tab === "watching" ? (
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+            <PositionFilterBar
+              filters={watchFilters}
+              options={watchOptions}
+              onChange={(next) => setListFilters("watching", next)}
+              shown={shownWatching.length}
+              total={watching.length}
+              noun="stocks"
+            />
             <section className={CARD}>
               {watching.length === 0 ? (
                 <EmptyNote title="Nothing on the watch side yet">
@@ -477,6 +557,8 @@ export function PortfolioView({
               ) : (
                 <PositionsTable
                   positions={shownWatching}
+                  empty={<EmptyNote title="Nothing matches these filters" />}
+                  columnsFrom={watching}
                   kind="watchlist"
                   today={today}
                   editable={!example}
@@ -484,6 +566,7 @@ export function PortfolioView({
                 />
               )}
             </section>
+            </div>
             <IdeasList ideas={ideas} />
           </div>
         ) : null}

@@ -1,4 +1,4 @@
-import type { EarningsDate, PortfolioPosition } from "@/lib/portfolio-shared";
+import { sortPositions, type EarningsDate, type PortfolioPosition, type SortKey } from "@/lib/portfolio-shared";
 
 /**
  * Which rows in the holdings and watching tables need a look, so they sit on top by default (owner, Nov 12: "show
@@ -42,4 +42,25 @@ export function attentionFirst<T extends Pick<PortfolioPosition, "needsAttention
   const rest: T[] = [];
   for (const row of rows) (needsLook(row, today) ? first : rest).push(row);
   return [...first, ...rest];
+}
+
+/**
+ * The order the Holdings and Watching lists show, and what their sort control says about it, so the two always agree.
+ * - The person picked a column: exactly that column's sort (`lookFirst` false).
+ * - Nothing picked and some row in the whole list needs a look: those rows first, each group in the default sort, and
+ *   the control says "Needs a look first" with no column arrow (`lookFirst` true).
+ * - Nothing picked and no row needs a look: exactly the default column's sort, labelled and arrowed as that column
+ *   (`lookFirst` false).
+ * `every` is the whole list when `rows` is a filtered part of it, so a filter never flips the label.
+ */
+export function orderPositions(
+  rows: PortfolioPosition[],
+  sort: { key: SortKey; direction: "asc" | "desc" },
+  picked: boolean,
+  today: string,
+  every: PortfolioPosition[] = rows,
+): { lookFirst: boolean; rows: PortfolioPosition[] } {
+  const plain = sortPositions(rows, sort.key, sort.direction);
+  const lookFirst = !picked && every.some((row) => needsLook(row, today));
+  return { lookFirst, rows: lookFirst ? attentionFirst(plain, today) : plain };
 }

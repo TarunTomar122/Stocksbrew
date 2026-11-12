@@ -5,7 +5,7 @@ import { FREE_COVERED_STOCKS, limitFor } from "@/lib/entitlements";
 const UPDATED = "2026-11-09";
 /** Guides whose facts were rechecked against the code and changed. */
 const REVISED = "2026-11-10";
-const SURFACE = { label: "Open your holdings", href: "/portfolio?tab=holdings" };
+const SURFACE = { label: "Open your holdings", href: "/portfolio" };
 
 export const PORTFOLIO_GUIDES: Guide[] = [
   {

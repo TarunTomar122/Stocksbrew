@@ -91,7 +91,7 @@ export function RadarFreeLimitModal({
 
         <p className="mt-4 text-center text-[11px] text-on-surface-variant">
           Or{" "}
-          <Link href="/portfolio?tab=holdings" className="font-semibold text-on-surface underline-offset-2 hover:underline">
+          <Link href="/portfolio" className="font-semibold text-on-surface underline-offset-2 hover:underline">
             manage your Watchlist
           </Link>{" "}
           to remove a stock first.

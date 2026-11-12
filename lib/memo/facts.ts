@@ -372,7 +372,7 @@ export function buildFacts(inputs: MemoInputs): FactsResult {
       tickers: [],
       text: `${subjectWords} ${verb} ${moveSize(perf.portfolioPct)} ${weekWords}${through}${against}.${left}`,
       short: `${partial ? `${countWord(perf.priced)} of ${words.possessive} ${countWord(perf.total)} holdings` : words.holdings.toLowerCase()} ${verb} ${moveSize(perf.portfolioPct)}`,
-      href: "/portfolio?tab=holdings",
+      href: "/portfolio",
       linkLabel: inputs.subject === "example" ? "The example portfolio" : "Your portfolio",
       tone: perf.marketPct === null ? (perf.portfolioPct >= 0 ? "up" : "down") : toneVs(gap),
       source: "Daily closes with dividends",

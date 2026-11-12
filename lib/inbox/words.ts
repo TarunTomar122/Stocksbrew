@@ -641,7 +641,7 @@ export function reasonItem(check: ReasonRecord, mode: Mode): InboxItem | null {
     tickers: [ticker],
     text: `The reason ${whose} for owning ${ticker} ${what}.`,
     detail: check.headline ? sentence(check.headline) : null,
-    href: mode === "mine" ? "/portfolio?tab=holdings&reasons=1" : "/portfolio",
+    href: mode === "mine" ? "/portfolio?reasons=1" : "/portfolio",
     source: "Reason watcher",
     tone: check.verdict === "holds" ? "up" : check.verdict === "played_out" ? "flat" : "down",
     dedupeKey: `reason:${ticker}:${check.day}`,

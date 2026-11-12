@@ -8,12 +8,14 @@ import { CallCell, Dash, EarningsCell, FOCUS, NUM, Pct, signTone, TD, TH } from 
 import { StockLogo } from "@/components/stock-logo";
 import { ThesisLine } from "@/components/thesis/thesis-line";
 import { WholeRows } from "@/components/wire/whole-rows";
-import { attentionFirst } from "@/lib/portfolio-attention";
+import { needsLook, orderPositions } from "@/lib/portfolio-attention";
+import { reportsWithin } from "@/lib/portfolio-filters";
+import { CALL_PLAIN } from "@/lib/plain-copy";
+import { callWord } from "@/lib/stock-chart";
 import { flushWatchlistRebuild } from "@/lib/radar-client-refresh";
 import {
   fmtMoney,
   fmtSignedMoney,
-  sortPositions,
   type PortfolioPosition,
   type PortfolioTotals,
   type SortKey,
@@ -290,23 +292,34 @@ function SortHeader({
   );
 }
 
-function StockCell({ position, inline = false }: { position: PortfolioPosition; inline?: boolean }) {
+/**
+ * The table's stock cell: logo, ticker and the reason watcher's word when it needs a look. The ticker links to the
+ * stock, except in Edit mode, where the whole row opens the editor and the ticker is plain text (council, Nov 12).
+ */
+function StockCell({ position, editMode = false }: { position: PortfolioPosition; editMode?: boolean }) {
+  const label = position.name ? `${position.ticker}, ${position.name}` : position.ticker;
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <StockLogo ticker={position.ticker} market="US" size={inline ? 20 : 24} circle className="shrink-0" />
-      <div className={inline ? "flex min-w-0 items-baseline gap-2" : "min-w-0"}>
+      <StockLogo ticker={position.ticker} market="US" size={20} circle className="shrink-0" />
+      <div className="flex min-w-0 items-baseline gap-2">
         {/* Ticker only: long company names wrapped over several lines and pushed the numbers apart (owner, Nov 11).
             The name stays on hover and for screen readers. */}
+        {editMode ? (
+          <span title={position.name || undefined} aria-label={label} className="oa-mono block text-[14px] font-medium leading-5 text-oa-fg">
+            {position.ticker}
+          </span>
+        ) : (
         <Link
           href={`/stock/${position.ticker}`}
           onClick={(event) => event.stopPropagation()}
           title={position.name || undefined}
-          aria-label={position.name ? `${position.ticker}, ${position.name}` : position.ticker}
+          aria-label={label}
           className={`oa-mono block text-[14px] font-medium leading-5 text-oa-fg hover:underline ${FOCUS}`}
         >
           {position.ticker}
         </Link>
-        <ThesisLine instrumentId={position.instrument_id} inline={inline} />
+        )}
+        <ThesisLine instrumentId={position.instrument_id} inline />
       </div>
     </div>
   );
@@ -337,6 +350,193 @@ function GainCell({ position, stacked = false }: { position: PortfolioPosition; 
   );
 }
 
+/* ── the phone card ──────────────────────────────────────────────────────── */
+
+/** Cards shown before the "Show N more" toggle. */
+const CARD_FOLD = 8;
+/** The sort control's value for the default order: the rows that need a look first. */
+const LOOK_FIRST = "look-first";
+
+function fmtQty(shares: number): string {
+  return shares.toLocaleString("en-US", { maximumFractionDigits: Math.abs(shares) >= 1 ? 2 : 4 });
+}
+
+/** Today's move with its arrow: "▼ 4.49%". */
+function DayMove({ value }: { value: number | null }) {
+  if (value === null) return <Dash />;
+  // A flat day gets no arrow and no colour.
+  if (Math.abs(value) < 0.005) return <span className={`${NUM} whitespace-nowrap text-oa-muted-fg`}>0.00%</span>;
+  return (
+    <span className={`${NUM} whitespace-nowrap ${signTone(value)}`}>
+      <span aria-hidden="true" className="mr-0.5 text-[9px] align-[1px]">
+        {value > 0 ? "▲" : "▼"}
+      </span>
+      <span className="sr-only">{value > 0 ? "up " : "down "}</span>
+      {Math.abs(value).toFixed(2)}%
+    </span>
+  );
+}
+
+const CALL_TONE: Record<string, string> = {
+  Add: "text-signal-bullish",
+  Trim: "text-signal-bearish",
+  Hold: "text-oa-fg",
+};
+
+/** Our call as one small chip with its own level: "Buy more below $267", "Sell some above $420", or "Keep". */
+function CallChip({ position, stacked = false }: { position: PortfolioPosition; stacked?: boolean }) {
+  const word = callWord(position.stance);
+  if (!word) return null;
+  const level = position.zone ? position.zone.label.charAt(0).toLowerCase() + position.zone.label.slice(1) : null;
+  if (stacked) {
+    // A watched stock's card has the call on the right of the name: the level goes under the chip, so the name keeps its room.
+    return (
+      <span className="flex flex-col items-end gap-1">
+        <span
+          className={`inline-flex h-6 items-center rounded border px-1.5 text-[12px] font-medium whitespace-nowrap ${
+            position.needsAttention ? "border-current" : "border-oa-border"
+          } ${CALL_TONE[word]}`}
+          title={position.needsAttention ? "The price is inside this call's zone now" : undefined}
+        >
+          {CALL_PLAIN[word]}
+        </span>
+        {level ? <span className={`${NUM} whitespace-nowrap text-[12px] leading-4 text-oa-muted-fg`}>{level}</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded border px-1.5 text-[12px] whitespace-nowrap ${
+        position.needsAttention ? "border-current" : "border-oa-border"
+      } ${CALL_TONE[word]}`}
+      title={position.needsAttention ? "The price is inside this call's zone now" : undefined}
+    >
+      <span className="font-medium">{CALL_PLAIN[word]}</span>
+      {level ? <span className={`${NUM} text-oa-muted-fg`}>{level}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * The holdings cards' money row: what went in, what it is worth, the gain and the gain in percent, on one line. The
+ * labels sit once over the list (MoneyHeader), not on every card; the grid is shared so the two line up.
+ */
+const MONEY_GRID = "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4rem] gap-x-2";
+
+function MoneyHeader() {
+  return (
+    <div className={`${MONEY_GRID} border-b border-oa-border bg-oa-bg px-3 py-1.5 text-[11.5px] leading-4 text-oa-muted-fg`}>
+      <span>Invested</span>
+      <span className="text-right">Value</span>
+      <span className="text-right">Gain</span>
+      <span className="text-right">Gain %</span>
+    </div>
+  );
+}
+
+/** Cents under $10,000, whole dollars above, so a card's money row stays on one line. */
+function cardDigits(value: number): number {
+  return Math.abs(value) >= 10_000 ? 0 : 2;
+}
+
+/**
+ * A stock on a phone (owner, Nov 12, after a broker app): the logo, name, price and today's move; for a holding the
+ * average cost and shares on the right, then one quiet money row, then our call and a report date when one is two
+ * weeks out or closer. A watched stock has our call on the right instead. The card itself is the link (or, in Edit,
+ * the way into its editor), so nothing inside it links on its own.
+ */
+function PositionCard({
+  position,
+  kind,
+  today,
+  money,
+}: {
+  position: PortfolioPosition;
+  kind: "holding" | "watchlist";
+  today: string;
+  /** Some holding in the list has shares, so the money row shows (dashes where this one has none). */
+  money: boolean;
+}) {
+  const holding = kind === "holding";
+  const reports = reportsWithin(position, today);
+  const hasCall = callWord(position.stance) !== null;
+  const showName = position.name && position.name.toUpperCase() !== position.ticker.toUpperCase();
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <StockLogo ticker={position.ticker} market="US" size={36} circle className="shrink-0" />
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-baseline gap-1.5">
+              <span className="min-w-0 truncate text-[15px] font-medium leading-5 text-oa-fg">{showName ? position.name : position.ticker}</span>
+              {showName ? <span className="oa-mono shrink-0 text-[11.5px] text-oa-muted-fg">{position.ticker}</span> : null}
+            </div>
+            <div className="mt-0.5 flex items-baseline gap-2 text-[13.5px] leading-5">
+              <span className={`${NUM} text-oa-fg`}>{position.price !== null ? fmtMoney(position.price) : <Dash />}</span>
+              <DayMove value={position.dayPct} />
+            </div>
+          </div>
+        </div>
+        {holding ? (
+          position.avgCost !== null || position.shares !== null ? (
+            <div className="shrink-0 text-right text-[12.5px] leading-5 text-oa-muted-fg">
+              {position.avgCost !== null ? (
+                <div>
+                  Avg <span className={`${NUM} text-oa-fg`}>{fmtMoney(position.avgCost)}</span>
+                </div>
+              ) : null}
+              {position.shares !== null ? (
+                <div>
+                  Qty <span className={`${NUM} text-oa-fg`}>{fmtQty(position.shares)}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null
+        ) : hasCall ? (
+          <div className="shrink-0">
+            <CallChip position={position} stacked />
+          </div>
+        ) : null}
+      </div>
+      {holding && money ? (
+        <div className={`${MONEY_GRID} ${NUM} whitespace-nowrap text-[13px] leading-5`}>
+          <span className="truncate text-oa-muted-fg">{position.cost !== null ? fmtMoney(position.cost, cardDigits(position.cost)) : <Dash />}</span>
+          <span className="truncate text-right text-oa-fg" title={position.valueSource === "entered" ? "The value you typed in. Add shares to price it live." : undefined}>
+            {position.value !== null ? (
+              <>
+                {fmtMoney(position.value, cardDigits(position.value))}
+                {position.valueSource === "entered" ? <span className="text-oa-muted-fg">*</span> : null}
+              </>
+            ) : (
+              <Dash />
+            )}
+          </span>
+          <span className={`truncate text-right ${position.gain !== null ? signTone(position.gain) : ""}`}>
+            {position.gain !== null ? fmtSignedMoney(position.gain, cardDigits(position.gain)) : <Dash />}
+          </span>
+          <span className="truncate text-right">
+            <Pct value={position.gainPct} digits={1} />
+          </span>
+        </div>
+      ) : null}
+      {/* A watched stock's card is price, day and our call with its level, nothing else (council, Nov 12). */}
+      {!holding ? null : hasCall || reports ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {hasCall ? <CallChip position={position} /> : null}
+          {reports ? (
+            <span className="text-[12px] text-oa-muted-fg">
+              Reports <EarningsCell next={position.nextEarnings} today={today} />
+            </span>
+          ) : null}
+          <ThesisLine instrumentId={position.instrument_id} inline />
+        </div>
+      ) : (
+        <ThesisLine instrumentId={position.instrument_id} inline />
+      )}
+    </div>
+  );
+}
+
 export function PositionsTable({
   positions,
   kind,
@@ -346,10 +546,16 @@ export function PositionsTable({
   hiddenCount = 0,
   hiddenNote,
   totals,
+  columnsFrom,
+  empty,
 }: {
   /** Holdings only: the sums printed under the table. They cover every holding, hidden ones included. */
   totals?: PortfolioTotals;
   positions: PortfolioPosition[];
+  /** The rows that decide which columns show, when `positions` is a filtered subset: the columns stay put while filtering. */
+  columnsFrom?: PortfolioPosition[];
+  /** Shown in place of the rows when `positions` is empty (a filter left nothing); the sort and Edit state are kept. */
+  empty?: React.ReactNode;
   kind: "holding" | "watchlist";
   today: string;
   editable: boolean;
@@ -360,36 +566,37 @@ export function PositionsTable({
   const router = useRouter();
   // A column with nothing in it for any row (no shares entered, no cost, no call yet, no earnings date) is left
   // out rather than shown as a column of dashes. It comes back as soon as one row has a value.
+  const every = columnsFrom ?? positions;
   const filled = (column: Column): boolean => {
     switch (column.key) {
       case "ticker":
         return true;
       case "avgCost":
-        return positions.some((position) => position.avgCost !== null);
+        return every.some((position) => position.avgCost !== null);
       case "price":
-        return positions.some((position) => position.price !== null);
+        return every.some((position) => position.price !== null);
       case "dayPct":
-        return positions.some((position) => position.dayPct !== null);
+        return every.some((position) => position.dayPct !== null);
       case "value":
-        return positions.some((position) => position.value !== null);
+        return every.some((position) => position.value !== null);
       case "gain":
-        return positions.some((position) => position.gain !== null);
+        return every.some((position) => position.gain !== null);
       case "gainPct":
-        return positions.some((position) => position.gainPct !== null);
+        return every.some((position) => position.gainPct !== null);
       case "stance":
-        return positions.some((position) => position.stance);
+        return every.some((position) => position.stance);
       case "earnings":
-        return positions.some((position) => position.nextEarnings);
+        return every.some((position) => position.nextEarnings);
       default:
         return true;
     }
   };
   const columns = (kind === "holding" ? HOLDING_COLUMNS : WATCH_COLUMNS).filter(filled);
-  // The phone rows follow the same rule: say nothing about cost or shares until at least one row has them.
-  const anyGain = positions.some((position) => position.gain !== null);
-  // With no shares entered anywhere there is no value to lead with, so a holding row reads like a watch row: price and today's move.
-  const anyValue = positions.some((position) => position.value !== null);
+  // The phone cards follow the same rule: the invested, value and total row shows once any holding has shares.
+  const anyMoney = every.some((position) => position.value !== null || position.gain !== null);
   const sortable = columns;
+  // The phone cards show about eight, then one quiet toggle for the rest; a card list never scrolls inside a box.
+  const [showAll, setShowAll] = useState(false);
   const [sort, setSort] = useState(defaultSort);
   // Until a header is clicked, the rows that need a look (an orange report date, a price at its call's level, the
   // zone tint) come first, each group in the default sort. A chosen sort is a plain sort on that column.
@@ -397,16 +604,26 @@ export function PositionsTable({
   const [editing, setEditing] = useState<string | null>(null);
   // When the sort column is hidden (no row has a value in it), sort by stock instead of silently by nothing.
   const effectiveSort = sortable.some((column) => column.key === sort.key) ? sort : { key: "ticker" as SortKey, direction: "asc" as Direction };
-  const sorted = useMemo(() => {
-    const plain = sortPositions(positions, effectiveSort.key, effectiveSort.direction);
-    return picked ? plain : attentionFirst(plain, today);
-  }, [positions, effectiveSort.key, effectiveSort.direction, picked, today]);
+  // The order and what the sort control says about it come from one place (lib/portfolio-attention orderPositions):
+  // "Needs a look first" with no column arrow while some row in the whole list needs a look and no sort was picked;
+  // otherwise exactly the labelled column, arrow shown. Counted on every row, so a filter does not flip it.
+  const anyLook = useMemo(() => every.some((position) => needsLook(position, today)), [every, today]);
+  const { lookFirst, rows: sorted } = useMemo(
+    () => orderPositions(positions, effectiveSort, picked, today, every),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effectiveSort is rebuilt each render; its fields are the deps
+    [positions, effectiveSort.key, effectiveSort.direction, picked, today, every],
+  );
+  // The cards fold after about eight, but never before the last one that needs a look (owner rule 4).
+  const fold = lookFirst ? Math.max(CARD_FOLD, sorted.filter((position) => needsLook(position, today)).length) : CARD_FOLD;
+  // Phone cards are links to the stock; one Edit control over the list turns them into the way into each editor.
+  const [editMode, setEditMode] = useState(false);
 
   function onSort(column: Column) {
     const key = column.key;
     setPicked(true);
+    // From the needs-a-look order, a column starts at its own first direction; after that a second click flips it.
     setSort((current) =>
-      current.key === key
+      !lookFirst && current.key === key
         ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
         : { key, direction: column.first },
     );
@@ -431,8 +648,7 @@ export function PositionsTable({
     }
   }
 
-  // In the editor the row itself opens its shares and cost (no "Edit" on every row, owner rule 1); the ticker still
-  // opens the stock. Read-only (the example), the row opens the stock.
+  // In Edit a row or card opens its shares and cost; read-only (the example) it opens the stock.
   function choose(position: PortfolioPosition) {
     if (!editable) return open(position);
     setEditing((current) => (current === position.instrument_id ? null : position.instrument_id));
@@ -440,11 +656,42 @@ export function PositionsTable({
 
   const span = columns.length;
 
+  // One Edit for the whole list, phone and desktop (owner rule 1: no control repeated on every row or card). While it is
+  // on, a row or card opens its shares and cost; otherwise it opens the stock.
+  const editButton = editable ? (
+    <button
+      type="button"
+      onClick={() => {
+        setEditMode((value) => !value);
+        setEditing(null);
+      }}
+      className={`inline-flex h-8 items-center rounded border px-2.5 text-[13px] font-medium ${FOCUS} ${
+        editMode ? "border-oa-primary bg-oa-primary text-oa-primary-fg" : "border-oa-border bg-oa-card text-oa-fg"
+      }`}
+    >
+      {editMode ? "Done" : "Edit"}
+    </button>
+  ) : null;
+
+  // A filter that leaves nothing keeps the header, sort and Edit in place, with the note where the rows were.
+  const none = positions.length === 0;
+
   return (
     <>
       {/* md and up: the full table. About eight rows show, the rest scroll inside the box with no scrollbar; the header
           and the Total stick to its edges, and the cut lands on a whole row (owner rule 5). One box scrolls both ways so
           the sticky rows work, and the page takes the scroll back at either end (no overscroll-contain). */}
+      {/* md and up: Edit, and while the needs-a-look order is in force, the words for it (no column arrow claims it). */}
+      {editButton || lookFirst ? (
+        <div className="hidden min-h-11 items-center gap-3 border-b border-oa-border px-3 py-1.5 md:flex">
+          {editButton}
+          {lookFirst ? (
+            <span className="ml-auto text-[13px] text-oa-muted-fg">
+              Sort <span className="font-medium text-oa-fg">Needs a look first</span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <WholeRows rem={31} className="scrollbar-hide hidden max-h-[31rem] overflow-auto md:block">
         <table className="w-full border-collapse text-[14px]">
           <thead className="sticky top-0 z-10">
@@ -453,7 +700,7 @@ export function PositionsTable({
                 <SortHeader
                   key={column.key}
                   column={column}
-                  active={effectiveSort.key === column.key}
+                  active={!lookFirst && effectiveSort.key === column.key}
                   direction={effectiveSort.direction}
                   onSort={onSort}
                   first={index === 0}
@@ -462,27 +709,35 @@ export function PositionsTable({
             </tr>
           </thead>
           <tbody>
+            {none ? (
+              <tr>
+                <td colSpan={span} className="p-0">
+                  {empty}
+                </td>
+              </tr>
+            ) : null}
             {sorted.map((position) => {
               const isEditing = editing === position.instrument_id;
               return (
                 <PositionRows key={position.instrument_id}>
                   <tr
                     data-row
-                    onClick={() => choose(position)}
-                    // Editable, the row is the way into its editor, so it takes focus and opens with Enter or Space.
-                    tabIndex={editable ? 0 : undefined}
-                    onKeyDown={editable ? (event) => onRowKey(event, position) : undefined}
-                    title={editable ? editWords(position) : undefined}
-                    aria-label={editable ? editWords(position) : undefined}
-                    aria-expanded={editable ? isEditing : undefined}
-                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${editable ? ROW_FOCUS : ""} ${
+                    // The row opens the stock (its ticker is the link for the keyboard); in Edit it opens its editor, so
+                    // then it takes focus and opens with Enter or Space.
+                    onClick={() => (editMode ? choose(position) : open(position))}
+                    tabIndex={editMode ? 0 : undefined}
+                    onKeyDown={editMode ? (event) => onRowKey(event, position) : undefined}
+                    title={editMode ? editWords(position) : undefined}
+                    aria-label={editMode ? editWords(position) : undefined}
+                    aria-expanded={editMode ? isEditing : undefined}
+                    className={`h-12 cursor-pointer border-b border-oa-border transition-colors last:border-b-0 hover:bg-oa-accent ${editMode ? ROW_FOCUS : ""} ${
                       isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
                     }`}
                   >
                     {columns.map((column, index) => (
                       <td key={column.key} className={`${TD} ${colClass(column)} ${index === 0 ? "pl-3" : ""}`}>
                         {column.key === "ticker" ? (
-                          <StockCell position={position} inline />
+                          <StockCell position={position} editMode={editMode} />
                         ) : column.key === "price" ? (
                           position.price !== null ? <span className={`${NUM} text-oa-fg`}>{fmtMoney(position.price)}</span> : <Dash />
                         ) : column.key === "avgCost" ? (
@@ -514,7 +769,7 @@ export function PositionsTable({
               );
             })}
           </tbody>
-          {kind === "holding" && totals && totals.value !== null ? (
+          {kind === "holding" && totals && totals.value !== null && !none ? (
             <tfoot data-sticky-foot className="sticky bottom-0 z-10">
               <tr className="h-10 font-medium">
                 {columns.map((column, index) => (
@@ -543,21 +798,29 @@ export function PositionsTable({
         </table>
       </WholeRows>
 
-      {/* below md: stacked rows, same data, in a box of about eight rows like the table */}
+      {/* below md: one card per stock, like a broker app's holdings (owner, Nov 12). About eight show, then one quiet
+          toggle for the rest: a card list never scrolls inside its own box (owner rule 4). */}
       <div className="md:hidden">
-        <div className="flex items-center justify-between gap-2 border-b border-oa-border px-3 py-1.5">
-          <label className="flex items-center gap-2 text-[13px] text-oa-muted-fg">
+        <div className="flex items-center gap-1.5 border-b border-oa-border px-3 py-1.5">
+          {editButton}
+          <label className="ml-auto flex items-center gap-1.5 text-[13px] text-oa-muted-fg">
             Sort
             <select
-              value={effectiveSort.key}
+              value={lookFirst ? LOOK_FIRST : effectiveSort.key}
               onChange={(event) => {
+                if (event.target.value === LOOK_FIRST) {
+                  setPicked(false);
+                  setSort(defaultSort);
+                  return;
+                }
                 const column = sortable.find((item) => item.key === event.target.value);
                 if (!column) return;
                 setPicked(true);
                 setSort({ key: column.key, direction: column.first });
               }}
-              className={`h-10 rounded border border-oa-border bg-oa-card px-2 text-[14px] text-oa-fg ${FOCUS}`}
+              className={`h-8 rounded border border-oa-border bg-oa-card pl-2 pr-1 text-[13px] text-oa-fg ${FOCUS}`}
             >
+              {anyLook ? <option value={LOOK_FIRST}>Needs a look first</option> : null}
               {sortable.map((column) => (
                 <option key={column.key} value={column.key}>
                   {column.label}
@@ -565,82 +828,67 @@ export function PositionsTable({
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              setPicked(true);
-              setSort((current) => ({ ...current, direction: current.direction === "asc" ? "desc" : "asc" }));
-            }}
-            className={`h-10 rounded border border-oa-border bg-oa-card px-3 text-[14px] text-oa-fg ${FOCUS}`}
-          >
-            {sort.direction === "asc" ? "Low to high ▲" : "High to low ▼"}
-          </button>
+          {lookFirst ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setPicked(true);
+                setSort({ ...effectiveSort, direction: effectiveSort.direction === "asc" ? "desc" : "asc" });
+              }}
+              aria-label={effectiveSort.direction === "asc" ? "Low to high. Switch to high to low" : "High to low. Switch to low to high"}
+              title={effectiveSort.direction === "asc" ? "Low to high" : "High to low"}
+              className={`inline-flex size-8 items-center justify-center rounded border border-oa-border bg-oa-card text-[11px] text-oa-fg ${FOCUS}`}
+            >
+              {effectiveSort.direction === "asc" ? "▲" : "▼"}
+            </button>
+          )}
         </div>
-        <WholeRows rem={36} className="scrollbar-hide max-h-[36rem] overflow-y-auto">
+        {kind === "holding" && anyMoney ? <MoneyHeader /> : null}
+        {none ? empty : null}
         <ul className="divide-y divide-oa-border">
-          {sorted.map((position) => {
+          {(showAll ? sorted : sorted.slice(0, fold)).map((position) => {
             const isEditing = editing === position.instrument_id;
+            const tint = isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : "";
+            const card = <PositionCard position={position} kind={kind} today={today} money={anyMoney} />;
             return (
-              <li key={position.instrument_id} data-row>
-                <div
-                  role={editable ? "button" : "link"}
-                  tabIndex={0}
-                  aria-expanded={editable ? isEditing : undefined}
-                  aria-label={editable ? editWords(position) : undefined}
-                  onClick={() => choose(position)}
-                  onKeyDown={(event) => onRowKey(event, position)}
-                  className={`flex cursor-pointer flex-col gap-1.5 px-3 py-2.5 hover:bg-oa-accent ${FOCUS} ${
-                    isEditing ? "bg-oa-accent" : position.needsAttention ? "bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : ""
-                  }`}
-                >
-                  {/* Price and day first, then the gain (owner, Nov 12); the value sits beside the gain. */}
-                  <div className="flex items-center justify-between gap-3">
-                    <StockCell position={position} />
-                    <div className="shrink-0 text-right">
-                      <div className={`${NUM} text-[15px] font-medium leading-5 text-oa-fg`}>
-                        {position.price !== null ? fmtMoney(position.price) : <Dash />}
-                      </div>
-                      <div className="text-[13px] leading-[18px]">
-                        <Pct value={position.dayPct} />
-                      </div>
-                    </div>
+              <li key={position.instrument_id}>
+                {editMode ? (
+                  // A div with the button role: the card's blocks are not allowed inside a real <button>.
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isEditing}
+                    aria-label={editWords(position)}
+                    onClick={() => choose(position)}
+                    onKeyDown={(event) => onRowKey(event, position)}
+                    className={`block cursor-pointer px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}
+                  >
+                    {card}
                   </div>
-                  {kind === "holding" && (anyGain || anyValue) ? (
-                    <div className="flex items-baseline justify-between gap-3 pl-[2.125rem] text-[13px] leading-[18px]">
-                      {position.gain !== null ? (
-                        <span className={`${NUM} ${signTone(position.gain)}`}>
-                          {fmtSignedMoney(position.gain, 0)}
-                          {position.gainPct !== null ? ` ${position.gainPct >= 0 ? "+" : "−"}${Math.abs(position.gainPct).toFixed(1)}%` : ""}
-                        </span>
-                      ) : anyGain ? (
-                        <Dash />
-                      ) : (
-                        <span />
-                      )}
-                      {position.value !== null ? (
-                        <span className={`${NUM} text-oa-muted-fg`}>{fmtMoney(position.value, position.value >= 100_000 ? 0 : 2)}</span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {position.stance || position.nextEarnings ? (
-                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 pl-[2.125rem]">
-                    {position.stance ? <CallCell position={position} /> : null}
-                    <span className="ml-auto flex shrink-0 items-center gap-2">
-                      {position.nextEarnings ? (
-                        <span className="text-[11px] text-oa-muted-fg">
-                          Reports <EarningsCell next={position.nextEarnings} today={today} />
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                  ) : null}
-                </div>
-                {isEditing ? <PositionEditor position={position} onClose={() => setEditing(null)} /> : null}
+                ) : (
+                  <Link
+                    href={`/stock/${position.ticker}`}
+                    prefetch={false}
+                    className={`block px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}
+                  >
+                    {card}
+                  </Link>
+                )}
+                {editMode && isEditing ? <PositionEditor position={position} onClose={() => setEditing(null)} /> : null}
               </li>
             );
           })}
         </ul>
-        </WholeRows>
+        {sorted.length > fold ? (
+          <button
+            type="button"
+            onClick={() => setShowAll((value) => !value)}
+            aria-expanded={showAll}
+            className={`flex h-11 w-full items-center justify-center border-t border-oa-border text-[13.5px] font-medium text-oa-muted-fg hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
+          >
+            {showAll ? "Show fewer" : `Show ${sorted.length - fold} more`}
+          </button>
+        ) : null}
       </div>
 
       {hiddenCount > 0 && hiddenNote ? (

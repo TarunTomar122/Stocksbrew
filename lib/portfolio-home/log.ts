@@ -168,7 +168,7 @@ function reasonsRow(sources: Partial<HomeSources>, mode: HomeMode, today: string
     // Red only when most reasons no longer hold; "Six of seven still hold" is mostly good news.
     tone: holding === n ? "up" : holding * 2 >= n ? "flat" : "down",
     ticker: null,
-    href: mode === "mine" ? "/portfolio?tab=holdings&reasons=1" : "/portfolio?tab=holdings",
+    href: mode === "mine" ? "/portfolio?reasons=1" : "/portfolio",
   };
 }
 
@@ -205,7 +205,7 @@ function pricesRow(sources: Partial<HomeSources>, mode: HomeMode, today: string)
     changed: goal.portfolioValue !== null ? `${example ? "They were" : "Your holdings were"} worth ${usd(goal.portfolioValue)}${goal.unvalued.length > 0 ? `, leaving out ${goal.unvalued.length} without a share count` : ""}.` : null,
     tone: "flat",
     ticker: null,
-    href: "/portfolio?tab=holdings",
+    href: "/portfolio",
   };
 }
 

@@ -33,7 +33,7 @@ export default async function AnalysisPage() {
         <XraySignIn>See your own</XraySignIn>
       </span>
     ) : (
-      <Link href="/portfolio?tab=holdings" className="text-[13px] font-medium text-oa-primary underline-offset-2 hover:underline">
+      <Link href="/portfolio" className="text-[13px] font-medium text-oa-primary underline-offset-2 hover:underline">
         Add your holdings
       </Link>
     )

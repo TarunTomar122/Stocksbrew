@@ -119,7 +119,7 @@ export function pickVariant(candidate: ShareCandidate, options: ShareOptions): {
 
 /** Where "See this for your own stocks" goes: the page the read came from (signed out, it shows the example). */
 export const SHARE_CTA: Record<ShareKind, { href: string; page: string }> = {
-  portfolio: { href: "/portfolio?tab=holdings", page: "My stocks" },
+  portfolio: { href: "/portfolio", page: "My stocks" },
   xray: { href: "/portfolio/xray", page: "Analysis" },
   dividends: { href: "/portfolio/dividends", page: "Dividends" },
   stress: { href: "/portfolio/xray#crashes", page: "Past crashes" },

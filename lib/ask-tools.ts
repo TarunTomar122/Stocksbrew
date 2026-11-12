@@ -410,7 +410,7 @@ async function portfolioCard(uid: string, example: boolean): Promise<AskCard> {
     }),
     source: "Your stocksbrew watchlist. Holdings are the ones you entered, not a broker feed.",
     as_of: data.as_of,
-    source_url: "/portfolio?tab=holdings",
+    source_url: "/portfolio",
   };
 }
 

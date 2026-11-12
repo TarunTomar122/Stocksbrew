@@ -36,7 +36,7 @@ describe("My stocks: what the reason watcher found", () => {
 
   it("says when every reason holds, and how many holdings have none", () => {
     const [item] = withReasons({ checks: [check("NVDA", { revenueGrowth: 30 })], withReason: 1, holdings: 4, locked: 0 });
-    expect(item).toMatchObject({ text: "The reason we checked still holds. Three holdings have no reason yet.", open: { label: "Add your reasons", href: "/portfolio?tab=holdings&reasons=1" } });
+    expect(item).toMatchObject({ text: "The reason we checked still holds. Three holdings have no reason yet.", open: { label: "Add your reasons", href: "/portfolio?reasons=1" } });
   });
 
   it("asks for reasons when there are none, but not in the example", () => {

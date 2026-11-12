@@ -34,9 +34,9 @@ const MY_STOCKS: Crumb = { name: "My stocks", path: "/portfolio" };
 
 export const TOOL_PAGE_SEO = {
   "/portfolio": {
-    title: "Portfolio overview: what changed and what's next",
+    title: "Your holdings: price, gain and our call",
     description:
-      "What changed in your stocks this week, the earnings report that matters most, your next dividend, and the trim or tax idea worth a look.",
+      "Every stock you own with its price, today's move, your gain and our call, the ones that need a look first. Free, no brokerage login.",
     card: ["portfolio", "home"],
     alt: "What stood out in the example portfolio this week",
     daily: true,
