@@ -12,6 +12,7 @@ import {
   moverCounts,
   rankReddit,
   redditHighlight,
+  redditMovesToday,
   signalsHref,
   type MentionVelocity,
   type PolicyPost,
@@ -142,8 +143,8 @@ function SaidWords({ said, pace }: { said: string | null; pace: string | null })
  * open to read it). A name with nothing said gets no empty line. The row is the link to the stock: no chevron, no
  * link text.
  */
-function RedditLine({ name, rank, wide }: { name: RedditName; rank: number; wide: boolean }) {
-  const said = redditHighlight(name);
+function RedditLine({ name, rank, wide, movesToday }: { name: RedditName; rank: number; wide: boolean; movesToday: ReadonlyMap<string, number> }) {
+  const said = redditHighlight(name, movesToday);
   const pace = paceWords(name.velocity);
   const cols = wide ? REDDIT_COLS_WIDE : REDDIT_COLS;
   const hasSaid = Boolean(said || pace);
@@ -179,8 +180,11 @@ function RedditLine({ name, rank, wide }: { name: RedditName; rank: number; wide
  * The ranked Reddit list (owner, Nov 11: "this table was better off earlier without cards"): one name per row, the
  * column words once in a header that stays put, every name in the list. The caller sets the scroll height.
  */
-function RedditTable({ names, wide = false }: { names: RedditName[]; wide?: boolean }) {
+function RedditTable({ names, wide = false, all = names }: { names: RedditName[]; wide?: boolean; all?: RedditName[] }) {
   const cols = wide ? REDDIT_COLS_WIDE : REDDIT_COLS;
+  // A highlight's "while Nvidia declined" goes when Nvidia is up today (lib/signals-shared.ts withoutContradictedClause);
+  // `all` is every name in the scan, so a stock left out of a short list still counts.
+  const movesToday = redditMovesToday(all);
   return (
     <>
       <div className="sticky top-0 z-[2] border-b border-oa-border bg-oa-bg px-4 py-2">
@@ -196,7 +200,7 @@ function RedditTable({ names, wide = false }: { names: RedditName[]; wide?: bool
       <ol data-track-links="signal_opened" data-track-kind="reddit">
         {names.map((name, index) => (
           <li key={name.ticker} className="border-b border-oa-border last:border-b-0">
-            <RedditLine name={name} rank={index + 1} wide={wide} />
+            <RedditLine name={name} rank={index + 1} wide={wide} movesToday={movesToday} />
           </li>
         ))}
       </ol>
@@ -237,11 +241,12 @@ export function RedditTab({ data }: { data: RedditData }) {
       <Panel
         label="Loudest names on Reddit"
         right={
-          <span>
+          // No "0 posts" over an empty list (owner rule 4).
+          data.postCount > 0 ? (
             <span className="hidden sm:inline">
               {data.postCount.toLocaleString("en-US")} posts, last {days} days
             </span>
-          </span>
+          ) : undefined
         }
         flush
       >
@@ -480,7 +485,7 @@ export function TodayTab({
           >
             {pick.reddit.length ? (
               <div className={scroll}>
-                <RedditTable names={pick.reddit} wide={!pair} />
+                <RedditTable names={pick.reddit} all={reddit.names} wide={!pair} />
               </div>
             ) : (
               <Empty className="!py-6">Nothing yet.</Empty>

@@ -163,6 +163,21 @@ export function askFor(insight: Insight, choice: AskContextChoice): string | nul
 }
 
 /**
+ * True when the sentence already says what the figure's label adds: the figure's own number (its digits, without
+ * sign or "%") and every word of the label (three letters or more, "the" aside). A bare "9" over a sentence that
+ * never says 9 keeps its "posts this week".
+ */
+export function sentenceSaysFigure(text: string, value: string, label: string): boolean {
+  const digits = value.replace(/[^0-9.,]/g, "").replace(/,/g, "").replace(/^\.+|\.+$/g, "");
+  if (!digits) return false;
+  const numbers = (text.replace(/,/g, "").match(/\d+(?:\.\d+)?/g) ?? []).map((n) => n.replace(/\.0+$/, ""));
+  if (!numbers.includes(digits.replace(/\.0+$/, ""))) return false;
+  const have = new Set(text.toLowerCase().match(/[a-z0-9&]+/g) ?? []);
+  const need = (label.toLowerCase().match(/[a-z0-9&]+/g) ?? []).filter((word) => word.length >= 3 && word !== "the");
+  return need.length > 0 && need.every((word) => have.has(word));
+}
+
+/**
  * One insight as a card (no coloured top edge: owner, Nov 11): the key figure big with the
  * stocks' logos beside it, the sentence whole (it wraps, never clips), the
  * second clause muted, and the next steps at the foot. Cards in a row share
@@ -182,6 +197,9 @@ export function InsightCard({
   // A zero ("+0.00%") gets no arrow either way.
   const sign = figure && /[1-9]/.test(figure.value) ? /^[+\u2212-]/.exec(figure.value)?.[0] : undefined;
   const figureTone = figure?.tone ?? (sign ? (sign === "+" ? "up" : "down") : "flat");
+  // The figure's words only when the sentence does not already say them ("−8.4%" over "…after its last report the stock
+  // fell 8.4%" needs no "after its last report" as well): one number and one sentence (owner rule 6).
+  const figureWords = figure?.label && !sentenceSaysFigure(insight.text, figure.value, figure.label) ? figure.label : null;
   const lead = tickers[0] ?? null;
   // A sentence that opens with its stock: "SMR: our call moved" drops the label (the logo above names it);
   // "HIMS fell 16.5%" reads "Hims & Hers Health fell 16.5%" when we know the name, else stays as written.
@@ -204,11 +222,15 @@ export function InsightCard({
         <div className="flex min-w-0 items-start justify-between gap-3">
           {figure ? (
             <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-[24px] font-semibold leading-[30px] tracking-[-0.02em] text-oa-fg">
-                <span className="break-words">{figure.value}</span>
-                {figureTone !== "flat" ? <ToneGlyph tone={figureTone} className="size-2.5" decorative /> : null}
+              {/* The figure's words follow it on its line ("+10% over the past year"), read as one phrase, not as a
+                  small caption under the number (owner rule 6: no small labels on big figures). */}
+              <p className="flex flex-wrap items-baseline gap-x-2 text-[24px] font-semibold leading-[30px] tracking-[-0.02em] text-oa-fg">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="break-words">{figure.value}</span>
+                  {figureTone !== "flat" ? <ToneGlyph tone={figureTone} className="size-2.5" decorative /> : null}
+                </span>
+                {figureWords ? <span className="text-[14.5px] font-normal leading-[21px] tracking-normal text-oa-muted-fg">{figureWords}</span> : null}
               </p>
-              {figure.label ? <p className="text-[12.5px] leading-[17px] text-oa-muted-fg">{figure.label}</p> : null}
             </div>
           ) : null}
           {tickers.length > 0 ? <CardStocks tickers={tickers} className={`relative z-10 ${figure ? "mt-0.5" : ""}`} /> : null}

@@ -15,7 +15,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
-import { plainAction } from "@/lib/plain-copy";
+import { plainAction, sentenceCase } from "@/lib/plain-copy";
 
 export type StockTimelineKind =
   | "move"
@@ -57,6 +57,8 @@ export type StockTimelineUpcoming = {
 
 export type StockTimelineInput = {
   ticker: string;
+  /** The company's name, so its own words keep their capitals when a Title Case headline goes to sentence case. */
+  companyName?: string | null;
   now: Date;
   /** Today's move, already reduced to what we can stand behind. */
   move?: {
@@ -95,6 +97,24 @@ export type StockTimelineInput = {
 };
 
 const DAY_MS = 86_400_000;
+
+/**
+ * A source headline as a person would write it (owner rule 8): Scraped Title Case goes to sentence case, keeping the
+ * company's own words, and a trailing " - Benzinga" goes when the row already names that publisher.
+ */
+export function timelineHeadline(title: string, source: string | null | undefined, companyName = ""): string {
+  const publisher = String(source ?? "").trim();
+  let text = title.trim();
+  const bareSource = publisher.replace(/^the\s+/i, "");
+  if (bareSource) {
+    // "- The Motley Fool" for the source "Motley Fool" goes too.
+    const tail = new RegExp(`\\s+[-–—|]\\s+(?:the\\s+)?${bareSource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i");
+    const stripped = text.replace(tail, "");
+    if (stripped) text = stripped;
+  }
+  return sentenceCase(text, companyName);
+}
+
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 function isoDay(date: Date): string {
@@ -299,15 +319,17 @@ export function buildStockTimeline(input: StockTimelineInput): {
   // News, newest first. The feed is already filtered to this ticker.
   for (const article of input.news ?? []) {
     if (!article.title || !article.published_at) continue;
-    if (isDuplicate(article.title, article.url)) continue;
-    remember(article.title, article.url);
+    // Compared as shown (publisher tail off), so "X - Benzinga" here and "X" from the brief are one story.
+    const shown = timelineHeadline(article.title, article.source_name, input.companyName ?? "");
+    if (isDuplicate(shown, article.url)) continue;
+    remember(shown, article.url);
     const tone = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : "flat";
     items.push({
       id: `news-${article.id || article.url}`,
       kind: "news",
       at: article.published_at,
       precision: "time",
-      title: article.title,
+      title: shown,
       detail: article.summary && normTitle(article.summary) !== normTitle(article.title) ? article.summary : undefined,
       source: article.source_name || "News",
       sourceUrl: article.url,
@@ -321,15 +343,16 @@ export function buildStockTimeline(input: StockTimelineInput): {
     if (!title || !event.timestamp) continue;
     // A bank quoted as the analyst ("JPMorgan says Strategy could face...") is not news about the bank.
     if (!firmIsSubject(ticker, title)) continue;
-    if (isDuplicate(title, event.article_url)) continue;
-    remember(title, event.article_url);
+    const shown = timelineHeadline(title, event.source_name, input.companyName ?? "");
+    if (isDuplicate(shown, event.article_url)) continue;
+    remember(shown, event.article_url);
     const label = (event.sentiment_label ?? "").toLowerCase();
     items.push({
       id: `evt-${event.event_id ?? title}`,
       kind: "news",
       at: event.timestamp,
       precision: "time",
-      title,
+      title: shown,
       detail: event.summary && normTitle(event.summary) !== normTitle(title) ? event.summary : undefined,
       source: event.source_name || "News",
       sourceUrl: event.article_url,

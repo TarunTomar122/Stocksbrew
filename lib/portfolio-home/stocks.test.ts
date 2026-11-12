@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildPortfolio, type DailySeries, type PortfolioRowInput } from "@/lib/portfolio-shared";
-import { bookLead, callLevel, extraFacts, firstSentence, leadHeadline, signedDollars, signedPct, stockCards, stockFacts, weekMove, type BookSource, type CallInfo } from "@/lib/portfolio-home/stocks";
+import { bookLead, callLevel, extraFacts, firstSentence, leadHeadline, monthMoves, monthWords, signedDollars, signedPct, stockCards, stockFacts, weekMove, type BookSource, type CallInfo } from "@/lib/portfolio-home/stocks";
 
 const TODAY = "2026-11-11";
 
@@ -213,5 +213,50 @@ describe("the five-session figure's words", () => {
     const lead = bookLead(source({ portfolio: quiet, week: { from: "2026-11-04", to: TODAY, pct: -2.3, dollars: -300, marketPct: -0.8 } }))!;
     expect(lead.today).toBeNull();
     expect(lead.headline).toBe("Your stocks fell 2.3% over the past five trading days, 1.5 points worse than the S&P 500.");
+  });
+});
+
+describe("the past month", () => {
+  // 25 stored sessions ending Nov 10; today (Nov 11) is not stored yet.
+  const dates = Array.from({ length: 25 }, (_, i) => new Date(Date.UTC(2026, 9, 7 + i)).toISOString().slice(0, 10)).filter((d) => d <= "2026-11-10");
+  const flat = (value: number): DailySeries => ({ dates, closes: dates.map(() => value) });
+  const ramp = (from: number, to: number): DailySeries => ({ dates, closes: dates.map((_, i) => from + ((to - from) * i) / (dates.length - 1)) });
+
+  it("runs from 21 sessions back to the prices on screen, against SPY on the same days", () => {
+    const month = monthMoves({ positions: portfolio().positions, series: new Map([["NVDA", flat(160)], ["AAPL", flat(100)]]), benchmark: flat(100), pricesDay: TODAY, marketPct: 1 });
+    expect(month.NVDA!.pct).toBeCloseTo(25);
+    expect(month.AAPL!.pct).toBeCloseTo(0);
+    expect(month.NVDA!.marketPct).toBeCloseTo(1);
+    // No closes for MSFT: left out rather than guessed.
+    expect(month.MSFT).toBeUndefined();
+  });
+
+  it("says nothing without 21 sessions of the S&P 500", () => {
+    const short: DailySeries = { dates: dates.slice(-5), closes: [100, 100, 100, 100, 100] };
+    expect(monthMoves({ positions: portfolio().positions, series: new Map([["NVDA", ramp(150, 200)]]), benchmark: short, pricesDay: TODAY, marketPct: 1 })).toEqual({});
+  });
+
+  it("says each card's own gap to the market, and flat for no move", () => {
+    expect(monthWords({ pct: -7.2, marketPct: -2.3 })).toBe("down 7.2% over the past month, 4.9 points behind the S&P 500");
+    expect(monthWords({ pct: 3.6, marketPct: -2.3 })).toBe("up 3.6% over the past month, 5.9 points ahead of the S&P 500");
+    expect(monthWords({ pct: 0.02, marketPct: 0.04 })).toBe("flat over the past month, in line with the S&P 500");
+    expect(monthWords({ pct: 1.0, marketPct: null })).toBe("up 1.0% over the past month");
+    // Half a point either way over a month is in line (VOO against the S&P 500).
+    expect(monthWords({ pct: -2.4, marketPct: -2.3 })).toBe("down 2.4% over the past month, in line with the S&P 500");
+    expect(monthWords({ pct: -2.9, marketPct: -2.3 })).toBe("down 2.9% over the past month, 0.6 points behind the S&P 500");
+  });
+
+  it("fills a quiet card with its weight and month, below the call's own reason", () => {
+    const cards = stockCards(source({ month: { MSFT: { pct: -4.1, marketPct: -2.3 } } }), NONE);
+    const msft = cards.find((card) => card.ticker === "MSFT")!;
+    expect(msft.fact?.kind).toBe("month");
+    expect(msft.fact?.text).toMatch(/of your money, down 4\.1% over the past month, 1\.8 points behind the S&P 500\.$/);
+  });
+});
+
+describe("a bare next-report date", () => {
+  it("takes the month with it when it is the card's top fact", () => {
+    const cards = stockCards(source({ portfolio: portfolio({ earnings: { MSFT: "2026-12-10" } }), month: { MSFT: { pct: 2.1, marketPct: -1.3 } } }), NONE);
+    expect(cards.find((card) => card.ticker === "MSFT")!.fact?.text).toBe("Next report Dec 10; up 2.1% over the past month, 3.4 points ahead of the S&P 500.");
   });
 });

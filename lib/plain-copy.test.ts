@@ -396,3 +396,26 @@ describe("withoutSourceTag", () => {
     expect(sentenceCase("Analysis-Nvidia's clubby board faces a sticky 'honey pot' test")).toBe("Nvidia's clubby board faces a sticky 'honey pot' test");
   });
 });
+
+describe("sentenceCase on the stock page's headlines (Nov 11)", () => {
+  it("lowers the everyday words a Title Case headline capitalises", () => {
+    expect(sentenceCase("Here's How Much You Would Have Made Owning JPMorgan Chase Stock In The Last 5 Years", "JPMorgan Chase & Co.")).toBe(
+      "Here's how much you would have made owning JPMorgan Chase stock in the last 5 years",
+    );
+    expect(sentenceCase("JPMorgan Partners With OpenAI On New Deal", "JPMorgan Chase & Co.")).toBe("JPMorgan partners with OpenAI on new deal");
+    expect(sentenceCase("JPMorgan May Sell Qualtrics Debt at About 85 Cents on the Dollar", "JPMorgan Chase & Co.")).toBe(
+      "JPMorgan may sell Qualtrics debt at about 85 cents on the dollar",
+    );
+  });
+
+  it("keeps Dollar and Partners when they are part of a name", () => {
+    expect(sentenceCase("Why Dollar General Shares Are Falling Today")).toBe("Why Dollar General shares are falling today");
+    expect(sentenceCase("Enterprise Products Partners Raises Its Outlook Again")).toBe("Enterprise Products Partners raises its outlook again");
+  });
+});
+
+describe("sentenceCase keeps names made of ordinary words", () => {
+  it("keeps Option Care Health and lowers a plain option", () => {
+    expect(sentenceCase("Option Care Health Shares Jump After Earnings Beat")).toBe("Option Care Health shares jump after earnings beat");
+  });
+});

@@ -50,7 +50,10 @@ function ClusterStock({ cluster, size }: { cluster: InsiderCluster; size: number
     >
       <StockLogo ticker={cluster.symbol} size={size} />
       <span className="oa-mono text-[14px] font-medium text-oa-fg">{cluster.symbol}</span>
-      {cluster.company ? <span title={cluster.company} className="min-w-0 truncate text-[14px] text-oa-muted-fg">{shortCompanyName(cluster.company)}</span> : null}
+      {/* No name when it is just the ticker again ("LKQ LKQ"). */}
+      {cluster.company && shortCompanyName(cluster.company).toUpperCase() !== cluster.symbol.toUpperCase() ? (
+        <span title={cluster.company} className="min-w-0 truncate text-[14px] text-oa-muted-fg">{shortCompanyName(cluster.company)}</span>
+      ) : null}
     </Link>
   );
 }
@@ -178,7 +181,8 @@ export function InsiderRow({ trade, showSide = true }: { trade: InsiderTrade; sh
         </span>
       </span>
       <span className="order-1 flex min-w-0 items-baseline gap-2 md:order-none">
-        <Ticker ticker={trade.symbol} className="text-[13.5px]" />
+        {/* Logos at once on /insiders' long table (owner rule 5: logos load at once); tiny tiles, cached for a year. */}
+        <Ticker ticker={trade.symbol} className="text-[13.5px]" logoAtOnce />
         {showSide ? (
           <span
             className={`oa-mono text-[10.5px] uppercase tracking-[0.06em] md:hidden ${tone}`}
@@ -258,7 +262,7 @@ export function InsiderGroupRow({ group, showSide = true }: { group: InsiderGrou
         <span className="md:hidden">, traded {fmtDate(group.transaction_date, false)}</span>
       </span>
       <span className="order-1 flex min-w-0 items-baseline gap-2 md:order-none">
-        <Ticker ticker={group.symbol} className="text-[13.5px]" />
+        <Ticker ticker={group.symbol} className="text-[13.5px]" logoAtOnce />
         {showSide ? <span className={`oa-mono text-[10.5px] uppercase tracking-[0.06em] md:hidden ${tone}`}>{buy ? "Bought" : "Sold"}</span> : null}
       </span>
       <span className="order-2 col-span-2 flex min-w-0 items-baseline gap-1.5 text-[13px] leading-5 md:order-none md:col-span-1">

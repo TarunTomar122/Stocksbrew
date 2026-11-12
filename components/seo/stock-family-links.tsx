@@ -2,7 +2,7 @@ import { CardGrid, NUM, Panel, fmtDay } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { sectorSlug } from "@/lib/screener-shared";
 import { insiderHref, moveHref, pairHref, sectorHref } from "@/lib/seo/families";
-import { getInsiderCounts, getRecentMoves, getStockFamily } from "@/lib/seo/family-data";
+import { getRecentMoves, getStockFamily } from "@/lib/seo/family-data";
 import { AppLink } from "@/components/oa/app-link";
 
 /** `vs`: a comparison row; the label is this stock's ticker and the rival is shown with its logo after "vs". */
@@ -39,10 +39,9 @@ function Links({ items }: { items: Item[] }) {
 }
 
 /**
- * The bottom of a stock page: the pages about this stock that live elsewhere
- * (its sector, its rivals side by side, its explained moves, its insider
- * trades). Only links to pages that exist; renders nothing for a stock we do
- * not cover.
+ * The bottom of a stock page: its rivals side by side and its explained
+ * moves. Only links to pages that exist; renders nothing for a stock we do
+ * not cover or have nothing to link for.
  */
 export async function StockFamilyLinks({ ticker }: { ticker: string }) {
   const upper = ticker.toUpperCase();
@@ -51,10 +50,9 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
   const family = await getStockFamily(upper).catch(() => null);
   const row = family?.row;
   if (!family || !row) return null;
-  const [moves, insiders] = await Promise.all([getRecentMoves(), getInsiderCounts()]);
+  const moves = await getRecentMoves();
   const pairs = family.pairs.slice(0, 3);
   const recent = moves.filter((move) => move.ticker === upper).slice(0, 5);
-  const insider = insiders.find((item) => item.symbol === upper);
 
   const panels: Array<{ label: string; items: Item[] }> = [];
   if (pairs.length) {
@@ -76,49 +74,47 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
       })),
     });
   }
-  const more: Item[] = [];
-  if (row.sector) more.push({ href: sectorHref(sectorSlug(row.sector)), label: `${row.sector} stocks`, meta: row.industry ?? undefined });
-  more.push({
-    href: insiderHref(upper),
-    label: "All insider trades",
-    meta: insider ? `${insider.trades} on file` : undefined,
-  });
-  more.push({ href: `/calendar/earnings/${encodeURIComponent(upper)}`, label: "Earnings dates and results" });
-  panels.push({ label: `More on ${upper}`, items: more });
+  // Sector, insider trades and earnings are the "Related" row at the top of the page (StockRelatedRow); listing
+  // them again here was the same link twice (owner rule 1). Nothing to compare and no explained moves: no section.
+  if (!panels.length) return null;
 
   return (
     <section aria-label={`More on ${upper}`} className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] sm:px-6 lg:pb-10">
-      <CardGrid cols={3}>
-        {panels.map((panel) => (
-          <Panel key={panel.label} flush fill label={panel.label}>
-            <Links items={panel.items} />
-          </Panel>
-        ))}
-      </CardGrid>
+      {/* As many columns as panels, so a lone panel fills the row and two never leave a third empty (owner rule 4). */}
+      {panels.length > 1 ? (
+        <CardGrid cols={2}>
+          {panels.map((panel) => (
+            <Panel key={panel.label} flush fill label={panel.label}>
+              <Links items={panel.items} />
+            </Panel>
+          ))}
+        </CardGrid>
+      ) : (
+        <Panel flush label={panels[0]!.label}>
+          <Links items={panels[0]!.items} />
+        </Panel>
+      )}
     </section>
   );
 }
 
 /**
- * The same family of pages as a short row near the top of the stock page, so
- * the way to its sector, rivals, insiders, earnings and latest explained move
- * is visible before the reader scrolls. Only links to pages that exist.
+ * The stock's other pages as a short row near the top of the stock page, so
+ * the way to its sector, insiders, earnings and a backtest is visible before
+ * the reader scrolls. Rivals and explained moves are at the foot of the page
+ * (StockFamilyLinks), once each. Only links to pages that exist.
  */
 export async function StockRelatedRow({ ticker }: { ticker: string }) {
   const upper = ticker.toUpperCase();
   const family = await getStockFamily(upper).catch(() => null);
   const row = family?.row;
   if (!family || !row) return null;
-  const moves = await getRecentMoves().catch(() => []);
-  const move = moves.find((item) => item.ticker === upper);
-  const pair = family.pairs[0];
-  const other = pair ? (pair.a === upper ? pair.b : pair.a) : null;
   const links: Item[] = [];
-  if (move) links.push({ href: moveHref(upper, move.day), label: `Why it moved ${fmtDay(move.day)}` });
   if (row.sector) links.push({ href: sectorHref(sectorSlug(row.sector)), label: `${row.sector} stocks` });
-  if (pair && other) links.push({ href: pairHref(pair.a, pair.b), label: upper, vs: other });
   links.push({ href: insiderHref(upper), label: "Insider trades" });
   links.push({ href: `/calendar/earnings/${encodeURIComponent(upper)}`, label: "Earnings history" });
+  // Was a link in the side rail; the rail is gone and this row is where the stock's other pages live.
+  links.push({ href: `/backtest?t=${encodeURIComponent(upper)}`, label: `Backtest ${upper}` });
   return (
     <nav aria-label={`Related to ${upper}`} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5 border-t border-oa-border px-3.5 py-2.5 sm:px-4">
       <span className="mr-1 text-[13px] leading-5 text-oa-muted-fg">Related</span>

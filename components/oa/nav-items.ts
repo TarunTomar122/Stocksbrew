@@ -205,10 +205,52 @@ export function sectionFor(pathname: string, place: NavPlace | null = placeFor(p
  * current page and its next neighbours are the pills that fit. With no current section (a stock page), the place's
  * own order.
  */
-export function stripOrder(place: NavPlace, current: NavItem | null): NavItem[] {
-  const at = current ? place.sections.indexOf(current) : -1;
-  if (at <= 0) return place.sections;
-  return [...place.sections.slice(at), ...place.sections.slice(0, at)];
+export function stripOrder(place: NavPlace | NavItem[], current: NavItem | null): NavItem[] {
+  const items = Array.isArray(place) ? place : place.sections;
+  const at = current ? items.indexOf(current) : -1;
+  if (at <= 0) return items;
+  return [...items.slice(at), ...items.slice(0, at)];
+}
+
+/** The views of My stocks' overview page (components/portfolio/my-stocks-tabs.tsx draws them as tabs from lg up). */
+export type MyStocksView = "overview" | "holdings" | "watching" | "alerts";
+
+/**
+ * My stocks' own tabs as phone strip pills. Below lg the strip is the page's one level of navigation, so the tabs
+ * join it instead of drawing a second bar under it (owner, Nov 11: "Overview" twice on a phone).
+ */
+export const MY_STOCKS_VIEW_ITEMS: ReadonlyArray<NavItem & { view: MyStocksView }> = [
+  { view: "overview", label: "Overview", href: "/portfolio", match: ["/import"], icon: "portfolio" },
+  { view: "holdings", label: "Holdings", href: "/portfolio?tab=holdings", match: [], icon: "portfolio" },
+  { view: "watching", label: "Watching", href: "/portfolio?tab=watching", match: [], icon: "portfolio" },
+  { view: "alerts", label: "Alerts", href: "/portfolio?tab=alerts", match: [], icon: "alerts" },
+];
+
+/** The pills of a place's phone strip: its sections, with My stocks' overview split into its tabs. */
+export function stripItems(place: NavPlace): NavItem[] {
+  if (place.href !== "/portfolio") return place.sections;
+  return [...MY_STOCKS_VIEW_ITEMS, ...place.sections.filter((item) => item.href !== "/portfolio")];
+}
+
+/**
+ * The strip pill that is lit: the section the path sits in, or on My stocks' overview page the tab on show
+ * (`view`, read from the address in the browser; the overview when unknown).
+ */
+export function stripCurrent(place: NavPlace, pathname: string, view: MyStocksView | null): NavItem | null {
+  const section = sectionFor(pathname, place);
+  if (place.href !== "/portfolio" || section?.href !== "/portfolio") return section;
+  const shown = pathname === "/portfolio" ? view ?? "overview" : "overview";
+  return MY_STOCKS_VIEW_ITEMS.find((item) => item.view === shown) ?? null;
+}
+
+/** Which My stocks view an address shows (the same reading as lib/portfolio-shared.ts `myStocksTab`). */
+export function myStocksViewOf(search: string): MyStocksView {
+  const params = new URLSearchParams(search);
+  const tab = (params.get("tab") ?? "").toLowerCase();
+  if (tab === "watching" || tab === "alerts") return tab;
+  if (tab === "holdings" || tab === "positions" || tab === "analytics") return "holdings";
+  if (params.get("reasons") === "1") return "holdings";
+  return "overview";
 }
 
 /** The icon of the section (or place) that owns a path: page titles and link lists use it, so a place looks the same everywhere. */

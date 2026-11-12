@@ -228,36 +228,32 @@ export function RangeTrack({
   );
 }
 
-/** Horizontal bars for parts of a whole (revenue by segment or by country). */
-export function ShareBars({
+/**
+ * Shares of a whole (revenue by business or region) as plain rows: the name,
+ * the amount and its share. No bar beside them: the percentage already says
+ * it (owner rule 5).
+ */
+export function ShareRows({
   items,
   formatValue,
-  color = "var(--oa-primary)",
 }: {
   items: Array<{ name: string; sharePct: number; value?: number | null }>;
   formatValue?: (value: number) => string;
-  color?: string;
 }) {
   const rows = items.filter((item) => fin(item.sharePct) && item.sharePct > 0);
   if (!rows.length) return null;
-  const max = Math.max(...rows.map((row) => row.sharePct));
   return (
-    <ul className="flex flex-col gap-2.5">
-      {rows.map((row, index) => (
-        <li key={row.name} className="min-w-0">
-          <div className="flex items-baseline justify-between gap-3 text-[14px] leading-5">
-            <span className="min-w-0 truncate text-oa-fg">{row.name}</span>
-            <span className="shrink-0 tabular-nums text-oa-muted-fg">
-              {fin(row.value) && formatValue ? <>{formatValue(row.value)} · </> : null}
-              <span className="font-medium text-oa-fg">{row.sharePct.toFixed(row.sharePct >= 10 ? 0 : 1)}%</span>
-            </span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-oa-secondary" aria-hidden="true">
-            <span
-              className="block h-full rounded-full"
-              style={{ width: `${(row.sharePct / max) * 100}%`, background: color, opacity: index === 0 ? 1 : 0.45 }}
-            />
-          </div>
+    <ul className="flex flex-col">
+      {rows.map((row) => (
+        <li
+          key={row.name}
+          className="flex min-h-9 items-baseline justify-between gap-3 border-b border-oa-border px-3.5 py-2 text-[14px] leading-5 last:border-b-0 sm:px-4"
+        >
+          <span className="min-w-0 truncate text-oa-fg">{row.name}</span>
+          <span className="shrink-0 tabular-nums text-oa-muted-fg">
+            {fin(row.value) && formatValue ? <>{formatValue(row.value)} · </> : null}
+            <span className="font-medium text-oa-fg">{row.sharePct.toFixed(row.sharePct >= 10 ? 0 : 1)}%</span>
+          </span>
         </li>
       ))}
     </ul>

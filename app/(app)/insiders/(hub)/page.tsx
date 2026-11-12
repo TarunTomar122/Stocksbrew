@@ -50,7 +50,23 @@ export default async function InsidersPage() {
   const now = Date.now();
   const read = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
   const topBought = read.tallies.slice(0, 6);
-  const byValue = [...read.tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).slice(0, 6);
+  // The money list leaves out the stocks already in the buyers list, so no stock is listed twice side by side
+  // (owner rule 1). Its sentence says where its top stock ranks among all of them by money.
+  const ranked = [...read.tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  const inBought = new Set(topBought.map((row) => row.ticker));
+  const byValue = ranked.filter((row) => !inBought.has(row.ticker)).slice(0, 6);
+  const moneyTop = byValue[0];
+  const moneyValue = moneyTop?.value ?? 0;
+  // Its rank among every stock by money in: ties share a rank, so two equal amounts never read "second only to".
+  const moneyRank = moneyTop ? ranked.filter((row) => (row.value ?? 0) > moneyValue).length : -1;
+  const ORDINAL = ["", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+  const moneyTakeaway = moneyTop
+    ? moneyRank === 0
+      ? `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders, the most money into any stock.`
+      : moneyRank < ORDINAL.length
+        ? `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders, the ${ORDINAL[moneyRank]} most of any stock.`
+        : `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders.`
+    : undefined;
 
   // Every buy in the window plus the most recent sales, newest filing first, without repeats.
   const byId = new Map<string, InsiderTrade>();
@@ -77,7 +93,8 @@ export default async function InsidersPage() {
 
       <TheRead read={read} className="mb-4" />
 
-      <CardGrid cols={2} className="mb-4">
+      {/* The money list only when it has stocks of its own; then the buyers list fills the row alone (owner rule 4). */}
+      <CardGrid cols={2} className={`mb-4 ${byValue.length ? "" : "md:!grid-cols-1"}`}>
         <StockTallyPanel
           label="Most insiders buying · 2 weeks"
           side="buy"
@@ -90,36 +107,34 @@ export default async function InsidersPage() {
               : undefined
           }
         />
+        {byValue.length ? (
         <StockTallyPanel
           label="Most money in · 2 weeks"
           side="buy"
           unit="insider"
+          figure={(row) => fmtUsd(row.value ?? 0)}
           rows={byValue}
           empty="No open-market insider buys in the last two weeks."
-          takeaway={byValue[0] ? `${fmtUsd(byValue[0].value ?? 0)} of ${byValue[0].ticker} bought by insiders, the most money into any stock.` : undefined}
+          takeaway={moneyTakeaway}
         />
+        ) : null}
       </CardGrid>
 
-      <Panel
-        flush
-        className="mb-4"
-        label={
-          <>
-            Cluster buys <span className="oa-mono ml-1 font-normal text-oa-muted-fg">{clusters.length}</span>
-          </>
-        }
-        right={<span className="hidden sm:inline">Three or more insiders buying the same stock within 30 days</span>}
-      >
-        {clusters.length > 0 ? (
+      {/* Only when there is one: a card that can only say "no cluster buys" is not shown (owner rule 4). */}
+      {clusters.length > 0 ? (
+        <Panel
+          flush
+          className="mb-4"
+          label={
+            <>
+              Cluster buys <span className="oa-mono ml-1 font-normal text-oa-muted-fg">{clusters.length}</span>
+            </>
+          }
+          right={<span className="hidden sm:inline">Three or more insiders buying the same stock within 30 days</span>}
+        >
           <ClusterRows clusters={clusters} />
-        ) : (
-          <p className="px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">
-            {meta
-              ? `No cluster buys since ${fmtDate(meta.since)}. That is normal: most insider activity is selling.`
-              : "No insider filings yet."}
-          </p>
-        )}
-      </Panel>
+        </Panel>
+      ) : null}
 
       <section aria-label="Recent trades">
         <InsiderTable trades={trades} initialSide="buy" />

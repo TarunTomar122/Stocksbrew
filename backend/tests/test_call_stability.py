@@ -191,20 +191,20 @@ class RuleTest(unittest.TestCase):
     def test_what_would_change_matches_the_rule(self) -> None:
         _, views = run([(DAYS[START], "accumulate")], next_earnings=DAYS[START + 10])
         text = views[0]["what_would_change"]
-        earliest = cs.short_day(cs.add_sessions(DAYS[START], cs.DEFAULT_RULES.min_hold_sessions))
-        self.assertIn(f"until at least {earliest}", text)
-        self.assertIn(f"its {cs.short_day(DAYS[START + 10])} results", text)
-        # Measurable: the market drop and this stock's own bar, the numbers the rule uses.
-        self.assertIn("a week in which the S&P 500 falls 4%", text)
+        # No mechanics: not how long the call stands, and not the market-wide drop (it says nothing about this stock).
+        self.assertNotIn("until at least", text)
+        self.assertNotIn("the S&P 500 falls", text)
+        self.assertIn(f"its {cs.short_day(DAYS[START + 10])} results", text.replace("Its ", "its ", 1))
+        # Measurable: this stock's own bars, the numbers the rule uses.
         sigma = cs.daily_swing(facts(upto=DAYS[START]))
         day_bar = round(cs.DEFAULT_RULES.move_sigma * sigma * 100)
         week_bar = round(cs.DEFAULT_RULES.move_sigma * sigma * 5 ** 0.5 * 100)
         # From Buy more only a fall can fast-track a change.
-        self.assertIn(f"a day in which it falls {day_bar}% more than the S&P 500, a week in which it falls {week_bar}% more", text)
+        self.assertIn(f"a day in which it falls {day_bar}% more than the S&P 500 or a week in which it falls {week_bar}% more", text)
         # No mechanics in the copy: no day counts or rule words.
         self.assertNotIn("trading days", text)
         self.assertNotIn("sigma", text)
-        self.assertIn("we'd move to Keep", text.replace("We'd", "we'd"))
+        self.assertTrue(text.endswith("could change it."))
         # A Sell some call cannot be lowered by a market drop, so the text does not offer it.
         state, views = run([(DAYS[START], "trim")])
         later = DAYS[START + 30]
@@ -333,15 +333,23 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(cs.session_day(["2026-11-06", "2026-11-09"], "2026-11-14"), "2026-11-13")  # Saturday, prices a week old
         self.assertEqual(cs.session_day(["2026-11-13"], "2026-11-15"), "2026-11-13")  # Sunday rerun
 
-    def test_the_earliest_date_counts_trading_days_like_the_rule(self) -> None:
-        # A price series with a holiday: the date said on the page is the session the rule allows.
+    def test_a_held_call_says_what_could_change_it_not_how_long_it_stands(self) -> None:
+        # Inside the minimum hold the copy names what could still move the call, never the date the hold ends.
         dates = [d for d in weekdays("2026-11-02", 30) if d != "2026-11-26"]
         f = cs.Facts(dates=dates[:5], closes=[100.0] * 5)
         state = {"call": "Add", "since": dates[0], "changes": []}
-        held = cs.held_sessions(f, dates[0], dates[4])
         text = cs.what_would_change(state, dates[4], f, "Acme")
-        self.assertIn(f"until at least {cs.short_day(cs.add_sessions(dates[4], cs.DEFAULT_RULES.min_hold_sessions - held))}", text)
         self.assertIn("a new outlook", text)
+        self.assertNotIn("until at least", text)
+        self.assertTrue(text.endswith("could change it."))
+
+    def test_a_call_that_just_went_up_into_buy_more_offers_only_its_results(self) -> None:
+        # Buy more reached by a move up inside the hold: only a fall could fast-track it, and the rule holds that back.
+        dates = weekdays("2026-11-02", 10)
+        f = cs.Facts(dates=dates[:5], closes=[100.0] * 5, next_earnings=dates[8])
+        state = {"call": "Add", "since": dates[2], "changes": [{"date": dates[2], "from": "Hold", "to": "Add"}]}
+        text = cs.what_would_change(state, dates[4], f, "Acme")
+        self.assertEqual(text, f"Only its {cs.short_day(dates[8])} results could change it.")
 
     def test_no_vote_and_no_state_gives_nothing(self) -> None:
         self.assertEqual(cs.stabilise(None, "", DAYS[START], facts(upto=DAYS[START])), (None, None))

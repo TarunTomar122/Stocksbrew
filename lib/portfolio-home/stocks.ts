@@ -67,6 +67,9 @@ export type BookFacts = {
   ideas: IdeaFact[];
 };
 
+/** One holding over the past month (21 sessions) against the S&P 500 over the same days. */
+export type MonthMove = { pct: number; marketPct: number | null };
+
 export type BookSource = {
   mode: HomeMode;
   today: string;
@@ -76,10 +79,12 @@ export type BookSource = {
   /** The S&P 500 on the same day, or null when it is from another day. */
   marketPct: number | null;
   week: WeekMove | null;
+  /** Each holding's past month against the S&P 500 (monthMoves), for a card with nothing more pressing to say. */
+  month?: Record<string, MonthMove> | null;
   facts: Omit<BookFacts, "reasons" | "ideas">;
 };
 
-export type FactKind = "report" | "call" | "move" | "loss" | "weight" | "insider" | "level" | "reason" | "next-report" | "call-reason" | "size";
+export type FactKind = "report" | "call" | "move" | "loss" | "weight" | "insider" | "level" | "reason" | "next-report" | "call-reason" | "month" | "size";
 
 export type StockFact = {
   kind: FactKind;
@@ -300,12 +305,27 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
   const cards = source.portfolio.positions.map((position): StockCard => {
     const call = source.facts.calls[position.ticker] ?? null;
     const facts = stockFacts({ position, today: source.today, example, ...source.facts, ...extra });
-    // Nothing else to say: its share of the money, so no card is left with nothing on it.
-    if (facts.length === 0 && fin(position.weight) && sized.length > 1) {
-      const pct = `${position.weight! >= 9.5 ? Math.round(position.weight!) : position.weight!.toFixed(1).replace(/\.0$/, "")}%`;
-      const text = position === biggest ? `${example ? "The example's biggest holding, " : "Your biggest holding, "}${pct} of ${example ? "its" : "your"} money.` : `${pct} of ${example ? "the example's" : "your"} money.`;
-      facts.push({ kind: "size", text, priority: 5 });
+    const pct = fin(position.weight) && sized.length > 1 ? `${position.weight! >= 9.5 ? Math.round(position.weight!) : position.weight!.toFixed(1).replace(/\.0$/, "")}%` : null;
+    const size = pct
+      ? position === biggest
+        ? `${example ? "The example's biggest holding, " : "Your biggest holding, "}${pct} of ${example ? "its" : "your"} money`
+        : `${pct} of ${example ? "the example's" : "your"} money`
+      : null;
+    // Below the call's own reason: its share of the money and how it did over the past month against the S&P 500, so
+    // a fund (no call, no report) or a quiet stock still says something real (owner rule 10).
+    const month = source.month?.[position.ticker];
+    if (month && fin(month.pct)) {
+      const said = monthWords(month);
+      facts.push({ kind: "month", text: size ? `${size}, ${said}.` : `${capital(said)}.`, priority: 8 });
+      // A bare "Next report Dec 10." is thin on its own (council, Nov 11): the month goes with it.
+      const report = facts.find((fact) => fact.kind === "next-report");
+      if (report && facts.every((fact) => fact === report || fact.priority < report.priority)) {
+        report.text = `${report.text.replace(/\.$/, "")}; ${said}.`;
+      }
     }
+    // Nothing else to say: its share of the money, so no card is left with nothing on it.
+    if (facts.length === 0 && size) facts.push({ kind: "size", text: `${size}.`, priority: 5 });
+    facts.sort((a, b) => b.priority - a.priority);
     return {
       ticker: position.ticker,
       name: position.name,
@@ -388,6 +408,52 @@ function closeOnOrBefore(series: DailySeries | undefined, day: string): number |
     return fin(series.closes[i]) && series.closes[i]! > 0 ? series.closes[i]! : null;
   }
   return null;
+}
+
+const MONTH_SESSIONS = 21;
+const MONTH_IN_LINE_POINTS = 0.5;
+
+/**
+ * "down 7.2% over the past month, 4.9 points behind the S&P 500": the holding's own month and its own gap to the
+ * market, so no two cards repeat the same "against −2.3% for the S&P 500" (owner rule 1). The gap is worked out from
+ * the one-decimal figures. Under 0.05% either way reads "flat"; within half a point, "in line with".
+ */
+export function monthWords(month: MonthMove): string {
+  const shown = (value: number) => Number(value.toFixed(1));
+  const pct = shown(month.pct);
+  const move = Math.abs(month.pct) < 0.05 ? "flat over the past month" : `${pct >= 0 ? "up" : "down"} ${Math.abs(pct).toFixed(1)}% over the past month`;
+  if (month.marketPct === null || !fin(month.marketPct)) return move;
+  const gap = Number((pct - shown(month.marketPct)).toFixed(1));
+  // Over a month, half a point either way is in line with the market.
+  if (Math.abs(gap) < MONTH_IN_LINE_POINTS) return `${move}, in line with the S&P 500`;
+  return `${move}, ${Math.abs(gap).toFixed(1)} ${Math.abs(gap) === 1 ? "point" : "points"} ${gap > 0 ? "ahead of" : "behind"} the S&P 500`;
+}
+
+/**
+ * Each holding over the past month (21 sessions) up to the prices on screen, against SPY over the same days: its
+ * stored close then to its price now. A holding without a close that far back is left out.
+ */
+export function monthMoves(input: { positions: PortfolioPosition[]; series: Map<string, DailySeries>; benchmark: DailySeries | null; pricesDay: string | null; marketPct: number | null }): Record<string, MonthMove> {
+  const out: Record<string, MonthMove> = {};
+  const spy = input.benchmark;
+  const day = input.pricesDay;
+  if (!spy || !day) return out;
+  let last = Math.min(spy.dates.length, spy.closes.length) - 1;
+  while (last >= 0 && spy.dates[last]! > day) last--;
+  if (last < 0) return out;
+  const stored = spy.dates[last] === day;
+  const start = stored ? last - MONTH_SESSIONS : last - (MONTH_SESSIONS - 1);
+  if (start < 0) return out;
+  const from = spy.dates[start]!;
+  const spyEnd = stored ? spy.closes[last]! : input.marketPct !== null ? spy.closes[last]! * (1 + input.marketPct / 100) : null;
+  const marketPct = spyEnd !== null ? (spyEnd / spy.closes[start]! - 1) * 100 : null;
+  for (const position of input.positions) {
+    if (position.kind !== "holding" || !fin(position.price) || position.price! <= 0) continue;
+    const then = closeOnOrBefore(input.series.get(position.ticker), from);
+    if (then === null) continue;
+    out[position.ticker] = { pct: (position.price! / then - 1) * 100, marketPct };
+  }
+  return out;
 }
 
 /**

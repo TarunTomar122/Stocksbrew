@@ -263,11 +263,71 @@ export type RedditName = {
 };
 
 /** What is being said about a name, as one line: its first catalyst, else the summary's first sentence. */
-export function redditHighlight(name: Pick<RedditName, "catalysts" | "summary">): string | null {
+export function redditHighlight(
+  name: Pick<RedditName, "catalysts" | "summary">,
+  /** Today's move by ticker and by the first word of the company's name, for dropping a clause today contradicts. */
+  movesToday?: ReadonlyMap<string, number>,
+): string | null {
   const said = name.catalysts.find((line) => line.trim()) ?? (name.summary ? firstFullSentence(name.summary) : null);
-  const clean = said ? said.trim().replace(/[.!]+$/, "") : "";
+  const clean = withoutContradictedClause(said ? said.trim().replace(/[.!]+$/, "") : "", movesToday);
   // The line keeps its own capitals ("CEO", "AI", "Nvidia"); only the first letter is raised.
   return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.` : null;
+}
+
+const FELL = /^(?:declined|declines|fell|falls|dropped|drops|slid|slides|sank|sinks|slumped|slumps|tumbled|tumbles|weakened)$/i;
+const ROSE = /^(?:rose|rises|rallied|rallies|gained|gains|climbed|climbs|jumped|jumps|surged|surges|soared|soars|strengthened)$/i;
+// A trailing comparison with another stock: "Relative strength while Nvidia declined", "…, as AMD rallied".
+const COMPARED = /,?\s+(?:while|as|after|despite)\s+([A-Z][\w.&-]*)(?:'s|’s)?(?:\s+(?:stock|shares))?\s+([a-z]+)\b[^,;]*$/;
+
+// Keys too common to stand for one stock: first words many companies share ("American", "Energy", "The"), and tickers
+// that are also words ("AI", "ON", "IT").
+const GENERIC_KEYS = new Set(
+  (
+    "the american america energy first general united global international national new advanced applied digital " +
+    "southern northern western eastern pacific atlantic royal bank capital financial health healthcare real " +
+    "ai it on all are can now one see big low key run out any has was"
+  ).split(" "),
+);
+
+/**
+ * A highlight's closing comparison with another stock, dropped when today's move says the opposite (owner rule 7:
+ * nothing stale shown as news). The posts were read days ago; "while Nvidia declined" on a day NVDA is up 2.9% is no
+ * longer true. Kept when we do not know that stock's move today.
+ */
+export function withoutContradictedClause(text: string, movesToday?: ReadonlyMap<string, number>): string {
+  if (!text || !movesToday?.size) return text;
+  const match = COMPARED.exec(text);
+  if (!match || match.index === 0) return text;
+  const who = match[1]!.toLowerCase();
+  const verb = match[2]!;
+  const move = movesToday.get(who);
+  if (move === undefined) return text;
+  const contradicted = (FELL.test(verb) && move > 0) || (ROSE.test(verb) && move < 0);
+  return contradicted ? text.slice(0, match.index) : text;
+}
+
+/** Today's moves keyed for withoutContradictedClause: by ticker and by the first word of the company's name. */
+export function redditMovesToday(names: ReadonlyArray<Pick<RedditName, "ticker" | "company" | "dayPct">>): Map<string, number> {
+  const moves = new Map<string, number>();
+  // Which tickers each key stands for: META's own ticker and "Meta Platforms" are one stock, not a clash.
+  const owners = new Map<string, Set<string>>();
+  const add = (key: string, ticker: string, pct: number) => {
+    if (!key || GENERIC_KEYS.has(key)) return;
+    const set = owners.get(key) ?? new Set<string>();
+    set.add(ticker);
+    owners.set(key, set);
+    if (!moves.has(key)) moves.set(key, pct);
+  };
+  for (const name of names) {
+    if (name.dayPct === null || !Number.isFinite(name.dayPct)) continue;
+    const ticker = name.ticker.toUpperCase();
+    add(ticker.toLowerCase(), ticker, name.dayPct);
+    const first = name.company?.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z0-9&-]/g, "");
+    if (first && first.length > 3) add(first, ticker, name.dayPct);
+  }
+  // A key two different stocks share names neither of them.
+  for (const [key, tickers] of owners) if (tickers.size > 1) moves.delete(key);
+  return moves;
 }
 
 /** Loudest first: posts in the scan, then how hard it is accelerating. */

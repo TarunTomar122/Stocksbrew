@@ -62,7 +62,7 @@ import {
   getFollowProfile,
   getFollowSources,
   getInsiderBuys,
-  getInsiderSummary,
+  getInsiderMeta,
   getInsiderTrades,
   getInsiderTradesForSymbol,
   type CongressProfile,
@@ -872,8 +872,8 @@ async function insidersCard(input: { ticker?: string; buys_only?: boolean }): Pr
   if (input.buys_only) trades = trades.filter((trade) => trade.tx_type === "buy");
   // An empty result can mean "nobody traded" or "the filings are not loaded". Only the first is an answer.
   if (trades.length === 0) {
-    const loaded = await getInsiderSummary()
-      .then((summary) => Boolean(summary.meta))
+    const loaded = await getInsiderMeta()
+      .then((meta) => Boolean(meta))
       .catch(() => false);
     if (!ticker || !loaded) return errorCard("Insider filings (Form 4) are not loaded right now, so we cannot say who bought or sold.");
   }

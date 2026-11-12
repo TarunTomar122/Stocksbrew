@@ -58,6 +58,7 @@ export function AlertControls({
   currentPrice,
   suggested,
   earnings,
+  wide = false,
 }: {
   ticker: string;
   instrumentId: string;
@@ -65,6 +66,8 @@ export function AlertControls({
   currentPrice: number;
   suggested: SuggestedAlert[];
   earnings: { eventDate: string; label: string; shortLabel: string } | null;
+  /** Full-width panel: from md the alert rows sit on the left and the price box on the right. */
+  wide?: boolean;
 }) {
   const { user, loading, initialAuthed } = useUser();
   const [ids, setIds] = useState<Record<string, string>>({});
@@ -184,8 +187,12 @@ export function AlertControls({
   const rowClass =
     "flex min-h-10 w-full items-center justify-between gap-3 border-b border-oa-border px-3.5 py-1.5 text-left text-[14px] leading-5 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent disabled:opacity-60 sm:min-h-9 sm:px-4";
 
+  const hasRows = suggested.length > 0 || Boolean(earnings) || extra.length > 0;
+  const split = wide && hasRows;
+
   return (
-    <div>
+    <div className={split ? "md:grid md:grid-cols-2" : undefined}>
+      <div className={split ? "md:border-r md:border-oa-border md:[&>*:last-child]:border-b-0" : undefined}>
       {suggested.map((item) => {
         const key = priceAlertKey(item.condition, item.price);
         const on = Boolean(ids[key]);
@@ -264,7 +271,11 @@ export function AlertControls({
           </span>
         </button>
       ))}
+      </div>
 
+      {/* Wide with only the price box: the box and its note side by side, so neither runs alone across the panel. */}
+      {/* Beside several alert rows, the box and its note sit in the middle of their column, not at its top. */}
+      <div className={wide && !split ? "md:grid md:grid-cols-2 md:items-center" : split ? "md:flex md:flex-col md:justify-center" : undefined}>
       <form onSubmit={submitCustom} className="flex items-center gap-2 px-3.5 py-2.5 sm:px-4">
         <label className="flex h-10 min-w-0 flex-1 sm:h-8 items-center gap-1 rounded-lg border border-oa-border bg-oa-bg px-2 focus-within:border-oa-primary">
           <span className="oa-mono text-[13px] text-oa-muted-fg">{currency}</span>
@@ -289,10 +300,11 @@ export function AlertControls({
 
       <p
         role="status"
-        className={`px-3.5 pb-2.5 text-[12px] leading-4 sm:px-4 ${status?.tone === "error" ? "text-signal-bearish" : "text-oa-muted-fg"}`}
+        className={`px-3.5 pb-2.5 text-[12px] leading-4 sm:px-4 ${wide && !split ? "md:py-2.5" : ""} ${status?.tone === "error" ? "text-signal-bearish" : "text-oa-muted-fg"}`}
       >
         {status?.text ?? `Alerts arrive by email. Free keeps ${limitFor("price_alerts", "free")} price alerts; earnings and call-change alerts are part of Pro.`}
       </p>
+      </div>
     </div>
   );
 }

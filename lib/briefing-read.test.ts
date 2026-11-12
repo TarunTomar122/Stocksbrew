@@ -59,6 +59,16 @@ describe("briefingRead", () => {
     expect(read?.insights[2].action).toEqual({ label: "Our view on CBRS", href: "/stock/CBRS" });
   });
 
+  it("reads the example against the S&P 500, on its own price day, with no clock of its own", () => {
+    const portfolio = { value: 1000, day_change_value: 21, day_change_pct: 2.1, counted: 3, holdings: 3, as_of: "2026-11-11T20:59:00.000Z" };
+    const today = briefingRead({ ...base, date: "2026-11-11", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-11T22:00:00Z"), { example: true, marketPct: 1.31 });
+    expect(today?.headline).toBe("Your holdings are up 2.1% today, against +1.31% for the S&P 500; ASTS (+14.1%) and CBRS (+7.9%) moved most.");
+    expect(today?.asOf).toBeNull();
+    // Before Thursday's open the example still shows Wednesday's prices: it says so instead of "today".
+    const before = briefingRead({ ...base, date: "2026-11-12", portfolio }, groupBriefingSections(sections([orcl, cbrs, asts])), null, Date.parse("2026-11-12T12:00:00Z"), { example: true });
+    expect(before?.headline).toBe("Your holdings are up 2.1% on Wednesday; ASTS (+14.1%) and CBRS (+7.9%) moved most.");
+  });
+
   it("names the decisions when there is no holdings figure", () => {
     const read = briefingRead(base, groupBriefingSections(sections([orcl])));
     expect(read?.headline).toBe("One stock needs a decision today: ORCL.");
@@ -234,12 +244,13 @@ describe("the market read's time", () => {
     market: { indices: [index], gainers: [], losers: [], as_of: "2026-11-11T14:58:01.497Z" },
   });
 
-  it("carries the time its moves were priced, not the movers feed's run time", () => {
+  it("carries the time its numbers were priced, not the movers feed's run time", () => {
     const read = briefingRead(
       market({ name: "S&P 500", price: 7549, change_pct: 1.39, as_of: "2026-11-11T20:02:00Z" }),
       groupBriefingSections({ ...sections([]), needs_you: [crwv] }, "market"),
     );
-    expect(read?.asOf).toBe("2026-11-11T20:03:00+00:00");
+    // The oldest number shown: the index at 3:02 PM, then CRWV at 3:03 PM.
+    expect(read?.asOf).toBe("2026-11-11T20:02:00Z");
     expect(read?.headline).toBe("CRWV rose 23.9%, the biggest move today with news behind it.");
     // The index line uses the index's own quote time.
     expect(read?.insights[0]?.text).toBe("As of 3:02 PM ET, the S&P 500 is up 1.39%.");
@@ -269,5 +280,19 @@ describe("the market read's time", () => {
       groupBriefingSections({ ...sections([]), needs_you: [crwv] }, "market"),
     );
     expect(read?.insights[0]?.text).toBe("The S&P 500 closed up 1.42%.");
+  });
+
+  it("never dates a read that says the index closed by a midday move: that move says its own time", () => {
+    // After the close: the index closed at 4 PM, CRWV's move is a 12:33 PM snapshot.
+    const midday = { ...crwv, as_of: "2026-11-11T17:33:00Z" };
+    const read = briefingRead(
+      market({ name: "S&P 500", price: 7549, change_pct: 1.31, as_of: "2026-11-11T21:00:00Z" }),
+      groupBriefingSections({ ...sections([]), needs_you: [midday] }, "market"),
+      null,
+      Date.parse("2026-11-11T22:00:00Z"),
+    );
+    expect(read?.headline).toBe("By 12:33 PM, CRWV was up 23.9%, the biggest move today with news behind it.");
+    expect(read?.insights[0]?.text).toBe("The S&P 500 closed up 1.31%.");
+    expect(read?.asOf).toBe("2026-11-11T21:00:00Z");
   });
 });

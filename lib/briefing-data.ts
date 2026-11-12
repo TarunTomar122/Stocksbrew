@@ -233,7 +233,8 @@ type MarketInputs = Pick<
   "movers" | "movers_date" | "movers_as_of" | "indices" | "congress_trades" | "discussion"
 > & { degraded: string[] };
 
-async function loadMarketInputs(): Promise<MarketInputs> {
+/** The market's shared inputs (movers, indices, Congress trades, discussion), each read guarded; also the example briefing's. */
+export async function loadMarketInputs(): Promise<MarketInputs> {
   const degraded: string[] = [];
   const guard = <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
     promise.catch(() => {
@@ -375,7 +376,8 @@ const marketBriefingCached = sharedCache(
 /** How old a shared market build may be. unstable_cache serves a stale entry however old it is (and refreshes it behind). */
 const MARKET_BUILD_MAX_AGE_MS = 3 * 60_000;
 
-async function marketBriefing(now: Date): Promise<MarketBuild> {
+/** The shared market view (built once a minute per market day); the example briefing falls back to it. */
+export async function marketBriefing(now: Date): Promise<MarketBuild> {
   try {
     const build = await marketBriefingCached(marketDay(now));
     const age = now.getTime() - Date.parse(build.briefing.built_at);

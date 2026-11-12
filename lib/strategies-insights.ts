@@ -19,8 +19,18 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function pts(value: number): string {
-  return `${Math.abs(value * 100).toFixed(1)} pts`;
+/**
+ * The gap between two returns in points, worked out from the same one-decimal figures the sentence shows, so
+ * "+33.8% against +10.8%" reads "23.0 pts" and never "22.9 pts".
+ */
+function pts(mine: number, bench: number): string {
+  const shown = (value: number) => Number((value * 100).toFixed(1));
+  return `${Math.abs(shown(mine) - shown(bench)).toFixed(1)} pts`;
+}
+
+/** A gap shown without the two returns beside it: the same figure as the table's "vs S&P 500" column. */
+function gapPts(gap: number): string {
+  return `${Math.abs(gap * 100).toFixed(1)} pts`;
 }
 
 function sectorWord(sector: string): string {
@@ -165,7 +175,7 @@ export function buildStrategiesRead(
     insights.push({
       id: "laggard",
       tone: toneOfChange(last.mine - last.bench, 0.005),
-      text: `Worst this year: ${last.item.name}, ${signedPct(last.mine)}, ${pts(last.mine - last.bench)} ${last.mine >= last.bench ? "ahead of" : "behind"} the S&P 500.`,
+      text: `Worst this year: ${last.item.name}, ${signedPct(last.mine)}, ${pts(last.mine, last.bench)} ${last.mine >= last.bench ? "ahead of" : "behind"} the S&P 500.`,
       soWhat: drag?.text,
       tickers: drag?.tickers,
       action: { label: `Open ${last.item.name}`, href: `/strategies/${last.item.slug}` },
@@ -186,7 +196,7 @@ export function buildStrategiesRead(
           : ""
       }.`,
     });
-    const gap = pts(lead.mine - lead.bench);
+    const gap = pts(lead.mine, lead.bench);
     headline =
       beat === 0
         ? `${beatThisYear(0, tally).replace(/^0 of/, "None of")}; ${lead.item.name} came closest, ${gap} behind.`
@@ -220,7 +230,7 @@ export function buildStrategyRead(strategy: Strategy, options: { seesHoldings: b
       insights.push({
         id: "this-year",
         tone: toneOfChange(gap, 0.005),
-        text: `This year it is ${signedPct(latest.strategy)} against ${signedPct(latest.benchmark)} for the S&P 500, ${pts(gap)} ${gap >= 0 ? "ahead" : "behind"}.`,
+        text: `This year it is ${signedPct(latest.strategy)} against ${signedPct(latest.benchmark)} for the S&P 500, ${pts(latest.strategy, latest.benchmark)} ${gap >= 0 ? "ahead" : "behind"}.`,
         soWhat: lean?.text,
         tickers: lean?.tickers,
         action: options.seesHoldings ? { label: "What it holds", href: "#basket" } : undefined,
@@ -233,10 +243,10 @@ export function buildStrategyRead(strategy: Strategy, options: { seesHoldings: b
       insights.push({
         id: "long-run",
         tone: toneOfChange(gap, 0.005),
-        text: `Over ${Math.round(test.period.years)} years it ${gap >= 0 ? "beat" : "trailed"} the S&P 500 by ${pts(gap)} a year, with a worst drop of ${signedPct(test.strategy.max_drawdown, 0)} against ${signedPct(test.benchmark.max_drawdown, 0)}.`,
+        text: `Over ${Math.round(test.period.years)} years it ${gap >= 0 ? "beat" : "trailed"} the S&P 500 by ${gapPts(gap)} a year, with a worst drop of ${signedPct(test.strategy.max_drawdown, 0)} against ${signedPct(test.benchmark.max_drawdown, 0)}.`,
         soWhat: `It beat the S&P in ${test.hit_rate.beat} of ${test.hit_rate.years} years.`,
       });
-      headline = `${gap >= 0 ? "Beat" : "Trailed"} the S&P 500 by ${pts(gap)} a year over ${Math.round(test.period.years)} years, backtested.`;
+      headline = `${gap >= 0 ? "Beat" : "Trailed"} the S&P 500 by ${gapPts(gap)} a year over ${Math.round(test.period.years)} years, backtested.`;
     }
     // Where the gain came from: the years with the biggest lead over the S&P.
     const complete = test.years.filter((row) => row.complete);

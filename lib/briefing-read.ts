@@ -281,6 +281,28 @@ export function sessionParts(indexLine: string, index: IndexMove, session: Brief
   return { line, pulled: null, pulledPct: null };
 }
 
+/**
+ * The market read's one time: the oldest quote among the numbers it tells as current, the index and the moves said
+ * without a clock of their own. A move priced hours earlier carries its own time ("By 12:33 PM, CoreWeave was up
+ * 23.9%"), so it never drags the read's time back under a headline that says the index closed. Null when nothing
+ * shown is current (every number then says its own time); the feed's time only when nothing shown has a time at all.
+ */
+function shownAsOf(
+  indexAsOf: string | null | undefined,
+  groups: BriefingGroup[],
+  shown: ReadonlySet<string>,
+  briefing: { date?: string; market: { as_of: string | null } },
+  now: number,
+): string | null {
+  const stamps = groups
+    .filter((group) => group.ticker && shown.has(group.ticker))
+    .flatMap((group) => group.items.filter((item) => item.kind === "price_move").map((item) => item.as_of))
+    .filter((stamp): stamp is string => Boolean(stamp));
+  if (!indexAsOf && stamps.length === 0) return briefing.market.as_of ?? null;
+  const current = stamps.filter((stamp) => !earlierSession(stamp, briefing.date) && !staleMoveClock(stamp, now));
+  return oldestStamp([indexAsOf, ...current]);
+}
+
 /** Words in a sentence, for keeping a headline to one short line of thought. */
 function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
@@ -294,16 +316,20 @@ export function briefingRead(
   grouped: GroupedSections,
   session?: BriefingSession | null,
   now: number = Date.now(),
+  /**
+   * `example`: the signed-out page's made-up portfolio (lib/briefing-example.ts), read as a member would see it. Its
+   * headline says the day its prices are from and sets the move against the S&P 500 (`marketPct`, the same figure as
+   * the page's market line), and the read carries no time of its own: the page's header says the one clock.
+   */
+  options: { example?: boolean; marketPct?: number | null } = {},
 ): TheRead | null {
   const open = [...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up];
   const items = open.flatMap((group) => group.items);
-  // The market read's time is when its moves were priced: the oldest of their quotes, so no number is dated later than
-  // it was measured. Never the movers feed's run time, which would label a 3 PM quote "as of 9:58 AM". (The index line
-  // carries its own clock.) Your own briefing reads your stocks' quotes and goes by the newest, as before.
-  const quoteTimes = items
-    .filter((item) => (item.kind === "price_move" || item.kind === "zone_entered") && item.as_of)
-    .map((item) => item.as_of as string);
-  const asOf = briefing.mode === "market" ? oldestStamp(quoteTimes) ?? briefing.market.as_of ?? null : newestStamp(quoteTimes);
+  // Your own briefing reads your stocks' quotes and goes by the newest. The market read's time is worked out from what
+  // it shows (shownAsOf): never the movers feed's run time, which would label a 3 PM quote "as of 9:58 AM".
+  const asOf = newestStamp(
+    items.filter((item) => (item.kind === "price_move" || item.kind === "zone_entered") && item.as_of).map((item) => item.as_of as string),
+  );
 
   if (briefing.mode === "market") {
     const index = briefing.market.indices[0];
@@ -371,7 +397,8 @@ export function briefingRead(
           return insight && group === lead ? { ...insight, soWhat: "The biggest move today with news behind it." } : insight;
         }),
       ]);
-      return { headline: day.line, insights: stories, asOf };
+      const shown = new Set(stories.flatMap((insight) => insight.tickers ?? []));
+      return { headline: day.line, insights: stories, asOf: shownAsOf(index?.as_of, leads, shown, briefing, now) };
     }
     // Otherwise the story is the headline and the index, its backdrop, is the first line under it.
     const headline = leaders || indexLine;
@@ -393,7 +420,10 @@ export function briefingRead(
         .map((group) => group.items.map((item) => explainedMoveInsight(item, briefing.date, group.name, now)).find(Boolean) ?? null),
     ], indexPoint ? 4 : 3);
     if (!headline && insights.length === 0) return null;
-    return { headline, insights, asOf, headlineTickers: leadWhy && lead?.ticker ? [lead.ticker] : undefined };
+    const headlineTickers = leadWhy && lead?.ticker ? [lead.ticker] : undefined;
+    // The headline's lead counts as shown even when its reason stayed in its row.
+    const shown = new Set([...(lead?.ticker && leaders ? [lead.ticker] : []), ...insights.flatMap((insight) => insight.tickers ?? [])]);
+    return { headline, insights, asOf: shownAsOf(index?.as_of, leads, shown, briefing, now), headlineTickers };
   }
 
   const decisions = stockGroups(grouped.needs_you);
@@ -417,7 +447,11 @@ export function briefingRead(
       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
       .slice(0, 2)
       .map(([ticker, move]) => `${ticker} (${signed(move)})`);
-    headline = `Your holdings are ${direction > 0 ? "up" : "down"} ${pct(portfolio.day_change_pct)} today${leaders.length ? `; ${joinAnd(leaders)} moved most` : ""}.`;
+    // The example's prices can be an earlier session's (before the open, a weekend): it says that day, never "today".
+    const when = options.example ? earlierSession(portfolio.as_of, briefing.date) || " today" : " today";
+    const marketPct = options.example && options.marketPct != null && Number.isFinite(options.marketPct) ? options.marketPct : null;
+    const baseline = marketPct != null ? `, against ${signed(marketPct, 2)} for the S&P 500` : "";
+    headline = `Your holdings are ${direction > 0 ? "up" : "down"} ${pct(portfolio.day_change_pct)}${when}${baseline}${leaders.length ? `; ${joinAnd(leaders)} moved most` : ""}.`;
   } else if (decisions.length > 0) {
     const names = decisions.slice(0, 3).map((group) => group.ticker as string);
     const more = decisions.length - names.length;
@@ -487,5 +521,5 @@ export function briefingRead(
     }),
   );
   if (!headline && insights.length === 0) return null;
-  return { headline, insights, asOf };
+  return { headline, insights, asOf: options.example ? null : asOf };
 }

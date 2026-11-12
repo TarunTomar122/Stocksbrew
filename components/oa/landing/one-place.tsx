@@ -60,7 +60,7 @@ export async function OnePlace() {
             {view.calls ? ` ${view.calls}` : ""}
             {view.pending ? ` ${view.pending}` : ""}
           </p>
-          <p className="text-[13px] leading-5 text-oa-muted-fg">Example list: made-up share counts, live prices.</p>
+          <p className="text-[13px] leading-5 text-oa-muted-fg">Example portfolio, not real money.</p>
         </div>
         <ul className="divide-y divide-oa-border">
           {view.rows.map((row) => (

@@ -1,6 +1,8 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { INSIDER_BUY_ROWS, nyDay } from "@/lib/insider-balance";
+import { clustersFromBuys, mergeClusters } from "@/lib/insider-clusters";
 import { getScreenerRows } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import {
@@ -252,12 +254,16 @@ async function loadInsiderSummary(): Promise<{
   clusters: InsiderCluster[];
   meta: InsiderMeta | null;
 }> {
-  const [clusters, run] = await Promise.all([
+  const [clusters, run, buys] = await Promise.all([
     adminFirestore.collection("tm_insider_meta").doc("clusters").get(),
     adminFirestore.collection("tm_insider_meta").doc("run").get(),
+    // The same buys /insiders lists (one cache entry). A failed read throws, so this summary is not cached without them.
+    getInsiderBuys(INSIDER_BUY_ROWS),
   ]);
   const stored = clusters.exists ? ((clusters.data() as { clusters?: InsiderCluster[] }).clusters ?? []) : [];
-  const list = Array.isArray(stored) ? stored : [];
+  // The Form 4 job counts clusters within its own run only (seven days of filings), so one that spans runs was
+  // missed ("Cluster buys 0" beside three insiders buying LKQ). The stored buys are counted again with the same rule.
+  const list = mergeClusters(Array.isArray(stored) ? stored : [], clustersFromBuys(buys, nyDay(Date.now())));
   const ranges = await weekRanges(list.map((cluster) => String(cluster.symbol ?? "")));
   return {
     clusters: list.filter((cluster) => !clusterIsOffPrice(cluster, ranges.get(String(cluster.symbol ?? "").toUpperCase()))),
@@ -267,9 +273,17 @@ async function loadInsiderSummary(): Promise<{
 
 export const getInsiderSummary = unstable_cache(
   loadInsiderSummary,
-  ["insider-summary-v4"],
+  ["insider-summary-v5"],
   { revalidate: REVALIDATE },
 );
+
+async function loadInsiderMeta(): Promise<InsiderMeta | null> {
+  const run = await adminFirestore.collection("tm_insider_meta").doc("run").get();
+  return run.exists ? (run.data() as InsiderMeta) : null;
+}
+
+/** Only the Form 4 job's run record: for callers that need its time, not the clusters (no 500-buy read behind it). */
+export const getInsiderMeta = unstable_cache(loadInsiderMeta, ["insider-meta-v1"], { revalidate: REVALIDATE });
 
 /** The sources a signed-in person follows. Never cached: it is theirs and it changes on a click. */
 export async function getFollowedSources(

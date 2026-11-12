@@ -45,12 +45,14 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
-from .feeds_common import SEC_USER_AGENT, Fetcher, load_universe, symbol_key
+from .feeds_common import SEC_USER_AGENT, Fetcher, load_universe, query, symbol_key
 from .store import DocStore
 
 DEFAULT_DAYS = 60
 CLUSTER_WINDOW_DAYS = 30
 CLUSTER_MIN_INSIDERS = 3
+# Most stored buys read back for clusters (the LocalDB query service caps a read at 10,000).
+STORED_BUYS_LIMIT = 10_000
 OPEN_MARKET_CODES = {"P": "buy", "S": "sell"}
 # Purchases an issuer plan made for the insider at terms the issuer set. Matched
 # against the ownership nature and the footnotes the transaction points at.
@@ -437,6 +439,31 @@ def detect_clusters(
     return clusters
 
 
+def cluster_pool(
+    run_trades: list[dict[str, Any]],
+    stored: Iterable[tuple[str, dict[str, Any]]],
+    *,
+    skip: set[str],
+    since: str,
+) -> list[dict[str, Any]]:
+    """This run's trades plus the stored buys from the cluster window that the run did not reread.
+
+    The hourly run only reads seven days of filings, so three insiders buying over two or three weeks
+    never meet inside one run. A stored trade this run produced again, or found stale or off-price
+    (``skip``), is left out so nothing is counted twice or from a dropped line.
+    """
+    pool = list(run_trades)
+    seen = {f"tm_insider_trades/{item['id']}" for item in run_trades if item.get("id")}
+    for path, data in stored:
+        if path in seen or path in skip or data.get("tx_type") != "buy":
+            continue
+        if str(data.get("transaction_date") or "") < since:
+            continue
+        seen.add(path)
+        pool.append(data)
+    return pool
+
+
 def symbol_totals(trades: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Per stock: how many insiders bought and sold in the window, and how much."""
     out: dict[str, dict[str, Any]] = {}
@@ -771,7 +798,26 @@ def main(argv: list[str] | None = None) -> int:
     stale = sorted(_batch_get(store, stale_candidates, select=["id"])) if stale_candidates else []
 
     trades = [data for _, data in docs]
-    clusters = detect_clusters(trades)
+    # Clusters span up to 30 days, longer than one run reads: count the stored buys in that window too.
+    window_start = (now.date() - timedelta(days=CLUSTER_WINDOW_DAYS)).isoformat()
+    try:
+        stored_buys = query(
+            store,
+            "tm_insider_trades",
+            filters=[("tx_type", "==", "buy"), ("transaction_date", ">=", window_start)],
+            limit=STORED_BUYS_LIMIT,
+        )
+        if len(stored_buys) >= STORED_BUYS_LIMIT:
+            log(f"stored buys hit the {STORED_BUYS_LIMIT} read limit; clusters may be undercounted")
+    except Exception as error:  # noqa: BLE001 - a failed read falls back to this run's trades
+        log(f"could not read stored buys for clusters ({error}); counting this run only")
+        stored_buys = []
+    skip = set(stale) | {path for path, _ in dropped}
+    clusters = [
+        cluster
+        for cluster in detect_clusters(cluster_pool(trades, stored_buys, skip=skip, since=window_start))
+        if cluster["last_date"] >= window_start
+    ]
     totals = symbol_totals(trades)
     buys = [item for item in trades if item["tx_type"] == "buy"]
     sells = [item for item in trades if item["tx_type"] == "sell"]

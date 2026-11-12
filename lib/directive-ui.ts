@@ -1,5 +1,6 @@
 import type { PriceChartZone } from "@/components/price-chart";
 import type { Directive, DirectiveZone } from "@/lib/stock";
+import { plainRuleChange } from "@/lib/rule-copy";
 
 export const SETUP_STATE_LABELS: Record<string, string> = {
   accumulation: "Pullback",
@@ -119,13 +120,13 @@ export function normalizeDirectiveForUi(
     undefined;
   return {
     text,
-    action_now: (raw.action?.summary ?? raw.watch_out ?? "").trim() || undefined,
+    action_now: (raw.action?.summary ?? plainRuleChange(raw.watch_out ?? "")).trim() || undefined,
     stance,
     trigger_type: primary?.trigger_type ?? "none",
     trigger_value: primary?.trigger_value,
     add_on,
     trim_on,
-    rationale: (raw.action?.summary ?? raw.watch_out ?? "").trim() || undefined,
+    rationale: (raw.action?.summary ?? plainRuleChange(raw.watch_out ?? "")).trim() || undefined,
     confidence,
   };
 }

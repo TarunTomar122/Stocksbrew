@@ -57,6 +57,8 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
   /** Said once, above the cards, when /api/taste turned lookups away (429); each card keeps its own Try again. */
   const [limited, setLimited] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLUListElement>(null);
+  const actionRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadIndex = useCallback(() => {
@@ -205,12 +207,13 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
   const pricedAt = oldest ? moveStamp(oldest) : "";
   const showList = open && query.trim().length > 0 && !full;
 
-  async function watch() {
+  /** `placement`: the button under the cards, or the phone's bar above the tab bar (StickyWatch). */
+  async function watch(placement: "inline" | "sticky" = "inline") {
     if (busy || ready.length === 0) return;
     const chosen: PendingPick[] = ready.map((card) => ({ instrumentId: card.instrumentId, ticker: card.ticker }));
     setBusy(true);
     setError("");
-    captureEvent("landing_taste_watch_clicked", { count: chosen.length, signed_in: signedIn, tickers: chosen.map((pick) => pick.ticker) });
+    captureEvent("landing_taste_watch_clicked", { count: chosen.length, signed_in: signedIn, tickers: chosen.map((pick) => pick.ticker), placement });
     if (signedIn) {
       const result = await addPicks(chosen);
       if (result.added > 0) {
@@ -240,9 +243,12 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
     window.location.assign("/portfolio");
   }
 
+  const watchLabel = ready.length === 1 ? `Watch ${ready[0]!.ticker} for me` : "Watch these for me";
+
   return (
-    // On a phone the action sits right under the field, so three cards never push it below the fold and behind the
-    // bottom nav; from md up it stays under the cards. `order` moves it without a second button.
+    // The cards come first and the action under them, on every screen. On a phone, three cards can push it below the
+    // fold, so a slim copy of it sits just above the bottom tab bar while the cards are on screen and the real one is
+    // not (StickyWatch). From md up there is the one button only.
     <div className="mx-auto flex w-full max-w-[60rem] flex-col">
       <div ref={boxRef} className="relative mx-auto w-full max-w-xl">
         <form
@@ -360,20 +366,21 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
         </p>
       ) : null}
       {limited ? (
-        <p role="status" className="order-2 mt-3 text-center text-[14px] leading-5 text-oa-muted-fg md:order-none">
+        <p role="status" className="mt-3 text-center text-[14px] leading-5 text-oa-muted-fg">
           {TASTE_RATE_LIMITED}
         </p>
       ) : null}
       {missing.length ? (
-        <p className="order-2 mt-3 text-center text-[14px] leading-5 text-oa-muted-fg md:order-none">
+        <p className="mt-3 text-center text-[14px] leading-5 text-oa-muted-fg">
           We don&apos;t cover {listWords(missing)} yet.
         </p>
       ) : null}
 
       {picks.length ? (
         <ul
+          ref={cardsRef}
           aria-live="polite"
-          className={`order-2 mx-auto mt-6 grid w-full grid-cols-1 gap-3 text-left md:order-none ${
+          className={`mx-auto mt-6 grid w-full grid-cols-1 gap-3 text-left ${
             picks.length === 1 ? "max-w-md" : picks.length === 2 ? "max-w-3xl md:grid-cols-2" : "md:grid-cols-3"
           }`}
         >
@@ -383,12 +390,12 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
         </ul>
       ) : null}
 
-      {pricedAt ? <p className="order-2 mt-2 text-center md:order-none text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
+      {pricedAt ? <p className="mt-2 text-center text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
 
       {ready.length ? (
-        <div className="order-1 mt-5 flex flex-col items-center gap-2 md:order-none">
+        <div ref={actionRef} className="mt-5 flex flex-col items-center gap-2">
           <OaButton size="md" loading={busy} onClick={() => void watch()} className="h-11 px-6 text-[15px]">
-            {ready.length === 1 ? `Watch ${ready[0]!.ticker} for me` : "Watch these for me"}
+            {watchLabel}
           </OaButton>
           {!signedIn && footnote ? <p className="text-center text-[14px] leading-5 text-oa-muted-fg">{footnote}</p> : null}
           {error ? (
@@ -399,7 +406,86 @@ export function LandingTaste({ proof, footnote }: { proof: string | null; footno
         </div>
       ) : null}
 
-      {proof ? <p className="order-2 mt-5 text-center md:order-none text-[14px] leading-5 text-oa-muted-fg">{proof}</p> : null}
+      {proof ? <p className="mt-5 text-center text-[14px] leading-5 text-oa-muted-fg">{proof}</p> : null}
+      {ready.length ? <StickyWatch cardsRef={cardsRef} actionRef={actionRef} label={watchLabel} busy={busy} error={error} onWatch={() => void watch("sticky")} /> : null}
+    </div>
+  );
+}
+
+/**
+ * Phones only: "Watch these for me" as a slim bar just above the bottom tab bar, shown while the cards are on screen
+ * and the button under them is not, so the action never sits below the fold. From md up the cards sit side by side,
+ * short enough that the button under them is in view with them, so the bar is hidden there (md:hidden).
+ */
+function StickyWatch({
+  cardsRef,
+  actionRef,
+  label,
+  busy,
+  error,
+  onWatch,
+}: {
+  cardsRef: React.RefObject<HTMLElement>;
+  actionRef: React.RefObject<HTMLElement>;
+  label: string;
+  busy: boolean;
+  /** Said in the bar too: the one under the cards is off screen while the bar shows. */
+  error: string;
+  onWatch: () => void;
+}) {
+  const [cardsSeen, setCardsSeen] = useState(false);
+  const [actionSeen, setActionSeen] = useState(false);
+  const [navHeight, setNavHeight] = useState(0);
+  useEffect(() => {
+    const cards = cardsRef.current;
+    const action = actionRef.current;
+    if (!cards || !action || typeof IntersectionObserver === "undefined") return;
+    let watchCards: IntersectionObserver | null = null;
+    let watchAction: IntersectionObserver | null = null;
+    let height = -1;
+    // Measured again when the screen turns or resizes: the tab bar's height (and whether it shows) can change. iOS
+    // fires resize while scrolling (the address bar), so the observers are rebuilt only when the height changed.
+    const measure = () => {
+      const nav = document.querySelector<HTMLElement>(".oa-mobile-nav");
+      const bottom = nav && getComputedStyle(nav).display !== "none" ? Math.round(nav.getBoundingClientRect().height) : 0;
+      if (bottom === height) return;
+      height = bottom;
+      setNavHeight(bottom);
+      // The tab bar covers the bottom of the screen, so "on screen" ends where it starts.
+      const margin = `0px 0px -${bottom}px 0px`;
+      watchCards?.disconnect();
+      watchAction?.disconnect();
+      watchCards = new IntersectionObserver(([entry]) => setCardsSeen(Boolean(entry?.isIntersecting)), { rootMargin: margin });
+      // Any part of the real button on screen hides the bar: two buttons are never in view at once.
+      watchAction = new IntersectionObserver(([entry]) => setActionSeen(Boolean(entry?.isIntersecting)), { rootMargin: margin, threshold: 0 });
+      watchCards.observe(cards);
+      watchAction.observe(action);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      watchCards?.disconnect();
+      watchAction?.disconnect();
+    };
+  }, [cardsRef, actionRef]);
+  if (!cardsSeen || actionSeen) return null;
+  return (
+    <div
+      className="fixed inset-x-0 z-40 border-t border-oa-border bg-oa-card px-4 py-2 shadow-[0_-6px_16px_-10px_rgba(0,0,0,0.25)] md:hidden"
+      style={{ bottom: navHeight }}
+    >
+      {error ? (
+        // Not announced again: the line under the cards is the alert; this is its copy for the eye.
+        <p aria-hidden="true" className="mb-1.5 text-center text-[13px] leading-[18px] text-signal-bearish">
+          {error}
+        </p>
+      ) : null}
+      <OaButton size="md" loading={busy} onClick={onWatch} className="h-10 w-full text-[15px]">
+        {label}
+      </OaButton>
     </div>
   );
 }

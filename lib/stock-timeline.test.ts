@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineSortMs } from "@/lib/stock-timeline";
+import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { TimelineEvent } from "@/lib/stock";
@@ -137,7 +137,7 @@ describe("buildStockTimeline", () => {
         { event_id: "b", timestamp: "2026-08-25T12:00:00Z", title: "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO", source_name: "Yahoo Finance" },
       ] as TimelineEvent[],
     });
-    expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO"]);
+    expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase (JPM) takes lead role in a Major AI IPO"]);
   });
 
   it("is empty when nothing is stored", () => {
@@ -151,5 +151,34 @@ describe("buildStockTimeline", () => {
       callChange: { at: "2026-11-09T15:00:00Z", reason: null, headline: "Hold here", from: "Buy more", to: "Keep" },
     });
     expect(items[0]).toMatchObject({ id: "call-change", title: "We changed our call from Buy more to Keep" });
+  });
+});
+
+describe("timelineHeadline", () => {
+  it("writes a Title Case headline as a sentence, keeping the company's own words, without the publisher it already names", () => {
+    expect(timelineHeadline("Here's How Much You Would Have Made Owning JPMorgan Chase Stock In The Last 5 Years - Benzinga", "Benzinga", "JPMorgan Chase & Co.")).toBe(
+      "Here's how much you would have made owning JPMorgan Chase stock in the last 5 years",
+    );
+    expect(timelineHeadline("JPMorgan May Sell $2 Billion of Qualtrics Debt at About 85 Cents on the Dollar", "Yahoo Finance", "JPMorgan Chase & Co.")).toBe(
+      "JPMorgan may sell $2 billion of Qualtrics debt at about 85 cents on the dollar",
+    );
+  });
+
+  it("leaves a sentence-case headline, and a dash that is not the publisher, alone", () => {
+    expect(timelineHeadline("Nvidia board prepares to remove Huang after latest allegations: report", "Seeking Alpha", "NVIDIA Corporation")).toBe(
+      "Nvidia board prepares to remove Huang after latest allegations: report",
+    );
+    expect(timelineHeadline("Apple slips - analysts split on iPhone demand", "Reuters", "Apple Inc.")).toBe("Apple slips - analysts split on iPhone demand");
+    expect(timelineHeadline("Is Apple a buy now? - The Motley Fool", "Motley Fool", "Apple Inc.")).toBe("Is Apple a buy now?");
+  });
+
+  it("sentence-cases news rows built from the feed", () => {
+    const { items } = buildStockTimeline({
+      ticker: "JPM",
+      companyName: "JPMorgan Chase & Co.",
+      now,
+      news: [article({ title: "JPMorgan Announces Cash Distributions For The JPMorgan ETFs", source_name: "Yahoo Finance", published_at: "2026-11-09T12:00:00Z" })],
+    });
+    expect(items.find((item) => item.kind === "news")?.title).toBe("JPMorgan announces cash distributions for the JPMorgan ETFs");
   });
 });

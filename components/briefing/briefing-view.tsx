@@ -13,6 +13,7 @@ import {
 } from "@/lib/briefing";
 
 import { TheRead } from "@/components/oa/insight";
+import { StartFreeButton } from "@/components/oa/start-free-button";
 import { StockLogo } from "@/components/stock-logo";
 import {
   groupBriefingSections,
@@ -21,14 +22,15 @@ import {
 } from "@/lib/briefing-groups";
 import { briefingRead, earlierSession, holdingsFirst, type BriefingSession } from "@/lib/briefing-read";
 import { anchorGroups, WORTH_KNOWING_FIRST } from "@/lib/briefing-anchors";
+import type { ExampleBriefingExtras } from "@/lib/briefing-example";
 import { briefingLead, briefingSteps } from "@/lib/next-steps";
+import { etClock, etDayOfStamp } from "@/lib/quote-time";
 
 import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { rowWords, sectionWords } from "./card-words";
 import { StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
-import { SignInButton } from "./sign-in-button";
 import Link from "next/link";
 
 export type BriefingViewerKind = "signed_out" | "empty" | "pending" | "member";
@@ -54,8 +56,10 @@ export type BriefingViewProps = {
   beforeOpen?: React.ReactNode;
   /** The "rest of your stocks moved too" card on Free (./locked-moves.tsx), rendered on the server. */
   locked?: React.ReactNode;
-  /** What the agent did today across the market (components/agent-log), streamed under the read. */
+  /** What the agent did today across the market (components/agent-log), streamed into the side rail: secondary (owner rule 10). */
   agentLog?: React.ReactNode;
+  /** Signed out: the briefing is the example portfolio's (lib/briefing-example.ts), with its market line and clock. */
+  example?: ExampleBriefingExtras | null;
   /** Held stocks that reported overnight, by ticker: the card's fact becomes the result (lib/results). */
   resultFacts?: Readonly<Record<string, string>>;
   /** When the server rendered the page (ms). The read dates old moves against it, so server and browser agree. */
@@ -251,6 +255,89 @@ function MoverRows({ title, rows, asOf }: { title: string; rows: BriefingMarketM
   );
 }
 
+/**
+ * The page's one clock, said once in the header: the session and when the prices on the page were taken ("After the
+ * close, prices as of 4:00 PM ET"), or the earlier close they are from ("Before the open, prices as of Tuesday's
+ * close"). Every number below follows it; a card whose quote is older says its own time.
+ */
+export function exampleClock(marketState: string, pricedAt: string | null | undefined, staleNote: string | null | undefined, date: string): string {
+  const pricedDay = etDayOfStamp(pricedAt ?? null);
+  // Prices from an earlier session than the page's day name that session, never a bare time that reads as today's.
+  if (pricedDay && pricedDay < date) {
+    const clock = etClock(pricedAt ?? null);
+    const closed = (etMinutes(pricedAt) ?? 0) >= 16 * 60;
+    return `${marketState}, prices as of ${weekdayOf(pricedDay)}${closed || !clock ? "'s close" : ` ${clock}`}`;
+  }
+  const stale = pricedDay ? null : pricesLine(staleNote);
+  if (stale) return `${marketState}, ${stale.charAt(0).toLowerCase()}${stale.slice(1).replace(/\.$/, "")}`;
+  const clock = etClock(pricedAt ?? null);
+  return clock ? `${marketState}, prices as of ${clock}` : marketState;
+}
+
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "2026-11-11" -> "Wednesday", read by hand so no time zone shifts it. */
+function weekdayOf(day: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  return match ? WEEKDAY_NAMES[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]! : day;
+}
+
+const ET_HM = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hourCycle: "h23" });
+
+/** Minutes after midnight in New York, or null. */
+function etMinutes(stamp: string | null | undefined): number | null {
+  const ms = stamp ? Date.parse(stamp) : NaN;
+  if (!Number.isFinite(ms)) return null;
+  const parts = Object.fromEntries(ET_HM.formatToParts(new Date(ms)).map((part) => [part.type, part.value]));
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return Number.isFinite(minutes) ? minutes : null;
+}
+
+/**
+ * "Market today: S&P 500 +1.31%, tech led", or "Market on Friday: …" when the example's prices (and so this figure)
+ * are from an earlier session than the page's day. Null without a figure.
+ */
+export function exampleMarketWords(market: ExampleBriefingExtras["market"], date: string): string | null {
+  if (!market || !Number.isFinite(market.pct)) return null;
+  const when = market.day && market.day < date ? `Market on ${weekdayOf(market.day)}` : "Market today";
+  return `${when}: S&P 500 ${signedPct(market.pct)}${market.leader ? `, ${market.leader} led` : ""}`;
+}
+
+/** The example's head: what this is, once, the one clock, the market in a line, and the one way to get your own. */
+function ExampleHead({ date, marketState, example, staleNote, degraded }: { date: string; marketState: string; example: ExampleBriefingExtras; staleNote: string | null; degraded: boolean }) {
+  const market = exampleMarketWords(example.market, date);
+  return (
+    <header className="col-span-full min-w-0 px-2 sm:px-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="min-w-0 text-pretty text-[15px] font-semibold leading-6 text-oa-fg">Example briefing for a made-up portfolio of real stocks</h1>
+        <StartFreeButton surface="briefing_example" size="sm" label="Get yours" className="shrink-0" />
+      </div>
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">
+        <span>
+          {longDay(date)} · {exampleClock(marketState, example.pricedAt, staleNote, date)}.
+        </span>
+        {market ? (
+          <Link prefetch={false} href="/explore" className="-my-2.5 inline-flex h-10 items-center text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:my-0 sm:h-5">
+            {market} →
+          </Link>
+        ) : null}
+        {degraded ? (
+          <span className="inline-flex items-center gap-x-1">
+            Some updates couldn&apos;t load.
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="-my-2.5 inline-flex h-10 cursor-pointer items-center font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg sm:my-0 sm:h-5"
+            >
+              Try again
+            </button>
+          </span>
+        ) : null}
+      </p>
+    </header>
+  );
+}
+
 export function BriefingView({
   briefing,
   initialState,
@@ -266,6 +353,7 @@ export function BriefingView({
   beforeOpen = null,
   locked = null,
   agentLog = null,
+  example = null,
   resultFacts,
   renderedAt,
 }: BriefingViewProps) {
@@ -286,7 +374,7 @@ export function BriefingView({
   // Your own briefing reads holdings first, then what you watch, then the market (lib/briefing-read.ts).
   const grouped = personal ? holdingsFirst(groupBriefingSections(sections, briefing.mode)) : groupBriefingSections(sections, briefing.mode);
   // The read, with its next steps beside the findings (lib/next-steps.ts).
-  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now), {
+  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now, { example: Boolean(example), marketPct: example?.market?.pct ?? null }), {
     mode: personal ? "personal" : "market",
     lead: personal ? null : briefingLead(grouped.needs_you),
   });
@@ -346,12 +434,13 @@ export function BriefingView({
     statusOf: (id) => statusOf(state, id),
     onStatus: (items, status, busyKey) => void setStatuses(items, status, busyKey),
     busy,
-    readOnly: archived,
+    // The example is not the visitor's to clear: no "Got it" or "Keep watching" on its cards.
+    readOnly: archived || Boolean(example),
     day: briefing.date,
     personal,
   };
   // Each card of your own read opens Ask on the briefing line it is about (or your stocks, for a card about several).
-  const askContext = personal
+  const askContext = personal && !example
     ? readAskContext([...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up].flatMap((group) => group.items), briefing.date)
     : undefined;
 
@@ -386,10 +475,13 @@ export function BriefingView({
   const groupCards = (groups: BriefingGroup[], chips = false) => <GroupCards groups={groups} actions={actions} anchors={anchors} personal={personal} chips={chips} results={resultFacts} />;
 
   return (
-    // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void); signed out after
-    // the open it is empty and the briefing takes the whole width.
+    // Two columns only while the rail has something in it (owner rule 4: no rail that leaves a void): on an earlier
+    // day, or when the agent log has nothing, it can be empty and the briefing takes the whole width.
     <div className="grid gap-4 lg:items-start lg:gap-x-5 lg:has-[>aside>:not(template)]:grid-cols-[minmax(0,1fr)_19rem]">
       {/* Head: whose briefing, the day, earlier days. One plain status line only when something is off. */}
+      {example ? (
+        <ExampleHead date={briefing.date} marketState={marketState} example={example} staleNote={briefing.stale_note} degraded={degraded.length > 0} />
+      ) : (
       <header className="col-span-full min-w-0 px-2 sm:px-0">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <h1 className="flex flex-wrap items-baseline gap-x-2 text-[15px] font-semibold leading-6 text-oa-fg">
@@ -420,17 +512,15 @@ export function BriefingView({
         </div>
         {!personal || prices || degraded.length > 0 ? (
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-pretty text-[13px] leading-5 text-oa-muted-fg">
+            {/* Signed out normally gets the example (ExampleHead); if the example failed to load, it lands here. */}
             {!personal ? (
               viewer === "signed_out" ? (
                 <>
-                  <span>This is the whole market.</span>
-                  <SignInButton
-                    label="Sign in"
-                    variant="ghost"
-                    size="xs"
-                    className="!h-10 -my-2.5 !px-0 !text-[length:inherit] !text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:!h-5"
-                  />
-                  <span>to see one about your own stocks.</span>
+                  <span>Market view.</span>
+                  <Link prefetch={false} href="/" className="-my-2.5 inline-flex h-10 items-center text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_40%,transparent)] underline-offset-2 sm:my-0 sm:h-5">
+                    Try it on your stocks
+                  </Link>
+                  <span>to get one about yours.</span>
                 </>
               ) : viewer === "pending" ? (
                 <span>
@@ -462,6 +552,7 @@ export function BriefingView({
           </p>
         ) : null}
       </header>
+      )}
 
       <div className="flex min-w-0 flex-col gap-4">
         <TheRead
@@ -470,17 +561,6 @@ export function BriefingView({
           askContext={askContext}
           visual={showSession && session ? <SessionStrip sectors={session.sectors} /> : null}
         />
-        {agentLog}
-        {/* Without an agents card of their own (signed out), what an agent would do here, said once under the read. */}
-        {!rail && !archived ? (
-          <p className={`${CARD} px-4 py-2.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg`}>
-            Want a heads-up when a stock you follow moves, files a report or nears earnings?{" "}
-            <Link prefetch={false} href="/agents" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2 hover:decoration-oa-fg">
-              Set up an agent
-            </Link>{" "}
-            and it reports here after every market close.
-          </p>
-        ) : null}
         {earnings}
 
         {error ? (
@@ -489,7 +569,8 @@ export function BriefingView({
           </p>
         ) : null}
 
-        {personal ? (
+        {/* The example has no decisions to make, so its "Needs you" would only ever be empty (owner rule 4). */}
+        {personal && !(example && grouped.needs_you.length === 0) ? (
           <Section id="needs-you" label="Needs you" count={grouped.needs_you.length > 0 ? groupCountLabel(grouped.needs_you) : undefined}>
             {grouped.needs_you.length > 0 ? (
               // One card per stock; its other updates wait behind "N more" and open in place.
@@ -624,7 +705,7 @@ export function BriefingView({
                 <span className="text-right text-[12.5px] leading-4 text-oa-muted-fg">{showSettled ? "Hide" : "Show"}</span>
               </button>
               {!canSave && !archived ? (
-                <p className="px-4 pb-2.5 text-[12.5px] leading-5 text-oa-muted-fg">Kept for this visit only. Sign in to keep it.</p>
+                <p className="px-4 pb-2.5 text-[12.5px] leading-5 text-oa-muted-fg">Kept for this visit only.</p>
               ) : null}
             </div>
             {/* The cards sit under the bar, not inside it: no card in a card. */}
@@ -640,13 +721,16 @@ export function BriefingView({
       </div>
 
       {/* Side rail: the market as context, not the lead. Only what earns it (before the open, the market, your
-          agents), and it stays in view while the main column scrolls on, so no empty strip opens up beside it. */}
-      <aside className="scrollbar-hide flex min-w-0 flex-col gap-4 [&:not(:has(>:not(template)))]:hidden lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-1">
+          agents, the agent's day), and it stays in view while the main column scrolls on, so no empty strip opens up
+          beside it. Taller than the screen, it scrolls inside; its cards keep their height ([&>*]:shrink-0) rather
+          than being squeezed to fit and cut off. */}
+      <aside className="scrollbar-hide flex min-w-0 flex-col gap-4 [&>*]:shrink-0 [&:not(:has(>:not(template)))]:hidden lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-1">
         {/* Before the bell, how the open is set up leads the rail; after 9:30 ET it renders nothing. */}
         {beforeOpen}
         {/* The market view's read already says how the index did and leads with the same moves, so this card is for
             your own briefing. */}
-        {personal && (index.length > 0 || movers.length > 0) ? (
+        {/* The example says the market in one line in its head (/explore is the market's read), so no card here. */}
+        {example ? null : personal && (index.length > 0 || movers.length > 0) ? (
           <section aria-label="Market today" className={CARD}>
             <header className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
               <h2 className="oa-label">Market today</h2>
@@ -681,6 +765,8 @@ export function BriefingView({
 
         {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
         {rail}
+        {/* What the agent did today across the market: secondary, so in the rail (owner rule 10), for everyone. */}
+        {agentLog}
       </aside>
     </div>
   );

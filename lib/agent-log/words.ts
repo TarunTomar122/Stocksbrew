@@ -76,10 +76,10 @@ const TRIGGER_WORDS: Record<string, string> = {
 
 const valid = (value: number | null | undefined): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 
-function entry(source: AgentLogSource, at: string, figure: number, rest: string, href: string, ticker: string | null = null, quiet = false): AgentLogEntry | null {
+function entry(source: AgentLogSource, at: string, figure: number, rest: string, href: string, quiet = false): AgentLogEntry | null {
   const time = nyTime(at);
   if (!time) return null;
-  return { source, at, time, figure: count(figure), rest, href, ticker, quiet };
+  return { source, at, time, figure: count(figure), rest, href, quiet };
 }
 
 /* ── one line per source ─────────────────────────────────────────────────── */
@@ -92,7 +92,7 @@ export function premarketEntry(facts: PremarketFacts): AgentLogEntry | null {
     big === 0
       ? `none was moving ${PREMARKET_GAP_PCT}% or more`
       : `${count(big)} ${big === 1 ? "was" : "were"} moving ${PREMARKET_GAP_PCT}% or more${leader ? `, led by ${moved(leader.ticker, leader.pct)}` : ""}`;
-  return entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket", leader?.ticker ?? null);
+  return entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket");
 }
 
 function briefsWords(facts: BriefsFacts): string {
@@ -130,7 +130,7 @@ const callsHref = (one: string | null) => (one ? `/stock/${encodeURIComponent(on
 export function callsEntry(facts: CallsFacts): AgentLogEntry | null {
   if (!valid(facts.reviewed)) return null;
   const words = callWords(facts, true);
-  return entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one), words.one);
+  return entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one));
 }
 
 /**
@@ -142,7 +142,7 @@ export function reviewEntry(briefs: BriefsFacts, calls: CallsFacts): AgentLogEnt
   if (!valid(calls.reviewed)) return briefsEntry(briefs);
   const words = callWords(calls, false);
   const at = Date.parse(calls.at) > Date.parse(briefs.at) ? calls.at : briefs.at;
-  return entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one), words.one);
+  return entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one));
 }
 
 export function movesEntry(facts: MovesFacts, whose: string, href: string): AgentLogEntry | null {
@@ -154,16 +154,16 @@ export function movesEntry(facts: MovesFacts, whose: string, href: string): Agen
   // live quote elsewhere on the page has moved on since.
   const biggest = leader ? `, including ${leader.ticker}'s, the biggest` : "";
   if (!facts.screened) {
-    return entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href, leader?.ticker ?? null);
+    return entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href);
   }
   const reasons = facts.explained === 1 ? "has a reason we could confirm" : "have a reason we could confirm";
-  return entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href, leader?.ticker ?? null);
+  return entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href);
 }
 
 export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
   if (!valid(facts.count)) {
     if (!valid(facts.companies)) return null;
-    return entry("filings", facts.at, facts.companies, `companies checked for new SEC filings; none had filed anything new.`, "/filings", null, true);
+    return entry("filings", facts.at, facts.companies, `companies checked for new SEC filings; none had filed anything new.`, "/filings", true);
   }
   const flagged = facts.flagged.filter((filing) => filing.ticker && filing.what);
   const noun = facts.count === 1 ? "new SEC filing" : "new SEC filings";
@@ -177,7 +177,6 @@ export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
     facts.count,
     `${noun} read; ${count(flagged.length)} ${verb} big enough to flag${tail}.`,
     "/filings",
-    flagged.length === 1 ? flagged[0]!.ticker : null,
   );
 }
 
@@ -193,7 +192,6 @@ export function insidersEntry(facts: InsidersFacts): AgentLogEntry | null {
     facts.trades,
     `${noun} read from Form 4 filings; ${count(buys)} ${buys === 1 ? "was a buy" : "were buys"} on the open market${biggest}.`,
     "/insiders",
-    biggest ? facts.biggest!.ticker : null,
   );
 }
 

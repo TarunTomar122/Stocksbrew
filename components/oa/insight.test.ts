@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { askFor, insightAskQuestion, quoted, stripLeadingTicker } from "./insight";
+import { askFor, insightAskQuestion, quoted, stripLeadingTicker, sentenceSaysFigure } from "./insight";
 
 describe("stripLeadingTicker", () => {
   it("drops a labelled ticker and capitalises", () => {
@@ -62,5 +62,16 @@ describe("quoted", () => {
   });
   it("is used in a question about nothing in particular", () => {
     expect(insightAskQuestion({ id: "index", text: "The S&P 500 is down 0.4%", tickers: [] }, null)).toBe("The S&P 500 is down 0.4%. What's behind this, and why does it matter?");
+  });
+});
+
+describe("sentenceSaysFigure", () => {
+  it("hides the label only when the sentence carries both the number and the label's words", () => {
+    expect(sentenceSaysFigure("CSCO reports tomorrow; after its last report the stock fell 8.4%, about 5 times a normal day.", "−8.4%", "after its last report")).toBe(true);
+    // The number is not in the sentence: "9" needs "posts this week".
+    expect(sentenceSaysFigure("The President's market posts this week were split between positive and negative.", "9", "posts this week")).toBe(false);
+    // The words are not all there.
+    expect(sentenceSaysFigure("Chips led: SOXX rose 6.01%, 4.7 points better than the S&P 500.", "+6.01%", "SOXX today")).toBe(false);
+    expect(sentenceSaysFigure("Anything at all", "Same", "as the week before")).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ export function StockTallyPanel({
   unit,
   empty,
   right,
+  figure,
 }: {
   label: React.ReactNode;
   takeaway?: React.ReactNode;
@@ -25,6 +26,8 @@ export function StockTallyPanel({
   unit: string;
   empty: string;
   right?: React.ReactNode;
+  /** The row's figure instead of the head count (e.g. the money in), for a list ranked by something else. */
+  figure?: (row: StockTally) => string;
 }) {
   // One row per company (Alphabet once, not GOOGL and GOOG); the other class is named on the row.
   const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
@@ -52,7 +55,7 @@ export function StockTallyPanel({
                 </div>
                 <div className="text-right">
                   <p className={`${NUM} text-[14px] font-medium ${side === "buy" ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                    {who.length} {who.length === 1 ? unit : `${unit}s`}
+                    {figure ? figure(row) : `${who.length} ${who.length === 1 ? unit : `${unit}s`}`}
                   </p>
                   {other > 0 ? (
                     <p className={`${NUM} text-[12px] text-oa-muted-fg`}>

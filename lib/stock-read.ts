@@ -10,6 +10,9 @@ import { callWord, type CallWord } from "@/lib/stock-chart";
 import type { CallStabilityStateDoc, DirectiveStability, StockIntelligenceDoc } from "@/lib/stock";
 import { todayET } from "@/lib/calendar-shared";
 import { withoutVagueChange } from "@/lib/call-basis";
+import { plainRuleChange } from "@/lib/rule-copy";
+
+export { plainRuleChange };
 
 /**
  * The reason the screener job writes for this company from its own numbers
@@ -258,7 +261,7 @@ export function buildStockRead(
 
   const ownStability = directive?.stability ?? null;
   const stability = ownStability ?? stabilityFromState(options.steadyState, callWord(directive?.stance));
-  const whatWouldChange = clean(stability?.what_would_change) || null;
+  const whatWouldChange = plainRuleChange(clean(stability?.what_would_change)) || null;
   const changers: string[] = [];
   for (const item of evidence) if (clean(item.type) === "risk") pushDistinct(changers, item.text);
   for (const card of doc.visual_cards?.risk_cards ?? []) pushDistinct(changers, card.trigger || card.detail || card.risk);

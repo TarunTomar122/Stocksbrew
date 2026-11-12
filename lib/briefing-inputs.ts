@@ -5,6 +5,7 @@
 
 import { etDayOf } from "@/lib/benchmark-day";
 import { redactLevels } from "@/lib/entitlements";
+import { plainRuleChange } from "@/lib/rule-copy";
 
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { HeroIndex } from "@/lib/hero-indices";
@@ -71,7 +72,8 @@ export function positionFromRow(row: WatchlistRow, extras: PositionExtras = {}):
     price_as_of: quote?.as_of ?? null,
     stance: text(directive?.stance)?.toLowerCase() ?? null,
     call_summary: summary,
-    watch_out: text(directive?.invalidation) ?? text(directive?.watch_out),
+    // Without the steady call's mechanics ("We plan to keep this call until at least…"): lib/rule-copy.ts.
+    watch_out: text(plainRuleChange(text(directive?.invalidation) ?? text(directive?.watch_out) ?? "")),
     add_below: priceLevel(zones.accumulate_below),
     breakout_above: priceLevel(zones.breakout_above),
     trim_above: priceLevel(zones.trim_above),

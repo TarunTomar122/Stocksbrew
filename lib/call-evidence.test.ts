@@ -146,7 +146,7 @@ describe("buildCallEvidence", () => {
     const { evidence } = buildCallEvidence(base());
     expect(evidence[0]).toEqual({
       id: "sales",
-      text: "NVDA's sales rose 83% over the last four quarters, to $303B, faster than the 65% of fiscal 2026.",
+      text: "NVDA's sales rose 83% over the last four quarters, to $303B, faster than its 65% growth in fiscal 2026.",
       source: "From the 10-Q for the quarter to Jul\u00a026, reported Aug\u00a026",
     });
   });
@@ -157,7 +157,7 @@ describe("buildCallEvidence", () => {
     const { evidence } = buildCallEvidence(base({ ticker: "AAPL", sales, reports }));
     expect(evidence[0]).toEqual({
       id: "sales",
-      text: "AAPL's sales rose 15% over the last four quarters, to $479B, faster than the 6.4% of fiscal 2025.",
+      text: "AAPL's sales rose 15% over the last four quarters, to $479B, faster than its 6.4% growth in fiscal 2025.",
       source: "From the 10-K for the year to Sep\u00a026, reported Nov\u00a02",
     });
   });
@@ -182,7 +182,7 @@ describe("buildCallEvidence", () => {
       "The Nov\u00a017 report could raise the call if it beats the $2.49 a share analysts expect and sales growth stays above 65%.",
       "It could lower the call if it misses the $2.49 forecast or shows sales growth below 42%.",
       // 4 x 1% daily swing = 4% in a day; x sqrt(5) = 9% in a week.
-      "So could a day in which NVDA falls 4% more than the S&P 500, a week in which it falls 9% more, or a week in which the S&P 500 falls 4%.",
+      "So could a day in which NVDA falls 4% more than the S&P 500 or a week in which it falls 9% more.",
     ]);
     // Never a second call beside this one.
     expect(conditions.join(" ")).not.toMatch(/buy more|sell some|keep/i);
@@ -206,20 +206,21 @@ describe("buildCallEvidence", () => {
       base({ sales: null, nextReport: null, calendar: [], series: null, benchmark: null }),
     );
     expect(evidence).toEqual([]);
-    // Without prices there is no move bar; the market drop alone stands.
+    // Without prices there is no move bar, and the market-wide drop is never listed.
     expect(conditions).toEqual([]);
   });
 
-  it("uses only the market drop and the stock's own move when there is no report to name", () => {
+  it("uses only the stock's own moves when there is no report to name, never the market's", () => {
     const { conditions } = buildCallEvidence(base({ sales: null, nextReport: null, calendar: [] }));
     expect(conditions).toEqual([
-      "A day in which NVDA falls 4% more than the S&P 500, a week in which it falls 9% more, or a week in which the S&P 500 falls 4% could lower the call.",
+      "A day in which NVDA falls 4% more than the S&P 500 or a week in which it falls 9% more could lower the call.",
     ]);
   });
 
-  it("says how long the steady call stands, and keeps a call that just went up from falling back on a move", () => {
+  it("keeps a call that just went up from falling back on a move, without explaining how long it stands", () => {
     const { conditions } = buildCallEvidence(base({ steady: { since: "2026-11-09", lastStep: 1 } }));
-    expect(conditions[conditions.length - 1]).toBe("Short of that, the call stands until at least Nov\u00a025.");
+    expect(conditions.length).toBeGreaterThan(0);
+    expect(conditions.join(" ")).not.toMatch(/call stands until|Short of that/);
     expect(conditions.join(" ")).not.toMatch(/So could/);
   });
 

@@ -22,7 +22,7 @@ import {
 } from "@/lib/stock-readings";
 import { historyJudged, markFor, moodWord, multipleVsHistory, multipleVsSector, netFlow, priceVsTarget, scoreVerdict, sentenceOutcome, type ToneWord } from "@/lib/tone";
 
-import { CompareBars, MiniBars, MiniLines, RangeTrack, RatingColumns, ShareBars, Spark, type RangeMarker } from "./charts";
+import { CompareBars, MiniBars, MiniLines, RangeTrack, RatingColumns, ShareRows, Spark, type RangeMarker } from "./charts";
 import {
   clipText,
   compactMoney,
@@ -72,14 +72,9 @@ function Readings({ items }: { items: Array<Reading | null> }) {
       {rows.map((row) => (
         <li
           key={row.statement}
-          className="relative flex flex-col gap-1.5 border-b border-oa-border py-2.5 pl-4 pr-3.5 text-[14px] leading-5 text-oa-fg last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pl-5 sm:pr-4"
+          className="flex flex-col gap-1.5 border-b border-oa-border px-3.5 py-2.5 text-[14px] leading-5 text-oa-fg last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-4"
         >
-          {/* The edge carries the tone; the chip says it in a word. */}
-          <span
-            aria-hidden="true"
-            className="absolute inset-y-2 left-0 w-[3px] rounded-r-full"
-            style={{ background: row.tone === "neutral" ? "var(--oa-border)" : `var(${row.tone === "good" ? "--signal-bullish" : "--signal-bearish"})` }}
-          />
+          {/* The chip says the tone in a word; no coloured edge as well (owner rule 6). */}
           <span className="min-w-0 text-pretty">{row.statement}</span>
           <Verdict tone={READING_TONE[row.tone]} className="self-start sm:mt-px">
             {row.verdict}
@@ -224,22 +219,18 @@ export function OverviewSection({ data }: SectionProps) {
         <div className={`grid gap-3 ${segments.length && regions.length ? "md:grid-cols-2" : ""}`}>
           {segments.length ? (
             <Panel label="Revenue by business" meta={facts?.business_segments?.period ? `period ending ${facts.business_segments.period}` : undefined}>
-              <div className="px-3.5 py-3 sm:px-4">
-                <ShareBars
-                  items={segments.slice(0, 6).map((item) => ({ name: item.name, sharePct: item.share_pct, value: item.value }))}
-                  formatValue={(value) => compactMoney(value, currency)}
-                />
-              </div>
+              <ShareRows
+                items={segments.slice(0, 6).map((item) => ({ name: item.name, sharePct: item.share_pct, value: item.value }))}
+                formatValue={(value) => compactMoney(value, currency)}
+              />
             </Panel>
           ) : null}
           {regions.length ? (
             <Panel label="Revenue by region" meta={facts?.geographic_mix?.period ? `period ending ${facts.geographic_mix.period}` : undefined}>
-              <div className="px-3.5 py-3 sm:px-4">
-                <ShareBars
-                  items={regions.slice(0, 6).map((item) => ({ name: item.name, sharePct: item.share_pct, value: item.value }))}
-                  formatValue={(value) => compactMoney(value, currency)}
-                />
-              </div>
+              <ShareRows
+                items={regions.slice(0, 6).map((item) => ({ name: item.name, sharePct: item.share_pct, value: item.value }))}
+                formatValue={(value) => compactMoney(value, currency)}
+              />
             </Panel>
           ) : null}
         </div>
@@ -257,11 +248,9 @@ export function OverviewSection({ data }: SectionProps) {
             ) : null}
             <div className="bg-oa-card">
               {pillars.map(({ key, pillar }) => (
-                <div key={key} className="grid grid-cols-[5.5rem_minmax(0,1fr)_2rem_4.75rem] items-center gap-x-3 border-b border-oa-border px-3.5 py-2 text-[14px] leading-5 last:border-b-0 sm:px-4">
+                // The score is the figure; no bar repeating it beside the number (owner rule 5).
+                <div key={key} className="grid grid-cols-[minmax(0,1fr)_2rem_4.75rem] items-center gap-x-3 border-b border-oa-border px-3.5 py-2 text-[14px] leading-5 last:border-b-0 sm:px-4">
                   <span className="capitalize text-oa-muted-fg">{key}</span>
-                  <span className="h-1.5 overflow-hidden rounded-full bg-oa-secondary" aria-hidden="true">
-                    <span className="block h-full rounded-full bg-oa-primary" style={{ width: `${Math.max(2, Math.min(100, pillar.score))}%` }} />
-                  </span>
                   <span className={`${NUM} text-right text-oa-fg`}>{Math.round(pillar.score)}</span>
                   <span className="flex justify-end">
                     <ScoreWord verdict={pillar.verdict} />

@@ -19,6 +19,8 @@ type Props = {
   fallbackFg?: string;
   /** Above the fold: load at once and at high priority. */
   eager?: boolean;
+  /** Load at once (not lazily) but at normal priority: the logos down a long table. */
+  atOnce?: boolean;
   /** Circular crop instead of the default rounded square. */
   circle?: boolean;
   /** Give the logo its own accessible name. Only for a logo shown without its
@@ -44,6 +46,7 @@ export function StockLogo({
   fallbackBg,
   fallbackFg = LOGO_FALLBACK_INK,
   eager = false,
+  atOnce = false,
   circle = false,
   labelled = false,
 }: Props) {
@@ -95,7 +98,7 @@ export function StockLogo({
       data-stock-logo="img"
       width={size}
       height={size}
-      loading={eager ? "eager" : "lazy"}
+      loading={eager || atOnce ? "eager" : "lazy"}
       decoding="async"
       // React 18 does not know fetchPriority; pass the lowercase attribute.
       {...(eager ? { fetchpriority: "high" } : {})}

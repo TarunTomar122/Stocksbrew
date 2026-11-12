@@ -100,7 +100,8 @@ function DesktopRow({ item, tracked, showLive, liveBare }: { item: StrategySumma
             <span className="text-[15px] font-medium text-oa-fg group-hover:underline">{item.name}</span>
             {tracked ? <span className={TRACKING}>Tracking</span> : null}
           </span>
-          <span className="mt-0.5 block truncate text-[13px] text-oa-muted-fg">{item.tagline}</span>
+          {/* Whole, never cut with "…" (owner rule 8): a long one wraps to a second line. */}
+          <span className="mt-0.5 block text-pretty text-[13px] leading-5 text-oa-muted-fg">{item.tagline}</span>
         </Link>
       </td>
       <td className="px-3">
@@ -149,7 +150,7 @@ function MobileCard({ item, tracked, showLive, liveBare }: { item: StrategySumma
             {item.name}
             {tracked ? <span className={`${TRACKING} ml-2 align-middle`}>Tracking</span> : null}
           </p>
-          <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-oa-muted-fg">{item.tagline}</p>
+          <p className="mt-0.5 text-pretty text-[13px] leading-5 text-oa-muted-fg">{item.tagline}</p>
         </div>
         {test ? <Sparkline strategy={test.spark.strategy} benchmark={test.spark.benchmark} width={84} height={34} /> : null}
       </div>

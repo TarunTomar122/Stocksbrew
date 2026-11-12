@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKETING_LINKS, PLACES, isMarketingPath, placeFor, sectionFor, stripOrder, trailFor } from "@/components/oa/nav-items";
+import { MARKETING_LINKS, PLACES, isMarketingPath, myStocksViewOf, placeFor, sectionFor, stripCurrent, stripItems, stripOrder, trailFor } from "@/components/oa/nav-items";
 
 const place = (path: string) => placeFor(path)?.label ?? null;
 const sectionOf = (path: string) => sectionFor(path)?.label ?? null;
@@ -169,5 +169,37 @@ describe("stripOrder", () => {
     for (const place of PLACES) {
       for (const item of place.sections) expect(new Set(stripOrder(place, item)).size).toBe(place.sections.length);
     }
+  });
+});
+
+describe("My stocks on the phone strip", () => {
+  const mine = placeFor("/portfolio")!;
+
+  it("shows My stocks' tabs as pills, once each, then the other pages", () => {
+    const labels = stripItems(mine).map((item) => item.label);
+    expect(labels.slice(0, 5)).toEqual(["Overview", "Holdings", "Watching", "Alerts", "Weekly memo"]);
+    expect(labels.filter((label) => label === "Overview")).toHaveLength(1);
+    expect(labels).toContain("Taxes");
+    // Every other place keeps its sections as they are.
+    expect(stripItems(placeFor("/briefing")!)).toBe(placeFor("/briefing")!.sections);
+  });
+
+  it("lights the tab on show on the overview page, and the section elsewhere", () => {
+    expect(stripCurrent(mine, "/portfolio", null)?.label).toBe("Overview");
+    expect(stripCurrent(mine, "/portfolio", "watching")?.label).toBe("Watching");
+    expect(stripCurrent(mine, "/portfolio/memo", "watching")?.label).toBe("Weekly memo");
+    expect(stripCurrent(mine, "/portfolio/taxes", null)?.label).toBe("Taxes");
+    expect(stripCurrent(mine, "/import", null)?.label).toBe("Overview");
+    // The lit pill is one of the strip's own items, so the strip can find it.
+    expect(stripItems(mine)).toContain(stripCurrent(mine, "/portfolio", "alerts"));
+  });
+
+  it("reads the view from the address the way the page does", () => {
+    expect(myStocksViewOf("")).toBe("overview");
+    expect(myStocksViewOf("?tab=watching")).toBe("watching");
+    expect(myStocksViewOf("?tab=Alerts")).toBe("alerts");
+    expect(myStocksViewOf("?tab=positions")).toBe("holdings");
+    expect(myStocksViewOf("?reasons=1")).toBe("holdings");
+    expect(myStocksViewOf("?tab=nonsense")).toBe("overview");
   });
 });

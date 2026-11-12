@@ -96,9 +96,10 @@ async function memoFinding(_day: string): Promise<AgentFinding> {
   );
   const top = memo.topLine?.trim();
   if (!top) nothing("memo");
-  // The week's figure first. A partial week's "Together, eight of nine holdings..." keeps the next sentence,
-  // which names the holding left out and why, so the figure never reads as each holding's.
-  const line = wholeSentences(top, top.startsWith("Together,") ? 2 : 1);
+  // The week's figure only. A partial week's "Together, eight of the example's nine holdings are down 0.1%" already
+  // says it is not all of them; the next sentence, why one is left out ("we have no prices for it after Monday"),
+  // is how the sum works, not news (owner rule 8). The memo page keeps it.
+  const line = wholeSentences(top, 1);
   const say = (n: number) => countWord(n).toLowerCase();
   const hurt = memo.hurt.length;
   const look = memo.look.length;
@@ -111,7 +112,15 @@ async function xrayFinding(): Promise<AgentFinding> {
   const headline = view?.read?.headline?.trim();
   if (!view || !headline || !view.xray.funds.some((fund) => fund.status === "ok")) nothing("xray");
   // On the landing "this portfolio" needs saying whose.
-  return { line: headline.replace(/\bthis portfolio\b/, "the example portfolio"), note: null };
+  const whose = (text: string) => text.replace(/\bthis portfolio\b/g, "the example portfolio");
+  // A second real fact from the same read under the headline, so the card says as much as its neighbours (owner
+  // rule 4: no card left short beside taller ones). Never the closed-funds caveat; nothing when the read has none.
+  const insights = view.read?.insights ?? [];
+  // Not the fund-overlap point: at about forty words it is too long for a card's note.
+  const second = ["xray-top-ten", "xray-sector", "xray-doubled"]
+    .map((id) => insights.find((insight) => insight.id === id))
+    .find((insight) => insight?.text?.trim());
+  return { line: whose(headline), note: second ? whose(second.text.trim()) : null };
 }
 
 async function earningsFinding(day: string): Promise<AgentFinding & { ticker: string | null }> {
@@ -246,7 +255,7 @@ async function basketFinding(): Promise<AgentFinding> {
 }
 
 // One cache entry per card; the day is part of the key where the sentence says "today" or "on Thursday".
-const cachedMemo = sharedCache(memoFinding, ["landing-card-memo-v4"], { revalidate: REVALIDATE });
+const cachedMemo = sharedCache(memoFinding, ["landing-card-memo-v5"], { revalidate: REVALIDATE });
 const cachedEarnings = sharedCache(earningsFinding, ["landing-card-earnings-v2"], { revalidate: REVALIDATE });
 const cachedDividends = sharedCache(dividendFinding, ["landing-card-dividends-v3"], { revalidate: REVALIDATE });
 const cachedStress = sharedCache(stressFinding, ["landing-card-stress-v2"], { revalidate: 6 * 3600 });

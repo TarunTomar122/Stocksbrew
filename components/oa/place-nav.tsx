@@ -4,7 +4,20 @@ import { IntentLink } from "@/components/oa/intent-link";
 import { usePublicPathname } from "@/lib/use-public-pathname";
 import * as React from "react";
 
-import { iconFor, placeFor, sectionFor, stripOrder, trailFor, type Crumb, type NavItem } from "@/components/oa/nav-items";
+import {
+  MY_STOCKS_VIEW_ITEMS,
+  iconFor,
+  myStocksViewOf,
+  placeFor,
+  stripCurrent,
+  stripItems,
+  stripOrder,
+  trailFor,
+  type Crumb,
+  type MyStocksView,
+  type NavItem,
+} from "@/components/oa/nav-items";
+import { MY_STOCKS_SELECT_EVENT, MY_STOCKS_VIEW_EVENT } from "@/components/portfolio/my-stocks-tabs";
 import { NavIcon } from "@/components/oa/nav-icon";
 
 const FOCUS =
@@ -20,8 +33,18 @@ const FOCUS =
 export function PlaceStrip() {
   const pathname = usePublicPathname() ?? "/";
   const place = placeFor(pathname);
-  const current = sectionFor(pathname, place);
-  const pills = place ? stripOrder(place, current) : [];
+  // My stocks' overview has tabs (Overview, Holdings, Watching, Alerts) that switch in the browser. Below lg they are
+  // pills here, so the page draws no second tab bar; which one is lit comes from the address, read in the browser
+  // (the server draws the overview), and from the page when it switches in place.
+  const [view, setView] = React.useState<MyStocksView | null>(null);
+  const items = place ? stripItems(place) : [];
+  const current = place ? stripCurrent(place, pathname, view) : null;
+  // My stocks' tabs keep their places at the front (Overview, Holdings, Watching, Alerts): moving the lit one first
+  // would push Overview and Holdings into "More" and reshuffle the pills on every tap.
+  const tabLit = MY_STOCKS_VIEW_ITEMS.some((item) => item === current);
+  const pills = place ? stripOrder(items, tabLit ? null : current) : [];
+  // Which pills there are and in what order: the row is measured again whenever this changes.
+  const pillKey = pills.map((item) => item.href).join(" ");
   const menuId = React.useId();
   const row = React.useRef<HTMLDivElement>(null);
   const button = React.useRef<HTMLButtonElement>(null);
@@ -89,7 +112,34 @@ export function PlaceStrip() {
       live = false;
       observer?.disconnect();
     };
-  }, [pathname, measure]);
+  }, [pathname, pillKey, measure]);
+
+  useIsoLayoutEffect(() => {
+    if (pathname !== "/portfolio") return;
+    const read = () => setView(myStocksViewOf(window.location.search));
+    const onView = (event: Event) => {
+      const next = (event as CustomEvent<MyStocksView>).detail;
+      if (next) setView(next);
+    };
+    read();
+    window.addEventListener("popstate", read);
+    window.addEventListener(MY_STOCKS_VIEW_EVENT, onView);
+    return () => {
+      window.removeEventListener("popstate", read);
+      window.removeEventListener(MY_STOCKS_VIEW_EVENT, onView);
+    };
+  }, [pathname]);
+
+  // A My stocks tab pill: lit at once, and switched in place when the holdings editor is on the page (it handles
+  // the event); otherwise its link loads the view.
+  const selectView = (item: NavItem, event: React.MouseEvent) => {
+    const tab = MY_STOCKS_VIEW_ITEMS.find((entry) => entry === item);
+    if (!tab || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    setView(tab.view);
+    if (pathname !== "/portfolio") return;
+    const handled = !window.dispatchEvent(new CustomEvent(MY_STOCKS_SELECT_EVENT, { detail: tab.view, cancelable: true }));
+    if (handled) event.preventDefault();
+  };
 
   // A new page closes the menu (the chrome stays mounted while pages change underneath it).
   React.useEffect(() => setOpen(false), [pathname]);
@@ -128,7 +178,7 @@ export function PlaceStrip() {
     if (everyPillFits) setOpen(false);
   }, [everyPillFits]);
 
-  if (!place || place.sections.length < 2) return null;
+  if (!place || items.length < 2) return null;
   const menuOpen = open && !everyPillFits;
   return (
     <nav
@@ -152,13 +202,14 @@ export function PlaceStrip() {
       >
         {pills.map((item, index) => {
           const on = item === current;
-          const exact = on && pathname === item.href;
+          const exact = on && pathname === item.href.split("?")[0];
           const hidden = false;
           return (
             <IntentLink
               key={item.href}
               href={item.href}
               aria-current={on ? (exact ? "page" : "location") : undefined}
+              onClick={(event) => selectView(item, event)}
               tabIndex={hidden ? -1 : undefined}
               aria-hidden={hidden || undefined}
               className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-[14px] transition-colors ${FOCUS} ${
@@ -194,16 +245,19 @@ export function PlaceStrip() {
           className="absolute inset-x-3 top-full mt-1.5 max-h-[calc(100dvh-11rem)] overflow-y-auto rounded-xl border border-oa-border bg-oa-card p-1.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] [scrollbar-width:thin]"
         >
           <ul className="flex flex-col">
-            {place.sections.map((item, index) => {
+            {items.map((item, index) => {
               const on = item === current;
-              const heading = item.group && item.group !== place.sections[index - 1]?.group ? item.group : null;
+              const heading = item.group && item.group !== items[index - 1]?.group ? item.group : null;
               return (
                 <li key={item.href}>
                   {heading ? <p className="select-none px-3 pb-1 text-[10px] font-semibold uppercase leading-4 tracking-[0.1em] text-oa-muted-fg opacity-70 pt-3.5">{heading}</p> : null}
                   <IntentLink
                     href={item.href}
-                    aria-current={on ? (pathname === item.href ? "page" : "location") : undefined}
-                    onClick={() => setOpen(false)}
+                    aria-current={on ? (pathname === item.href.split("?")[0] ? "page" : "location") : undefined}
+                    onClick={(event) => {
+                      selectView(item, event);
+                      setOpen(false);
+                    }}
                     className={`flex h-11 items-center gap-3 rounded-lg px-3 text-[15px] transition-colors ${FOCUS} ${
                       on
                         ? "bg-[color-mix(in_srgb,var(--ink)_7%,transparent)] font-medium text-oa-fg"

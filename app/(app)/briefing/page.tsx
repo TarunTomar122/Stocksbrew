@@ -16,6 +16,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { briefingAnchorTickers } from "@/lib/briefing-anchors";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
+import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
 import type { BriefingSession } from "@/lib/briefing-read";
 import { etDay } from "@/lib/insight-format";
 import { loadDeskGiants, loadDeskSectors } from "../explore/desk-data";
@@ -27,15 +28,19 @@ import { overnightResultFacts } from "@/lib/results/server";
 
 export const dynamic = "force-dynamic";
 
+/** Signed out, the page is the example portfolio's briefing; the market's day has its own page (/explore). */
+const TITLE = "A Daily Briefing on Your Own Stocks";
+const DESCRIPTION =
+  "An example of the daily read members get on their own stocks: each move, the reason when we could confirm one, our call and what is coming up.";
+
 export function generateMetadata(): Metadata {
-  const shareImage = ogImage(["page", "briefing"], "Today's market briefing: what moved and why", { daily: true });
+  const shareImage = ogImage(["page", "briefing"], "Your stocks, explained every morning", { daily: true });
   return {
-    title: "Stock Market Today: What Moved and Why",
-    description:
-      "A daily read of the US stock market: how the index closed, the biggest movers with the reason when we could confirm one, and what to check next. Sign in to get the same read for your own stocks.",
+    title: TITLE,
+    description: DESCRIPTION,
     alternates: { canonical: "/briefing" },
-    openGraph: { title: "Stock Market Today: What Moved and Why · stocksbrew", description: "A daily read of the US stock market: how the index closed, the biggest movers with the reason when we could confirm one, and what to check next. Sign in to get the same read for your own stocks.", url: "https://www.stocksbrew.online/briefing", images: [shareImage] },
-    twitter: { card: "summary_large_image", title: "Stock Market Today: What Moved and Why · stocksbrew", description: "A daily read of the US stock market: how the index closed, the biggest movers with the reason when we could confirm one, and what to check next. Sign in to get the same read for your own stocks.", images: [shareImage] },
+    openGraph: { title: `${TITLE} · stocksbrew`, description: DESCRIPTION, url: "https://www.stocksbrew.online/briefing", images: [shareImage] },
+    twitter: { card: "summary_large_image", title: `${TITLE} · stocksbrew`, description: DESCRIPTION, images: [shareImage] },
   };
 }
 
@@ -133,15 +138,18 @@ async function lockedSlot(data: BriefingPageData) {
 }
 
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
-  const day = typeof searchParams?.day === "string" ? searchParams.day : null;
-  // The agents strip's one read starts with the page rather than after the briefing is built: same per-request
-  // call (loadWatches is React-cached on uid and day), so the strip picks up the read already in flight.
-  if (!day) {
-    void getSessionUser()
-      .then((user) => (user ? loadWatches(user.uid, newYorkToday()) : null))
-      .catch(() => null);
-  }
-  const data = await loadBriefingPage({ day, persist: true });
+  // Signed out, the briefing is the example portfolio's (lib/briefing-example.ts): what a member's morning read looks
+  // like, from real prices. The cached signed-out copy (app/(app)/anon/[v]/briefing) reads no cookie, so it lands here.
+  const user = await getSessionUser().catch(() => null);
+  const signedIn = Boolean(user);
+  // Earlier days are a member's own saved briefings; signed out, ?day= shows today's example with everything on it.
+  const day = signedIn && typeof searchParams?.day === "string" ? searchParams.day : null;
+  // The agents strip's one read starts before the briefing is built (loadWatches is React-cached on uid and day),
+  // so the strip picks up the read already in flight.
+  if (!day && user) void loadWatches(user.uid, newYorkToday()).catch(() => null);
+  const data: BriefingPageData & { example?: ExampleBriefingExtras } = signedIn
+    ? await loadBriefingPage({ day, persist: true })
+    : await loadExampleBriefing();
   // A briefing missing a source is not kept as the cached signed-out copy for long (lib/next-render.ts).
   if (data.degraded.length > 0) noteDegradedRender();
   // A failed session read is a degraded render too (lib/next-render.ts), so the cached signed-out copy does not keep
@@ -159,7 +167,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
 
   return (
     <AppPage>
-      <MarketingSchema path="/briefing" name="Stock Market Today: What Moved and Why" description="A daily read of the US stock market: how the index closed, the biggest movers with the reason when we could confirm one, and what to check next." breadcrumbLabel="Briefing" />
+      <MarketingSchema path="/briefing" name={TITLE} description={DESCRIPTION} breadcrumbLabel="Briefing" />
         <BriefingView
           briefing={withoutCircularReasons(data.briefing)}
           initialState={data.state}
@@ -169,6 +177,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           archived={data.archived}
           degraded={data.degraded}
           marketState={marketStateLabel(new Date())}
+          example={data.example ?? null}
           renderedAt={Date.now()}
           session={session}
           rail={railSlot(data)}
@@ -183,8 +192,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           resultFacts={facts}
           agentLog={
             day || data.archived ? null : (
-              <Suspense fallback={<AgentLogGhost />}>
-                <AgentLog />
+              <Suspense fallback={<AgentLogGhost narrow />}>
+                <AgentLog narrow />
               </Suspense>
             )
           }

@@ -406,9 +406,9 @@ export function StockReport({
 
   return (
     <div data-phone-tab="view" className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] pt-3 sm:px-6 sm:pt-6 lg:pb-10">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-6">
+      <div className="grid grid-cols-1 gap-4">
         {/* ── the lead: price and call, then the chart, across the full width ── */}
-        <div className="order-1 min-w-0 xl:col-span-2 xl:row-start-1">
+        <div className="order-1 min-w-0">
           <Panel>
             <header className="px-3.5 pb-3 pt-3 sm:px-4 sm:pt-3.5">
               {/* No "Research › Technology" trail over the name (owner rule 6: no small label above a heading). Search
@@ -495,9 +495,9 @@ export function StockReport({
                       {/* What the call rests on (each fact with its source and date), then what would change it.
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
                       {evidence.length ? (
+                        // No "Why:" label over the reasons (owner rule 6: no small labels over content); they follow the call.
                         <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
-                          <p className="font-medium">Why:</p>
-                          <ul role="list" className="mt-1 flex flex-col gap-1.5">
+                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1.5">
                             {evidence.map((line) => (
                               <li key={line.id} className="flex gap-2.5">
                                 <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
@@ -510,11 +510,7 @@ export function StockReport({
                         </div>
                       ) : basis ? (
                         <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
-                          {/* One date for all the reasons when they share it, instead of "as of Nov 10" on every line. */}
-                          <p className="font-medium">
-                            Why{basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? <span className="font-normal text-oa-muted-fg">, as of {basisAsOf.replace(" ", "\u00a0")}</span> : null}:
-                          </p>
-                          <ul role="list" className="mt-1 flex flex-col gap-1">
+                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
                             {basis.facts.map((fact) => (
                               <li key={fact} className="flex gap-2.5">
                                 <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
@@ -532,10 +528,13 @@ export function StockReport({
                               </li>
                             ))}
                           </ul>
+                          {/* One date for all the reasons when they share it, said once under them instead of a "Why, as of" label. */}
+                          {basisAsOf && basis.facts.every((fact) => !factHasDate(fact)) ? (
+                            <p className="mt-1 text-[13px] leading-[18px] text-oa-muted-fg">As of {basisAsOf.replace(" ", "\u00a0")}.</p>
+                          ) : null}
                         </div>
                       ) : callReason ? (
                         <p className="mt-2.5 max-w-[62ch] text-pretty text-[15px] leading-[21px] text-oa-fg">
-                          <span className="font-medium">Why: </span>
                           {callReason}
                           {reasonIsNewer && ready.reasonAsOf ? (
                             <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
@@ -636,60 +635,39 @@ export function StockReport({
 
         <PhoneSections sections={phoneSections} className="order-1" />
 
-        {/* ── follow, alerts and tools: secondary, one primary action ──────── */}
-        <aside data-phone-section="alerts" className="order-3 min-w-0 xl:col-start-2 xl:row-span-2 xl:row-start-2">
-          <div className="flex flex-col gap-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto xl:overscroll-contain xl:[scrollbar-width:none] [&>*]:shrink-0 xl:[&::-webkit-scrollbar]:hidden">
-            <Panel label={`Follow ${stock.ticker}`}>
-              {/* On a phone the header has no room for the button, so it lives here; from sm it sits beside the name. */}
-              <div className="oa-track-outline flex flex-col gap-2 px-3.5 py-3 sm:hidden sm:px-4 [&_button]:w-full">
-                <TrackButton
-                  ticker={stock.ticker}
-                  instrumentId={stock.instrument_id}
-                  tier={data.tier}
-                  isSubscribed={data.subscribed}
-                  isTracked={data.isTracked}
-                  untrackedLabel="Add to watchlist or holdings"
-                  signedOutLabel="Add to watchlist or holdings"
-                />
-                <p className="text-[12.5px] leading-4 text-oa-muted-fg">
-                  Stocks you follow show up in your briefing.
-                </p>
-              </div>
-              <div className="border-t border-oa-border">
-                <p className="oa-caption px-3.5 pb-1 pt-2.5 sm:px-4">Alerts by email</p>
-                <AlertControls
-                  ticker={stock.ticker}
-                  instrumentId={stock.instrument_id}
-                  currency={currency}
-                  currentPrice={stock.price}
-                  suggested={suggested}
-                  earnings={nextEarnings && earningsLabel && earningsIn != null && earningsIn >= 0 ? { eventDate: nextEarnings.event_date, label: earningsLabel, shortLabel: fmtDate(nextEarnings.event_date, false) } : null}
-                />
-              </div>
-            </Panel>
-
-            <nav aria-label={`More on ${stock.ticker}`} className="flex flex-col text-[13.5px] leading-5">
-              <Link prefetch={false}
-                href={`/backtest?t=${encodeURIComponent(stock.ticker)}`}
-                className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
-              >
-                <span>Backtest {stock.ticker}</span>
-                <span className="oa-mono shrink-0 text-[12px] text-oa-muted-fg">vs S&amp;P 500</span>
-              </Link>
-              <Link prefetch={false}
-                href={`/compare?symbols=${encodeURIComponent(stock.ticker)}`}
-                className="flex min-h-10 items-center justify-between gap-3 rounded-lg px-3.5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent sm:px-4"
-              >
-                <span>Compare with another stock</span>
-              </Link>
-            </nav>
+        {/* ── follow and alerts: in the page's one column, after the read. No side rail: a rail that ended halfway
+            down the page left an empty column beside the rest (owner rule 4). Follow lives in the header from sm up,
+            so on a phone it sits here, once; Compare is the panel at the foot of the page, once (owner rule 1). ── */}
+        <aside data-phone-section="alerts" className="order-3 flex min-w-0 flex-col gap-4">
+          <div className="oa-track-outline flex flex-col gap-2 sm:hidden [&_button]:w-full">
+            <TrackButton
+              ticker={stock.ticker}
+              instrumentId={stock.instrument_id}
+              tier={data.tier}
+              isSubscribed={data.subscribed}
+              isTracked={data.isTracked}
+              untrackedLabel={`+ Follow ${stock.ticker}`}
+              signedOutLabel={`+ Follow ${stock.ticker}`}
+            />
+            <p className="px-1 text-[12.5px] leading-4 text-oa-muted-fg">Stocks you follow show up in your briefing.</p>
           </div>
-          {/* No Ask link in the rail (owner rule 1): the shell's Ask is the page's one Ask, and this tells it the stock. */}
+          <Panel label={`Alerts on ${stock.ticker} by email`}>
+            <AlertControls
+              wide
+              ticker={stock.ticker}
+              instrumentId={stock.instrument_id}
+              currency={currency}
+              currentPrice={stock.price}
+              suggested={suggested}
+              earnings={nextEarnings && earningsLabel && earningsIn != null && earningsIn >= 0 ? { eventDate: nextEarnings.event_date, label: earningsLabel, shortLabel: fmtDate(nextEarnings.event_date, false) } : null}
+            />
+          </Panel>
+          {/* No Ask link here (owner rule 1): the shell's Ask is the page's one Ask, and this tells it the stock. */}
           {askStock ? <AskPageHint context={formatAskContext(askStock)} /> : null}
         </aside>
 
         {/* ── the read: what today means, what is coming, then our brief ──── */}
-        <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
+        <div className="order-2 flex min-w-0 flex-col gap-4">
           <div data-phone-section="view" className="flex min-w-0 flex-col gap-4">
           {/* Results night: the latest report's figures, move and call for ten days after it (components/results). */}
           {market === "US" ? (
@@ -805,7 +783,7 @@ export function StockReport({
         </div>
 
         {/* ── what changed, then the sections: streamed in under the rest (below.tsx) ── */}
-        <div className="order-4 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-3">
+        <div className="order-4 flex min-w-0 flex-col gap-4">
           {below}
 
           <p className="px-2 text-[12px] leading-5 text-oa-muted-fg sm:px-0">

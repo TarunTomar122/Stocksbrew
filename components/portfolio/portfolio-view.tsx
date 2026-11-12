@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   AlertsTab,
@@ -26,7 +26,7 @@ import {
   signTone,
 } from "@/components/portfolio/parts";
 import { PositionsTable } from "@/components/portfolio/positions-table";
-import { MyStocksTabs, type MyStocksTab } from "@/components/portfolio/my-stocks-tabs";
+import { MY_STOCKS_SELECT_EVENT, MyStocksTabs, type MyStocksTab } from "@/components/portfolio/my-stocks-tabs";
 import { ImportButton } from "@/components/import/import-button";
 import { ReasonsStrip } from "@/components/thesis/reasons-sheet";
 import { ShareButton } from "@/components/share/share-button";
@@ -266,6 +266,17 @@ export function PortfolioView({
     else return false;
     return true;
   }
+  // The phone strip's tab pills (components/oa/place-nav.tsx) switch the view here too.
+  const selectRef = useRef(selectPageTab);
+  selectRef.current = selectPageTab;
+  useEffect(() => {
+    const onSelect = (event: Event) => {
+      const next = (event as CustomEvent<MyStocksTab>).detail;
+      if (next && selectRef.current(next)) event.preventDefault();
+    };
+    window.addEventListener(MY_STOCKS_SELECT_EVENT, onSelect);
+    return () => window.removeEventListener(MY_STOCKS_SELECT_EVENT, onSelect);
+  }, []);
 
   // Tracking is unlimited on every plan and these are the person's own stocks, so every row shows.
   const shownPositions = positions;

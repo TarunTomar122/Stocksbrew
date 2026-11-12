@@ -58,7 +58,8 @@ export default async function SignalsPage({ searchParams }: { searchParams?: Sea
   const archive = clipByAge("signals_archive", viewer.plan, policyAll.posts, (post) => post.publishedAt, now);
   const policy = { ...policyAll, posts: archive.items };
 
-  const counts = { today: null, reddit: reddit.names.length, policy: policy.posts.length } as const;
+  // No "0" beside an empty tab (owner rule 4): a count only when there is something to count.
+  const counts = { today: null, reddit: reddit.names.length || null, policy: policy.posts.length || null } as const;
   const tabs = SIGNALS_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: signalsHref(filters, { tab: tab.id }), count: counts[tab.id] }));
 
   // The read for the tab: what the rows below add up to, computed from them. The movers only feed the Today tab's

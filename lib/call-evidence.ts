@@ -245,11 +245,9 @@ function salesLine(input: CallEvidenceInput): EvidenceLine | null {
     else if (g1 < 0 && g0 >= 0) text += `, after falling ${pct(g1)} in fiscal ${year.year}`;
     // Sales that fell: "faster" or "slower" than a year's rise or fall reads backwards, so say what the year did.
     else if (g0 < 0) text += `, after ${g1 < 0 ? "falling" : "growing"} ${pct(g1)} in fiscal ${year.year}`;
-    // A flat year (rounds to 0%) reads oddly as "faster than the 0%": say it was flat instead.
-    else if (Math.abs(g1) < 0.5) text += `, after flat sales in fiscal ${year.year}`;
-    else if (g0 - g1 > 2) text += `, faster than the ${pct(g1)} of fiscal ${year.year}`;
-    else if (g1 - g0 > 2) text += `, slower than the ${pct(g1)} of fiscal ${year.year}`;
-    else text += `, about the pace of fiscal ${year.year} (${pct(g1)})`;
+    else if (g0 - g1 > 2) text += `, faster than its ${pct(g1)} growth in fiscal ${year.year}`;
+    else if (g1 - g0 > 2) text += `, slower than its ${pct(g1)} growth in fiscal ${year.year}`;
+    else text += `, about the same as its ${pct(g1)} growth in fiscal ${year.year}`;
   }
   text += ".";
   const report = reportBehind(input.reports, sales.capturedAt);
@@ -435,7 +433,9 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
     fallsCount && dayBar !== null && weekBar !== null && dayBar >= 3
       ? [`a day in which ${t} falls ${dayBar}% more than the S&P 500`, `a week in which it falls ${weekBar}% more`]
       : [];
-  const moves = fallsCount ? [...ownMoves, `a week in which the S&P 500 falls ${MARKET_DROP_PCT}%`] : [];
+  // Only the stock's own moves: the market-wide drop (a week in which the S&P 500 falls 4%) still moves the call in the
+  // backend rule, but it says nothing about this stock, so it is not listed (council, Nov 11).
+  const moves = fallsCount ? ownMoves : [];
 
   // Phrased as what would change the call, never as a second call: the other call words are not named.
   const lines: string[] = [];
@@ -463,7 +463,8 @@ function conditionLines(input: CallEvidenceInput, swing: number | null): string[
       lines.push(`${Report} could raise the call if it ${bars.recover === 0 ? "shows sales growing again" : `shows sales growth back above ${bars.recover}%`}.`);
     }
   }
-  if (lines.length && inHold && holdUntil) lines.push(`Short of that, the call stands until at least ${day(holdUntil, input.today)}.`);
+  // No "Short of that, the call stands until at least Nov 25." after these: it explains the steady-call rule rather
+  // than saying what would change the call (owner rule 8: no mechanics copy).
   return lines;
 }
 

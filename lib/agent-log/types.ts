@@ -18,8 +18,6 @@ export type AgentLogEntry = {
   rest: string;
   /** Where the evidence is. */
   href: string;
-  /** Set when the line names one stock: its logo goes beside the line. */
-  ticker: string | null;
   /** A check that ran and found nothing new: kept only when the log has room. */
   quiet: boolean;
 };

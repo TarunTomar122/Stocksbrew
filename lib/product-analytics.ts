@@ -35,6 +35,7 @@ export type AuthSurface =
   | "import_try"
   | "agents_save"
   | "inbox"
+  | "briefing_example"
   | "unknown";
 
 export type PaywallSurface =

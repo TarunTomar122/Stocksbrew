@@ -19,9 +19,9 @@ function PanelBone({ children, className = "" }: { children: React.ReactNode; cl
 
 export function StockReportSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-[76rem] px-2 pb-24 pt-3 sm:px-6 sm:pt-6 lg:pb-10" aria-busy="true" aria-label="Loading stock">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-6">
-        <div className="order-1 min-w-0 xl:col-start-1 xl:row-start-1">
+    <div className="mx-auto w-full max-w-[84rem] px-2 pb-24 pt-3 sm:px-6 sm:pt-6 lg:pb-10" aria-busy="true" aria-label="Loading stock">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="order-1 min-w-0">
           <PanelBone>
             <div className="px-3.5 pt-3.5 sm:px-4 sm:pt-4">
               <div className="flex items-center gap-3">
@@ -63,24 +63,7 @@ export function StockReportSkeleton() {
           </PanelBone>
         </div>
 
-        <aside className="order-3 min-w-0 xl:col-start-2 xl:row-span-2 xl:row-start-1">
-          <PanelBone>
-            <div className="border-b border-oa-border px-3.5 py-2.5 sm:px-4">
-              <Bone className="h-3 w-24" />
-            </div>
-            <div className="px-3.5 py-3 sm:px-4">
-              <Bone className="h-10 w-full rounded-full" />
-            </div>
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="flex h-9 items-center justify-between border-t border-oa-border px-3.5 sm:px-4">
-                <Bone className="h-3.5 w-32" />
-                <Bone className="h-3.5 w-14" />
-              </div>
-            ))}
-          </PanelBone>
-        </aside>
-
-        <div className="order-2 flex min-w-0 flex-col gap-4 xl:col-start-1 xl:row-start-2">
+        <div className="order-2 flex min-w-0 flex-col gap-4">
           <PanelBone>
             <div className="border-b border-oa-border px-3.5 py-2.5 sm:px-4">
               <Bone className="h-3 w-20" />

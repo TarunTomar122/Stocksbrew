@@ -518,6 +518,7 @@ export async function StockPageStream({ params }: Props) {
     const cue = redditTickerContext?.cue;
     return buildStockTimeline({
       ticker: stock.ticker,
+      companyName: stock.name ? decodeTextEntities(stock.name) : null,
       now,
       move:
         displayAnomaly && moveHeadline && moveHeadline !== "--"

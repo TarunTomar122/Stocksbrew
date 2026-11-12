@@ -19,11 +19,14 @@ export function Ticker({
   ticker,
   className = "",
   logo = 16,
+  logoAtOnce = false,
 }: {
   ticker: string | null | undefined;
   className?: string;
   /** Logo size in px; the logo sits centred while the ticker keeps the row's text baseline. */
   logo?: number;
+  /** Load the logo at once instead of lazily: a long table's logos otherwise show as empty squares until scrolled to. */
+  logoAtOnce?: boolean;
 }) {
   if (!ticker) return null;
   return (
@@ -31,7 +34,7 @@ export function Ticker({
       href={stockHref(ticker)}
       className={`oa-mono inline-flex shrink-0 items-baseline gap-1.5 font-medium text-oa-fg underline decoration-oa-border decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-oa-primary hover:decoration-oa-primary focus-visible:text-oa-primary ${className}`}
     >
-      <StockLogo ticker={ticker} size={logo} className="self-center" />
+      <StockLogo ticker={ticker} size={logo} className="self-center" atOnce={logoAtOnce} />
       {ticker}
     </Link>
   );

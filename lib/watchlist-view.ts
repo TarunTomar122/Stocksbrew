@@ -3,6 +3,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getLatestPriceQuotes, getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
+import { plainRuleChange } from "@/lib/rule-copy";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
 
@@ -1068,7 +1069,8 @@ function rowFromDocs(
       ? (rawDirective.zones as Record<string, unknown>)
       : {};
   const directiveText = String(actionBlock.label || "").trim();
-  const directiveRationale = String(actionBlock.summary || rawDirective.watch_out || "").trim();
+  // The steady call's stored rule sentence loses its mechanics ("We plan to keep this call until at least…").
+  const directiveRationale = String(actionBlock.summary || plainRuleChange(String(rawDirective.watch_out || ""))).trim();
   const directiveStance = String(rawDirective.stance || "").toLowerCase();
   const directiveConfidence = String(rawDirective.confidence || "").toLowerCase();
   const directiveTrigger =

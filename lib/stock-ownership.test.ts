@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {} }));
-vi.mock("@/lib/follow", () => ({ getInsiderSummary: vi.fn(), getInsiderTradesForSymbol: vi.fn() }));
+vi.mock("@/lib/follow", () => ({ getInsiderMeta: vi.fn(), getInsiderTradesForSymbol: vi.fn() }));
 
 import { parseFundHolders, parseInsiderTrades } from "@/lib/stock-ownership";
 import type { InsiderTrade } from "@/lib/follow-shared";

@@ -15,7 +15,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getInsiderSummary, getInsiderTradesForSymbol } from "@/lib/follow";
+import { getInsiderMeta, getInsiderTradesForSymbol } from "@/lib/follow";
 import type { InsiderTrade } from "@/lib/follow-shared";
 
 export type FundPositionRow = {
@@ -219,14 +219,14 @@ export function parseInsiderTrades(trades: ReadonlyArray<InsiderTrade>): Insider
 async function loadInsiders(ticker: string): Promise<StockOwnership["insiders"]> {
   // No run record means the Form 4 job has never run, which is different from
   // "it ran and this company had no open-market insider trades".
-  const summary = await getInsiderSummary().catch(() => null);
-  if (!summary?.meta) return null;
+  const meta = await getInsiderMeta().catch(() => null);
+  if (!meta) return null;
   const trades = await getInsiderTradesForSymbol(ticker).catch(() => []);
   return {
     rows: parseInsiderTrades(trades),
-    asOf: text(summary.meta.generated_at) || null,
+    asOf: text(meta.generated_at) || null,
     source: "SEC EDGAR form 4",
-    since: isoDay(summary.meta.since),
+    since: isoDay(meta.since),
   };
 }
 

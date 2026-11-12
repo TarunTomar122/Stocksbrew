@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 /**
  * The tabs of My stocks: the overview, the holdings editor's three views and taxes, drawn the same way on each of
@@ -19,6 +20,15 @@ export const MY_STOCKS_TABS: ReadonlyArray<{ id: MyStocksTab; label: string; hre
   { id: "taxes", label: "Taxes", href: "/portfolio/taxes" },
 ];
 
+/**
+ * Below lg the phone place strip (components/oa/place-nav.tsx) draws these tabs as its pills, and this bar hides, so
+ * a phone shows one level of navigation. The two talk through window events: the strip asks the holdings editor to
+ * switch in place (cancelable; the editor cancels it when it handled the switch), and the editor says which view it
+ * switched to, so the lit pill follows.
+ */
+export const MY_STOCKS_SELECT_EVENT = "stocksbrew:my-stocks-select";
+export const MY_STOCKS_VIEW_EVENT = "stocksbrew:my-stocks-view";
+
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
 export function MyStocksTabs({
@@ -34,10 +44,15 @@ export function MyStocksTabs({
   onSelect?: (tab: MyStocksTab) => boolean;
   className?: string;
 }) {
+  // Tell the phone strip which view is on show, however it got here (a tab, a link inside the page, a refresh).
+  useEffect(() => {
+    if (current !== "taxes") window.dispatchEvent(new CustomEvent(MY_STOCKS_VIEW_EVENT, { detail: current }));
+  }, [current]);
   return (
     <nav
       aria-label="My stocks"
-      className={`-mx-2 mb-3 flex gap-6 overflow-x-auto border-b border-oa-border px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden ${className}`}
+      // Hidden below lg, where the place strip carries these tabs as pills (one level of navigation on a phone).
+      className={`mb-3 hidden gap-6 overflow-x-auto border-b border-oa-border [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden ${className}`}
     >
       {MY_STOCKS_TABS.map((tab) => {
         const active = tab.id === current;

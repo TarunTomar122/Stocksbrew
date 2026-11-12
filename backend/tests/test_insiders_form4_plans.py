@@ -248,3 +248,34 @@ class StaleDocuments(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClusterPoolTests(unittest.TestCase):
+    """The hourly run reads seven days of filings; clusters need the stored buys of the last 30."""
+
+    @staticmethod
+    def buy(trade_id: str, insider: str, day: str, symbol: str = "LKQ") -> dict[str, Any]:
+        return {"id": trade_id, "symbol": symbol, "tx_type": "buy", "insider_id": insider, "insider": insider,
+                "transaction_date": day, "shares": 100, "value": 1000.0, "filed_at": day}
+
+    def test_cluster_across_runs_is_found(self) -> None:
+        run = [self.buy("c", "carol", "2026-11-09")]
+        stored = [
+            ("tm_insider_trades/a", self.buy("a", "alice", "2026-10-25")),
+            ("tm_insider_trades/b", self.buy("b", "bob", "2026-10-28")),
+            ("tm_insider_trades/c", self.buy("c", "carol", "2026-11-09")),  # this run's own line, counted once
+        ]
+        pool = form4.cluster_pool(run, stored, skip=set(), since="2026-10-12")
+        self.assertEqual(len(pool), 3)
+        clusters = form4.detect_clusters(pool)
+        self.assertEqual([(item["symbol"], item["insiders"], item["filings"]) for item in clusters], [("LKQ", 3, 3)])
+
+    def test_skipped_old_and_sold_lines_are_left_out(self) -> None:
+        sell = dict(self.buy("s", "sam", "2026-11-01"), tx_type="sell")
+        stored = [
+            ("tm_insider_trades/old", self.buy("old", "olga", "2026-09-01")),
+            ("tm_insider_trades/gone", self.buy("gone", "gus", "2026-11-02")),
+            ("tm_insider_trades/s", sell),
+        ]
+        pool = form4.cluster_pool([], stored, skip={"tm_insider_trades/gone"}, since="2026-10-12")
+        self.assertEqual(pool, [])

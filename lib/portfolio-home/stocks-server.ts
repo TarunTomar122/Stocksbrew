@@ -19,7 +19,7 @@ import { noteDegradedRender } from "@/lib/next-render";
 import { matchingCompanyReason } from "@/lib/stock-read";
 import type { UserDoc } from "@/lib/watchlist";
 
-import { PLAIN_CALL, weekMove, type BookFacts, type BookSource, type CallChangeInfo, type CallInfo, type InsiderBuyInfo, type PlainCall } from "./stocks";
+import { PLAIN_CALL, monthMoves, weekMove, type BookFacts, type BookSource, type CallChangeInfo, type CallInfo, type InsiderBuyInfo, type PlainCall } from "./stocks";
 
 /**
  * The data behind the stock cards on My stocks (./stocks.ts), from reads the app already caches: dated prices
@@ -166,6 +166,7 @@ export async function loadExampleBook(now: Date = new Date()): Promise<BookSourc
     pricesDay: example.pricesAsOf,
     marketPct: example.marketPct,
     week: weekMove({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: example.pricesAsOf, marketPct: example.marketPct }),
+    month: monthMoves({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: example.pricesAsOf, marketPct: example.marketPct }),
     facts: await facts({
       tickers,
       ids: portfolio.positions.map((position) => position.instrument_id),
@@ -243,6 +244,7 @@ export async function loadUserBook(userDoc: UserDoc, viewer: Viewer, now: Date =
     pricesDay: day,
     marketPct,
     week: weekMove({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: day, marketPct }),
+    month: monthMoves({ positions: portfolio.positions, series, benchmark: series.get(BENCHMARK_SYMBOL) ?? null, pricesDay: day, marketPct }),
     facts: await facts({ tickers, ids: [...tickerOf.keys()], pricesDay: day, today, calls, levels }),
   };
 }

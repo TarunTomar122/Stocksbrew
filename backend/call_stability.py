@@ -466,7 +466,6 @@ def what_would_change(state: dict[str, Any], today: str, facts: Facts, name: str
     nxt = facts.next_earnings if facts.next_earnings and facts.next_earnings > today else None
     held = held_sessions(facts, str(state["since"]), today)
     in_hold = held < rules.min_hold_sessions
-    earliest = add_sessions(today, rules.min_hold_sessions - held) if in_hold else today
     direction = _last_direction(state) if in_hold else 0
 
     # Plain words only (owner: no mechanics copy): what could move the call, not how the rule counts. The web stock page
@@ -476,22 +475,19 @@ def what_would_change(state: dict[str, Any], today: str, facts: Facts, name: str
     if in_hold and direction:
         ways &= {direction}
     # Measurable, from this stock's own swings (owner, Nov 11: every condition names a number someone can check).
-    # The same bars the rule uses: a move of its own over each window it watches, and the market drop. The web stock
-    # page (lib/call-evidence.ts) words the same bars.
+    # The same bars the rule uses for a move of its own over each window it watches. The market-wide drop is still
+    # part of the rule but is not listed: it says nothing about this stock (council, Nov 11). The web stock page
+    # (lib/call-evidence.ts) words the same bars.
     verb = "falls" if ways == {-1} else "rises" if ways == {1} else "moves"
     bars = [(days, round(rules.move_sigma * sigma * math.sqrt(days) * 100)) for days in sorted(rules.move_days)] if sigma else []
     if bars and bars[0][1] >= 3:
         def window(days: int) -> str:
             return "a day" if days == 1 else "a week" if days == 5 else f"{days} trading days"
         first, *rest = bars
-        parts = [f"{window(first[0])} in which it {verb} {first[1]}% more than the S&P 500"]
-        parts += [f"{window(days)} in which it {verb} {bar}% more" for days, bar in rest]
-        sharp = ", ".join(parts)
+        moves = [f"{window(first[0])} in which it {verb} {first[1]}% more than the S&P 500"]
+        moves += [f"{window(days)} in which it {verb} {bar}% more" for days, bar in rest]
     else:
-        sharp = "a sharp drop" if ways == {-1} else "a sharp rise" if ways == {1} else "a sharp move"
-    drop = abs(rules.market_drop_pct)
-    span = "a week" if rules.market_drop_sessions == 5 else f"{rules.market_drop_sessions} trading days"
-    market = f" or {span} in which the S&P 500 falls {drop:g}%" if -1 in ways else ""
+        moves = ["a sharp drop" if ways == {-1} else "a sharp rise" if ways == {1} else "a sharp move"]
     lean = "buying" if call == ADD else "selling"
     after = (
         f"we'd move to {PLAIN[ADD]} or {PLAIN[TRIM]} once the case holds for a few days"
@@ -499,13 +495,17 @@ def what_would_change(state: dict[str, Any], today: str, facts: Facts, name: str
         else f"we'd move to {PLAIN[HOLD]} if the case for {lean} fades for a few days"
     )
     if in_hold:
-        return (
-            f"We plan to keep this call until at least {short_day(earliest)}. "
-            f"Only {results}, a new outlook, {sharp}{market} could change it sooner. After that, {after}."
-        )
+        # No "We plan to keep this call until at least Nov 25.": that explains the steady-call rule rather than what
+        # would change the call (owner rule 8: no mechanics copy).
+        if not ways:
+            # Buy more reached by a move up (or Sell some by a move down) inside the hold: no move of its own can
+            # change it yet, so no bar is offered.
+            return f"Only {results} could change it."
+        said = _join([results, "a new outlook", *moves])
+        return f"{said[0].upper()}{said[1:]} could change it."
     if call == HOLD:
         return f"{after[0].upper()}{after[1:]}, or sooner after {results}."
-    return f"{after[0].upper()}{after[1:]}, or sooner after {results} or {sharp}{market}."
+    return f"{after[0].upper()}{after[1:]}, or sooner after {_join([results, *moves])}."
 
 
 # ── the rule ───────────────────────────────────────────────────────────────

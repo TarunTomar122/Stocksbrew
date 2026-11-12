@@ -188,3 +188,11 @@ describe("policy", () => {
     expect(busier.figure).toEqual({ value: "+2", label: "on the week before" });
   });
 });
+
+describe("the latest post", () => {
+  it("is not repeated on the card: the posts list beside it already says it (owner rule 1)", () => {
+    const now = Date.parse("2026-11-12T12:00:00Z");
+    const recent = recentInsight([{ ...post("a", "2026-11-11T22:30:00Z", "neutral", []), summary: "Criticized the New York Times." }], now)!;
+    expect(recent.soWhat).toBeUndefined();
+  });
+});

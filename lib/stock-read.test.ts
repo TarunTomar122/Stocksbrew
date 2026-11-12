@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStockRead, callSince, matchingCompanyReason, previousCall, stabilityFromState, writtenFromOtherCompaniesNews } from "@/lib/stock-read";
+import { buildStockRead, callSince, plainRuleChange, matchingCompanyReason, previousCall, stabilityFromState, writtenFromOtherCompaniesNews } from "@/lib/stock-read";
 import type { CallStabilityStateDoc, StockIntelligenceDoc } from "@/lib/stock";
 
 const base = {
@@ -204,7 +204,8 @@ describe("steady call", () => {
   it("carries the steady call's date and its rule, and keeps the rule out of the lower list", () => {
     const read = buildStockRead(steady, { callChanges: [{ date: "2026-10-01", from: null, to: "Hold" }] })!;
     expect(read.since).toBe("2026-11-04");
-    expect(read.whatWouldChange).toMatch(/^We plan to hold this call until at least Dec 2/);
+    // The stored rule sentence loses its mechanics ("We plan to hold this call until at least Dec 2").
+    expect(read.whatWouldChange).toBe("A results report could change it.");
     expect(read.changers.some((item) => item.startsWith("We plan"))).toBe(false);
     expect(read.heldAgainst).toBe("Trim");
     expect(read.steadySince).toBe("2026-11-04");
@@ -353,5 +354,19 @@ describe("writtenFromOtherCompaniesNews", () => {
     expect(read?.headline).toBe("JPMorgan's leadership is broad, but its own growth remains modest");
     expect(read?.body).toBeNull();
     expect(read?.articleCount).toBeNull();
+  });
+});
+
+describe("plainRuleChange", () => {
+  it("drops the hold date, the after-that clause and the market-wide drop", () => {
+    expect(
+      plainRuleChange(
+        "We plan to keep this call until at least Nov 25. Only its Nov 17 results, a new outlook, a day in which it falls 4% more than the S&P 500, a week in which it falls 10% more or a week in which the S&P 500 falls 4% could change it sooner. After that, we'd move to Keep if the case for buying fades for a few days.",
+      ),
+    ).toBe("Its Nov 17 results, a new outlook, a day in which it falls 4% more than the S&P 500 or a week in which it falls 10% more could change it.");
+    expect(plainRuleChange("We'd move to Keep if the case for buying fades for a few days, or sooner after its Nov 17 results or a sharp drop or a week in which the S&P 500 falls 4%.")).toBe(
+      "We'd move to Keep if the case for buying fades for a few days, or sooner after its Nov 17 results or a sharp drop.",
+    );
+    expect(plainRuleChange("")).toBe("");
   });
 });

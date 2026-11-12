@@ -30,7 +30,8 @@ function tone(value: number | null): string {
 function Stat({ caption, figure, figureTone, sub }: { caption: string; figure: string; figureTone: number | null; sub: string[] }) {
   return (
     <div className="min-w-0 px-3 py-2.5 sm:px-4 sm:py-3">
-      <p className="truncate text-[12.5px] leading-[17px] text-oa-muted-fg">{caption}</p>
+      {/* Whole, never cut with "…" (owner rule 8): the captions are short enough for a phone's third. */}
+      <p className="text-pretty text-[12.5px] leading-[17px] text-oa-muted-fg">{caption}</p>
       <p className={`oa-mono mt-0.5 text-[17px] font-semibold leading-6 tracking-[-0.01em] tabular-nums sm:text-[20px] sm:leading-7 ${tone(figureTone)}`}>{figure}</p>
       {/* Each part stays on one line ("S&P +1.6%" never splits on a phone); a narrow tile wraps between the parts. */}
       <p className="oa-mono text-[11.5px] leading-4 tabular-nums text-oa-muted-fg sm:text-[12px]">
@@ -71,8 +72,8 @@ export async function BookLead({ load }: { load: HomeLoad }) {
     const { dollars, pct, marketPct } = lead.week;
     stats.push(
       dollars !== null
-        ? { key: "week", caption: "Past 5 trading days", figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
-        : { key: "week", caption: "Past 5 trading days, on average", figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
+        ? { key: "week", caption: "Last 5 days", figure: signedDollars(dollars), figureTone: dollars, sub: versus(pct, marketPct) }
+        : { key: "week", caption: "Last 5 days, on average", figure: signedPct(pct), figureTone: pct, sub: versus(null, marketPct) },
     );
   }
   if (lead.gain) {
@@ -238,10 +239,10 @@ function toolFigure(id: ToolId, figure: string): string {
 }
 
 /**
- * Every portfolio tool with a live figure, as one list of links in the side rail ("Stress test  −41%"): the tools
- * are places to go, not cards on the overview (owner, Nov 11). Tools with nothing to show, or only an empty state
- * ("Nothing to trim", "No losses"), are left to the menu (owner rule 4: no row without data). The weekly memo is left
- * out when its own figures sit above (`MemoFigures`), so it is not linked twice.
+ * The portfolio tools that have something to show, as one quiet line of links under the rail (owner rule 10: tools
+ * are links, not cards). Each keeps its figure in small type after its name ("Stress test −32%"), so the line still
+ * says something. Tools with nothing to show, or only an empty state ("Nothing to trim"), are left to the menu (owner
+ * rule 4). The weekly memo is left out when its own figures sit above (`MemoFigures`), so it is not linked twice.
  */
 export async function ToolLinks({ load }: { load: HomeLoad }) {
   const [{ mode }, sources, goal] = await Promise.all([load.context, feedSources(load), load.sources.goal]);
@@ -253,21 +254,14 @@ export async function ToolLinks({ load }: { load: HomeLoad }) {
     .filter(({ card }) => card.figure !== null && !card.empty);
   if (tools.length === 0) return null;
   return (
-    <nav aria-labelledby="tools-head" className={CARD}>
-      <h2 id="tools-head" className="px-4 pb-1 pt-3 text-[16px] font-semibold leading-[22px] text-oa-fg">
-        {mode === "example" ? "The example's tools" : "Your tools"}
-      </h2>
-      <ul className="divide-y divide-oa-border">
+    <nav aria-label={mode === "example" ? "The example's tools" : "Your tools"} className="px-1 text-[13px] leading-6 text-oa-muted-fg">
+      <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
         {tools.map(({ id, card }) => (
-          <li key={id}>
-            <Link
-              href={toolHref(id, mode)}
-              prefetch={false}
-              className={`flex items-baseline justify-between gap-3 px-4 py-2 text-[13.5px] leading-5 transition-colors hover:bg-oa-accent ${FOCUS}`}
-            >
-              <span className="truncate text-oa-fg">{card.title}</span>
-              <span className="oa-mono shrink-0 text-[12.5px] tabular-nums text-oa-muted-fg">{toolFigure(id, card.figure!)}</span>
-            </Link>
+          <li key={id} className="whitespace-nowrap">
+            <Link href={toolHref(id, mode)} prefetch={false} className={`rounded text-oa-fg underline decoration-oa-border underline-offset-[3px] hover:decoration-oa-fg ${FOCUS}`}>
+              {card.title}
+            </Link>{" "}
+            <span className="oa-mono text-[12px] tabular-nums">{toolFigure(id, card.figure!)}</span>
           </li>
         ))}
       </ul>

@@ -391,6 +391,8 @@ export function insiderInsight(pace: InsiderPace | null, tallies: StockTally[]):
     return {
       id: "insider-sector",
       tone: "up",
+      // The count is the card's figure, so the card reads at a glance (council, Nov 11).
+      figure: { value: hot.recent.toLocaleString("en-US"), label: `${hot.recent === 1 ? "buy" : "buys"} in ${windowWords(pace.windowDays)}` },
       text: `Insider buying is unusually high in ${sectorWord(hot.sector)}: ${hot.recent} buys in ${windowWords(pace.windowDays)} against ${rate(hot.normal)} in a normal ${windowWords(pace.windowDays).replace(/^a /, "")} since ${fmtDate(pace.baselineSince, false)}.`,
       soWhat: hot.tickers.length > 0 ? `Mostly ${listWords(hot.tickers.slice(0, 3))}.` : undefined,
       tickers: hot.tickers.slice(0, 4),
@@ -404,6 +406,7 @@ export function insiderInsight(pace: InsiderPace | null, tallies: StockTally[]):
       return {
         id: "insider-pace",
         tone: toneOfChange(change),
+        figure: { value: pace.recent.toLocaleString("en-US"), label: `${pace.recent === 1 ? "buy" : "buys"} in ${windowWords(pace.windowDays)}` },
         text: `Insider buying is ${words}: ${plural(pace.recent, "open-market buy")} in ${windowWords(pace.windowDays)} against ${rate(pace.normal)} in a normal stretch since ${fmtDate(pace.baselineSince, false)}.`,
         soWhat: conviction ? `${conviction.ticker} drew the most: ${plural(conviction.buyers.length, "insider")} bought.` : undefined,
         tickers: conviction ? [conviction.ticker] : undefined,
@@ -415,6 +418,7 @@ export function insiderInsight(pace: InsiderPace | null, tallies: StockTally[]):
     return {
       id: "insider-conviction",
       tone: "up",
+      figure: { value: String(conviction.buyers.length), label: `insiders at ${conviction.ticker}` },
       text: `${plural(conviction.buyers.length, "insider")} at ${conviction.name ?? conviction.ticker} bought ${conviction.ticker} with their own money, the most of any company in ${windowWords(pace?.windowDays ?? 14)}.`,
       tickers: [conviction.ticker],
       action: { label: "Insider buys", href: "/insiders" },
@@ -542,6 +546,7 @@ export function buildInsiderRead(input: {
       ? {
           id: "insider-multi",
           tone: "up",
+          figure: { value: String(many[0].buyers.length), label: `insiders bought ${many[0].ticker}` },
           text: `More than one insider bought at ${listWords(many.map((row) => `${row.ticker} (${row.buyers.length})`))} in two weeks, the strongest kind of insider signal we track.`,
           tickers: many.map((row) => row.ticker),
           action: { label: `${many[0].ticker} insiders`, href: `/stock/${encodeURIComponent(many[0].ticker)}` },
@@ -582,7 +587,6 @@ export function buildInsiderRead(input: {
               : `Insiders bought ${compactMoney(sums.bought)} in the last ${sums.days} days and sold ${compactMoney(sums.sold)}.`,
           soWhat: [
             sums.plannedPct === null ? null : sums.plannedPct === 0 ? "None of the selling was under pre-set plans." : `${sums.plannedPct}% of the selling was under pre-set plans.`,
-            sums.sold > sums.bought ? "Selling is normal (pay, taxes, diversifying); buying is the rarer tell." : null,
           ]
             .filter(Boolean)
             .join(" "),

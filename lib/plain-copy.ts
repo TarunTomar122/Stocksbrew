@@ -65,7 +65,15 @@ for (const word of (
   "models work works finds find helps help known build builds run runs production platform database " +
   "scales centers processors hours time term long short got dream dreams unit units isn't aren't won't can't don't doesn't there " +
   // Most talked about on the news page, Nov 11 ("no Longer the Bundler", "could Kick off a 'new Decade'", "cash Burn").
-  "longer away kick kicks kicked decade decades burn burns burning bundler bundle bundles supplier suppliers right problem problems revive revives emerge emerges subscriber subscribers ask asks whether keep wants want break breaks network capacity gas summer"
+  "longer away kick kicks kicked decade decades burn burns burning bundler bundle bundles supplier suppliers right problem problems revive revives emerge emerges subscriber subscribers ask asks whether keep wants want break breaks network capacity gas summer " +
+  // The stock page's "What changed", Nov 11 ("Here's How Much You Would Have Made Owning JPMorgan Chase Stock In The
+  // Last 5 Years", "JPMorgan Partners With OpenAI: What It Means", "Takes Lead Role", "85 Cents on the Dollar").
+  // "dollar" and "partners" are not here: they are often part of a name ("Dollar General", "Enterprise Products
+  // Partners"), so they are lowered only away from one (NAME_PRONE below).
+  // Not "our", "value" or "option": names use them ("Option Care Health", "Value Line").
+  "you your yours we they them made owning owns role roles cents cent last means mean was were " +
+  "undervalued overvalued attracting attention distributions increase increases need needs " +
+  "unlock unlocks remodel remodels retirees seeking"
 ).split(" ")) {
   if (word) COMMON.add(word);
 }
@@ -88,6 +96,11 @@ const OWN_NAME_SMALL_WORDS = new Set(["a", "an", "and", "of", "the", "for", "in"
 // Endings of common words ("Following", "Investment", "Slashed", "Sharply"). A word with one of these endings is
 // lowered only when no unknown capitalised word stands beside it, since that pair may be a name ("Constellation
 // Energy", "United Airlines"); a lowercased name reads worse than one capital too many.
+// Ordinary words that are often part of a company's name: lowered like a common-ending word, only when no unknown
+// capitalised word stands beside them ("85 cents on the Dollar", "JPMorgan Partners With OpenAI", "the Better Value
+// Option", but "Dollar General", "Brookfield Renewable Partners", "Option Care Health").
+const NAME_PRONE = new Set(["dollar", "dollars", "partner", "partners", "value", "option", "options"]);
+
 const COMMON_ENDING = /^[a-z]{3,}(?:ing|ments?|tions?|sions?|ness)$|^[a-z]{4,}(?:ed|ly)$/;
 
 // A wire service's desk tag in front of a headline ("Analysis-", "EXCLUSIVE:", "UPDATE 2-", "BREAKINGVIEWS-").
@@ -195,7 +208,7 @@ export function sentenceCase(text: string | null | undefined, companyName = ""):
     const joinedPrev = prev && /^[\s-]+$/.test(gapBefore);
     const joinedNext = next && /^[\s-]+$/.test(gapAfter);
     const besideName = (joinedPrev && index - 1 > 0 && unknownName(prev.word)) || (joinedNext && unknownName(next.word));
-    out.push(COMMON_ENDING.test(bare) && !besideName ? word.toLowerCase() : word);
+    out.push((COMMON_ENDING.test(bare) || NAME_PRONE.has(bare)) && !besideName ? word.toLowerCase() : word);
   });
   out.push(value.slice(cursor));
   return out.join("");

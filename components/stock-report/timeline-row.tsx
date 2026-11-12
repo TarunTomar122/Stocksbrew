@@ -46,9 +46,13 @@ export function TimelineRow({ item, nowIso }: { item: StockTimelineItem; nowIso:
     <li className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-3 border-b border-oa-border px-3.5 py-2.5 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-4">
       <div className="pt-0.5">
         <p className={`${NUM} text-[12px] leading-4 text-oa-fg`}>{timelineDate(item, nowIso)}</p>
-        <p className="oa-mono mt-0.5 text-[10px] uppercase leading-4 tracking-[0.08em]" style={{ color: item.kind === "call" ? "var(--oa-primary)" : "var(--oa-muted-fg)" }}>
-          {KIND_LABEL[item.kind]}
-        </p>
+        {/* Headlines are most of the list, so they carry no kind label; the rarer rows (a move, a report, our call)
+            say what they are (owner rule 1: nothing repeated on every row). */}
+        {item.kind !== "news" ? (
+          <p className="oa-mono mt-0.5 text-[10px] uppercase leading-4 tracking-[0.08em]" style={{ color: item.kind === "call" ? "var(--oa-primary)" : "var(--oa-muted-fg)" }}>
+            {KIND_LABEL[item.kind]}
+          </p>
+        ) : null}
       </div>
       <div className="min-w-0">
         <p className="text-[14px] font-medium leading-5 text-oa-fg">

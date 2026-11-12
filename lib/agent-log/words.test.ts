@@ -45,7 +45,6 @@ describe("agent log lines", () => {
     expect(sentence(premarketEntry({ at: at("12:30"), scanned: 72, bigMoves: 24, leader: { ticker: "COHR", pct: 9.29 } }))).toBe(
       "72 stocks checked before the open; 24 were moving 3% or more, led by COHR, up 9.3%.",
     );
-    expect(premarketEntry({ at: at("12:30"), scanned: 72, bigMoves: 24, leader: { ticker: "COHR", pct: 9.29 } })?.ticker).toBe("COHR");
     expect(sentence(premarketEntry({ at: at("12:30"), scanned: 40, bigMoves: 0, leader: null }))).toBe("40 stocks checked before the open; none was moving 3% or more.");
     expect(premarketEntry({ at: at("12:30"), scanned: 0, bigMoves: 0, leader: null })).toBeNull();
   });
@@ -58,7 +57,6 @@ describe("agent log lines", () => {
     const one = callsEntry({ at: at("21:10"), reviewed: 743, changes: [{ ticker: "AAOI", to: "Trim", trigger: "earnings" }], heldAgainst: 3 });
     expect(sentence(one)).toBe("743 calls reviewed; 1 changed: AAOI to Sell some after its results.");
     expect(one?.href).toBe("/stock/AAOI");
-    expect(one?.ticker).toBe("AAOI");
     const many = callsEntry(
       {
         at: at("21:10"),
@@ -72,7 +70,6 @@ describe("agent log lines", () => {
       },
     );
     expect(sentence(many)).toBe("743 calls reviewed; 3 changed: AAOI to Sell some after its results, NVDA to Keep and 1 more.");
-    expect(many?.ticker).toBeNull();
   });
 
   it("counts moves only when a reason was confirmed", () => {
@@ -91,7 +88,6 @@ describe("agent log lines", () => {
   it("names the filings worth flagging, and a quiet check as quiet", () => {
     const one = filingsEntry({ at: at("17:20"), companies: 769, count: 12, flagged: [{ ticker: "LRN", what: "an activist stake" }] });
     expect(sentence(one)).toBe("12 new SEC filings read; 1 was big enough to flag: an activist stake at LRN.");
-    expect(one?.ticker).toBe("LRN");
     expect(
       sentence(
         filingsEntry({
