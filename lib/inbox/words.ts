@@ -1,8 +1,10 @@
 import { instantOf, isBareDay, nyDay, shortDay } from "./merge";
+import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
+import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
 import { callLine, resultSentence, resultTone } from "@/lib/results/words";
 
-import type { InboxItem } from "./types";
+import type { InboxItem, InboxMove, UpcomingReport } from "./types";
 
 /**
  * Each source's records as inbox items: one full sentence on what happened and
@@ -65,6 +67,7 @@ function base(fields: Omit<InboxItem, "day" | "detail" | "external" | "quiet" | 
   const day = nyDay(fields.at);
   if (!day) return null;
   return {
+    move: null,
     exact: true,
     detail: null,
     external: false,
@@ -89,6 +92,34 @@ export type AgentRunRecord = {
   decision: "notify" | "nothing" | "could_not_check";
   summary: string;
   tickers: string[];
+  /** What the run found, stock by stock (lib/agent-jobs.ts AgentFinding). Older runs may have none. */
+  findings?: RunFinding[];
+};
+
+/** One finding of a stored run, the fields the inbox reads (lib/agent-jobs.ts AgentFinding). */
+export type RunFinding = {
+  ticker: string | null;
+  headline: string;
+  detail: string;
+  /** The day the fact is from: the close for a move, the report day for earnings. */
+  at: string;
+  kind?: string;
+  change_pct?: number;
+  close?: number;
+  zone?: "add" | "trim" | null;
+  level?: number | null;
+  /** Earnings only: "bmo" or "amc" when known. */
+  time?: string | null;
+};
+
+/**
+ * What the inbox knows about a stock beyond the run: what a normal day is for it (its average absolute daily
+ * move) and the confirmed reason for its latest big move, if the researched movers feed has one.
+ */
+export type MoveContext = {
+  normalPct: number | null;
+  /** Only a reason with sources that names a cause (lib/briefing.ts moveReason, lib/reason-quality.ts). */
+  reason: { day: string; pct: number; line: string } | null;
 };
 
 function agentName(name: string): string {
@@ -120,6 +151,260 @@ export function agentItem(run: AgentRunRecord, mode: Mode): InboxItem | null {
     tone: "down",
     dedupeKey: `agent:${run.jobId}:${run.day}`,
   });
+}
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A move's percent, one decimal: "11.9%". */
+function pctText(value: number): string {
+  return `${Math.abs(value).toFixed(1)}%`;
+}
+
+/** A move's percent from the finding's number, else from its own words ("IREN rose 20.02% in the last session"). */
+function findingPct(finding: RunFinding): number | null {
+  if (typeof finding.change_pct === "number" && Number.isFinite(finding.change_pct)) return finding.change_pct;
+  const match = /\b(rose|fell|gained|lost|jumped|dropped|climbed|slid)\s+(\d+(?:\.\d+)?)%/i.exec(finding.headline);
+  if (!match) return null;
+  const size = Number(match[2]);
+  if (!Number.isFinite(size)) return null;
+  return /^(fell|lost|dropped|slid)$/i.test(match[1]!) ? -size : size;
+}
+
+type FindingKind = "move" | "span" | "level" | "earnings" | "other";
+
+function findingKind(finding: RunFinding): FindingKind {
+  const kind = String(finding.kind ?? "").toLowerCase();
+  if (kind === "level") return "level";
+  // The weekly review's moves are over five sessions, not one day: never said or counted as a day's move.
+  if (/\bover \w+ sessions\b/i.test(finding.headline)) return "span";
+  if (kind === "earnings" || (!kind && /\breports earnings\b/i.test(finding.headline))) return "earnings";
+  if (kind === "move" || kind === "mover" || (!kind && findingPct(finding) !== null && /\b(rose|fell)\b/i.test(finding.headline))) return "move";
+  return "other";
+}
+
+/** The tickers whose moves a run reports, for the context read (normal day, reason) before its items are made. */
+export function moveTickers(runs: AgentRunRecord[]): string[] {
+  const out: string[] = [];
+  for (const run of runs) {
+    if (run.decision !== "notify") continue;
+    for (const finding of run.findings ?? []) {
+      const ticker = cleanTicker(finding.ticker);
+      const kind = findingKind(finding);
+      if (ticker && (kind === "move" || kind === "level") && !out.includes(ticker)) out.push(ticker);
+    }
+  }
+  return out;
+}
+
+/** The market session before `day`: a Monday's is the Friday, and a day after a market holiday skips it. */
+export function sessionBefore(day: string): string {
+  const date = new Date(`${day}T12:00:00Z`);
+  for (let i = 0; i < 10; i++) {
+    date.setUTCDate(date.getUTCDate() - 1);
+    const key = date.toISOString().slice(0, 10);
+    if (date.getUTCDay() !== 0 && date.getUTCDay() !== 6 && !isNyseHoliday(key)) return key;
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** A past day as a sentence says it: "today", "yesterday", "on Monday" within the week, "on Nov 3" before. */
+export function pastWhen(day: string, today: string | null): string {
+  if (!today) return `on ${shortDay(day)}`;
+  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
+  if (gap === 0) return "today";
+  if (gap === 1) return "yesterday";
+  if (gap > 1 && gap < 7) return `on ${WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()]}`;
+  return `on ${shortDay(day)}`;
+}
+
+/** A move at least this many times the stock's normal day is "more than usual": the row says so and the read counts it. */
+export const UNUSUAL_MOVE = 2;
+
+/**
+ * "MU rose 11.9% today, about three times a normal day." The comparison is only said when the move is at least
+ * UNUSUAL_MOVE times the stock's normal day; a normal-sized move is just the move.
+ */
+export function moveSentence(ticker: string, pct: number, day: string, normalPct: number | null, today: string | null = null): string {
+  const ratio = normalPct !== null && normalPct > 0 ? Math.abs(pct) / normalPct : null;
+  const versus = ratio !== null && ratio >= UNUSUAL_MOVE ? vsDayWords(ratio) : null;
+  return `${ticker} ${pct >= 0 ? "rose" : "fell"} ${pctText(pct)} ${pastWhen(day, today)}${versus ? `, ${versus}` : ""}.`;
+}
+
+/** The confirmed reason for this move: the researched feed's move on the same close, the same way. Null otherwise. */
+function reasonFor(context: MoveContext | undefined, day: string, pct: number): string | null {
+  const reason = context?.reason;
+  if (!reason || reason.day !== day || Math.sign(reason.pct) !== Math.sign(pct)) return null;
+  return reason.line;
+}
+
+/**
+ * A run's findings as items, one per stock it is about: a move says the figure (and the reason when one is
+ * confirmed, nothing when not), a price level says where the close sits against our call, anything else says the
+ * finding's own sentence. Upcoming reports are left out: the earnings calendar gives every stock's report
+ * (UpcomingReport), so the agent's reminder would say it twice. Null when the run has no findings to go on, so the
+ * caller falls back to the run's own summary (agentItem).
+ */
+export function findingItems(run: AgentRunRecord, mode: Mode, context: ReadonlyMap<string, MoveContext> = new Map(), today: string | null = null): InboxItem[] | null {
+  if (run.decision !== "notify") return [];
+  const findings = (run.findings ?? []).filter((finding) => cleanTicker(finding.ticker) !== null);
+  if (findings.length === 0) return null;
+  const ranAt = instantOf(run.ranAt);
+  const at = ranAt ?? instantOf(run.day);
+  if (!at) return null;
+  const exact = ranAt !== null && !isBareDay(run.ranAt);
+  const source = mode === "mine" ? "Your agent" : "Example agent";
+  const out: InboxItem[] = [];
+  const levels: LevelFinding[] = [];
+  findings.forEach((finding, index) => {
+    const ticker = cleanTicker(finding.ticker)!;
+    const day = DAY_RE.test(String(finding.at ?? "").slice(0, 10)) ? String(finding.at).slice(0, 10) : run.day;
+    const kind = findingKind(finding);
+    const href = `/stock/${encodeURIComponent(ticker)}`;
+    const pct = findingPct(finding);
+    const normalPct = context.get(ticker)?.normalPct ?? null;
+    const move: InboxMove | null = pct !== null && DAY_RE.test(day) ? { pct, day, normalPct } : null;
+    let item: InboxItem | null = null;
+    // A price older than the session before the run is a stale quote (a stock whose price stopped updating), not
+    // this run's news: filed under the run's day it would read as today's move.
+    if ((kind === "move" || kind === "span" || kind === "level") && DAY_RE.test(day) && DAY_RE.test(run.day) && day < sessionBefore(run.day)) return;
+    if (kind === "earnings") {
+      // Prep: kept only while the report is still ahead. The calendar's own row (UpcomingReport) replaces it when it
+      // has one (lib/inbox/server.ts), so a report is said once.
+      const session = finding.time === "bmo" || /before the open/i.test(finding.detail) ? "bmo" : finding.time === "amc" || /after the close/i.test(finding.detail) ? "amc" : "unknown";
+      if (!today || !DAY_RE.test(day) || day < today || (day === today && session === "bmo")) return;
+      item = base({
+        id: `report:${ticker}:${day}`,
+        kind: "results",
+        at,
+        exact,
+        tickers: [ticker],
+        text: reportSentence({ ticker, date: day, session, history: null }, today),
+        href,
+        source,
+        dedupeKey: `report:${ticker}:${day}`,
+        thread: `report:${ticker}`,
+      });
+    } else if (kind === "span" && pct !== null) {
+      item = base({
+        id: `span:${ticker}:${day}`,
+        kind: "agent",
+        at,
+        exact,
+        tickers: [ticker],
+        text: `${ticker} ${pct >= 0 ? "rose" : "fell"} ${pctText(pct)} over the five sessions to ${shortDay(day)}.`,
+        href,
+        source,
+        tone: pct >= 0 ? "up" : "down",
+        dedupeKey: `span:${ticker}:${day}`,
+      });
+    } else if (kind === "move" && pct !== null) {
+      item = base({
+        id: `move:${ticker}:${day}`,
+        kind: "agent",
+        at,
+        exact,
+        tickers: [ticker],
+        text: moveSentence(ticker, pct, day, normalPct, today),
+        detail: reasonFor(context.get(ticker), day, pct),
+        href,
+        source,
+        tone: pct >= 0 ? "up" : "down",
+        move,
+        dedupeKey: `move:${ticker}:${day}`,
+      });
+    } else if (kind === "level" && (finding.zone === "add" || finding.zone === "trim")) {
+      // Said together below: one line per zone, so "where our call says to buy more" is said once (owner rule 1).
+      levels.push({ ticker, day, zone: finding.zone, close: finding.close ?? null, level: finding.level ?? null, move });
+      return;
+    } else if (finding.headline.trim()) {
+      item = base({
+        id: `finding:${run.jobId}:${run.day}:${ticker}:${index}`,
+        kind: "agent",
+        at,
+        exact,
+        tickers: [ticker],
+        text: sentence(finding.headline),
+        detail: finding.detail.trim() ? sentence(finding.detail) : null,
+        href,
+        source,
+        dedupeKey: `finding:${run.jobId}:${run.day}:${ticker}:${index}`,
+      });
+    }
+    if (item) out.push(item);
+  });
+  for (const zone of ["add", "trim"] as const) {
+    const item = levelItem(levels.filter((level) => level.zone === zone), { run, at, exact, source, today });
+    if (item) out.push(item);
+  }
+  // Every finding left out (stale quotes, reports already past): the run's own summary still says what it found.
+  return out.length > 0 ? out : null;
+}
+
+type LevelFinding = { ticker: string; day: string; zone: "add" | "trim"; close: number | null; level: number | null; move: InboxMove | null };
+
+const positive = (value: number | null): value is number => value !== null && Number.isFinite(value) && value > 0;
+
+/**
+ * A run's stocks that closed in one zone of our call, in one item: one stock says its close and the level, several
+ * share the sentence and list each close against its level underneath.
+ */
+function levelItem(
+  levels: LevelFinding[],
+  where: { run: AgentRunRecord; at: string; exact: boolean; source: string; today: string | null },
+): InboxItem | null {
+  const first = levels[0];
+  if (!first) return null;
+  const zone = first.zone;
+  const call = zone === "add" ? "buy more" : "sell some";
+  const side = zone === "add" ? "at or below" : "at or above";
+  const days = new Set(levels.map((level) => level.day));
+  const when = days.size === 1 ? `${pastWhen(first.day, where.today)}` : "";
+  let text: string;
+  let detail: string | null = null;
+  if (levels.length === 1) {
+    text = positive(first.level)
+      ? `${first.ticker} closed ${positive(first.close) ? `at ${price(first.close)} ` : ""}${when}, ${side} ${price(first.level)}, where our call says to ${call}.`
+      : `${first.ticker} closed ${when} where our call says to ${call}.`;
+  } else {
+    const tickers = levels.map((level) => level.ticker);
+    text = `${listTickers(tickers, 6)} closed ${when ? `${when} ` : ""}${side} the price where our call says to ${call}.`;
+    const pairs = levels
+      .filter((level) => positive(level.close) && positive(level.level))
+      .map((level) => `${level.ticker} at ${price(level.close!)} against ${price(level.level!)}`);
+    detail = pairs.length > 0 ? sentence(capitaliseFirst(pairs.join(", "))) : null;
+  }
+  const key = `level:${levels.length === 1 ? first.ticker : `${where.run.jobId}:${where.run.day}`}:${[...days].sort().pop()}:${zone}`;
+  return base({
+    id: key,
+    kind: "agent",
+    at: where.at,
+    exact: where.exact,
+    tickers: levels.map((level) => level.ticker),
+    text: text.replace(/\s+/g, " ").replace(/ ,/g, ","),
+    detail,
+    href: levels.length === 1 ? `/stock/${encodeURIComponent(first.ticker)}` : where.source === "Your agent" ? `/agents?job=${encodeURIComponent(where.run.jobId)}` : "/portfolio",
+    source: where.source,
+    tone: zone === "add" ? "up" : "down",
+    move: levels.length === 1 ? first.move : null,
+    dedupeKey: key,
+  });
+}
+
+function capitaliseFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/* ── reports coming up ──────────────────────────────────────────────────── */
+
+/**
+ * Earnings prep in one sentence: "NVDA reports on Tuesday after the close, and it has moved 3.2% on a typical
+ * report." The history is said only when its own past reports measured it.
+ */
+export function reportSentence(report: Pick<UpcomingReport, "ticker" | "date" | "session" | "history">, today: string): string {
+  const session = sessionWords(report.session);
+  return `${report.ticker} reports ${reportWhen(report.date, today)}${session ? ` ${session}` : ""}${report.history ? `, and it ${report.history}` : ""}.`;
 }
 
 /**

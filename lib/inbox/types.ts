@@ -50,6 +50,31 @@ export type InboxItem = {
   weight: number;
   /** Items on the same thread (one stock's call) keep only the newest: an older change was replaced by a newer one. */
   thread: string | null;
+  /**
+   * A day's price move the item reports (an agent's move or level finding): the signed percent, the day it closed
+   * on, and what a normal day is for that stock (its average absolute daily move), when known. The read counts
+   * moves against that baseline.
+   */
+  move?: InboxMove | null;
+};
+
+export type InboxMove = { pct: number; day: string; normalPct: number | null };
+
+/** A report coming up as the list draws it: the finished sentence, and a second line when there is one. */
+export type UpcomingLine = { ticker: string; date: string; text: string; note: string | null };
+
+/** A report coming up on one of the person's stocks, from the earnings calendar: earnings prep, not an event yet. */
+export type UpcomingReport = {
+  ticker: string;
+  /** The report day, YYYY-MM-DD (New York). */
+  date: string;
+  session: "bmo" | "amc" | "unknown";
+  /** "has moved 5.9% on a typical report", from its own past reports; null without a measured history. */
+  history: string | null;
+  /** The usual size of its move on a report, percent, unsigned; null without history. */
+  usualPct: number | null;
+  /** The usual report move against a normal day ("about three times a normal day"), when both are known. */
+  vsDay: string | null;
 };
 
 /** What the bell and the popover need: the unread count and the newest few, without the evidence detail. */
@@ -57,9 +82,13 @@ export type InboxSummary = {
   signedIn: boolean;
   /** Signed out: the example portfolio's inbox. */
   example: boolean;
+  /** Unread rows (each stock once a day), not items. */
   unread: number;
   seenAt: string | null;
+  /** The popover's rows' items, newest first. */
   items: InboxItem[];
+  /** Marking the popover's items read clears only them: nothing unread outside them sits at or before the newest shown. */
+  clearable: boolean;
   /** False when a source could not be read, so an empty list is not presented as "nothing happened". */
   complete: boolean;
 };
@@ -70,9 +99,11 @@ export const INBOX_SEEN_EVENT = "stocksbrew:inbox-seen";
 /** How far back the inbox reaches. */
 export const INBOX_DAYS = 14;
 /** Most items kept after merging. */
-export const MAX_ITEMS = 120;
-/** How many the bell's popover shows. */
-export const POPOVER_ITEMS = 6;
+export const MAX_ITEMS = 240;
+/** How many rows the bell's popover shows (each stock once a day, as on the page). */
+export const POPOVER_ROWS = 6;
+/** How far ahead the inbox looks for reports on the person's stocks. */
+export const UPCOMING_DAYS = 7;
 /**
  * Two reports of one event can be days apart: the call is written one evening and the change event logged at the
  * next watchlist rebuild, which after a Friday change is Monday.
@@ -84,7 +115,7 @@ export const FIRST_SEEN_DAYS = 3;
 export const KIND_LABEL: Record<InboxKind, string> = {
   agent: "Agents",
   call: "Calls",
-  results: "Results",
+  results: "Earnings",
   alert: "Price alerts",
   reason: "Reasons",
   follow: "Investors",

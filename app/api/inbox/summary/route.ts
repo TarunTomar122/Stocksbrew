@@ -2,9 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { viewerFromUserDoc } from "@/lib/entitlements-server";
-import { forClient } from "@/lib/inbox/merge";
+import { clearableBy, forClient, popoverItems } from "@/lib/inbox/merge";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
-import { POPOVER_ITEMS, type InboxSummary } from "@/lib/inbox/types";
+import type { InboxSummary } from "@/lib/inbox/types";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -24,15 +24,26 @@ export async function GET(request: NextRequest) {
   const cacheFor = (seconds: number) => (asked === (session?.uid ?? "anon") ? `private, max-age=${seconds}` : "private, no-store");
   if (!session) {
     const inbox = await loadExampleInbox();
-    const body: InboxSummary = { signedIn: false, example: true, unread: 0, seenAt: null, items: inbox.items.slice(0, POPOVER_ITEMS).map(forClient), complete: inbox.missing.length === 0 };
+    const items = popoverItems(inbox.items, inbox.today);
+    const body: InboxSummary = { signedIn: false, example: true, unread: 0, seenAt: null, items: items.map(forClient), clearable: false, complete: inbox.missing.length === 0 };
     return NextResponse.json(body, { headers: { "Cache-Control": cacheFor(300) } });
   }
   try {
     const doc = await getUserDoc(session.uid);
     const viewer = viewerFromUserDoc(session.uid, doc);
     const inbox = await loadUserInbox(viewer, doc);
-    const { seenAt, unread } = readState(inbox.items, doc);
-    const body: InboxSummary = { signedIn: true, example: false, unread, seenAt, items: inbox.items.slice(0, POPOVER_ITEMS).map(forClient), complete: inbox.missing.length === 0 };
+    const { seenAt, unread } = readState(inbox.items, doc, inbox.today);
+    // The popover's rows, as the page draws them; its count is rows too, so one agent run is not "9+".
+    const items = popoverItems(inbox.items, inbox.today);
+    const body: InboxSummary = {
+      signedIn: true,
+      example: false,
+      unread,
+      seenAt,
+      items: items.map(forClient),
+      clearable: clearableBy(inbox.items, items, seenAt),
+      complete: inbox.missing.length === 0,
+    };
     return NextResponse.json(body, { headers: { "Cache-Control": cacheFor(30) } });
   } catch (error) {
     console.warn("[inbox] summary failed:", error instanceof Error ? error.message : error);

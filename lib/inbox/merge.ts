@@ -1,4 +1,4 @@
-import { DEDUPE_WINDOW_MS, FIRST_SEEN_DAYS, MAX_ITEMS, type InboxItem, type InboxKind } from "./types";
+import { DEDUPE_WINDOW_MS, FIRST_SEEN_DAYS, MAX_ITEMS, POPOVER_ROWS, type InboxItem, type InboxKind } from "./types";
 
 /**
  * Merging the sources into one list: drop what is older than `since`, keep one
@@ -54,9 +54,9 @@ function time(item: Pick<InboxItem, "at">): number {
   return Number.isNaN(value) ? 0 : value;
 }
 
-/** Newest first; the same moment falls back to the id so the order never shuffles between reads. */
+/** Newest first; at the same moment (one agent run) the bigger move first, then the id, so the order never shuffles between reads. */
 export function newestFirst(a: InboxItem, b: InboxItem): number {
-  return time(b) - time(a) || a.id.localeCompare(b.id);
+  return time(b) - time(a) || Math.abs(b.move?.pct ?? 0) - Math.abs(a.move?.pct ?? 0) || a.id.localeCompare(b.id);
 }
 
 /** Which of two reports of one event to keep: the heavier source, then the one with a reason, then the earlier report. */
@@ -168,6 +168,78 @@ export function groupByDay(items: ReadonlyArray<InboxItem>, today: string): Inbo
     else out.push({ day: item.day, label: dayLabel(item.day, today), items: [item] });
   }
   return out;
+}
+
+export type InboxGroup = { key: string; ticker: string | null; items: InboxItem[] };
+
+/** Price moves first inside a stock's row: the move is what happened, a price level or a filing comes after it. */
+function rowRank(item: InboxItem): number {
+  return item.id.startsWith("move:") ? 0 : item.move ? 1 : 2;
+}
+
+/**
+ * One day's items (newest first) with each stock said once: items about one stock, and only that stock, share a
+ * row, placed where the stock first appears. Items about several stocks or none stay rows of their own.
+ */
+export function groupByStock(items: ReadonlyArray<InboxItem>): InboxGroup[] {
+  const out: InboxGroup[] = [];
+  const byTicker = new Map<string, InboxGroup>();
+  for (const item of items) {
+    const ticker = item.tickers.length === 1 ? item.tickers[0]! : null;
+    const seen = ticker ? byTicker.get(ticker) : undefined;
+    if (seen) {
+      seen.items.push(item);
+      continue;
+    }
+    const group: InboxGroup = { key: ticker ? `stock:${ticker}:${item.id}` : item.id, ticker, items: [item] };
+    if (ticker) byTicker.set(ticker, group);
+    out.push(group);
+  }
+  for (const group of out) if (group.items.length > 1) group.items = group.items.map((item, index) => ({ item, index })).sort((a, b) => rowRank(a.item) - rowRank(b.item) || a.index - b.index).map(({ item }) => item);
+  return out;
+}
+
+/** Rows as the page and the bell draw them: by day, then each stock once a day, newest first. */
+export function inboxRows(items: ReadonlyArray<InboxItem>, today: string): Array<InboxGroup & { day: string }> {
+  return groupByDay(items, today).flatMap((day) => groupByStock(day.items).map((row) => ({ ...row, day: day.day })));
+}
+
+/** Unread rows: one agent run that flags eight stocks is eight things, but MU's move and its price level are one. */
+export function unreadRows(items: ReadonlyArray<InboxItem>, seenAt: string, today: string): number {
+  return inboxRows(items, today).filter((row) => row.items.some((item) => isUnread(item, seenAt))).length;
+}
+
+/** Most rows the popover takes to finish one report (an agent run that flagged many stocks at one time). */
+const POPOVER_MAX_ROWS = 16;
+
+/**
+ * What the bell's popover shows: the newest POPOVER_ROWS rows, findings first (a quiet check only when there is
+ * nothing else). A report is never cut in half: the rows that share the oldest shown time come too (up to
+ * POPOVER_MAX_ROWS), since the read mark is one time and half of one agent run could never be marked read.
+ */
+export function popoverItems(items: ReadonlyArray<InboxItem>, today: string, rows = POPOVER_ROWS): InboxItem[] {
+  const findings = items.filter((item) => !item.quiet);
+  const all = inboxRows(findings.length > 0 ? findings : items, today);
+  const taken = all.slice(0, rows);
+  // The oldest of the taken rows' newest times: a row whose newest item is at or after it belongs to the same report.
+  const newestOf = (row: InboxGroup) => Math.max(...row.items.map((item) => Date.parse(item.at)).filter(Number.isFinite));
+  const floor = Math.min(...taken.map(newestOf).filter(Number.isFinite));
+  for (const row of all.slice(rows)) {
+    if (taken.length >= POPOVER_MAX_ROWS || !(newestOf(row) >= floor)) break;
+    taken.push(row);
+  }
+  return taken.flatMap((row) => row.items);
+}
+
+/**
+ * Whether marking the shown items read (up to the newest shown) would clear only what was shown: no unread item that
+ * is not shown sits at or before that time. The read mark is one time, so otherwise it would clear unseen items too.
+ */
+export function clearableBy(all: ReadonlyArray<InboxItem>, shown: ReadonlyArray<InboxItem>, seenAt: string): boolean {
+  const ids = new Set(shown.map((item) => item.id));
+  const newest = Math.max(...shown.map((item) => Date.parse(item.at)).filter(Number.isFinite));
+  if (!Number.isFinite(newest)) return false;
+  return !all.some((item) => !ids.has(item.id) && isUnread(item, seenAt) && Date.parse(item.at) <= newest);
 }
 
 /** How many items of each kind, for the filter chips, in the order kinds first appear. */

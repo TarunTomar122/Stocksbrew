@@ -1,8 +1,16 @@
+import { unstable_cache } from "next/cache";
+
 import { AGENT_RUNS_COLLECTION, listJobs } from "@/lib/agent-jobs-data";
 import { runTickers } from "@/lib/agent-watch";
+import { moveReason } from "@/lib/briefing";
+import { normalizeEarnings } from "@/lib/calendar-shared";
+import { getDailyAnomalyTickers } from "@/lib/daily-anomalies";
+import { historyWords, moveStats, vsDayWords } from "@/lib/earnings-season";
+import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getInsiderBuys, getSourceActivity } from "@/lib/follow";
 import { localFirestoreFromEnv } from "@/lib/local-firestore";
+import { moveLine } from "@/lib/move-line";
 import { getRebalancesSince } from "@/lib/strategies-rebalances";
 import { lastChange, readStoredCheck, CHECKS_COLLECTION } from "@/lib/thesis-watch/store";
 import { MEMO_COLLECTION } from "@/lib/memo/store";
@@ -10,15 +18,17 @@ import { resultsFor } from "@/lib/results/server";
 import { RESULTS_DAYS } from "@/lib/results/types";
 
 import { nyDay } from "./merge";
-import type { InboxItem } from "./types";
+import { UPCOMING_DAYS, type InboxItem, type UpcomingReport } from "./types";
 import {
   agentItem,
   alertItem,
   callItem,
   changesFromDays,
+  findingItems,
   followItem,
   insiderItems,
   memoItem,
+  moveTickers,
   plainCall,
   quietItems,
   reasonItem,
@@ -26,6 +36,8 @@ import {
   strategyItem,
   type AgentRunRecord,
   type Mode,
+  type MoveContext,
+  type RunFinding,
   type PlainCall,
   type Position,
   type Verdict,
@@ -77,13 +89,65 @@ async function readSelected(paths: string[], fields: string[]): Promise<Snap[]> 
   return out;
 }
 
+/** How long the extra reads behind a row (a normal day, a confirmed reason, a report's history) may take before the rows go without them. */
+const CONTEXT_BUDGET_MS = 2500;
+/** Most stocks the context is read for: each is a shared cached read, but a cold one is a few documents. */
+const MAX_CONTEXT_STOCKS = 16;
+
+/** `read` within `ms`, else `fallback`: a slow extra never holds up the inbox. A failed read is the fallback too. */
+async function within<T>(read: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  try {
+    return await Promise.race([
+      read.catch((error) => {
+        console.warn("[inbox] extra read failed; rows go without it:", error instanceof Error ? error.message : error);
+        return fallback;
+      }),
+      late,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * For each stock: what a normal day is (its average absolute daily move over 120 sessions, from the shared cached
+ * earnings history) and the confirmed reason for its latest move (the researched movers feed, one batched read).
+ * A reason counts only when it has sources and names a cause; the row then says it, and says nothing otherwise.
+ */
+async function moveContext(tickers: string[], today: string): Promise<Map<string, MoveContext>> {
+  const unique = [...new Set(tickers)].slice(0, MAX_CONTEXT_STOCKS);
+  const out = new Map<string, MoveContext>();
+  if (unique.length === 0) return out;
+  const [anomalies, earnings] = await within(
+    Promise.all([getDailyAnomalyTickers("US", unique).catch(() => new Map()), loadTickerEarnings(unique, today).catch(() => new Map())]),
+    CONTEXT_BUDGET_MS,
+    [new Map(), new Map()] as [Awaited<ReturnType<typeof getDailyAnomalyTickers>>, Awaited<ReturnType<typeof loadTickerEarnings>>],
+  );
+  for (const ticker of unique) {
+    const anomaly = anomalies.get(ticker) ?? null;
+    let reason: MoveContext["reason"] = null;
+    if (anomaly && moveReason(anomaly).status === "confirmed" && Number.isFinite(anomaly.day_change_pct)) {
+      const day = quoteDay(anomaly.price_as_of ?? anomaly.narrative_as_of);
+      const line = moveLine(anomaly).trim();
+      if (day && line) reason = { day, pct: anomaly.day_change_pct, line };
+    }
+    const normal = earnings.get(ticker)?.history.typicalDayPct;
+    out.set(ticker, { normalPct: typeof normal === "number" && Number.isFinite(normal) && normal > 0 ? normal : null, reason });
+  }
+  return out;
+}
+
 /* ── agent runs ─────────────────────────────────────────────────────────── */
 
 /**
  * The runs of the person's standing agents that still exist (or the example account's), as items. Only the window's
  * runs are read (one run per job per day, so a long history never makes this read grow), with the fields the item needs.
  */
-export async function agentSource(uid: string, mode: Mode, sinceDay: string): Promise<InboxItem[]> {
+export async function agentSource(uid: string, mode: Mode, sinceDay: string, today: string): Promise<InboxItem[]> {
   const query = adminFirestore.collection(AGENT_RUNS_COLLECTION).where("uid", "==", uid).where("day", ">=", sinceDay) as unknown as {
     select?: (fields: string[]) => { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
     get(): Promise<{ docs: Array<{ data(): unknown }> }>;
@@ -106,9 +170,110 @@ export async function agentSource(uid: string, mode: Mode, sinceDay: string): Pr
       decision,
       summary: str(data.summary),
       tickers: runTickers(Array.isArray(data.findings) ? (data.findings as Array<{ ticker: string | null }>) : []),
+      findings: Array.isArray(data.findings) ? readFindings(data.findings) : [],
     });
   }
-  return [...records.map((run) => agentItem(run, mode)).filter((item): item is InboxItem => item !== null), ...quietItems(records, mode)];
+  // Newest runs first, so the context goes to the stocks whose moves are freshest.
+  records.sort((a, b) => b.day.localeCompare(a.day));
+  const context = await moveContext(moveTickers(records), today);
+  const items: InboxItem[] = [];
+  for (const run of records) {
+    // A run with findings says them stock by stock; an older run without them keeps its own summary.
+    const found = findingItems(run, mode, context, today);
+    if (found) items.push(...found);
+    else {
+      const item = agentItem(run, mode);
+      if (item) items.push(item);
+    }
+  }
+  return [...items, ...quietItems(records, mode)];
+}
+
+function readFindings(raw: unknown[]): RunFinding[] {
+  const num = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+  return raw
+    .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+    .map((row) => ({
+      ticker: str(row.ticker) || null,
+      headline: str(row.headline),
+      detail: str(row.detail),
+      at: str(row.at),
+      kind: str(row.kind) || undefined,
+      change_pct: num(row.change_pct),
+      close: num(row.close),
+      zone: row.zone === "add" || row.zone === "trim" ? row.zone : null,
+      level: num(row.level) ?? null,
+      time: str(row.time) || null,
+    }));
+}
+
+/**
+ * The New York trading day a mover's quote is from. A midnight-UTC stamp is a daily bar's date label, not an
+ * instant (read in New York it would be the day before), as lib/daily-anomalies.ts reads it.
+ */
+function quoteDay(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}T00:00(?::00(?:\.0+)?)?(?:Z|\+00:00)$/.test(raw)) return raw.slice(0, 10);
+  return raw ? nyDay(raw) : null;
+}
+
+/* ── reports coming up ──────────────────────────────────────────────────── */
+
+/** Every US report in the next few days, from the earnings calendar: one read shared by everyone, kept fifteen minutes. */
+const upcomingRows = unstable_cache(
+  async (from: string, to: string): Promise<Array<{ ticker: string; date: string; session: UpcomingReport["session"]; reported: boolean }>> => {
+    const snap = await adminFirestore.collection("tm_earnings_events").where("market", "==", "US").where("event_date", ">=", from).where("event_date", "<=", to).get();
+    const out: Array<{ ticker: string; date: string; session: UpcomingReport["session"]; reported: boolean }> = [];
+    for (const doc of snap.docs) {
+      const row = normalizeEarnings(doc.data() as Record<string, unknown>);
+      if (row) out.push({ ticker: row.ticker, date: row.date, session: row.session, reported: row.epsActual !== null });
+    }
+    return out;
+  },
+  ["inbox-upcoming-reports-v1"],
+  { revalidate: 900 },
+);
+
+const SESSION_ORDER: Record<UpcomingReport["session"], number> = { bmo: 0, unknown: 1, amc: 2 };
+/** Most reports shown: a week of a big watchlist in earnings season can be dozens. */
+const MAX_UPCOMING = 8;
+
+/**
+ * The person's stocks that report in the next UPCOMING_DAYS days and have not reported yet, soonest first, each with
+ * how it has moved on its own past reports (only when measured). Funds have no reports and are left out.
+ */
+export async function reportsSource(stocks: InboxStock[], today: string): Promise<UpcomingReport[]> {
+  if (stocks.length === 0) return [];
+  const mine = new Set(stocks.map((stock) => stock.ticker));
+  const rows = await upcomingRows(today, shiftDay(today, UPCOMING_DAYS - 1));
+  const soonest = new Map<string, { ticker: string; date: string; session: UpcomingReport["session"] }>();
+  for (const row of rows) {
+    // Already out (a result is in, or it reported before today's open) is a recap, not prep: the results rows say it.
+    if (!mine.has(row.ticker) || row.reported || row.date < today || (row.date === today && row.session === "bmo")) continue;
+    const seen = soonest.get(row.ticker);
+    if (!seen || row.date < seen.date) soonest.set(row.ticker, row);
+  }
+  const picked = [...soonest.values()]
+    .sort((a, b) => a.date.localeCompare(b.date) || SESSION_ORDER[a.session] - SESSION_ORDER[b.session] || a.ticker.localeCompare(b.ticker))
+    .slice(0, MAX_UPCOMING);
+  if (picked.length === 0) return [];
+  const histories = await within(loadTickerEarnings(picked.map((row) => row.ticker), today), CONTEXT_BUDGET_MS, new Map());
+  const out: UpcomingReport[] = [];
+  for (const row of picked) {
+    const loaded = histories.get(row.ticker);
+    if (loaded?.fund) continue;
+    const history = loaded?.history ?? null;
+    const stats = history ? moveStats(history.past, history.typicalDayPct) : null;
+    out.push({
+      ticker: row.ticker,
+      date: row.date,
+      session: row.session,
+      history: stats && history ? historyWords(stats, history.past, today) : null,
+      usualPct: stats?.usual ?? null,
+      vsDay: stats ? vsDayWords(stats.vsNormalDay) : null,
+    });
+  }
+  return out;
 }
 
 /* ── call changes ───────────────────────────────────────────────────────── */

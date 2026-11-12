@@ -3,16 +3,18 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { InboxRow } from "@/components/inbox/inbox-row";
+import { InboxGroupRow, metaWords } from "@/components/inbox/inbox-row";
+import { UpcomingRow } from "@/components/inbox/upcoming-row";
 import { postSeen, useMarkSeen } from "@/components/inbox/use-mark-seen";
 import { ProMark } from "@/components/oa/gate";
-import { groupByDay, isUnread, kindCounts } from "@/lib/inbox/merge";
+import { groupByDay, groupByStock, isUnread, kindCounts, unreadRows } from "@/lib/inbox/merge";
 import { newestShown, wouldClear } from "@/lib/inbox/seen";
-import { KIND_LABEL, type InboxItem, type InboxKind } from "@/lib/inbox/types";
+import { KIND_LABEL, type InboxItem, type InboxKind, type UpcomingLine } from "@/lib/inbox/types";
 
 /**
- * The inbox page's list: kind chips, then the items grouped by day in one
- * fixed-height box that scrolls inside (about eight rows show). Filtering
+ * The inbox page's list: kind chips, then the reports coming up on the
+ * person's stocks, then the items grouped by day, each stock said once a day,
+ * in one fixed-height box that scrolls inside (about eight rows show). Filtering
  * happens here, on what the page already sent, so a chip never waits on the
  * server; the chosen kind is kept in the address.
  *
@@ -43,8 +45,11 @@ export function InboxList({
   initialKind,
   heading = null,
   account = null,
+  upcoming = [],
 }: {
   items: InboxItem[];
+  /** Reports coming up on the person's stocks, soonest first: shown first, under the earnings chip, never unread. */
+  upcoming?: UpcomingLine[];
   /** The read mark the page was rendered with; null for the example. */
   seenAt: string | null;
   today: string;
@@ -66,15 +71,20 @@ export function InboxList({
 
   const chips = React.useMemo(() => {
     const counts = new Map<InboxKind, number>();
+    // The reports coming up count under the earnings chip, first, since they lead the list.
+    if (upcoming.length > 0) counts.set("results", upcoming.length);
     for (const { kind: k, count } of kindCounts(items)) counts.set(chipOf(k), (counts.get(chipOf(k)) ?? 0) + count);
     return [...counts.entries()].map(([k, count]) => ({ kind: k, count, label: k === "follow" ? "Investors and insiders" : KIND_LABEL[k] }));
-  }, [items]);
+  }, [items, upcoming.length]);
   // One kind (or none): no filter row, and no filter left on from the address with no way to clear it.
   const filtering = chips.length > 1;
   const active = filtering ? kind : null;
   const shown = active ? items.filter((item) => chipOf(item.kind) === active) : items;
-  const days = groupByDay(shown, today);
-  const unread = mark ? items.filter((item) => isUnread(item, mark)).length : 0;
+  const ahead = !active || active === "results" ? upcoming : [];
+  const days = groupByDay(shown, today).map((group) => ({ ...group, rows: groupByStock(group.items) }));
+  const unreadOf = (item: InboxItem) => Boolean(mark && isUnread(item, mark));
+  // Rows, as drawn: one agent run that flags eight stocks, or MU's move and its level, count as the rows they are.
+  const unread = mark ? unreadRows(items, mark, today) : 0;
 
   const choose = (next: InboxKind | null) => {
     setKind(next);
@@ -110,7 +120,7 @@ export function InboxList({
             <div role="group" aria-label="Show" className="scrollbar-hide -mx-1 flex min-w-0 basis-full gap-2 overflow-x-auto px-1 sm:basis-0 sm:flex-1">
               <button type="button" aria-pressed={active === null} onClick={() => choose(null)} className={chipClass(active === null)}>
                 All
-                <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{items.length}</span>
+                <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{items.length + upcoming.length}</span>
               </button>
               {chips.map((chip) => (
                 <button key={chip.kind} type="button" aria-pressed={active === chip.kind} onClick={() => choose(chip.kind)} className={chipClass(active === chip.kind)}>
@@ -135,25 +145,42 @@ export function InboxList({
           ) : null}
         </div>
       ) : null}
-      {days.length === 0 ? (
+      {days.length === 0 && ahead.length === 0 ? (
         <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
       ) : (
         <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
+          {ahead.length > 0 ? (
+            <section aria-label="Reports coming up" className="border-t border-oa-border first:border-t-0">
+              <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">Coming up</h3>
+              <ul className="divide-y divide-oa-border">
+                {ahead.map((report) => (
+                  <UpcomingRow key={`${report.ticker}:${report.date}`} report={report} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {days.map((group) => (
             <section key={group.day} aria-label={group.label} className="border-t border-oa-border first:border-t-0">
               <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">{group.label}</h3>
               <ul className="divide-y divide-oa-border">
-                {group.items.map((item) => (
-                  <InboxRow
-                    key={item.id}
-                    item={item}
-                    unread={Boolean(mark && isUnread(item, mark))}
-                    today={today}
-                    lockMark={<ProMark />}
-                    // Following an item counts as reading it: the save goes now, up to that item, not after the two seconds.
-                    onOpen={mark && isUnread(item, mark) ? () => auto.markNow(item.at) : undefined}
-                  />
-                ))}
+                {group.rows.map((row, index) => {
+                  const newestUnread = newestShown(row.items.filter(unreadOf));
+                  // One agent run reports several stocks at one time: its "who and when" is said on the first of them only.
+                  const meta = metaWords(row, today);
+                  const showMeta = index === 0 || metaWords(group.rows[index - 1]!, today) !== meta;
+                  return (
+                    <InboxGroupRow
+                      key={row.key}
+                      group={row}
+                      unread={unreadOf}
+                      today={today}
+                      lockMark={<ProMark />}
+                      showMeta={showMeta}
+                      // Following an item counts as reading it: the save goes now, up to that item, not after the two seconds.
+                      onOpen={newestUnread ? () => auto.markNow(newestUnread) : undefined}
+                    />
+                  );
+                })}
               </ul>
             </section>
           ))}

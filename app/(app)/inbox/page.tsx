@@ -11,7 +11,7 @@ import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { forClient } from "@/lib/inbox/merge";
-import { inboxRead } from "@/lib/inbox/read";
+import { inboxReadTold, rowsAfterRead } from "@/lib/inbox/read";
 import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind } from "@/lib/inbox/types";
 import type { TheRead as TheReadData } from "@/lib/insights";
@@ -26,6 +26,11 @@ export const metadata: Metadata = {
   // Someone's own inbox, or the example's: nothing for a search engine.
   robots: { index: false, follow: true },
 };
+
+/** A source failed, so "nothing happened" would not be true. A slow earnings calendar alone does not count: it only adds prep. */
+function readFailed(missing: string[]): boolean {
+  return missing.some((name) => name !== "reports");
+}
 
 function kindParam(value: string | string[] | undefined): InboxKind | null {
   const raw = typeof value === "string" ? value : "";
@@ -57,6 +62,9 @@ function ReadAndList({ read, label, children }: { read: TheReadData | null; labe
 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   const inbox = await loadExampleInbox();
+  // The read first; the rows under it then leave out what it already says (owner rule 1).
+  const exampleRead = inboxReadTold(inbox.items, null, true, { upcoming: inbox.upcoming, today: inbox.today });
+  const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, exampleRead.told, inbox.today);
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
       <div className="oa-surface flex flex-wrap items-center justify-between gap-3 border border-oa-border bg-oa-card px-4 py-3">
@@ -66,12 +74,14 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
         </p>
         <InboxSignIn />
       </div>
-      {inbox.items.length === 0 ? (
-        <EmptyInbox example unavailable={inbox.missing.length > 0} />
+      {inbox.items.length === 0 && inbox.upcoming.length === 0 ? (
+        <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
         <>
-          <ReadAndList read={inboxRead(inbox.items, null, true)} label="The example's inbox">
-            {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={null} today={inbox.today} example initialKind={kind} heading={heading} />}
+          <ReadAndList read={exampleRead.read} label="The example's inbox">
+            {(heading) => (
+              <InboxList items={exampleRows.items.map(forClient)} upcoming={exampleRows.upcoming} seenAt={null} today={inbox.today} example initialKind={kind} heading={heading} />
+            )}
           </ReadAndList>
           {/* No Ask box on the page: the shell's Ask opens on the example's stocks (owner rule 1). */}
           <AskPageHint context="ex.portfolio" />
@@ -86,12 +96,26 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   const [doc, viewer] = await Promise.all([getUserDoc(uid).catch(() => undefined), getViewer()]);
   if (doc === undefined) return <EmptyInbox unavailable />;
   const inbox = await loadUserInbox(viewer, doc);
-  if (inbox.items.length === 0) return <EmptyInbox unavailable={inbox.missing.length > 0} />;
-  const { seenAt } = readState(inbox.items, doc);
+  if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
+  const { seenAt } = readState(inbox.items, doc, inbox.today);
+  // The read first; the rows under it then leave out what it already says (owner rule 1).
+  const { read, told } = inboxReadTold(inbox.items, seenAt, false, { upcoming: inbox.upcoming, today: inbox.today });
+  const rows = rowsAfterRead(inbox.items, inbox.upcoming, told, inbox.today);
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      <ReadAndList read={inboxRead(inbox.items, seenAt, false)} label="Your inbox">
-        {(heading) => <InboxList items={inbox.items.map(forClient)} seenAt={seenAt} today={inbox.today} example={false} initialKind={kind} heading={heading} account={uid} />}
+      <ReadAndList read={read} label="Your inbox">
+        {(heading) => (
+          <InboxList
+            items={rows.items.map(forClient)}
+            upcoming={rows.upcoming}
+            seenAt={seenAt}
+            today={inbox.today}
+            example={false}
+            initialKind={kind}
+            heading={heading}
+            account={uid}
+          />
+        )}
       </ReadAndList>
       {/* No Ask box on the page: the shell's Ask opens on the person's stocks (owner rule 1). */}
       <AskPageHint context="portfolio" />

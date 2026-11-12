@@ -1,7 +1,8 @@
 import type { Insight, TheRead } from "@/lib/insights";
 
-import { isUnread } from "./merge";
-import type { InboxItem } from "./types";
+import { isUnread, shortDay } from "./merge";
+import type { InboxItem, UpcomingLine, UpcomingReport } from "./types";
+import { listTickers, moveSentence, pastWhen, reportSentence, UNUSUAL_MOVE } from "./words";
 
 /**
  * The inbox's read, above the list: one headline on what is new since the
@@ -37,10 +38,13 @@ function parts(items: InboxItem[], example: boolean): string[] {
   const out: string[] = [];
   const calls = count("call");
   if (calls > 0) out.push(`our call moved on ${calls} of ${whose} stocks`);
-  const flags = count("agent");
+  // Moves are counted by stock (one stock's move and its price level are one stock); other findings one by one.
+  const moved = new Set(items.filter((item) => item.kind === "agent" && item.move).flatMap((item) => item.tickers)).size;
+  const flags = items.filter((item) => item.kind === "agent" && !item.quiet && !item.move).length;
   // "the example portfolio's" once is enough; after that it is "its".
   const agentsOf = example ? (out.length > 0 ? "its" : "the example portfolio's") : "your";
-  if (flags > 0) out.push(`${agentsOf} agents flagged ${flags} ${plural(flags, "thing", "things")}`);
+  if (moved > 0) out.push(`${agentsOf} agents flagged ${moved === 1 ? `a move in one of ${whose} stocks` : `moves in ${moved} of ${whose} stocks`}`);
+  if (flags > 0) out.push(`${moved > 0 ? "they" : `${agentsOf} agents`} flagged ${flags} ${moved > 0 ? "more " : ""}${plural(flags, "thing", "things")}`);
   const alerts = count("alert");
   if (alerts > 0) out.push(`${alerts} ${plural(alerts, "price alert", "price alerts")} went off`);
   const reasons = count("reason");
@@ -83,6 +87,94 @@ function callsCard(items: InboxItem[], example: boolean): Insight | null {
     text: `Our call moved on ${calls.length === 1 ? `one of ${whose} stocks` : `${calls.length} of ${whose} stocks`} in the last two weeks${split}.`,
     tickers: tickersOf(ordered),
     figure: { value: String(calls.length), label: plural(calls.length, "call moved", "calls moved") },
+  };
+}
+
+/** How many times its normal day a move is, or null when the stock's normal day is not known. */
+function timesNormal(item: InboxItem): number | null {
+  const move = item.move;
+  return move && move.normalPct !== null && move.normalPct > 0 ? Math.abs(move.pct) / move.normalPct : null;
+}
+
+const UNUSUAL = UNUSUAL_MOVE;
+
+/** The moves on the newest day any move closed on: one per stock (its biggest), biggest first. */
+function latestMoves(items: InboxItem[]): { day: string; moves: InboxItem[] } | null {
+  const withMove = items.filter((item) => item.move && item.tickers.length === 1);
+  if (withMove.length === 0) return null;
+  const day = withMove.map((item) => item.move!.day).sort().pop()!;
+  const byStock = new Map<string, InboxItem>();
+  for (const item of withMove) {
+    if (item.move!.day !== day) continue;
+    const seen = byStock.get(item.tickers[0]!);
+    // The move row over the price-level row (it carries the reason), then the bigger move.
+    const better = !seen || (item.id.startsWith("move:") !== seen.id.startsWith("move:") ? item.id.startsWith("move:") : Math.abs(item.move!.pct) > Math.abs(seen.move!.pct));
+    if (better) byStock.set(item.tickers[0]!, item);
+  }
+  const moves = [...byStock.values()].sort((a, b) => Math.abs(b.move!.pct) - Math.abs(a.move!.pct) || a.tickers[0]!.localeCompare(b.tickers[0]!));
+  return { day, moves };
+}
+
+const signedPct = (pct: number) => `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`;
+
+/**
+ * The biggest move on the newest day, against that stock's normal day, with its confirmed reason when there is one
+ * (and nothing when there is not); then the other stocks that moved at least twice their normal day.
+ */
+function movesCard(items: InboxItem[], today: string | null, told: string | null): Insight | null {
+  const latest = latestMoves(items);
+  if (!latest) return null;
+  const lead = latest.moves[0]!;
+  const move = lead.move!;
+  const ticker = lead.tickers[0]!;
+  // The headline already says this move: the card gives its baseline instead of the same sentence again.
+  const said = told === ticker && move.normalPct !== null;
+  const unusual = latest.moves.filter((item) => item !== lead && (timesNormal(item) ?? 0) >= UNUSUAL).map((item) => item.tickers[0]!);
+  const also = unusual.length > 0 ? `${listTickers(unusual)} also moved at least twice as much as usual.` : null;
+  return {
+    id: "inbox-moves",
+    // Flat on purpose: inbox cards carry no coloured top edge (owner, Nov 11).
+    tone: "flat",
+    text: said ? `A normal day for ${ticker} is a move of about ${move.normalPct!.toFixed(1)}% either way.` : moveSentence(ticker, move.pct, move.day, move.normalPct, today),
+    soWhat: [lead.id.startsWith("move:") ? lead.detail : null, also].filter(Boolean).join(" ") || undefined,
+    tickers: [ticker, ...unusual].slice(0, 4),
+    figure: { value: signedPct(move.pct), tone: move.pct >= 0 ? "up" : "down" },
+    action: { label: `Open ${ticker}`, href: `/stock/${encodeURIComponent(ticker)}` },
+  };
+}
+
+/** "16%", "3.2%": as the report history words say it (whole numbers once a move is big). */
+function usualWord(pct: number): string {
+  return Math.abs(pct) >= 10 ? `${Math.round(Math.abs(pct))}%` : `${Math.abs(pct).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+function dayGap(day: string, today: string): number {
+  return Math.round((Date.parse(`${day}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The report to watch, said as prep with its own history: of the week's reporters, the one that moves most on its
+ * reports (the soonest when none has a measured history); the rest of the week's reporters after it.
+ */
+function reportsCard(upcoming: UpcomingReport[], today: string, told: string | null): Insight | null {
+  if (upcoming.length === 0) return null;
+  const measured = upcoming.filter((report) => report.history && report.usualPct !== null);
+  const lead = measured.length > 0 ? [...measured].sort((a, b) => b.usualPct! - a.usualPct!)[0]! : upcoming[0]!;
+  const others = upcoming.filter((report) => report !== lead).map((report) => report.ticker);
+  const gap = dayGap(lead.date, today);
+  // The headline already says when this one reports: the card says how it has moved on reports, or is left out.
+  const said = told === lead.ticker;
+  // Nothing to add to the headline (no history to tell): no card, rather than its sentence again.
+  if (said && !lead.history) return null;
+  return {
+    id: "inbox-reports",
+    tone: "flat",
+    text: said && lead.history ? `${lead.ticker} ${lead.history}.` : reportSentence(lead, today),
+    soWhat: others.length > 0 ? `${listTickers(others)} also ${others.length === 1 ? "reports" : "report"} in the next week.` : undefined,
+    tickers: [lead.ticker, ...others].slice(0, 4),
+    // Its usual move on a report, the number to prepare for; the day only when there is no history.
+    figure: lead.history && lead.usualPct !== null ? { value: usualWord(lead.usualPct) } : { value: gap === 0 ? "Today" : gap === 1 ? "Tomorrow" : shortDay(lead.date) },
+    action: { label: `Open ${lead.ticker}`, href: `/stock/${encodeURIComponent(lead.ticker)}` },
   };
 }
 
@@ -166,18 +258,115 @@ function investorsCard(items: InboxItem[]): Insight | null {
   };
 }
 
-export function inboxRead(items: InboxItem[], seenAt: string | null, example: boolean): TheRead | null {
-  if (items.length === 0) return null;
+/**
+ * The headline's lead when the news is about prices: how many stocks moved at least twice their normal day on the
+ * newest day (one stock: its move itself), and the soonest report coming up. Null when neither applies.
+ */
+type PriceLead = { text: string; moveTicker: string | null; moveId: string | null; reportTicker: string | null };
+
+function priceLead(fresh: InboxItem[], upcoming: UpcomingReport[], today: string | null, example: boolean): PriceLead | null {
+  const whose = example ? "the example portfolio's" : "your";
+  const latest = latestMoves(fresh);
+  let moves: string | null = null;
+  let moveTicker: string | null = null;
+  let moveId: string | null = null;
+  if (latest) {
+    const unusual = latest.moves.filter((item) => (timesNormal(item) ?? 0) >= UNUSUAL);
+    if (unusual.length === 1) {
+      moveTicker = unusual[0]!.tickers[0]!;
+      moveId = unusual[0]!.id;
+      moves = moveSentence(moveTicker, unusual[0]!.move!.pct, latest.day, unusual[0]!.move!.normalPct, today).replace(/\.$/, "");
+    }
+    else if (unusual.length > 1) moves = `${unusual.length} of ${whose} stocks moved at least twice as much as usual ${pastWhen(latest.day, today)}`;
+  }
+  const next = today ? upcoming[0] : undefined;
+  // The report card tells the one to watch; the headline says when the week's reports start, or how many there are.
+  const named = next && today && (upcoming.length === 1 || !moves);
+  let report = next && today ? (named ? reportSentence({ ...next, history: null }, today).replace(/\.$/, "") + (upcoming.length > 1 ? `, the first of ${upcoming.length} reports on ${whose} stocks in the next week` : "") : `${upcoming.length} of ${whose} stocks report earnings in the next week`) : null;
+  // "NVDA fell 5.5% yesterday, …, and it reports on Nov 17", not NVDA twice.
+  if (report && named && moveTicker === next!.ticker) report = report.replace(new RegExp(`^${next!.ticker} `), "it ");
+  const reportTicker = named ? next!.ticker : null;
+  const text = moves && report ? `${moves}, and ${report}.` : moves ? `${moves}.` : report ? `${report}.` : null;
+  return text ? { text, moveTicker, moveId, reportTicker } : null;
+}
+
+/**
+ * What the read says itself, so the rows under it do not say it again (owner rule 1): the move rows whose sentence the
+ * headline or the moves card tells (`moveIds`), the one whose confirmed reason the card gives (`reasonIds`), and the
+ * stocks whose report history the reports card gives (`reports`). A report only the headline names keeps its history
+ * in its row, since the headline says only the day.
+ */
+export type InboxTold = { moveIds: string[]; reasonIds: string[]; reports: string[] };
+
+export function inboxRead(
+  items: InboxItem[],
+  seenAt: string | null,
+  example: boolean,
+  context: { upcoming?: UpcomingReport[]; today?: string } = {},
+): TheRead | null {
+  return inboxReadTold(items, seenAt, example, context).read;
+}
+
+export function inboxReadTold(
+  items: InboxItem[],
+  seenAt: string | null,
+  example: boolean,
+  context: { upcoming?: UpcomingReport[]; today?: string } = {},
+): { read: TheRead | null; told: InboxTold } {
+  const told: InboxTold = { moveIds: [], reasonIds: [], reports: [] };
+  const today = context.today ?? null;
+  const upcoming = today ? (context.upcoming ?? []) : [];
+  if (items.length === 0 && upcoming.length === 0) return { read: null, told };
   const fresh = example || !seenAt ? items : items.filter((item) => isUnread(item, seenAt));
   // Two things at most, so the headline stays one short line; the cards and the list carry the rest.
   const said = parts(fresh, example).slice(0, 2);
-  const headline = example
-    ? said.length > 0
-      ? `In the last two weeks, ${joinParts(said)}.`
-      : "The example portfolio's agents checked and found nothing that needs a look."
-    : said.length > 0
-      ? `Since you last looked, ${joinParts(said)}.`
-      : "Nothing new since you last looked.";
-  const insights = [callsCard(items, example), agentsCard(items, example), investorsCard(items)].filter((card): card is Insight => card !== null);
-  return { headline: capitalise(headline), insights };
+  const lead = priceLead(fresh, upcoming, today, example);
+  const headline =
+    lead?.text ??
+    (example
+      ? said.length > 0
+        ? `In the last two weeks, ${joinParts(said)}.`
+        : "The example portfolio's agents checked and found nothing that needs a look."
+      : said.length > 0
+        ? `Since you last looked, ${joinParts(said)}.`
+        : "Nothing new since you last looked.");
+  // Prices first (the move, the report coming up), then what else the two weeks add up to; three cards at most.
+  const moves = movesCard(items, today, lead?.moveTicker ?? null);
+  const reports = today ? reportsCard(upcoming, today, lead?.reportTicker ?? null) : null;
+  const rest = [callsCard(items, example), moves ? null : agentsCard(items, example), investorsCard(items)].filter((card): card is Insight => card !== null);
+  const insights = [moves, reports, ...rest].filter((card): card is Insight => card !== null).slice(0, 3);
+  if (lead?.moveId) told.moveIds.push(lead.moveId);
+  if (moves && insights.includes(moves)) {
+    const leadMove = latestMoves(items)?.moves[0];
+    if (leadMove && !told.moveIds.includes(leadMove.id)) told.moveIds.push(leadMove.id);
+    // The card gives the lead's confirmed reason (movesCard's soWhat); the headline never does.
+    if (leadMove?.id.startsWith("move:") && leadMove.detail) told.reasonIds.push(leadMove.id);
+  }
+  // The card tells the history only when it has one (reportsCard): then its row says just the day.
+  const reportLead = reports && insights.includes(reports) ? upcoming.find((report) => report.ticker === reports.tickers?.[0]) : undefined;
+  if (reportLead?.history) told.reports.push(reportLead.ticker);
+  return { read: { headline: capitalise(headline), insights }, told };
+}
+
+/**
+ * The rows as the page draws them once the read has spoken: a move the read tells is just the fact ("NVDA fell 5.5%
+ * yesterday.", no normal-day comparison or reason, which the read gives), and a report the read tells is just its day.
+ * Upcoming reports come as finished sentences, so the browser never loads the wording.
+ */
+export function rowsAfterRead(items: InboxItem[], upcoming: UpcomingReport[], told: InboxTold, today: string): { items: InboxItem[]; upcoming: UpcomingLine[] } {
+  const moveIds = new Set(told.moveIds);
+  const reasonIds = new Set(told.reasonIds);
+  const reports = new Set(told.reports);
+  return {
+    items: items.map((item) =>
+      moveIds.has(item.id) && item.id.startsWith("move:") && item.move && item.tickers.length === 1
+        ? { ...item, text: moveSentence(item.tickers[0]!, item.move.pct, item.move.day, null, today), detail: reasonIds.has(item.id) ? null : item.detail }
+        : item,
+    ),
+    upcoming: upcoming.map((report) =>
+      reports.has(report.ticker)
+        ? { ticker: report.ticker, date: report.date, text: reportSentence({ ...report, history: null }, today), note: null }
+        : { ticker: report.ticker, date: report.date, text: reportSentence(report, today), note: report.vsDay ? `That is ${report.vsDay} for it.` : null },
+    ),
+  };
 }
