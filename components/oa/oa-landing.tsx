@@ -29,43 +29,37 @@ import { LandingTaste } from "./landing/taste";
 import { TodayMoves } from "./landing/today-moves";
 import Link from "next/link";
 
-// Printed open, never folded (owner rule 2): each answer is a sentence or two. The founder note is the last answer.
+// Printed open, never folded (owner rule 2): one line each, only what decides whether to use it (rule 8). The founder
+// note is the last answer.
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
-    a: "A research site that follows US stocks for you. Every market day it reads the filings, earnings and news. Then it says why each stock moved and whether we would buy more, keep or sell some.",
+    a: "Research on US stocks: why each one moved, and whether we would buy more, keep or sell some.",
   },
   {
     q: "Does it trade for me or hold my money?",
-    a: "No. stocksbrew never connects to a brokerage, and it cannot place trades or move money. You read the research and act wherever you already invest.",
+    a: "No. It never connects to a brokerage, so it cannot trade or move your money.",
   },
   {
     q: "Where does the information come from, and who writes it?",
-    a: "Public prices, financials, SEC filings and news, each linked to the original. AI writes the explanations and calls from them. A move only gets a reason when a source backs it.",
+    a: "Public prices, filings and news, each linked; AI writes the explanations from them.",
   },
   {
     q: "Is this investment advice?",
-    a: "No. stocksbrew is research for your own decisions. It is not a broker or an adviser.",
+    a: "No. It is research for your own decisions.",
   },
   {
     q: "Who makes stocksbrew?",
     a: (
       <>
-        One person. Following a company used to mean reopening the same tabs every day, and most days nothing had changed. So I
-        built the thing I wanted: it does the reading and speaks up only when it has something to say, with the source next to
-        it. If a page is confusing or a fact looks wrong,{" "}
+        <Link prefetch={false} href="/about" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+          One person
+        </Link>
+        . If something looks wrong,{" "}
         <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
           tell me
         </a>
-        . I read every message.{" "}
-        <Link prefetch={false} href="/about" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
-          More about me
-        </Link>{" "}
-        and{" "}
-        <Link prefetch={false} href="/docs" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
-          how the research is made
-        </Link>
-        .
+        ; I read every message.
       </>
     ),
   },

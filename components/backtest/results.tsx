@@ -1,10 +1,10 @@
-import { PairBar, ToneGlyph } from "@/components/oa/kit/tone";
+import { PairBar, SignedBar, ToneGlyph, barDomain } from "@/components/oa/kit/tone";
 import { TableBox } from "@/components/oa/kit/table-box";
 import type { Caveat, CurveStats, YearRow } from "@/lib/backtest/types";
 import { beatYearsSentence, swingSentence } from "@/lib/backtest-insights";
 import { markFor } from "@/lib/tone";
 
-import { longDay, plainPct, signedPct, toneOf } from "./format";
+import { SERIES_VARS, longDay, plainPct, signedPct, toneOf } from "./format";
 
 /** The label every backtested number sits under. */
 export function BacktestedBadge({ start, end, className = "" }: { start: string; end: string; className?: string }) {
@@ -150,7 +150,10 @@ export function StatGrid({
   turnover,
   headline = true,
   strategyLabel = "Strategy",
+  columns,
 }: {
+  /** The grid's column classes from `sm` up, when the default is too many for the column it sits in. */
+  columns?: string;
   /** What the copper bars are ("Strategy", "Your mix"). */
   strategyLabel?: string;
   strategy: CurveStats;
@@ -177,7 +180,7 @@ export function StatGrid({
   return (
     <div
       className={`oa-surface grid grid-cols-2 gap-px overflow-hidden border border-oa-border bg-oa-border ${
-        headline ? "sm:grid-cols-3" : "lg:grid-cols-4"
+        columns ?? (headline ? "sm:grid-cols-3" : "lg:grid-cols-4")
       }`}
     >
       {headline ? (
@@ -238,36 +241,60 @@ export function YearTable({
   years,
   benchmarkLabel,
   strategyLabel = "Strategy",
+  gap = true,
 }: {
   years: YearRow[];
   benchmarkLabel: string;
   strategyLabel?: string;
+  /** The gap column; a narrow rail leaves it out, since the bars beside each year show it. */
+  gap?: boolean;
 }) {
-  // No bar beside each year: the percent already says it (owner rule 5).
+  // Both years' returns as two bars on one scale, one zero line down the column (owner VISUALS CHECK): copper for the
+  // mix, teal for what it is held against, as on the chart. The dots on the column names say which is which.
   const rows = [...years].reverse();
+  const domain = barDomain(rows.flatMap((row) => [row.strategy, row.benchmark]));
   return (
-    <TableBox rowRem={2.25}>
-      <table className="w-full min-w-[20rem] border-collapse text-[13px]">
+    <TableBox rowRem={2.5}>
+      <table className={`${SERIES_VARS} w-full min-w-[19rem] border-collapse text-[13px]`}>
         <thead>
           <tr className="border-b border-oa-border text-left">
             <th className="oa-caption px-3.5 py-2">Year</th>
-            <th className="oa-caption px-2 py-2 text-right">{strategyLabel}</th>
-            <th className="oa-caption px-2 py-2 text-right">{benchmarkLabel}</th>
-            <th className="oa-caption px-3.5 py-2 text-right">Gap</th>
+            <th className="oa-caption px-2 py-2 text-right">
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-2 rounded-full bg-[var(--series-a)]" />
+                {strategyLabel}
+              </span>
+            </th>
+            <th className="oa-caption px-2 py-2 text-right">
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-2 rounded-full bg-[var(--series-b)]" />
+                {benchmarkLabel}
+              </span>
+            </th>
+            <th className="w-[34%] px-2 py-2">
+              <span className="sr-only">Both on one scale</span>
+            </th>
+            {gap ? <th className="oa-caption px-3.5 py-2 text-right">Gap</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
-            const gap = row.strategy - row.benchmark;
+            const diff = row.strategy - row.benchmark;
             return (
-              <tr key={row.year} className="h-9 border-b border-oa-border last:border-0 hover:bg-oa-accent">
-                <td className="oa-mono px-3.5 tabular-nums text-oa-fg">
+              <tr key={row.year} className="h-10 border-b border-oa-border last:border-0 hover:bg-oa-accent">
+                <td className="oa-mono whitespace-nowrap px-3.5 tabular-nums text-oa-fg">
                   {row.year}
                   {row.complete ? null : <span className="ml-1.5 text-[11px] text-oa-muted-fg">part</span>}
                 </td>
                 <td className={`oa-mono px-2 text-right tabular-nums ${toneOf(row.strategy)}`}>{signedPct(row.strategy)}</td>
                 <td className="oa-mono px-2 text-right tabular-nums text-oa-muted-fg">{signedPct(row.benchmark)}</td>
-                <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(gap)}`}>{signedPct(gap)}</td>
+                <td className={`px-2 ${gap ? "" : "pr-3.5"}`}>
+                  <span className="flex flex-col gap-1">
+                    <SignedBar value={row.strategy} domain={domain} color="var(--series-a)" className="h-1.5" />
+                    <SignedBar value={row.benchmark} domain={domain} color="var(--series-b)" className="h-1.5" />
+                  </span>
+                </td>
+                {gap ? <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(diff)}`}>{signedPct(diff)}</td> : null}
               </tr>
             );
           })}

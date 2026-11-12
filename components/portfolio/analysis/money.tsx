@@ -1,5 +1,6 @@
 import type { AttributionModule, LeanFigure, LeanModule } from "@/lib/portfolio-analysis/types";
 import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
+import { PairBar } from "@/components/oa/kit/tone";
 
 import { CARD, FigureStrip, Module, NUM, SPAN, Tick, signedPct, signedPts, toneClass } from "./parts";
 
@@ -20,7 +21,9 @@ export function MadeTheMoney({ module }: { module: AttributionModule }) {
           <div className="flex flex-col gap-1 border-b border-oa-border px-4 py-3">
             <p className="text-[12.5px] leading-4 text-oa-muted-fg">{window.label}</p>
             <p className={`${NUM} text-[28px] font-medium leading-9 ${toneClass(window.book)}`}>{signedPct(window.book)}</p>
-            {window.sp !== null ? <p className="text-[13px] leading-[18px] text-oa-muted-fg">The S&amp;P 500: {signedPct(window.sp)}</p> : null}
+            {window.sp !== null ? (
+              <PairBar value={window.book} versus={window.sp} labels={["Mix", "S&P"]} texts={[signedPct(window.book), signedPct(window.sp)]} className="mt-1 w-full" />
+            ) : null}
           </div>
           <div className="px-4 py-2">
             <ShowMoreGrid count={window.rows.length} cut="rows" label={`Who made the money, ${window.label.toLowerCase()}`}>
@@ -49,32 +52,32 @@ function shown(figure: LeanFigure, value: number): string {
 /** The six months first: the gap to the index is the one number that says ahead or behind. */
 const LEAN_ORDER: Record<LeanFigure["key"], number> = { gap6m: 0, pe: 1, growth: 2, margin: 3, giants: 4, yield: 5 };
 
-/** Against the S&P 500: six figures in one divided card, each with the index's own beside it. */
+/** Against the S&P 500: six figures in one divided card, each drawn against the index's own as two bars (owner VISUALS CHECK). */
 export function AgainstTheMarket({ module, example }: { module: LeanModule; example: boolean }) {
   const subject = example ? "this mix" : "your mix";
   const figures = [...module.figures].sort((a, b) => LEAN_ORDER[a.key] - LEAN_ORDER[b.key]);
+  // Short names, so the two bars keep their room in a narrow cell; the module title says what "Mix" is.
+  const names: [string, string] = ["Mix", "S&P"];
   return (
     <Module id="against" title={`What ${subject} is made of`}>
       <FigureStrip
         label={`What ${subject} is made of, against the S&P 500`}
         className={SPAN[12]}
-        cols={`grid-cols-2 lg:grid-cols-3 ${figures.length >= 6 ? "xl:grid-cols-6" : ""}`}
-        cells={figures.map((figure) =>
-          figure.key === "gap6m" && figure.sp !== null
-            ? {
-                key: figure.key,
-                label: "6 months vs S&P 500",
-                figure: signedPts(figure.book - figure.sp),
-                tone: figure.book - figure.sp,
-                line: `${subject.replace(/^./, (c) => c.toUpperCase())} ${signedPct(figure.book)}, the S&P 500 ${signedPct(figure.sp)}`,
-              }
-            : {
-                key: figure.key,
-                label: figure.label,
-                figure: shown(figure, figure.book),
-                line: figure.sp !== null ? `The S&P 500: ${shown(figure, figure.sp)}` : undefined,
-              },
-        )}
+        cols={`grid-cols-2 lg:grid-cols-3 ${figures.length >= 6 ? "2xl:grid-cols-6" : ""}`}
+        cells={figures.map((figure) => {
+          const pair =
+            figure.sp !== null
+              ? {
+                  value: figure.book,
+                  versus: figure.sp,
+                  labels: names,
+                  texts: [shown(figure, figure.book), shown(figure, figure.sp)] as [string, string],
+                }
+              : undefined;
+          return figure.key === "gap6m" && figure.sp !== null
+            ? { key: figure.key, label: "6 months vs S&P 500", figure: signedPts(figure.book - figure.sp), tone: figure.book - figure.sp, pair }
+            : { key: figure.key, label: figure.label, figure: shown(figure, figure.book), pair };
+        })}
       />
     </Module>
   );

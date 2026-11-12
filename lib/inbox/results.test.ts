@@ -25,12 +25,11 @@ const read = (patch: Partial<ResultRead> = {}): ResultRead => ({
 });
 
 describe("results items", () => {
-  it("says what the person's stock reported, how it moved and where the call stands", () => {
+  it("says in one line what the person's stock reported and how it moved", () => {
     const item = resultsItem(read(), "holding", "mine", TODAY)!;
     expect(item.kind).toBe("results");
-    expect(item.text).toBe(
-      "CRWV, which you own, lost $1.27 a share, less than the $1.55 expected, and the stock is up 25% today, bigger than its usual 17% move after a report.",
-    );
+    // One line, the result and the move (owner rule 8): no "which you own", no usual-move clause.
+    expect(item.text).toBe("CRWV lost $1.27 a share, less than the $1.55 expected, and is up 25% today.");
     // Where the call stands is said once by the read, never on the row (owner rule 1).
     expect(item.detail).toBeNull();
     expect(item.tone).toBe("up");
@@ -42,8 +41,10 @@ describe("results items", () => {
   });
 
   it("names the example's stocks as the example's", () => {
-    expect(resultsItem(read(), "holding", "example", TODAY)!.text.startsWith("CRWV, which the example portfolio holds, lost")).toBe(true);
-    expect(resultsItem(read(), "watchlist", "mine", TODAY)!.text.startsWith("CRWV, which you watch, lost")).toBe(true);
+    // The row's line names only the stock; the read above it, which tells the move, says whose stock it is.
+    expect(resultsItem(read(), "holding", "example", TODAY)!.result!.figures.startsWith("CRWV, which the example portfolio holds, lost")).toBe(true);
+    expect(resultsItem(read(), "watchlist", "mine", TODAY)!.result!.figures.startsWith("CRWV, which you watch, lost")).toBe(true);
+    expect(resultsItem(read(), "holding", "example", TODAY)!.text.startsWith("CRWV lost")).toBe(true);
   });
 
   it("makes no item without figures or a report day", () => {

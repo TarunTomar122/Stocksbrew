@@ -11,6 +11,8 @@ import { dayPossessive } from "@/lib/day-words";
 import { packChartRanges, type ChartRange } from "@/lib/stock-chart";
 import type { FundPageData } from "@/lib/funds/page";
 import { SectorIcon } from "@/components/oa/sector-icon";
+
+import { FundFold } from "./fund-fold";
 import { costOn10k, fmtDollars, fmtRatio, type FundHoldingRow, type FundSectorRow } from "@/lib/funds/view";
 
 /**
@@ -21,8 +23,8 @@ import { costOn10k, fmtDollars, fmtRatio, type FundHoldingRow, type FundSectorRo
  */
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** About eight rows, then the list scrolls inside with no bar and hands the scroll back to the page at its end. */
-const LIST_BOX = "overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+/** Whole rows each list shows before the one shared "Show all" (components/fund-page/fund-fold.tsx: nth-child(n+8)). */
+const FOLD_ROWS = 7;
 
 function sinceWords(iso: string | null): string | null {
   const match = /^(\d{4})-(\d{2})/.exec(iso ?? "");
@@ -33,6 +35,12 @@ function pctText(value: number): string {
   if (value >= 9.95) return `${Math.round(value)}%`;
   if (value >= 0.05) return `${value.toFixed(1)}%`;
   return value > 0 ? "<0.1%" : "0%";
+}
+
+/** The one button under both lists: what opening it shows. */
+function foldLabel(holdings: number, sectors: number): string {
+  const more = [holdings > FOLD_ROWS ? `${holdings} holdings` : null, sectors > FOLD_ROWS ? `${sectors} sectors` : null].filter(Boolean);
+  return more.length ? `Show all ${more.join(" and ")}` : "Show all";
 }
 
 function packed(ranges: ChartRange[]) {
@@ -69,7 +77,7 @@ function figuresOf(data: FundPageData): Figure[] {
 
 function HoldingRows({ rows }: { rows: FundHoldingRow[] }) {
   return (
-    <ul role="list" className="divide-y divide-oa-border">
+    <ul role="list" data-fold className="divide-y divide-oa-border">
       {rows.map((row) => (
         <li key={row.ticker}>
           <AppLink
@@ -90,7 +98,7 @@ function HoldingRows({ rows }: { rows: FundHoldingRow[] }) {
 function SectorBars({ rows, ticker }: { rows: FundSectorRow[]; ticker: string }) {
   const max = Math.max(1, ...rows.flatMap((row) => [row.pct, row.benchmarkPct ?? 0]));
   return (
-    <ul role="list" className="flex flex-col gap-2.5 px-3.5 py-3 sm:px-4">
+    <ul role="list" data-fold className="flex flex-col gap-2.5 px-3.5 py-3 sm:px-4">
       {rows.map((row) => (
         <li key={row.sector} className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] items-center gap-x-3 text-[13px] leading-4 max-sm:grid-cols-1 max-sm:gap-y-1">
           <span className="flex min-w-0 items-center gap-2 text-oa-fg">
@@ -246,22 +254,23 @@ export function FundReport({
         </Panel>
 
         {inside.top.length || inside.sectors ? (
-          <div className={`grid grid-cols-1 gap-4 ${both ? "lg:grid-cols-2" : ""}`}>
+          <FundFold
+            hidden={Math.max(inside.top.length, inside.sectors?.length ?? 0) - FOLD_ROWS}
+            label={foldLabel(inside.top.length, inside.sectors?.length ?? 0)}
+            className={`grid grid-cols-1 gap-4 ${both ? "lg:grid-cols-2" : ""}`}
+          >
+            {/* Whole rows only, both panels level (owner rules 4 and 5), and one "Show all" under the pair. */}
             {inside.top.length ? (
-              <Panel label="Top 10 holdings" meta={inside.companyCount > 10 ? `of ${inside.companyCount.toLocaleString("en-US")} companies` : undefined}>
-                <div className={`${LIST_BOX} max-h-[22rem] ${both ? "lg:h-[24rem] lg:max-h-none" : ""}`}>
-                  <HoldingRows rows={inside.top} />
-                </div>
+              <Panel className="h-full" label={`Top ${inside.top.length} holdings`} meta={inside.companyCount > inside.top.length ? `of ${inside.companyCount.toLocaleString("en-US")} companies` : undefined}>
+                <HoldingRows rows={inside.top} />
               </Panel>
             ) : null}
             {inside.sectors ? (
-              <Panel label="Sectors against the S&P 500" meta={<SectorKey ticker={ticker} />}>
-                <div className={`${LIST_BOX} max-h-[24rem] ${both ? "lg:h-[24rem] lg:max-h-none" : ""}`}>
-                  <SectorBars rows={inside.sectors} ticker={ticker} />
-                </div>
+              <Panel className="h-full" label="Sectors against the S&P 500" meta={<SectorKey ticker={ticker} />}>
+                <SectorBars rows={inside.sectors} ticker={ticker} />
               </Panel>
             ) : null}
-          </div>
+          </FundFold>
         ) : null}
 
         {overlap ? <Suspense fallback={null}>{overlap}</Suspense> : null}

@@ -7,6 +7,7 @@ import { consumeMeter, getViewer } from "@/lib/entitlements-server";
 
 import { normalizeWeightsInput } from "./engine";
 import { runBacktest, type BacktestResponse } from "./index";
+import type { HoldingQuote } from "./quotes";
 
 /** What the plan did to a run. Sent to the browser so the page can say it plainly. */
 export type BacktestGate = {
@@ -19,7 +20,11 @@ export type BacktestGate = {
 };
 
 export type GatedBacktestResponse =
-  | (BacktestResponse & { gate: BacktestGate })
+  | (BacktestResponse & {
+      gate: BacktestGate;
+      /** Each holding's price and move today, by symbol, for its card (lib/backtest/quotes.ts); absent when not read. */
+      quotes?: Record<string, HoldingQuote>;
+    })
   | { ok: false; error: { code: "limit_reached"; message: string; symbols?: undefined }; gate: BacktestGate };
 
 /** The earliest start date a plan may test from, or null when the plan has the full history. */

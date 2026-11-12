@@ -200,6 +200,18 @@ export function resultSentence(read: ResultRead, name: string, today: string): s
   return `${lead}${guidance}${move}.`;
 }
 
+/**
+ * One line for an inbox row (owner rule 8, judges ship 71): the result against the estimate and how the stock took it,
+ * nothing more. "AAPL beat the EPS estimate by 3.5% and fell 1.9% on Monday." Empty when there are no figures.
+ */
+export function resultLine(read: ResultRead, today: string): string {
+  const lead = leadPart(read, read.ticker);
+  if (!lead) return "";
+  if (!read.move) return `${lead}.`;
+  // A lead with its own comma ("lost $1.27 a share, less than the $1.55 expected") takes one before the "and" too.
+  return `${lead}${lead.includes(",") ? ", and" : " and"} ${movePhrase(read.move, today)}.`;
+}
+
 /** The call line: whether the results moved our call. */
 export function callLine(call: ResultCall, today: string): string {
   if (call.status === "changed") return `We moved our call from ${call.from} to ${call.call} ${dayWords(call.on, today)} after the results.`;

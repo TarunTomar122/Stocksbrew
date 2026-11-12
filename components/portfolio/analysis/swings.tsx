@@ -23,16 +23,25 @@ export function Swings({ module, example }: { module: RiskModule; example: boole
         cols="grid-cols-1 sm:grid-cols-3"
         cells={[
           { key: "beta", label: "When the S&P 500 moves 1%", figure: `${module.sensitivity.toFixed(1)}%`, line: `${subject} tends to move this much` },
-          { key: "swing", label: "Up and down in a year", figure: pct(module.swing), line: `The S&P 500: ${pct(module.spSwing)}` },
+          // Each against the S&P 500's own as two bars on one scale (owner VISUALS CHECK).
+          {
+            key: "swing",
+            label: "Up and down in a year",
+            figure: pct(module.swing),
+            pair: { value: module.swing, versus: module.spSwing, labels: ["Mix", "S&P"], texts: [pct(module.swing), pct(module.spSwing)] },
+          },
           {
             key: "fall",
             label: `Largest fall ${span}`,
             figure: pct(module.worstDrop.pct),
             tone: module.worstDrop.pct,
-            line:
-              module.worstDrop.pct < 0
-                ? `${day(module.worstDrop.peak)} to ${day(module.worstDrop.trough)}. The S&P 500: ${pct(module.spWorstDrop.pct)}`
-                : `The S&P 500: ${pct(module.spWorstDrop.pct)}`,
+            line: module.worstDrop.pct < 0 ? `${day(module.worstDrop.peak)} to ${day(module.worstDrop.trough)}` : undefined,
+            pair: {
+              value: module.worstDrop.pct,
+              versus: module.spWorstDrop.pct,
+              labels: ["Mix", "S&P"],
+              texts: [pct(module.worstDrop.pct), pct(module.spWorstDrop.pct)],
+            },
           },
         ]}
       />

@@ -5,7 +5,7 @@ import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { EmptyInbox } from "@/components/inbox/inbox-empty";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
-import { ExampleReportCards } from "@/components/inbox/report-cards";
+import { ExampleReportCards, type CardQuote } from "@/components/inbox/report-cards";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
@@ -73,6 +73,15 @@ async function exampleReportStocks(portfolio: Awaited<ReturnType<typeof loadExam
   });
 }
 
+/** Each of the example's stocks' price and move today, from the same priced snapshot as the rest of the page. */
+function cardQuotes(portfolio: Awaited<ReturnType<typeof loadExamplePortfolio>> | null): Record<string, CardQuote> {
+  const out: Record<string, CardQuote> = {};
+  for (const position of [...(portfolio?.portfolio.positions ?? []), ...(portfolio?.portfolio.watching ?? [])]) {
+    if (position.price !== null && position.price > 0) out[position.ticker.toUpperCase()] = { price: position.price, dayPct: position.dayPct };
+  }
+  return out;
+}
+
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   // The portfolio is the example's shared cached copy (the same one My stocks and the briefing read); a failed read
   // only leaves out the report cards under the list.
@@ -103,7 +112,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
           <AskPageHint context="ex.portfolio" />
         </>
       )}
-      {reports ? <ExampleReportCards reports={reports} /> : null}
+      {reports ? <ExampleReportCards reports={reports} quotes={cardQuotes(portfolio)} today={inbox.today} /> : null}
     </div>
   );
 }

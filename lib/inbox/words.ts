@@ -3,7 +3,7 @@ import { onDayWords } from "@/lib/day-words";
 import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
-import { moveShort, resultHeadline, resultSentence, resultTone } from "@/lib/results/words";
+import { moveShort, resultHeadline, resultLine, resultSentence, resultTone } from "@/lib/results/words";
 import { findingClose } from "@/lib/portfolio-home/example-check";
 
 import type { InboxItem, InboxMove, UpcomingReport } from "./types";
@@ -835,7 +835,9 @@ export function resultsItem(read: ResultRead, position: Position, mode: Mode, to
     mode === "example"
       ? `${ticker}, which the example portfolio ${position === "watchlist" ? "is watching" : "holds"},`
       : `${ticker}, which you ${position === "holding" ? "own" : "watch"},`;
-  const text = resultSentence(read, who, today);
+  // The row is one line, the result and the move (judges, ship 71: 28 words was too many); the read above the list
+  // keeps the longer sentence that says whose stock it is.
+  const text = resultLine(read, today);
   const headline = resultHeadline(read, today);
   if (!text || !headline) return null;
   const call = read.call && read.call.status !== "pending" ? { status: read.call.status, call: read.call.call } : null;

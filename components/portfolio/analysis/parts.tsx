@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 
+import { PairBar } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 
 /**
@@ -89,7 +90,15 @@ export function Module({ id, title, children }: { id: string; title: string; chi
   );
 }
 
-export type Cell = { key: string; label: React.ReactNode; figure: React.ReactNode; line?: React.ReactNode; tone?: number | null };
+export type Cell = {
+  key: string;
+  label: React.ReactNode;
+  figure: React.ReactNode;
+  line?: React.ReactNode;
+  tone?: number | null;
+  /** The figure against another as two named bars on one scale, under the line (owner VISUALS CHECK). */
+  pair?: { value: number; versus: number; labels: [string, string]; texts: [string, string] };
+};
 
 /**
  * Several figures in ONE card, divided by hairlines (the swings, the mix): label, big number, one line each. `cols`
@@ -105,6 +114,11 @@ export function FigureStrip({ cells, cols, label, className = "" }: { cells: Cel
             <dt className="text-[12.5px] leading-4 text-oa-muted-fg">{cell.label}</dt>
             <dd className={`${NUM} text-[28px] font-medium leading-9 tracking-[-0.01em] ${cell.tone === undefined ? "text-oa-fg" : toneClass(cell.tone)}`}>{cell.figure}</dd>
             {cell.line ? <dd className="text-[13px] leading-[18px] text-oa-muted-fg">{cell.line}</dd> : null}
+            {cell.pair ? (
+              <dd className="mt-1">
+                <PairBar value={cell.pair.value} versus={cell.pair.versus} labels={cell.pair.labels} texts={cell.pair.texts} className="w-full" />
+              </dd>
+            ) : null}
           </div>
         ))}
       </dl>

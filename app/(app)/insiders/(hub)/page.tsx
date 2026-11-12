@@ -52,22 +52,10 @@ export default async function InsidersPage() {
   const { tallies } = buildInsiderRead({ buys, recent, sectors, today: nyDay(now), now, recentLimit: INSIDER_TRADE_ROWS });
   const topBought = tallies.slice(0, 6);
   // The money list leaves out the stocks already in the buyers list, so no stock is listed twice side by side
-  // (owner rule 1). Its sentence says where its top stock ranks among all of them by money.
+  // (owner rule 1). Neither list has a sentence over it: it only said the first row again (rule 8).
   const ranked = [...tallies].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   const inBought = new Set(topBought.map((row) => row.ticker));
   const byValue = ranked.filter((row) => !inBought.has(row.ticker)).slice(0, 6);
-  const moneyTop = byValue[0];
-  const moneyValue = moneyTop?.value ?? 0;
-  // Its rank among every stock by money in: ties share a rank, so two equal amounts never read "second only to".
-  const moneyRank = moneyTop ? ranked.filter((row) => (row.value ?? 0) > moneyValue).length : -1;
-  const ORDINAL = ["", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
-  const moneyTakeaway = moneyTop
-    ? moneyRank === 0
-      ? `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders, the most money into any stock.`
-      : moneyRank < ORDINAL.length
-        ? `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders, the ${ORDINAL[moneyRank]} most of any stock.`
-        : `${fmtUsd(moneyValue)} of ${moneyTop.ticker} bought by insiders.`
-    : undefined;
 
   // Every buy in the window plus the most recent sales, newest filing first, without repeats.
   const byId = new Map<string, InsiderTrade>();
@@ -101,11 +89,6 @@ export default async function InsidersPage() {
           unit="insider"
           rows={topBought}
           empty="No open-market insider buys in the last two weeks."
-          takeaway={
-            topBought[0]
-              ? `${topBought[0].ticker} had the most insiders buying: ${topBought[0].buyers.length}, ${fmtUsd(topBought[0].value ?? 0)} in all.`
-              : undefined
-          }
         />
         {byValue.length ? (
         <StockTallyPanel
@@ -115,7 +98,6 @@ export default async function InsidersPage() {
           figure={(row) => fmtUsd(row.value ?? 0)}
           rows={byValue}
           empty="No open-market insider buys in the last two weeks."
-          takeaway={moneyTakeaway}
         />
         ) : null}
       </CardGrid>

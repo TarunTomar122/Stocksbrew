@@ -280,7 +280,6 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const head = (
     <PageHead
       title={view.tab === "sectors" ? "Stock sectors" : "Find stocks"}
-      lede={view.tab === "sectors" ? "Sized and coloured by the move. Pick a sector to screen it." : undefined}
       meta={<SourceLine asOf={asOf} />}
       inline
       className={`max-sm:[&_.oa-head-compact]:hidden ${view.tab === "sectors" ? "" : "[&_.oa-head-lede]:hidden"}`}

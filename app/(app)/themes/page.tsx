@@ -5,6 +5,7 @@ import { BASKET_BENCHMARK, BASKET_WINDOWS, getBaskets, type Basket, type BasketW
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
 
+import { SignedBar, barDomain } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 
 // Prices behind the basket returns move during the day; never freeze this page at build time.
@@ -37,11 +38,17 @@ function Pct({ value, lead = false }: { value: number | null | undefined; lead?:
   return <Delta value={value} digits={1} className={lead ? "text-[15px] font-semibold" : "text-[14px]"} />;
 }
 
-function BasketRow({ basket, index }: { basket: Basket; index: number }) {
+/**
+ * This year's return as a bar under its figure, every basket and the S&P 500 on one scale with one zero line, and a
+ * tick where the S&P 500 stands, so each basket reads against it at a glance (owner VISUALS CHECK).
+ */
+function YearBar({ value, domain, spy, className = "" }: { value: number | null | undefined; domain: [number, number]; spy: number | null; className?: string }) {
+  return <SignedBar value={value} domain={domain} mark={spy} className={`h-1.5 ${className}`} />;
+}
+
+function BasketRow({ basket, index, domain, spy }: { basket: Basket; index: number; domain: [number, number]; spy: number | null }) {
   const priced = basket.perf.ret_1m?.priced ?? 0;
   const partial = priced > 0 && priced < basket.size;
-  const tickers = basket.lead.map((item) => item.ticker).join(" · ");
-  const more = basket.size > basket.lead.length ? ` +${basket.size - basket.lead.length}` : "";
   return (
     <li className="border-b border-oa-border last:border-b-0">
       <Link prefetch={false} href={`/themes/${basket.slug}`} className={`block px-4 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${ROW}`}>
@@ -49,16 +56,23 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
         <span className="block min-w-0">
           <span className="flex items-baseline justify-between gap-3">
             <span className="text-[15px] font-semibold leading-6 text-oa-fg lg:text-[15px]">{basket.name}</span>
-            {/* Phone: this year's return is the number that leads the row. */}
-            <span className="lg:hidden">
+            {/* Phone: this year's return is the number that leads the row, with its bar against the S&P 500. */}
+            <span className="flex w-20 shrink-0 flex-col items-end gap-1 lg:hidden">
               <Pct value={basket.perf[LEAD_WINDOW]?.pct} lead />
+              <YearBar value={basket.perf[LEAD_WINDOW]?.pct} domain={domain} spy={spy} className="w-full" />
             </span>
           </span>
           <span className="line-clamp-2 max-w-[70ch] text-[13.5px] leading-5 text-oa-muted-fg lg:line-clamp-1" title={basket.thesis}>{basket.thesis}</span>
-          <span className={`${NUM} mt-1 block truncate text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
-            {tickers}
-            {more}
-            {partial ? ` · ${priced} of ${basket.size} lines priced` : ""}
+          {/* Phone: the leading names with their logos (owner VISUALS CHECK), three at most, then how many more. */}
+          <span className={`${NUM} mt-1 flex min-w-0 items-center gap-x-2.5 overflow-hidden text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
+            {basket.lead.slice(0, 3).map((item) => (
+              <span key={item.ticker} className="flex shrink-0 items-center gap-1 text-oa-fg">
+                <StockLogo ticker={item.ticker} size={16} circle />
+                {item.ticker}
+              </span>
+            ))}
+            {basket.size > 3 ? <span className="shrink-0">+{basket.size - 3}</span> : null}
+            {partial ? <span className="truncate">{`${priced} of ${basket.size} priced`}</span> : null}
           </span>
           <span className={`${NUM} mt-1 flex gap-x-3 text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
             {BASKET_WINDOWS.filter((window) => window.id !== LEAD_WINDOW).map((window) => (
@@ -69,21 +83,22 @@ function BasketRow({ basket, index }: { basket: Basket; index: number }) {
           </span>
         </span>
         <span className={`${NUM} hidden min-w-0 items-center gap-x-3 overflow-hidden text-[13px] text-oa-muted-fg lg:flex`}>
-          {/* Two names at lg, three at xl, four on wide screens: whole names only, never one cut off at the edge. */}
-          {basket.lead.map((item, i) => (
-            <span key={item.ticker} className={`shrink-0 items-center gap-1.5 text-oa-fg ${i < 2 ? "flex" : i < 3 ? "hidden xl:flex" : "hidden 2xl:flex"}`}>
+          {/* Two names up to wide screens, three there: whole names only, never one cut off at the edge (judges, ship 71:
+              a third name was cut at 1280). */}
+          {basket.lead.slice(0, 3).map((item, i) => (
+            <span key={item.ticker} className={`shrink-0 items-center gap-1.5 text-oa-fg ${i < 2 ? "flex" : "hidden 2xl:flex"}`}>
               <StockLogo ticker={item.ticker} size={18} circle eager />
               {item.ticker}
             </span>
           ))}
-          {basket.size > 2 ? <span className="shrink-0 xl:hidden">+{basket.size - 2}</span> : null}
-          {basket.size > 3 ? <span className="hidden shrink-0 xl:inline 2xl:hidden">+{basket.size - 3}</span> : null}
-          {basket.size > 4 ? <span className="hidden shrink-0 2xl:inline">+{basket.size - 4}</span> : null}
+          {basket.size > 2 ? <span className="shrink-0 2xl:hidden">+{basket.size - 2}</span> : null}
+          {basket.size > 3 ? <span className="hidden shrink-0 2xl:inline">+{basket.size - 3}</span> : null}
           {partial ? <span className="shrink-0">{`${priced}/${basket.size} priced`}</span> : null}
         </span>
         {BASKET_WINDOWS.map((window) => (
           <span key={window.id} className="hidden text-right lg:block">
             <Pct value={basket.perf[window.id]?.pct} lead={window.id === LEAD_WINDOW} />
+            {window.id === LEAD_WINDOW ? <YearBar value={basket.perf[window.id]?.pct} domain={domain} spy={spy} className="mt-1.5" /> : null}
           </span>
         ))}
       </Link>
@@ -97,6 +112,9 @@ export default async function ThemesPage() {
   const ranked = [...baskets].sort((a, b) => (b.perf[LEAD_WINDOW]?.pct ?? -Infinity) - (a.perf[LEAD_WINDOW]?.pct ?? -Infinity));
   const benchmark = baskets[0]?.benchmark ?? null;
   const lines = baskets.reduce((sum, basket) => sum + basket.size, 0);
+  // One scale for every basket's year and the S&P 500's, so the bars read as one chart down the column.
+  const spy = benchmark?.[LEAD_WINDOW] ?? null;
+  const domain = barDomain([...baskets.map((basket) => basket.perf[LEAD_WINDOW]?.pct), spy]);
 
   const itemList = {
     "@context": "https://schema.org",
@@ -143,23 +161,28 @@ export default async function ThemesPage() {
             {benchmark ? (
               <div className={`border-b border-oa-border px-4 py-2 text-[14px] text-oa-muted-fg ${ROW}`}>
                 <span className="hidden lg:block" />
-                <span className="flex items-baseline justify-between gap-3">
-                  <span>S&amp;P 500 ({BASKET_BENCHMARK}), for scale</span>
-                  <span className="lg:hidden">
+                <span className="flex items-center justify-between gap-3">
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <StockLogo ticker={BASKET_BENCHMARK} size={18} circle eager />
+                    S&amp;P 500 ({BASKET_BENCHMARK}), for scale
+                  </span>
+                  <span className="flex w-20 shrink-0 flex-col items-end gap-1 lg:hidden">
                     <Pct value={benchmark[LEAD_WINDOW]} />
+                    <SignedBar value={spy} domain={domain} color="var(--oa-muted-fg)" className="h-1.5 w-full" />
                   </span>
                 </span>
                 <span className="hidden lg:block" />
                 {BASKET_WINDOWS.map((window) => (
                   <span key={window.id} className={`${NUM} hidden text-right lg:block`}>
                     {benchmark[window.id] == null ? "n/a" : `${benchmark[window.id]! > 0 ? "+" : benchmark[window.id]! < 0 ? "−" : ""}${Math.abs(benchmark[window.id]!).toFixed(1)}%`}
+                    {window.id === LEAD_WINDOW ? <SignedBar value={spy} domain={domain} color="var(--oa-muted-fg)" className="mt-1.5 h-1.5" /> : null}
                   </span>
                 ))}
               </div>
             ) : null}
             <ol>
               {ranked.map((basket, index) => (
-                <BasketRow key={basket.slug} basket={basket} index={index} />
+                <BasketRow key={basket.slug} basket={basket} index={index} domain={domain} spy={spy} />
               ))}
             </ol>
           </>

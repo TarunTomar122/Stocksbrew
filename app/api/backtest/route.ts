@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { runGatedBacktest } from "@/lib/backtest/gated";
+import { holdingQuotes, setupSymbols, withQuotes } from "@/lib/backtest/quotes";
 import { parseSetup } from "@/lib/backtest/setup";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ ok: false, error: { code: "invalid_input", message: "Send the setup as JSON." } }, { status: 400 });
   }
-  const response = await runGatedBacktest(body);
+  // Today's prices for the holding cards load beside the run, never after it.
+  const [ran, quotes] = await Promise.all([runGatedBacktest(body), holdingQuotes(setupSymbols(body))]);
+  const response = withQuotes(ran, quotes);
   return NextResponse.json(response, { status: response.ok ? 200 : STATUS[response.error.code] ?? 400 });
 }
 
@@ -37,6 +40,7 @@ export async function GET(req: NextRequest) {
     query[key] = value;
   });
   const setup = parseSetup(query);
-  const response = await runGatedBacktest(setup);
+  const [ran, quotes] = await Promise.all([runGatedBacktest(setup), holdingQuotes(setupSymbols(setup))]);
+  const response = withQuotes(ran, quotes);
   return NextResponse.json(response, { status: response.ok ? 200 : STATUS[response.error.code] ?? 400 });
 }

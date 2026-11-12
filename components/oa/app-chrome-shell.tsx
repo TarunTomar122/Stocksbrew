@@ -57,11 +57,13 @@ export function AppChromeShell({
             <div className="flex h-14 shrink-0 items-center gap-3 border-t border-oa-border px-4">{sidebarAccount}</div>
           </aside>
 
-          <header className="sticky top-0 z-40 flex h-[52px] items-center justify-between border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_88%,transparent)] px-4 py-2 backdrop-blur-xl lg:hidden">
-            <Link prefetch={false} href="/" className="text-oa-fg">
-              <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
+          {/* Under 380px the wordmark goes (screen readers still hear it) and the gaps tighten, so search, Ask, the
+              bell and Start free always fit whole on the smallest phones (council, round 3: clipped at 320). */}
+          <header className="sticky top-0 z-40 flex h-[52px] items-center justify-between gap-2 border-b border-oa-border bg-[color-mix(in_srgb,var(--oa-page)_88%,transparent)] px-4 py-2 backdrop-blur-xl max-[379px]:px-3 lg:hidden">
+            <Link prefetch={false} href="/" className="shrink-0 text-oa-fg">
+              <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight max-[379px]:sr-only" />
             </Link>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2 max-[379px]:gap-1.5">
               <OaHeaderSearchButton />
               <AskPanelButton variant="pill" />
               <InboxBell variant="topbar" />

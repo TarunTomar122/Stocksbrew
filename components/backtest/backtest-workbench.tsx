@@ -5,7 +5,9 @@ import type { GatedBacktestResponse } from "@/lib/backtest/gated";
 import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
+import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
 import { StockLogo } from "@/components/stock-logo";
+import type { HoldingQuote } from "@/lib/backtest/quotes";
 import type { BacktestRun } from "@/lib/backtest";
 import {
   BENCHMARK_OPTIONS,
@@ -18,7 +20,7 @@ import { EXAMPLE_MIXES } from "@/lib/backtest/examples";
 import type { WeightsRebalance } from "@/lib/backtest/types";
 
 import { EquityChart } from "./equity-chart";
-import { longDay, plainPct, signedPct, toneOf } from "./format";
+import { longDay, money, plainPct, signedPct, toneOf } from "./format";
 import { START_MONEY } from "@/lib/backtest-insights";
 import type { Caveat } from "@/lib/backtest/types";
 
@@ -52,35 +54,56 @@ function hindsightSentence(caveats: Caveat[], example: boolean): string | undefi
   return "You picked these tickers today, knowing how they turned out, so read this as a description of the past.";
 }
 
-/** Holdings as cards: the logo, its own return big, and how its share of the mix moved. Rows fill edge to edge. */
-function HoldingCards({ run }: { run: BacktestRun }) {
+/**
+ * Holdings as cards: the logo, its price and move today beside it (owner rule 4), its own return over the test big,
+ * and how its share of the mix moved. Equal columns that fill the row; past three rows one quiet "Show N more"
+ * (a card grid never scrolls inside its box).
+ */
+function HoldingCards({ run, quotes }: { run: BacktestRun; quotes: Record<string, HoldingQuote> | undefined }) {
   return (
-    <div className="max-h-[22rem] overflow-y-auto p-3">
-      <ul className="flex flex-wrap gap-2">
-        {run.holdings.map((holding) => (
-          <li key={holding.symbol} className="min-w-[7.75rem] flex-1 basis-[calc(50%-0.5rem)]">
-            {/* Not a link: funds such as TLT or GLD have no stock page. */}
-            <div className="h-full rounded-md border border-oa-border bg-oa-bg px-3 py-2.5">
-            <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-oa-fg">
-              <StockLogo ticker={holding.symbol} size={20} />
-              <span className="oa-mono">{holding.symbol}</span>
-            </span>
-            <p className={`oa-mono mt-1.5 text-[20px] font-medium leading-7 tabular-nums ${toneOf(holding.total_return)}`}>{signedPct(holding.total_return, 0)}</p>
-            <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">
-              {plainPct(holding.weight, 0)} of the mix, {plainPct(holding.end_weight, 0)} at the end
-            </p>
-            {holding.last_price_date && holding.last_price_date < run.period.end ? (
-              <p className="mt-0.5 text-[12px] text-oa-muted-fg">Last price {longDay(holding.last_price_date)}</p>
-            ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className="p-3">
+      {/* Two holdings share the row in halves; three or more go three (four on wide screens) to a row. */}
+      <ShowMoreGrid
+        count={run.holdings.length}
+        label="What each holding did"
+        className={`grid grid-cols-2 gap-2 ${run.holdings.length >= 3 ? "sm:grid-cols-3 2xl:grid-cols-4" : ""}`}
+      >
+        {run.holdings.map((holding) => {
+          const quote = quotes?.[holding.symbol.toUpperCase()];
+          return (
+            <li key={holding.symbol} className="min-w-0">
+              {/* Not a link: funds such as TLT or GLD have no stock page. */}
+              <div className="h-full rounded-md border border-oa-border bg-oa-bg px-3 py-2.5">
+                {/* The price wraps under the ticker on a narrow card rather than cutting the ticker short. */}
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-medium text-oa-fg">
+                    <StockLogo ticker={holding.symbol} size={20} eager />
+                    <span className="oa-mono">{holding.symbol}</span>
+                  </span>
+                  {quote ? (
+                    <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[12.5px] tabular-nums">
+                      <span className="text-oa-fg">{money(quote.price)}</span>
+                      {quote.dayPct !== null ? <span className={toneOf(quote.dayPct)}>{signedPct(quote.dayPct / 100)}</span> : null}
+                    </span>
+                  ) : null}
+                </div>
+                <p className={`oa-mono mt-1.5 text-[20px] font-medium leading-7 tabular-nums ${toneOf(holding.total_return)}`}>{signedPct(holding.total_return, 0)}</p>
+                <p className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">
+                  {plainPct(holding.weight, 0)} of the mix, {plainPct(holding.end_weight, 0)} at the end
+                </p>
+                {holding.last_price_date && holding.last_price_date < run.period.end ? (
+                  <p className="mt-0.5 text-[12px] text-oa-muted-fg">Last price {longDay(holding.last_price_date)}</p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ShowMoreGrid>
     </div>
   );
 }
 
-function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
+function ResultView({ run, example, quotes }: { run: BacktestRun; example: boolean; quotes: Record<string, HoldingQuote> | undefined }) {
   const benchmark = run.input.benchmark;
   const s = run.summary.strategy;
   const b = run.summary.benchmark;
@@ -120,9 +143,12 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
         <p className="border-t border-oa-border px-4 py-2.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{note}</p>
       </Panel>
 
+      {/* Two figures a row until the main column is wide enough for four, each pair of bars named short ("Mix", the
+          comparison) so names, bars and figures fit whole. */}
       <StatGrid
         headline={false}
-        strategyLabel={example ? "60/40 mix" : "Your mix"}
+        columns="sm:grid-cols-2 xl:grid-cols-4"
+        strategyLabel="Mix"
         strategy={s}
         benchmark={b}
         benchmarkLabel={benchmark}
@@ -131,26 +157,9 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
         hitRate={run.hit_rate}
         turnover={run.turnover.annual}
       />
-    </div>
-  );
-}
 
-/**
- * The year table and the holdings, under the mix in the right column on a wide screen, so the column runs as far
- * down as the read, the chart and the figures beside it (owner rule 4). Each panel is as tall as its content.
- */
-function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
-  const benchmark = run.input.benchmark;
-  return (
-    <>
-      <Panel title="Year by year">
-        {/* About eight years tall; older years scroll inside. */}
-        <div className="max-h-[21rem] overflow-y-auto">
-          <YearTable years={run.years} benchmarkLabel={benchmark} strategyLabel={example ? "60/40" : "Your mix"} />
-        </div>
-      </Panel>
       <Panel title="What each holding did">
-        <HoldingCards run={run} />
+        <HoldingCards run={run} quotes={quotes} />
         {/* Only what it cost the investor, not how the test traded (owner rule 8); nothing when the cost rounds to nothing. */}
         {run.costs.total_drag >= 0.0005 ? (
           <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
@@ -158,7 +167,19 @@ function ResultSide({ run, example }: { run: BacktestRun; example: boolean }) {
           </p>
         ) : null}
       </Panel>
-    </>
+    </div>
+  );
+}
+
+/**
+ * The year table, under the mix in the right column on a wide screen, so the column runs about as far down as the
+ * chart, the figures and the holdings beside it (owner rule 4). About eight years tall; older years scroll inside.
+ */
+function ResultSide({ run }: { run: BacktestRun }) {
+  return (
+    <Panel title="Year by year">
+      <YearTable years={run.years} benchmarkLabel={run.input.benchmark} strategyLabel="Mix" gap={false} />
+    </Panel>
   );
 }
 
@@ -360,9 +381,16 @@ export function BacktestWorkbench({
             <span />
             {rows.map((row, index) => (
               <React.Fragment key={row.id}>
+                {/* The ticker's logo inside its field (owner VISUALS CHECK: every stock shows its logo). */}
+                <span className="relative block min-w-0">
+                  {cleanTicker(row.symbol) ? (
+                    <span className="pointer-events-none absolute left-2.5 top-1/2 flex -translate-y-1/2">
+                      <StockLogo ticker={cleanTicker(row.symbol)!} size={18} eager />
+                    </span>
+                  ) : null}
                 <input
                   aria-label={`Ticker ${index + 1}`}
-                  className={`${FIELD} oa-mono uppercase`}
+                  className={`${FIELD} oa-mono uppercase ${cleanTicker(row.symbol) ? "pl-9" : ""}`}
                   placeholder="AAPL"
                   value={row.symbol}
                   maxLength={12}
@@ -371,6 +399,7 @@ export function BacktestWorkbench({
                   spellCheck={false}
                   onChange={(event) => update(row.id, { symbol: event.target.value.toUpperCase() })}
                 />
+                </span>
                 <input
                   aria-label={`Weight for ticker ${index + 1}`}
                   className={`${FIELD} oa-mono text-right tabular-nums`}
@@ -425,15 +454,22 @@ export function BacktestWorkbench({
               ))}
             </select>
           </label>
+          {/* The comparison gets the wider share of its row, so its logo and name fit beside each other. */}
+          <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_7.5rem] gap-x-2">
           <label className="min-w-0">
             <span className="oa-caption">Compare with</span>
-            <select className={`${FIELD} mt-1`} value={benchmark} onChange={(event) => setBenchmark(event.target.value)}>
-              {benchmarkOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <span className="relative mt-1 block">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 flex -translate-y-1/2">
+                <StockLogo ticker={benchmark} size={18} eager />
+              </span>
+              <select className={`${FIELD} pl-9`} value={benchmark} onChange={(event) => setBenchmark(event.target.value)}>
+                {benchmarkOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </span>
           </label>
           <label className="min-w-0">
             <span className="oa-caption">Cost per trade</span>
@@ -442,6 +478,7 @@ export function BacktestWorkbench({
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-oa-muted-fg">% a trade</span>
             </span>
           </label>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-oa-border px-3.5 py-2.5">
@@ -460,7 +497,7 @@ export function BacktestWorkbench({
           </p>
         ) : null}
       </form>
-      {response?.ok ? <ResultSide run={response.result} example={showingExample} /> : null}
+      {response?.ok ? <ResultSide run={response.result} /> : null}
       </div>
 
       <div ref={resultRef} className="min-w-0 scroll-mt-16">
@@ -496,7 +533,7 @@ export function BacktestWorkbench({
           </div>
         ) : response.ok ? (
           <>
-            <ResultView run={response.result} example={showingExample} />
+            <ResultView run={response.result} example={showingExample} quotes={response.quotes} />
             <div className="mt-3 flex flex-col gap-2">
               {response.gate.lookback ? (
                 <LockCard

@@ -10,6 +10,7 @@ import { earliestBacktestStart, runGatedBacktest, type GatedBacktestResponse } f
 import { can } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { getExampleBacktest } from "@/lib/backtest/example";
+import { holdingQuotes, withQuotes } from "@/lib/backtest/quotes";
 import { EXAMPLE_MIXES } from "@/lib/backtest/examples";
 import { DEFAULT_SETUP, parseSetup, setupHref, type BacktestSetup } from "@/lib/backtest/setup";
 import { getStrategy, listStrategies } from "@/lib/strategies";
@@ -94,11 +95,16 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
   // Nothing asked for: open on a real example run instead of an empty form. It runs outside the daily allowance.
   const exampleRun = setup.holdings.length === 0 && !strategySlug && !fromWatchlist ? await examplePending : null;
   if (exampleRun) setup = exampleRun.setup;
-  const response: GatedBacktestResponse | null = exampleRun
-    ? { ok: true, result: exampleRun.run, gate: { plan: viewer.plan, trialEligible: viewer.trialEligible, meter: null, lookback: null } }
-    : setup.holdings.length > 0
-      ? await runGatedBacktest(setup)
-      : null;
+  // Each holding's price today, for its card, loads beside the run; a slow quote read leaves the cards without it.
+  const [ran, quotes] = await Promise.all([
+    exampleRun
+      ? Promise.resolve<GatedBacktestResponse>({ ok: true, result: exampleRun.run, gate: { plan: viewer.plan, trialEligible: viewer.trialEligible, meter: null, lookback: null } })
+      : setup.holdings.length > 0
+        ? runGatedBacktest(setup)
+        : Promise.resolve(null),
+    holdingQuotes(setup.holdings.map((holding) => holding.symbol)),
+  ]);
+  const response: GatedBacktestResponse | null = ran ? withQuotes(ran, quotes) : null;
 
   // The first example is the page's own (no mix in the address); the others open as ordinary links.
   const presets: Preset[] = EXAMPLE_MIXES.map((mix, index) => ({
@@ -120,7 +126,6 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
   const earliest = earliestBacktestStart(viewer.plan);
   const firstDate = dates[0] ? (earliest && earliest > dates[0] ? earliest : dates[0]) : null;
 
-  const lede = "Test a mix of US stocks and funds on past prices, against the market.";
   // The example opens with no notice above it: the picked preset and the form beside the chart already say the mix.
   if (exampleRun) activePreset = "/backtest";
 
@@ -128,7 +133,7 @@ export default async function BacktestPage({ searchParams }: { searchParams: Que
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader />
       <div className={PAGE_FRAME}>
-        <PageHead note={false} full title="Backtest a mix" lede={lede} />
+        <PageHead note={false} full title="Backtest a mix" />
         <BacktestWorkbench
           key={JSON.stringify(setup)}
           initialSetup={setup}

@@ -119,7 +119,7 @@ export function SectorMap({
                         style={{ background: heatFill(value, period) }}
                         className={`block h-full w-full text-oa-fg outline-none transition-[filter] hover:brightness-95 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-ring dark:hover:brightness-110 ${tileClass(words)}`}
                       >
-                        <TileLabel icon={<StockLogo ticker={row.symbol} size={14} />} words={words} priceClassName="text-oa-fg" />
+                        <TileLabel icon={<StockLogo ticker={row.symbol} size={14} atOnce />} words={words} priceClassName="text-oa-fg" />
                       </Link>
                     </div>
                   );
