@@ -185,6 +185,41 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-12 ~08:30 UTC, owner: "such small fixes lol can we get back on doing ambitious things?" → three big builds in parallel (lead)
+
+- The no-new-features rule from the overnight brief is lifted by the owner. They chose all three:
+  - **A. Agent thread home** (/agent): one dated conversation from your agent (morning note, flags with figure, reason and call, next steps as links, quiet runs as one line). The reply box goes to Ask, and plain instructions create real watch agents. Signed-in / lands there; the example thread is shown signed out.
+  - **B. Results night switched on:** fix its 9 open bugs, keep the RESULTS_NIGHT gate safe to flip, and report the VPS steps for revenue/guidance.
+  - **C. Bring your holdings in:** CSV import for the big US brokers (Fidelity, Schwab, Vanguard, Robinhood, E*TRADE, IBKR, Webull, M1), paste parsing, column mapping, a merge-only review, and obvious entry points on My stocks and in onboarding.
+- Each builder owns separate directories. They report y/x ranges so the before/after images can be boxed.
+
+### 2026-11-12 ~08:20 UTC, ship 54 live (46985a2): an agent rail that says what it found, a JPM call that can't be misread (lead)
+
+- **Round 23A.**
+  - The agent rail on the briefing and My stocks opens with "Flagged NVDA, down 5.5% to $168.89 on Nov 10. Earnings and filings were quiet."
+  - Rows show full names with their own times.
+  - Normal-day multiples appear only from about 2× up, as "About twice its normal 1.0% day", and the 1.3× stamps are gone.
+  - The memo bars are removed.
+  - The NVDA flag is identical on the three pages and links to /stock/NVDA#call.
+- **Round 23B.**
+  - **JPM:** signed out, the call line reads "Buy more on a dip to our buy price, which is under today's $343." A test checks that only today's price appears as a dollar figure.
+  - **Calendar:** "Each figure is how the stock moved after its last report." is said once. Phone days show their reports in a bounded list with Beat/Missed chips. IPO tickers have logos.
+  - **News:** every ranked row has a tone (verified, Mixed, No clear lean, Too few stories to say). The feed continues with new companies.
+  - **Market today:** US10Y reads "up 0.10 points", and the Options card uses plain bets-on-a-rise/fall wording.
+  - **Backtest:** the headline is "The 60/40 mix gained 19.6% since Nov 2021.", and the stats are written as two plain sentences.
+- **Checks:** 2945 tests in both modes, tsc and eslint clean, QA passes fixed. VPS pulled.
+- **Judges on live 54** (scratchpad/judge54):
+  - Codex: UI 7, UX 7.5, usability 7, wording 7.5, agent feel 7, similarity 7, sell 7, overall 7.
+  - Cursor: UI 7, UX 7, usability 7, wording 8, agent feel 7, similarity 6, sell 7, overall 7.
+  - Both still read it as "a collection of reports, not a personal assistant". This is the case for build A (the agent thread).
+  - Small asks to fold into the next polish pass:
+    - The "about twice its normal day" sentence repeats across 4 cards.
+    - The "Example" line sits above headlines.
+    - The calendar cards repeat the heading.
+    - Scraped casing on FPT/Gartner/"$3 Billion".
+    - The briefing cards are padded to equal height.
+- Before/after pairs, boxed: scratchpad/ba54/*.png (shown to the owner).
+
 ### 2026-11-12 ~07:45 UTC, ship 53 live (4c3ab0a): the agent log back in the rail, shared comparisons said once (lead, overnight loop)
 
 - **Ship 53 (round 22A).**

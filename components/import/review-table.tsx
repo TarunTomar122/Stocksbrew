@@ -11,12 +11,14 @@ const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(i
 const INPUT = `oa-mono h-9 w-full min-w-0 rounded border border-oa-border bg-oa-card px-2 text-right text-[13px] tabular-nums text-oa-fg placeholder:text-oa-muted-fg ${FOCUS}`;
 
 /** Look a typed ticker up in the same index the import checks against, with the same aliases (GOOG is GOOGL). */
-async function lookupTicker(typed: string): Promise<{ instrument_id: string; ticker: string; name: string } | null> {
+type Found = { instrument_id: string; ticker: string; name: string; price?: number };
+
+async function lookupTicker(typed: string): Promise<Found | null> {
   const q = typed.trim().toUpperCase().replace(/^\$/, "");
   if (!q) return null;
   async function exact(symbol: string) {
     const res = await fetch(`/api/search-index?market=US&limit=8&q=${encodeURIComponent(symbol)}`);
-    const data = (await res.json()) as { entries?: Array<{ instrument_id: string; ticker: string; name: string }> };
+    const data = (await res.json()) as { entries?: Found[] };
     const alt = symbol.replace(/[-/ ]/g, ".");
     return data.entries?.find((entry) => entry.ticker.toUpperCase() === symbol || entry.ticker.toUpperCase() === alt) ?? null;
   }
@@ -89,7 +91,7 @@ function NumberField({
   );
 }
 
-function TickerFix({ row, onResolved }: { row: ImportRow; onResolved: (entry: { instrument_id: string; ticker: string; name: string } | null, typed: string) => void }) {
+function TickerFix({ row, onResolved }: { row: ImportRow; onResolved: (entry: Found | null, typed: string) => void }) {
   const [typed, setTyped] = useState(row.status === "unknown" ? row.ticker ?? "" : "");
   const [busy, setBusy] = useState(false);
   const [missed, setMissed] = useState(false);
@@ -179,8 +181,15 @@ function StockCell({
           onResolved={(entry, typed) => {
             if (entry) {
               setFixing(false);
-              update({ status: "matched", instrument_id: entry.instrument_id, ticker: entry.ticker, name: entry.name, confidence: row.confidence === "low" ? "medium" : row.confidence });
-            } else update({ status: "unknown", instrument_id: null, ticker: typed.trim().toUpperCase() || row.ticker });
+              update({
+                status: "matched",
+                instrument_id: entry.instrument_id,
+                ticker: entry.ticker,
+                name: entry.name,
+                price: typeof entry.price === "number" && entry.price > 0 ? entry.price : null,
+                confidence: row.confidence === "low" ? "medium" : row.confidence,
+              });
+            } else update({ status: "unknown", instrument_id: null, ticker: typed.trim().toUpperCase() || row.ticker, price: null });
           }}
         />
         <span className="text-pretty text-[12.5px] leading-4 text-oa-muted-fg">
@@ -217,7 +226,7 @@ function StockCell({
         <span className="block text-pretty text-[12.5px] leading-4 text-oa-muted-fg">{row.name}</span>
         {row.status === "suggested" ? (
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] leading-4 text-oa-label">
-            Your screen said {row.raw}. Is it {row.ticker}?
+            We read {row.raw}. Is it {row.ticker}?
             <button
               type="button"
               onClick={() => update({ status: "matched" })}
@@ -240,6 +249,13 @@ function StockCell({
       </div>
     </div>
   );
+}
+
+/** The row's shares at today's price; nothing for a stock we do not cover or a row without shares. */
+function valueToday(row: ImportRow, repeat: boolean): string {
+  if (row.status === "unknown" || repeat || row.shares === null || typeof row.price !== "number" || !(row.price > 0)) return "";
+  const value = row.shares * row.price;
+  return value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: value >= 1000 ? 0 : 2 });
 }
 
 function fmtShares(value: number): string {
@@ -327,6 +343,8 @@ export function ReviewTable({
   for (const row of rows) if (row.instrument_id && row.status !== "unknown" && !firstKey.has(row.instrument_id)) firstKey.set(row.instrument_id, row.key);
   const isRepeat = (row: ImportRow) => Boolean(row.instrument_id && row.status !== "unknown" && firstKey.get(row.instrument_id) !== row.key);
   const ready = firstKey.size;
+  // The value column only shows when some row has shares and a price (a list of tickers alone has neither).
+  const valued = rows.some((row) => valueToday(row, isRepeat(row)) !== "");
   const leftOut = rows.filter((row) => row.status === "unknown").length;
   const toCheck = rows.filter((row) => !isRepeat(row) && (row.status === "suggested" || (row.status === "matched" && row.confidence !== "high"))).length;
   // Held with saved numbers: the ones "keep" protects. A holding without shares just gets them filled in.
@@ -358,6 +376,7 @@ export function ReviewTable({
               <th className="oa-caption px-3 py-2 font-normal">Stock</th>
               <th className="oa-caption w-32 px-2 py-2 text-right font-normal">Shares</th>
               <th className="oa-caption w-36 px-2 py-2 text-right font-normal">Average cost</th>
+              {valued ? <th className="oa-caption w-28 px-2 py-2 text-right font-normal">Value today</th> : null}
               <th className="w-12 px-2 py-2">
                 <span className="sr-only">Remove</span>
               </th>
@@ -375,6 +394,7 @@ export function ReviewTable({
                 <td className="px-2 py-2.5">
                   <NumberField label={`Average cost of ${row.ticker ?? row.raw}`} value={row.average_cost} placeholder="$ per share" max={LIMITS.price} disabled={lockedFields(row, heldOf(row)).cost} onChange={(average_cost) => update(row.key, { average_cost })} />
                 </td>
+                {valued ? <td className="oa-mono px-2 py-2.5 text-right text-[13px] leading-9 tabular-nums text-oa-fg">{valueToday(row, isRepeat(row))}</td> : null}
                 <td className="px-2 py-2.5 text-right">
                   <RemoveButton label={row.ticker ?? row.raw} onClick={() => onChange(rows.filter((item) => item.key !== row.key))} />
                 </td>
@@ -390,7 +410,7 @@ export function ReviewTable({
               <StockCell row={row} canRequest={canRequest} held={heldOf(row)} repeat={isRepeat(row)} update={(patch) => update(row.key, patch)} />
               <RemoveButton label={row.ticker ?? row.raw} onClick={() => onChange(rows.filter((item) => item.key !== row.key))} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${valued ? "grid-cols-3" : "grid-cols-2"}`}>
               <label className="flex flex-col gap-1">
                 <span className="oa-caption">Shares</span>
                 <NumberField label={`Shares of ${row.ticker ?? row.raw}`} value={row.shares} placeholder="Shares" max={LIMITS.shares} disabled={lockedFields(row, heldOf(row)).shares} onChange={(shares) => update(row.key, { shares })} />
@@ -399,6 +419,12 @@ export function ReviewTable({
                 <span className="oa-caption">Average cost</span>
                 <NumberField label={`Average cost of ${row.ticker ?? row.raw}`} value={row.average_cost} placeholder="$ per share" max={LIMITS.price} disabled={lockedFields(row, heldOf(row)).cost} onChange={(average_cost) => update(row.key, { average_cost })} />
               </label>
+              {valued ? (
+                <div className="flex flex-col gap-1">
+                  <span className="oa-caption text-right">Value today</span>
+                  <span className="oa-mono h-9 text-right text-[13px] leading-9 tabular-nums text-oa-fg">{valueToday(row, isRepeat(row))}</span>
+                </div>
+              ) : null}
             </div>
           </li>
         ))}

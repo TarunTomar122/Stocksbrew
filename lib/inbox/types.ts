@@ -56,6 +56,8 @@ export type InboxItem = {
    * moves against that baseline.
    */
   move?: InboxMove | null;
+  /** A results row's words for the read above the list (lib/inbox/words.ts resultsItem); absent on every other item. */
+  result?: InboxResult | null;
   /**
    * The read above the list already says all of it (lib/inbox/read.ts rowsAfterRead): the page draws no row for it,
    * but it still counts as shown, so opening the page reads it.
@@ -70,6 +72,18 @@ export type InboxStockRead = {
   figures: Array<{ value: string; tone: InboxTone; text: string }>;
   /** What else the read says about it and the rest of the week, in a quiet line; null when nothing. */
   note: string | null;
+};
+
+/**
+ * What the read needs from a results row (lib/results): its short headline, the row's sentence without the move (for
+ * when the headline says the move), the signed move for ranking, the move in a few words, and where our call stands.
+ */
+export type InboxResult = {
+  headline: string;
+  figures: string;
+  movePct: number | null;
+  moveWords: string | null;
+  call: { status: "changed" | "held"; call: string } | null;
 };
 
 /** `close`: the price the move ended at, when the finding said it, so the read can end on it (judges, ship 50). */

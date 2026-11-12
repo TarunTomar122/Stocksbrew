@@ -6,9 +6,9 @@ import { getPremarketMovers } from "@/lib/premarket";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 
-import { buildResult, daysApart, eventFromDoc, previousTradingDay, type LiveQuote, type PremarketQuote, type PriceMeta, type ResultEvent } from "./build";
+import { buildResult, daysApart, eventFromDoc, isOvernight, previousTradingDay, reactionDay, type LiveQuote, type PremarketQuote, type PriceMeta, type ResultEvent } from "./build";
 import { RESULTS_DAYS, type ResultRead, type ResultSummary } from "./types";
-import { summarize } from "./words";
+import { briefingResultFact, summarize } from "./words";
 
 /**
  * Results night loaders. Cached reads only; nothing here calls a model.
@@ -71,7 +71,7 @@ async function readRecentEventsUncached(since: string, today: string): Promise<R
   return [...byKey.values()].sort((a, b) => b.date.localeCompare(a.date) || a.ticker.localeCompare(b.ticker));
 }
 
-const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v1"], { revalidate: 600 });
+const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v2"], { revalidate: 600 });
 
 /** Reported rows from the last two weeks, newest first. */
 /**
@@ -98,6 +98,13 @@ function newestPerTicker(events: ResultEvent[], tickers: Set<string> | null, sin
   return out;
 }
 
+/** New York wall clock as HHMM (9:30 is 930). */
+function nyClock(now: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return get("hour") * 100 + get("minute");
+}
+
 /* ── one stock ──────────────────────────────────────────────────────────── */
 
 async function readResultUncached(ticker: string, date: string, today: string): Promise<ResultRead | null> {
@@ -111,7 +118,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
       [`tm_price_history_daily/${key}`, `tm_latest_prices/US_${key}`, `tm_call_stability/US_${key}`, `tm_earnings_day/${key}__${date}`],
       ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read"],
     ),
-    getPremarketMovers("US").catch(() => null),
+    getPremarketMovers("US").catch((error: unknown) => ({ failed: error }) as const),
   ]);
   const history = earnings.get(ticker);
   // A failed history read throws, so a read without its usual move is never what everyone gets for two minutes.
@@ -125,9 +132,16 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   const pct = quoteDoc?.quote?.day_change_pct;
   const capturedAt = quoteDoc?.captured_at ?? quoteDoc?.quote?.captured_at;
   const quote: LiveQuote | null = typeof pct === "number" && Number.isFinite(pct) && typeof capturedAt === "string" ? { pct, capturedAt } : null;
-  const prePct = premarket?.by_ticker?.[ticker]?.pre_market_change_pct;
+  if (premarket && "failed" in premarket) {
+    // The pre-market quote is the move only before the open on the reaction day; then a failed read must not be
+    // cached for everyone as a read with no move. Any other time the read does not use it.
+    const now = new Date();
+    if (event.session !== "unknown" && reactionDay(event.date, event.session) === today && nyClock(now) < 930) throw new Error(`results: pre-market read failed for ${ticker}`);
+  }
+  const pre = premarket && !("failed" in premarket) ? premarket : null;
+  const prePct = pre?.by_ticker?.[ticker]?.pre_market_change_pct;
   const premarketQuote: PremarketQuote | null =
-    premarket && typeof prePct === "number" && Number.isFinite(prePct) ? { pct: prePct, date: String(premarket.date ?? "").slice(0, 10), at: premarket.generated_at ?? null } : null;
+    pre && typeof prePct === "number" && Number.isFinite(prePct) ? { pct: prePct, date: String(pre.date ?? "").slice(0, 10), at: pre.generated_at ?? null } : null;
   return buildResult({
     event,
     today,
@@ -141,7 +155,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   });
 }
 
-const readResultCached = sharedCache(readResultUncached, ["results-read-v1"], { revalidate: 120 });
+const readResultCached = sharedCache(readResultUncached, ["results-read-v2"], { revalidate: 120 });
 
 /** One stock's read for one report, or null. Throws when a store read fails. */
 export function readResult(ticker: string, date: string, today: string = todayET()): Promise<ResultRead | null> {
@@ -157,23 +171,36 @@ export async function latestResultFor(ticker: string, today: string = todayET())
   return event ? readResult(upper, event.date, today) : null;
 }
 
-/** Full reads for these tickers' reports since `days` days ago (newest report per stock). Failed reads are left out. */
-export async function resultsFor(tickers: readonly string[], options: { days?: number; since?: string; today?: string } = {}): Promise<ResultRead[]> {
-  if (!resultsNightOn()) return [];
+/**
+ * Full reads for these tickers' reports since `days` days ago (newest report per stock), with the stocks whose read
+ * failed. A caller that caches what it builds (the inbox) must not keep a list with a stock missing as if it were whole.
+ */
+export async function resultsForChecked(
+  tickers: readonly string[],
+  options: { days?: number; since?: string; today?: string } = {},
+): Promise<{ reads: ResultRead[]; failed: string[] }> {
+  if (!resultsNightOn()) return { reads: [], failed: [] };
   const today = options.today ?? todayET();
   const wanted = new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean));
-  if (wanted.size === 0) return [];
+  if (wanted.size === 0) return { reads: [], failed: [] };
   const since = options.since ?? shiftDay(today, -(options.days ?? RESULTS_DAYS));
   const events = [...newestPerTicker(await recentEvents(today), wanted, since).values()].slice(0, MAX_STOCKS);
+  const failed: string[] = [];
   const reads = await Promise.all(
     events.map((event) =>
       readResult(event.ticker, event.date, today).catch((error) => {
         console.warn(`[results] ${event.ticker} ${event.date} read failed:`, error instanceof Error ? error.message : error);
+        failed.push(event.ticker);
         return null;
       }),
     ),
   );
-  return reads.filter((read): read is ResultRead => read !== null);
+  return { reads: reads.filter((read): read is ResultRead => read !== null), failed };
+}
+
+/** Full reads for these tickers' reports since `days` days ago (newest report per stock). Failed reads are left out. */
+export async function resultsFor(tickers: readonly string[], options: { days?: number; since?: string; today?: string } = {}): Promise<ResultRead[]> {
+  return (await resultsForChecked(tickers, options)).reads;
 }
 
 /** Summaries by ticker for these stocks' reports in the last `days` days: the planner and the inbox. */
@@ -190,13 +217,35 @@ export async function resultSummaries(tickers: readonly string[], options: { day
 }
 
 /**
- * The briefing's facts: stocks that reported overnight (since the last trading day before today), by ticker.
- * "Beat by 18%, up 26% today".
+ * The briefing's facts: held stocks that reported overnight (after the last session's close, or before today's open),
+ * by ticker. "Beat by 18%, and the move is bigger than usual on results".
+ * A report from before the last session's open is not overnight: that session already traded it.
  */
 export async function overnightResultFacts(tickers: readonly string[], today: string = todayET()): Promise<Record<string, string>> {
   if (!resultsNightOn()) return {};
-  const summaries = await resultSummaries(tickers, { since: previousTradingDay(today), today });
-  return Object.fromEntries(Object.entries(summaries).map(([ticker, summary]) => [ticker, summary.fact]));
+  const wanted = new Set(tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean));
+  if (wanted.size === 0) return {};
+  // Only reports that can be overnight are read in full. A report with no time on the last trading day is read too:
+  // the company's filing may place it after the close (buildResult), and the check below runs on that.
+  const last = previousTradingDay(today);
+  const events = [...newestPerTicker(await recentEvents(today), wanted, last).values()]
+    .filter((event) => isOvernight(event.date, event.session, today) || (event.date === last && event.session === "unknown"))
+    .slice(0, MAX_STOCKS);
+  const reads = await Promise.all(
+    events.map((event) =>
+      readResult(event.ticker, event.date, today).catch((error) => {
+        console.warn(`[results] ${event.ticker} ${event.date} overnight read failed:`, error instanceof Error ? error.message : error);
+        return null;
+      }),
+    ),
+  );
+  const out: Record<string, string> = {};
+  for (const read of reads) {
+    if (!read || !isOvernight(read.reportDate, read.session, today)) continue;
+    const fact = briefingResultFact(read, today);
+    if (fact) out[read.ticker] = fact;
+  }
+  return out;
 }
 
 /**

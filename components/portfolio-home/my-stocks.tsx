@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { PortfolioAskHint } from "@/components/ask/portfolio-ask-hint";
+import { SharesPrompt } from "@/components/import/shares-prompt";
 import { AgentsPanel, AgentsPanelGhost } from "@/components/portfolio-home/agents-panel";
 import { ExampleLine } from "@/components/portfolio-home/home";
 import { BookLead, BookLeadGhost, MemoFigures, StockList, StockListGhost, ToolLinks } from "@/components/portfolio-home/stocks";
@@ -17,6 +18,9 @@ export function MyStocksBody({ load }: { load: HomeLoad }) {
     <>
       <Suspense fallback={null}>
         <ExampleLine load={load} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SharesPrompt load={load} />
       </Suspense>
       {/* How the stocks did, across the page: the stock list then starts level with the rail and takes its height. */}
       <div className="mb-4 lg:mb-5">

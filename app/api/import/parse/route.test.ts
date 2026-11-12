@@ -45,8 +45,9 @@ import { POST } from "./route";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
-function form(fields: { text?: string; images?: Uint8Array[] }) {
+function form(fields: { text?: string; images?: Uint8Array[]; holdings?: string }) {
   const body = new FormData();
+  if (fields.holdings !== undefined) body.append("holdings", fields.holdings);
   if (fields.text !== undefined) body.append("text", fields.text);
   for (const image of fields.images ?? []) body.append("images", new Blob([image as Uint8Array<ArrayBuffer>], { type: "image/png" }), "shot.png");
   return new NextRequest("http://localhost/api/import/parse", { method: "POST", body });
@@ -128,5 +129,56 @@ describe("POST /api/import/parse", () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "model_failed" });
     expect(state.refunds).toBe(1);
+  });
+
+  it("checks holdings a browser read from a CSV, by rules, without the model or the meter", async () => {
+    const holdings = [
+      { ticker: "AAPL", name: "APPLE INC", shares: 50, averageCost: 170, marketValue: 11376, confidence: "high" },
+      { ticker: "ZZZZ", name: null, shares: 3, averageCost: null, marketValue: null, confidence: "medium" },
+      { ticker: "NVDA", name: null, shares: -4, averageCost: 1e12, marketValue: null },
+    ];
+    const res = await POST(form({ holdings: JSON.stringify(holdings) }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ via: "rules", input: "csv" });
+    expect(body.rows.map((r: { ticker: string; status: string; shares: number | null; average_cost: number | null }) => [r.ticker, r.status, r.shares, r.average_cost])).toEqual([
+      ["AAPL", "matched", 50, 170],
+      ["ZZZZ", "unknown", 3, null],
+      // Impossible numbers are dropped, not trusted.
+      ["NVDA", "matched", null, null],
+    ]);
+    expect(state.meterCalls).toEqual([]);
+    expect(state.modelCalls).toBe(0);
+  });
+
+  it("refuses holdings that are not a list, or too many", async () => {
+    expect((await POST(form({ holdings: "{not json" }))).status).toBe(400);
+    expect((await POST(form({ holdings: "{}" }))).status).toBe(400);
+    const many = Array.from({ length: 101 }, () => ({ ticker: "AAPL", shares: 1 }));
+    expect((await POST(form({ holdings: JSON.stringify(many) }))).status).toBe(400);
+  });
+
+  it("answers a pasted broker export with the broker and the lines left out", async () => {
+    const text = ["Symbol,Description,Quantity,Average Cost Basis,Current Value,Account Name", "SPAXX**,HELD IN MONEY MARKET,,,$100.00,Individual", "AAPL,APPLE INC,5,$150.00,$1100.00,Individual"].join("\n");
+    const res = await POST(form({ text }));
+    const body = await res.json();
+    expect(body.csv).toMatchObject({ broker: "fidelity", skipped: [{ label: "SPAXX**", reason: "cash" }] });
+    expect(body.rows.map((r: { ticker: string }) => r.ticker)).toEqual(["AAPL"]);
+    expect(state.modelCalls).toBe(0);
+  });
+
+  it("answers an export of only cash without a model read", async () => {
+    const text = "Symbol,Quantity\nSPAXX**,100";
+    const body = await (await POST(form({ text }))).json();
+    expect(body.rows).toEqual([]);
+    expect(body.csv.skipped).toEqual([{ label: "SPAXX**", reason: "cash" }]);
+    expect(state.modelCalls).toBe(0);
+  });
+
+  it("does not hand the model a long paste it cannot read", async () => {
+    const res = await POST(form({ text: "lorem ipsum ".repeat(2000) }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "text_too_long" });
+    expect(state.meterCalls).toEqual([]);
   });
 });

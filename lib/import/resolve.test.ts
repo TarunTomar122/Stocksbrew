@@ -60,12 +60,12 @@ describe("resolveHoldings", () => {
     expect(row).toMatchObject({ status: "unknown", instrument_id: null, ticker: "VOO", shares: 12, average_cost: 400, confidence: "low" });
   });
 
-  it("never lets two rows land on the same stock", () => {
-    const rows = resolveHoldings([h({ ticker: "GOOGL" }), h({ ticker: "GOOG" })], directory);
-    expect(rows.map((r) => [r.status, r.instrument_id])).toEqual([
-      ["matched", "US_GOOGL"],
-      ["unknown", null],
-    ]);
+  it("adds two rows that land on the same stock into one, with the cost weighted by shares", () => {
+    const rows = resolveHoldings([h({ ticker: "GOOGL", shares: 10, averageCost: 100 }), h({ ticker: "GOOG", shares: 30, averageCost: 140 })], directory);
+    expect(rows.map((r) => [r.status, r.instrument_id, r.shares, r.average_cost, r.confidence])).toEqual([["matched", "US_GOOGL", 40, 130, "medium"]]);
+    // A missing cost on one side leaves the cost unknown rather than guessed.
+    const partial = resolveHoldings([h({ ticker: "GOOGL", shares: 10, averageCost: 100 }), h({ ticker: "GOOG", shares: 5 })], directory);
+    expect(partial.map((r) => [r.shares, r.average_cost])).toEqual([[15, null]]);
   });
 
   it("drops lowercase guesses that are not stocks, and keeps the ones that are", () => {

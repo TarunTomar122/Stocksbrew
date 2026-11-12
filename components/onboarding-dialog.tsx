@@ -25,10 +25,11 @@ const FINISH_HREF = "/portfolio";
 type OnboardingStep = "choose" | "own" | "popular";
 type Kind = "holding" | "watchlist";
 
+// Bringing the real holdings in comes first: with share counts, every page can show what they are worth and what you made.
 const CHOICES: Array<{ id: "own" | "popular" | "import"; title: string; detail: string }> = [
+  { id: "import", title: "Bring your holdings in", detail: "Upload the CSV your broker exports, or paste your list with share counts. You check every row first." },
   { id: "own", title: "Add the stocks you own", detail: "Search by name or ticker and pick as many as you like." },
   { id: "popular", title: "Pick from popular stocks", detail: "Tap the big names you own or want to follow." },
-  { id: "import", title: "Import a screenshot", detail: "Upload a screenshot of your broker app and we read the tickers for you." },
 ];
 
 /** The most widely held US stocks, as a quick start. Resolved against the search index, so a missing one just drops out. */

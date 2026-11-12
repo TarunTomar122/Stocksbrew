@@ -7,6 +7,7 @@
  * the text to the model instead.
  */
 
+import { parseBrokerCsv, type BrokerCsv } from "@/lib/import/brokers";
 import {
   cleanTicker,
   LIMITS,
@@ -17,8 +18,8 @@ import {
   type ParsedHolding,
 } from "@/lib/import/normalize";
 
-/** Longest paste we accept. A full brokerage export of 100 holdings is about 15,000 characters. */
-export const MAX_TEXT_CHARS = 20_000;
+/** Longest paste we accept. A full brokerage export of 100 holdings is 15,000 to 30,000 characters. */
+export const MAX_TEXT_CHARS = 60_000;
 
 type Column = "ticker" | "name" | "shares" | "averageCost" | "costTotal" | "marketValue";
 
@@ -194,9 +195,20 @@ export function parseLines(text: string): ParsedHolding[] {
   return mergeDuplicates(rows).slice(0, MAX_IMPORT_ROWS);
 }
 
-/** CSV when it has a header we know, otherwise line by line. */
-export function parseHoldingsText(text: string): { rows: ParsedHolding[]; input: ImportInput } {
+/** What a broker export said beyond its holdings: which broker, and the lines left out. */
+export type CsvMeta = Omit<BrokerCsv, "rows">;
+
+/**
+ * A broker export first (lib/import/brokers.ts), then a CSV with a header we
+ * know, otherwise line by line.
+ */
+export function parseHoldingsText(text: string): { rows: ParsedHolding[]; input: ImportInput; csv?: CsvMeta } {
   const clipped = text.slice(0, MAX_TEXT_CHARS);
+  const broker = parseBrokerCsv(clipped);
+  if (broker && (broker.rows.length > 0 || broker.skipped.length > 0)) {
+    const { rows, ...meta } = broker;
+    return { rows, input: "csv", csv: meta };
+  }
   const csv = parseCsv(clipped);
   if (csv && csv.length > 0) return { rows: csv, input: "csv" };
   return { rows: parseLines(clipped), input: "text" };

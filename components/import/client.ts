@@ -1,6 +1,9 @@
 "use client";
 
+import { csvTable, MAX_CSV_BYTES, parseBrokerCsv, type BrokerCsv, type CsvTable } from "@/lib/import/brokers";
+import type { ParsedHolding } from "@/lib/import/normalize";
 import type { ImportRow } from "@/lib/import/resolve";
+import type { CsvMeta } from "@/lib/import/text";
 import type { ReadFacts } from "@/lib/import/read-shared";
 import { MAX_BODY_BYTES, MAX_IMAGE_BYTES, MAX_IMAGES } from "@/lib/import/upload";
 
@@ -16,6 +19,8 @@ export type ParseResponse = {
   via: "rules" | "model";
   not_holdings: boolean;
   remaining: number | null;
+  /** A pasted broker export: which broker, and the lines left out. */
+  csv?: CsvMeta;
 };
 
 export type ImportError = { code: string; message: string };
@@ -37,6 +42,10 @@ const MESSAGES: Record<string, string> = {
   too_many: "We read up to 40 stocks at a time. Paste the 40 you care about most and we will read those.",
   decode_failed: "We could not open that image. Try a PNG or JPEG screenshot.",
   network: "The connection dropped. Try again.",
+  csv_too_big: "That file is bigger than a holdings export. Download just the positions and try again.",
+  not_csv: "That file is not a CSV. Most brokers have a Download or Export button on the positions screen that saves one.",
+  spreadsheet: "That is a spreadsheet file. Save it as CSV first (File, Save as, CSV), then drop it here.",
+  unreadable_csv: "We could not find a header row with tickers in that file. Try the positions download from your broker.",
 };
 
 export function importMessage(code: string): string {
@@ -121,6 +130,79 @@ export async function parseImport(input: { files: File[]; text: string }): Promi
   } catch {
     return { code: "network", message: importMessage("network") };
   }
+}
+
+/** A spreadsheet in its own format, by extension (Windows also labels .csv files as Excel, so the type is not used). */
+export function isSpreadsheetFile(file: File): boolean {
+  return /\.(xlsx|xlsm|xls|numbers|ods)$/i.test(file.name);
+}
+
+/** A file that is a CSV (or a tab or text export) rather than a screenshot or a spreadsheet. */
+export function isCsvFile(file: File): boolean {
+  if (isSpreadsheetFile(file)) return false;
+  return /\.(csv|tsv|txt)$/i.test(file.name) || /^text\/(csv|tab-separated-values|plain)$/.test(file.type) || file.type === "application/vnd.ms-excel";
+}
+
+export type CsvFileRead =
+  | { kind: "parsed"; csv: BrokerCsv }
+  | { kind: "map"; table: CsvTable }
+  /** A text file that is not a CSV: read like pasted text. */
+  | { kind: "text"; text: string }
+  | ImportError;
+
+/**
+ * Read a dropped or chosen CSV in this browser. A broker export (or a CSV
+ * with a ticker and a shares column) comes back read; any other CSV comes
+ * back as a table for the person to pick its two columns, and a .txt file
+ * that is not one comes back as text, to read like a paste. The file itself
+ * is never uploaded: only the holdings read from it are sent to be checked.
+ */
+export async function readCsvFile(file: File): Promise<CsvFileRead> {
+  if (isSpreadsheetFile(file)) return { code: "spreadsheet", message: importMessage("spreadsheet") };
+  if (!isCsvFile(file)) return { code: "not_csv", message: importMessage("not_csv") };
+  if (file.size > MAX_CSV_BYTES) return { code: "csv_too_big", message: importMessage("csv_too_big") };
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    return { code: "not_csv", message: importMessage("not_csv") };
+  }
+  const csv = parseBrokerCsv(text);
+  if (csv && (csv.rows.length > 0 || csv.skipped.length > 0)) return { kind: "parsed", csv };
+  if (/\.txt$/i.test(file.name) || file.type === "text/plain") return text.trim() ? { kind: "text", text } : { code: "unreadable_csv", message: importMessage("unreadable_csv") };
+  const table = csvTable(text);
+  if (table) return { kind: "map", table };
+  return { code: "unreadable_csv", message: importMessage("unreadable_csv") };
+}
+
+/** Holdings read from a CSV in this browser, checked against the stocks we cover (rules only, no model read). */
+export async function checkHoldings(holdings: ParsedHolding[]): Promise<ParseResponse | ImportError> {
+  const form = new FormData();
+  form.append("holdings", JSON.stringify(holdings.map(({ ticker, name, shares, averageCost, marketValue, confidence, currency }) => ({ ticker, name, shares, averageCost, marketValue, confidence, currency }))));
+  try {
+    const res = await fetch("/api/import/parse", { method: "POST", body: form });
+    const data = (await res.json().catch(() => ({}))) as Partial<ParseResponse> & { error?: string };
+    if (!res.ok || !Array.isArray(data.rows)) {
+      const code = data.error ?? "error";
+      return { code, message: importMessage(code) };
+    }
+    return data as ParseResponse;
+  } catch {
+    return { code: "network", message: importMessage("network") };
+  }
+}
+
+/** What the included rows are worth at today's prices, and how many of them have both shares and a price. */
+export function rowsValue(rows: ImportRow[]): { value: number; priced: number } {
+  let value = 0;
+  let priced = 0;
+  for (const row of includedRows(rows)) {
+    if (row.shares !== null && typeof row.price === "number" && row.price > 0) {
+      value += row.shares * row.price;
+      priced += 1;
+    }
+  }
+  return { value, priced };
 }
 
 export type ReadResponse = ReadFacts & { unknown: string[] };

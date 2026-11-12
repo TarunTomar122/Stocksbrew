@@ -39,7 +39,7 @@ export type InboxResult = {
 
 type Source = { name: string; run: () => Promise<InboxItem[]> };
 
-async function settle(sources: Source[]): Promise<{ lists: InboxItem[][]; missing: string[] }> {
+export async function settle(sources: Source[]): Promise<{ lists: InboxItem[][]; missing: string[] }> {
   const missing: string[] = [];
   const lists = await Promise.all(
     sources.map(async (source) => {
@@ -58,8 +58,11 @@ async function settle(sources: Source[]): Promise<{ lists: InboxItem[][]; missin
         return result;
       } catch (error) {
         missing.push(source.name);
-        console.warn(`[inbox] ${source.name} failed; left out:`, error instanceof Error ? error.message : error);
-        return [];
+        // A source that read some of its records (one stock's results failed) hands them over as `partial`: shown, but
+        // the source still counts as missing, so the inbox is not cached as whole.
+        const partial = (error as { partial?: unknown } | null)?.partial;
+        console.warn(`[inbox] ${source.name} failed; ${Array.isArray(partial) ? "partly " : ""}left out:`, error instanceof Error ? error.message : error);
+        return Array.isArray(partial) ? (partial as InboxItem[]) : [];
       } finally {
         clearTimeout(timer);
       }

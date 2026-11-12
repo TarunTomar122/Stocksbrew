@@ -19,16 +19,28 @@ export const MIN_USUAL = 3;
 const PCT_MIN_ESTIMATE = 0.1;
 const PCT_MAX = 100;
 
-/** "18%" from 18.1, "8.3%" from 8.27, "0.4%" from 0.42. No sign. */
-export function pctWords(value: number): string {
+/**
+ * A percentage's size as the page shows it: whole once it is 10 or more, else one decimal. Every figure, sentence and
+ * comparison rounds through here, so "+25%" in the figure and "up 25%" in the sentence are the same number, and a
+ * ratio is worked out from the numbers on the page.
+ */
+export function shownPct(value: number): number {
   const size = Math.abs(value);
-  return size >= 10 ? `${Math.round(size)}%` : `${size.toFixed(1).replace(/\.0$/, "")}%`;
+  if (!Number.isFinite(size)) return 0;
+  const tenths = Math.round(size * 10) / 10;
+  return tenths >= 10 ? Math.round(size) : tenths;
 }
 
-/** "+25.5%" / "−3.1%". */
+/** "18%" from 18.1, "8.3%" from 8.27, "0.4%" from 0.42, "10%" from 9.96. No sign. */
+export function pctWords(value: number): string {
+  const shown = shownPct(value);
+  return shown >= 10 ? `${shown}%` : `${shown.toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+/** "+25%" / "−3.1%": the same rounding as the words. */
 export function signed(value: number): string {
-  const rounded = Number(Math.abs(value).toFixed(1));
-  return `${rounded === 0 ? "" : value > 0 ? "+" : MINUS}${rounded.toFixed(1)}%`;
+  const shown = shownPct(value);
+  return `${shown === 0 ? "" : value > 0 ? "+" : MINUS}${pctWords(value)}`;
 }
 
 /** "$0.13 a share", "$1 a share". */
@@ -91,12 +103,21 @@ function flat(pct: number): boolean {
   return Math.abs(pct) < 0.05;
 }
 
-/** When the move happened, short: "today", "before the open", "the next day", "on the day", "over two days". */
+/** "today", "yesterday", "on Nov 6": a day said so it reads right wherever the line is shown. */
+function dayWords(day: string, today: string): string {
+  if (day === today) return "today";
+  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
+  return gap === 1 ? "yesterday" : `on ${shortDay(day)}`;
+}
+
+/**
+ * When the move happened, short: "today", "before the open", "yesterday", "on Nov 6", "over two days". Always a real
+ * day, never "the next day": an inbox row or a card has no report day beside it for "next" to count from.
+ */
 export function moveWhen(move: ResultMove, today: string): string {
   if (move.kind === "before_open") return "before the open";
   if (move.kind === "two_days") return "over two days";
-  if (move.day === today) return "today";
-  return move.nextDay ? "the next day" : "on the day";
+  return dayWords(move.day, today);
 }
 
 /** "up 25.5% today", "down 3.1% the next day", "flat before the open". */
@@ -113,16 +134,27 @@ function movePart(move: ResultMove, today: string): string {
   if (move.kind === "day" && move.day === today) return flat(move.pct) ? "the stock closed flat today" : `the stock closed ${upDown(move.pct)} ${size} today`;
   const verb = flat(move.pct) ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${size}`;
   if (move.kind === "two_days") return `the stock ${verb} over the two sessions around it`;
-  return `the stock ${verb} ${move.nextDay ? "the next day" : "on the day"}`;
+  return `the stock ${verb} ${dayWords(move.day, today)}`;
+}
+
+/** The move against the usual report move, from the rounded numbers the page shows; null without enough history. */
+function usualRatio(move: ResultMove): number | null {
+  const usual = move.usualPct;
+  if (usual === null || !(usual > 0) || move.usualCount < MIN_USUAL || flat(move.pct)) return null;
+  const shownUsual = shownPct(usual);
+  return shownUsual > 0 ? shownPct(move.pct) / shownUsual : null;
+}
+
+function timesWords(ratio: number): string {
+  return `about ${(Math.round(ratio * 10) / 10).toFixed(1).replace(/\.0$/, "")} times`;
 }
 
 /** Against the usual report move: "about 2.3 times its usual 11% move after a report". Empty without enough history. */
 export function usualClause(move: ResultMove): string {
-  const usual = move.usualPct;
-  if (usual === null || !(usual > 0) || move.usualCount < MIN_USUAL || flat(move.pct)) return "";
-  const ratio = Math.abs(move.pct) / usual;
-  const its = `its usual ${pctWords(usual)} move after a report`;
-  if (ratio >= 2) return `about ${ratio.toFixed(1).replace(/\.0$/, "")} times ${its}`;
+  const ratio = usualRatio(move);
+  if (ratio === null) return "";
+  const its = `its usual ${pctWords(move.usualPct!)} move after a report`;
+  if (ratio >= 2) return `${timesWords(ratio)} ${its}`;
   if (ratio >= 1.25) return `bigger than ${its}`;
   if (ratio > 0.75) return `about ${its}`;
   return `smaller than ${its}`;
@@ -168,6 +200,61 @@ export function callLine(call: ResultCall, today: string): string {
   if (call.status === "changed") return `We moved our call from ${call.from} to ${call.call} ${call.on === today ? "today" : `on ${shortDay(call.on)}`} after the results.`;
   if (call.status === "held") return `Our call is still ${call.call} after the results.`;
   return `Our call is ${call.call}.`;
+}
+
+/** The move and how it compares, short, for a headline or a card: "about 5 times its usual move after a report". */
+function usualShort(move: ResultMove): string {
+  const ratio = usualRatio(move);
+  if (ratio === null) return "";
+  if (ratio >= 2) return `${timesWords(ratio)} its usual move after a report`;
+  if (ratio >= 1.25) return "bigger than its usual move after a report";
+  if (ratio > 0.75) return "about its usual move after a report";
+  return "smaller than its usual move after a report";
+}
+
+/** "is up 25% today", "rose 10% on Nov 9", "fell 14% yesterday", "is up 4.2% before the open". */
+function movePhrase(move: ResultMove, today: string): string {
+  if (flat(move.pct)) return move.kind === "before_open" ? "is flat before the open" : move.kind === "today" ? "is flat today" : `barely moved ${moveWhen(move, today)}`;
+  const size = pctWords(move.pct);
+  if (move.kind === "before_open") return `is ${upDown(move.pct)} ${size} before the open`;
+  if (move.kind === "today") return `is ${upDown(move.pct)} ${size} today`;
+  if (move.kind === "day" && move.day === today) return `closed ${upDown(move.pct)} ${size} today`;
+  return `${move.pct > 0 ? "rose" : "fell"} ${size} ${moveWhen(move, today)}`;
+}
+
+/**
+ * One short line for the top of the inbox: how the results compared with the estimate in words, the move as its one
+ * number, and how that compares with the stock's usual move after a report. "CRWV lost less than expected and rose 25%
+ * yesterday, bigger than its usual move after a report." Empty without figures.
+ */
+export function resultHeadline(read: ResultRead, today: string): string {
+  const eps = read.eps;
+  let lead = "";
+  if (eps) {
+    if (eps.actual < 0 && eps.expected < 0) lead = eps.verdict === "beat" ? "lost less than expected" : eps.verdict === "miss" ? "lost more than expected" : "lost about what was expected";
+    else lead = eps.verdict === "beat" ? "beat the EPS estimate" : eps.verdict === "miss" ? "missed the EPS estimate" : "matched the EPS estimate";
+  } else if (read.guidance) lead = GUIDANCE_CLAUSE[read.guidance.change];
+  else if (read.revenue) lead = "reported its results";
+  if (!lead) return "";
+  if (!read.move) return `${read.ticker} ${lead}.`;
+  const usual = usualShort(read.move);
+  return `${read.ticker} ${lead} and ${movePhrase(read.move, today)}${usual ? `, ${usual}` : ""}.`;
+}
+
+/**
+ * A held stock's card fact in the morning briefing: the result, and the move against the stock's usual move on results.
+ * The card's big figure is already the day's move, so the chip gives the move's own number only before the open (the
+ * pre-market move, which the figure is not); otherwise it says how big the move was for this stock. Our call is left to
+ * the card: a held call would be the same words on every card that reported (owner rule 1), and a changed call is the
+ * card's own line. "Beat by 30%, and the move is about 5 times its usual on results". Null without figures.
+ */
+export function briefingResultFact(read: ResultRead, today: string): string | null {
+  const fact = resultFact({ ...read, move: read.move?.kind === "before_open" ? read.move : null }, today);
+  if (!fact) return null;
+  const ratio = read.move ? usualRatio(read.move) : null;
+  if (ratio === null) return fact;
+  const size = ratio >= 2 ? `${timesWords(ratio)} its usual` : ratio >= 1.25 ? "bigger than usual" : ratio > 0.75 ? "about its usual size" : "smaller than usual";
+  return `${fact}, and the move is ${size} on results`;
 }
 
 /** The highlighted fact for a card or a row: "Beat by 18%, up 26% today". Null when there are no figures. */

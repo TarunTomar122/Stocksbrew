@@ -63,6 +63,20 @@ export function reactionDay(date: string, session: Session): string {
   return nextTradingDay(date);
 }
 
+/**
+ * The report came out overnight, as the morning briefing means it: after the last session's close or before today's
+ * open (today's evening reports count too, once the briefing is read after them). A report from before the open on
+ * the last trading day was already in that session's price, so it is yesterday's news, not overnight; a report with
+ * no known time on that day cannot be placed and is left out.
+ */
+export function isOvernight(date: string, session: Session, today: string): boolean {
+  if (!DAY_RE.test(date) || date > today) return false;
+  if (date === today) return true;
+  const last = previousTradingDay(today);
+  if (date > last) return true; // a weekend or holiday release
+  return date === last && session === "amc";
+}
+
 /* ── the calendar row ───────────────────────────────────────────────────── */
 
 const num = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -99,10 +113,16 @@ export function basisClash(providerEstimate: number | null, calendarEstimate: nu
   return small === 0 || big / small > 2;
 }
 
-/** Beat, miss or in line, with the same ±1% thresholds as the calendar job (earnings_calendar.surprise_label). */
+/**
+ * Beat, miss or in line, with the same ±1% thresholds as the calendar job (earnings_calendar.surprise_label). Judged on
+ * the exact surprise, never a rounded one (a 0.96% surprise rounded to 1.0% is not a beat), and the surprise is kept
+ * unrounded so the words round it once (./words.ts).
+ */
 export function epsResult(actual: number, expected: number): Pick<ResultEps, "verdict" | "surprisePct"> {
   if (expected === 0) return { verdict: actual > 0 ? "beat" : actual < 0 ? "miss" : "in_line", surprisePct: null };
-  const pct = Math.round(((actual - expected) / Math.abs(expected)) * 1000) / 10;
+  const pct = ((actual - expected) / Math.abs(expected)) * 100;
+  // No float tolerance on purpose: the calendar's own label (lib/tone.ts) compares the same way, so one report never
+  // gets two verdicts on two pages.
   return { verdict: pct >= 1 ? "beat" : pct <= -1 ? "miss" : "in_line", surprisePct: pct };
 }
 
@@ -138,6 +158,10 @@ export function eventFromDoc(raw: Record<string, unknown>): ResultEvent | null {
 }
 
 /* ── the move ───────────────────────────────────────────────────────────── */
+
+/** A quote taken at or after 15:55 New York is the session's last price. */
+const LAST_SNAPSHOT_HOUR = 15;
+const LAST_SNAPSHOT_MINUTE = 55;
 
 export type PriceMeta = { lastDate: string | null; fetchedAt: string | null };
 export type LiveQuote = { pct: number; capturedAt: string };
@@ -181,10 +205,13 @@ export function pickMove(input: {
   const quote = input.quote;
   if (quote && Number.isFinite(quote.pct) && nyDayOf(quote.capturedAt) === endDay) {
     const at = Date.parse(quote.capturedAt);
-    const final = at >= etMs(endDay, 16, 0);
+    // The price job's last snapshot of a session is at 15:59, never at 16:00: once the session is over, a quote from
+    // its last few minutes is how the day ended.
+    const over = endDay < today || now.getTime() >= etMs(endDay, 16, 0);
+    const final = at >= etMs(endDay, 16, 0) || (over && at >= etMs(endDay, LAST_SNAPSHOT_HOUR, LAST_SNAPSHOT_MINUTE));
     const started = at >= etMs(endDay, 9, 30);
     if (started && (final || endDay === today)) {
-      return { pct: quote.pct, kind: final ? "day" : "today", day: endDay, nextDay: session === "amc", source: "live price", asOf: quote.capturedAt };
+      return { pct: quote.pct, kind: final ? "day" : "today", day: endDay, nextDay: session === "amc", source: final ? "last price of the session" : "live price", asOf: quote.capturedAt };
     }
   }
   const premarket = input.premarket;
@@ -202,17 +229,32 @@ export function callWord(value: unknown): ResultCallWord | null {
   return CALL_WORDS[str(value).toLowerCase()] ?? null;
 }
 
+/** A call whose last run is more than this many trading days old is not current: the stock is no longer reviewed. */
+export const CALL_STALE_SESSIONS = 3;
+
+/** The trading day `count` sessions before `day`. */
+function sessionsBefore(day: string, count: number): string {
+  let out = day;
+  for (let i = 0; i < count; i++) out = previousTradingDay(out);
+  return out;
+}
+
 /**
  * Whether the results moved the steady call (backend/call_stability.py). The results count from the day the market
  * first had them; a change on or after it is the results' change, a run on or after it that kept the call means the
  * call held, and before that run the call is only stated.
+ *
+ * The call is only said while it is current: its last run (`session`) within CALL_STALE_SESSIONS trading days of
+ * today. A stock the call engine stopped reviewing keeps an old state whose `updated_at` still moves (other jobs touch
+ * the document), so that stamp never stands for a review: `asOf` is the run's own day, or the change's.
  */
 export function callAfter(stability: Record<string, unknown> | null, date: string, session: Session, today: string): ResultCall | null {
   if (!stability) return null;
   const call = callWord(stability.call);
   if (!call) return null;
+  const ran = str(stability.session);
+  if (!DAY_RE.test(ran) || ran < sessionsBefore(today, CALL_STALE_SESSIONS)) return null;
   const knownOn = session === "amc" ? nextTradingDay(date) : date;
-  const asOf = str(stability.updated_at) || null;
   const changes = Array.isArray(stability.changes) ? (stability.changes as Array<Record<string, unknown>>) : [];
   const change = [...changes].reverse().find((row) => {
     const day = str(row.date);
@@ -222,12 +264,11 @@ export function callAfter(stability: Record<string, unknown> | null, date: strin
     const to = callWord(change.to);
     const from = callWord(change.from);
     if (to && from && to === call && from !== to) {
-      return { status: "changed", call, from, on: str(change.date), reason: str(change.reason) || null, asOf };
+      return { status: "changed", call, from, on: str(change.date), reason: str(change.reason) || null, asOf: str(change.date) };
     }
   }
-  const session_ = str(stability.session);
-  if (DAY_RE.test(session_) && session_ >= knownOn) return { status: "held", call, asOf };
-  return { status: "pending", call, asOf };
+  if (ran >= knownOn) return { status: "held", call, asOf: ran };
+  return { status: "pending", call, asOf: null };
 }
 
 /* ── the release (earnings day job) ─────────────────────────────────────── */
@@ -307,7 +348,8 @@ export function buildResult(input: ResultInput): ResultRead | null {
   if (event.eps) sources.push({ label: "EPS and estimate", source: event.eps.source, url: null, at: event.eps.asOf });
   if (revenue || guidance) sources.push({ label: revenue && guidance ? "Revenue and outlook" : revenue ? "Revenue" : "Outlook", source: "the company's 8-K", url: (revenue ?? guidance)!.url, at: (revenue ?? guidance)!.asOf });
   if (move) sources.push({ label: "Move", source: move.source, url: null, at: move.asOf });
-  if (call) sources.push({ label: "Call reviewed", source: "", url: null, at: call.asOf });
+  // Only a run after the results reviewed the call; a call still waiting for one has no review to date.
+  if (call && call.status !== "pending" && call.asOf) sources.push({ label: "Call reviewed", source: "", url: null, at: call.asOf });
 
   return {
     ticker: event.ticker,

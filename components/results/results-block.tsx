@@ -15,6 +15,16 @@ import { callLine, figureCells, reportedWords, resultSentence, stampWords } from
 
 const TONE = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "text-oa-fg" } as const;
 
+/**
+ * One column per figure from the small breakpoint up, so three figures never leave an empty fourth slot. On a phone,
+ * two columns, and an odd last figure spans the row.
+ */
+const COLUMNS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-2 sm:grid-cols-3", 4: "grid-cols-2 sm:grid-cols-4" };
+
+export function figureColumns(count: number): string {
+  return COLUMNS[Math.min(Math.max(count, 1), 4)]!;
+}
+
 export function ResultsBlock({ read, name, call, today }: { read: ResultRead; name: string; call: string | null; today: string }) {
   const cells = figureCells(read, today);
   const sentence = resultSentence(read, name, today);
@@ -27,9 +37,9 @@ export function ResultsBlock({ read, name, call, today }: { read: ResultRead; na
       meta={`${reportedWords(read, today)}${read.period ? `, ${read.period}` : ""}`}
       bodyClassName="flex flex-col"
     >
-      <dl className={`grid grid-cols-2 border-b border-oa-border ${cells.length >= 3 ? "sm:grid-cols-4" : ""} max-sm:[&>*:last-child:nth-child(odd)]:col-span-2`}>
+      <dl className={`grid ${figureColumns(cells.length)} border-b border-oa-border max-sm:[&>*:last-child:nth-child(odd)]:col-span-2`}>
         {cells.map((cell) => (
-          <div key={cell.label} className="-mb-px border-b border-r border-oa-border px-3.5 py-2.5 last:border-r-0 sm:px-4">
+          <div key={cell.label} className="-mb-px border-b border-r border-oa-border px-3.5 py-2.5 last:border-r-0 max-sm:even:border-r-0 sm:px-4">
             <dt className="oa-caption">{cell.label}</dt>
             <dd className={`oa-mono mt-0.5 text-[20px] font-semibold leading-7 tabular-nums ${TONE[cell.tone]}`}>{cell.value}</dd>
             {cell.sub ? <dd className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{cell.sub}</dd> : null}

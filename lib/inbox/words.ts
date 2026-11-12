@@ -2,7 +2,7 @@ import { instantOf, isBareDay, nyDay, shortDay } from "./merge";
 import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
-import { callLine, resultSentence, resultTone } from "@/lib/results/words";
+import { moveShort, resultHeadline, resultSentence, resultTone } from "@/lib/results/words";
 import { findingClose } from "@/lib/portfolio-home/example-check";
 
 import type { InboxItem, InboxMove, UpcomingReport } from "./types";
@@ -765,32 +765,53 @@ export function memoItem(memo: MemoRecord): InboxItem | null {
 
 /* ── results ────────────────────────────────────────────────────────────── */
 
+/** When a report reached the market, New York wall time: before the open, or the close for after it or an unknown time. */
+function reportWall(read: Pick<ResultRead, "reportDate" | "session">): string {
+  return `${read.reportDate}T${read.session === "bmo" ? "08:00" : "16:00"}`;
+}
+
 /**
- * A stock of theirs reported: the results read (lib/results) in one sentence, with whether our call moved under it.
- * Placed when the result was stored (the EPS actual, else the filing), so the row stays put as the move updates.
+ * A stock of theirs reported: the results read (lib/results) in one sentence. Placed at the report (before the open, or
+ * the close), or when the figures were stored if that was later, so a result that lands after the person last looked is
+ * still new to them. The move in it is said with its own day ("rose 25% yesterday", "fell 14% on Nov 10"), so the row
+ * reads right under whichever day it sits. Where our call stands is said once by the read above the list, never on every
+ * row (owner rule 1).
  */
 export function resultsItem(read: ResultRead, position: Position, mode: Mode, today: string): InboxItem | null {
   const ticker = cleanTicker(read.ticker);
-  const at = instantOf(read.eps?.asOf ?? read.revenue?.asOf ?? read.guidance?.asOf ?? null);
+  const reported = instantOf(reportWall(read));
+  // Never before the figures were stored: a result that lands after the person last looked must still be new to them.
+  const stored = instantOf(read.eps?.asOf ?? read.revenue?.asOf ?? read.guidance?.asOf ?? null);
+  const at = reported && stored && Date.parse(stored) > Date.parse(reported) ? stored : reported;
   if (!ticker || !at) return null;
   const who =
     mode === "example"
       ? `${ticker}, which the example portfolio ${position === "watchlist" ? "is watching" : "holds"},`
       : `${ticker}, which you ${position === "holding" ? "own" : "watch"},`;
   const text = resultSentence(read, who, today);
-  if (!text) return null;
+  const headline = resultHeadline(read, today);
+  if (!text || !headline) return null;
+  const call = read.call && read.call.status !== "pending" ? { status: read.call.status, call: read.call.call } : null;
   return base({
     id: `results:${ticker}:${read.reportDate}`,
     kind: "results",
     at,
+    exact: false,
     tickers: [ticker],
     text,
-    detail: read.call ? callLine(read.call, today) : null,
+    detail: null,
     href: `/stock/${encodeURIComponent(ticker)}`,
     source: "Results",
     tone: resultTone(read),
     weight: 1,
     dedupeKey: `results:${ticker}:${read.reportDate}`,
     thread: `results:${ticker}`,
+    result: {
+      headline,
+      figures: resultSentence({ ...read, move: null }, who, today) || text,
+      movePct: read.move?.pct ?? null,
+      moveWords: read.move ? moveShort(read.move, today) : null,
+      call,
+    },
   });
 }

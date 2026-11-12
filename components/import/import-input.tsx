@@ -2,16 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { isCsvFile, isSpreadsheetFile } from "@/components/import/client";
 import { MAX_IMAGES } from "@/lib/import/upload";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
 export type ImportInputValue = { files: File[]; text: string };
 
+const PICK_BASE = `inline-flex h-10 items-center gap-2 rounded border bg-oa-card px-3.5 text-[14px] font-medium ${FOCUS}`;
+const PICK = `${PICK_BASE} border-oa-border text-oa-fg hover:border-oa-fg/30`;
+/** The CSV pick leads on /import: the same shape, in the accent colour. */
+const PICK_LEAD = `${PICK_BASE} border-oa-primary text-oa-primary hover:bg-[color-mix(in_srgb,var(--oa-primary)_8%,transparent)]`;
+
+const CAMERA = (
+  <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <rect x="2.5" y="4" width="15" height="12" rx="2" />
+    <circle cx="7.5" cy="8.5" r="1.5" />
+    <path d="m3 14 4.5-4 3.5 3 2.5-2 3.5 3" strokeLinejoin="round" />
+  </svg>
+);
+
 /**
  * Screenshots or text in. Drop, choose or paste images (up to four); or paste
  * tickers, a list of holdings or a CSV export. One button reads whatever is
- * there.
+ * there. With `onCsv`, a CSV file (chosen or dropped) is handed straight over
+ * instead, and the box leads with it.
  */
 export function ImportInput({
   busy,
@@ -19,6 +34,8 @@ export function ImportInput({
   submitLabel = "Read my stocks",
   textPlaceholder = "AAPL 10 182.50\nNVDA 25\nMSFT",
   onSubmit,
+  onCsv,
+  incoming,
   note,
 }: {
   busy: boolean;
@@ -26,6 +43,10 @@ export function ImportInput({
   submitLabel?: string;
   textPlaceholder?: string;
   onSubmit: (value: ImportInputValue) => void;
+  /** A CSV or spreadsheet file was chosen or dropped here. Without it the box takes screenshots only. */
+  onCsv?: (file: File) => void;
+  /** Screenshots dropped elsewhere on the page, added to this box. `at` tells one drop from the next. */
+  incoming?: { files: File[]; at: number } | null;
   /** A short line under the button: limits, privacy. */
   note?: React.ReactNode;
 }) {
@@ -37,6 +58,7 @@ export function ImportInput({
   // Previews the browser could not draw (a HEIC on Chrome, a file that is not an image) show as a blank tile.
   const [broken, setBroken] = useState<Set<string>>(new Set());
   const picker = useRef<HTMLInputElement>(null);
+  const csvPicker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const urls = files.map((file) => URL.createObjectURL(file));
@@ -44,9 +66,24 @@ export function ImportInput({
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [files]);
 
+  useEffect(() => {
+    if (incoming?.files.length) add(incoming.files);
+    // Only a new drop adds files; `add` reads the current list each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming?.at]);
+
   function add(list: FileList | File[] | null) {
-    const images = Array.from(list ?? []).filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|heic|heif)$/i.test(file.name));
-    if (images.length === 0) return;
+    const all = Array.from(list ?? []);
+    const sheet = onCsv ? all.find((file) => isCsvFile(file) || isSpreadsheetFile(file)) : undefined;
+    if (sheet) {
+      onCsv!(sheet);
+      return;
+    }
+    const images = all.filter((file) => file.type.startsWith("image/") || /\.(png|jpe?g|webp|heic|heif)$/i.test(file.name));
+    if (images.length === 0) {
+      if (all.length > 0) setLocal(onCsv ? "That file is not a CSV or a screenshot." : "That file is not a screenshot. Use a PNG, JPEG or WebP image.");
+      return;
+    }
     const next = [...files, ...images];
     setLocal(next.length > MAX_IMAGES ? `Up to ${MAX_IMAGES} screenshots at a time. We kept the first ${MAX_IMAGES}.` : null);
     setFiles(next.slice(0, MAX_IMAGES));
@@ -77,36 +114,62 @@ export function ImportInput({
           drag ? "border-oa-primary bg-[color-mix(in_srgb,var(--oa-primary)_6%,transparent)]" : "border-oa-border bg-oa-bg"
         }`}
       >
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <button
-            type="button"
-            onClick={() => picker.current?.click()}
-            className={`inline-flex h-10 items-center gap-2 rounded border border-oa-border bg-oa-card px-3.5 text-[14px] font-medium text-oa-fg hover:border-oa-fg/30 ${FOCUS}`}
-          >
-            <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <rect x="2.5" y="4" width="15" height="12" rx="2" />
-              <circle cx="7.5" cy="8.5" r="1.5" />
-              <path d="m3 14 4.5-4 3.5 3 2.5-2 3.5 3" strokeLinejoin="round" />
-            </svg>
-            {files.length > 0 ? "Add another screenshot" : "Choose screenshots"}
-          </button>
-          <p className="min-w-0 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
-            The holdings screen of your broker app. Drop or paste them here, up to {MAX_IMAGES}.
-          </p>
-          <input
-            ref={picker}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
-            multiple
-            className="sr-only"
-            tabIndex={-1}
-            aria-label="Choose screenshots"
-            onChange={(event) => {
-              add(event.target.files);
-              event.target.value = "";
-            }}
-          />
-        </div>
+        {onCsv ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => csvPicker.current?.click()} className={PICK_LEAD}>
+                <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M5 2.5h6.5L15 6v11.5H5z" strokeLinejoin="round" />
+                  <path d="M11.5 2.5V6H15M7.5 10.5h5M7.5 13.5h5" strokeLinecap="round" />
+                </svg>
+                Upload your broker&apos;s CSV
+              </button>
+              <button type="button" onClick={() => picker.current?.click()} className={PICK}>
+                {CAMERA}
+                {files.length > 0 ? "Add another screenshot" : "Choose screenshots"}
+              </button>
+            </div>
+            <p className="text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+              We read the positions download from Fidelity, Schwab, Vanguard, Robinhood, E*TRADE, Morgan Stanley, Interactive Brokers, Webull and M1, and
+              any other CSV with a ticker and a shares column. Screenshots of your holdings screen work too, up to {MAX_IMAGES}.
+            </p>
+            <input
+              ref={csvPicker}
+              type="file"
+              accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Choose a CSV file"
+              onChange={(event) => {
+                add(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button type="button" onClick={() => picker.current?.click()} className={PICK}>
+              {CAMERA}
+              {files.length > 0 ? "Add another screenshot" : "Choose screenshots"}
+            </button>
+            <p className="min-w-0 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
+              The holdings screen of your broker app. Drop or paste them here, up to {MAX_IMAGES}.
+            </p>
+          </div>
+        )}
+        <input
+          ref={picker}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+          multiple
+          className="sr-only"
+          tabIndex={-1}
+          aria-label="Choose screenshots"
+          onChange={(event) => {
+            add(event.target.files);
+            event.target.value = "";
+          }}
+        />
         {files.length > 0 ? (
           <ul className="flex flex-wrap gap-2" aria-label="Screenshots to read">
             {files.map((file, index) => (

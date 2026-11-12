@@ -264,6 +264,55 @@ function investorsCard(items: InboxItem[]): Insight | null {
   };
 }
 
+/** A results row (lib/inbox/words.ts resultsItem), not the agents' report prep that shares its kind. */
+function isResultRow(item: InboxItem): boolean {
+  return item.kind === "results" && item.id.startsWith("results:") && Boolean(item.result);
+}
+
+const COUNT_WORDS: Record<number, string> = { 2: "both", 3: "all three", 4: "all four", 5: "all five" };
+
+/** Where our call stands after these results, said once for all of them: "Our call stayed the same on both." */
+function resultCallWords(rows: InboxItem[]): string | null {
+  if (rows.length === 1) {
+    const call = rows[0]!.result?.call;
+    if (!call) return null;
+    return call.status === "changed" ? `We moved our call to ${call.call} after the results.` : `Our call is still ${call.call} after the results.`;
+  }
+  const changed = rows.filter((row) => row.result?.call?.status === "changed");
+  const held = rows.filter((row) => row.result?.call?.status === "held");
+  if (changed.length === 0 && held.length === 0) return null;
+  const names = (list: InboxItem[]) => listTickers(list.map((row) => row.tickers[0]!), 4);
+  const kept = held.length === 0 ? "" : held.length === rows.length ? (COUNT_WORDS[rows.length] ?? `all ${rows.length}`) : names(held);
+  if (changed.length === 0) return `Our call stayed the same on ${kept} after the results.`;
+  const moves = changed.map((row) => `${row.tickers[0]} to ${row.result!.call!.call}`);
+  const moved = moves.length === 1 ? moves[0]! : `${moves.slice(0, -1).join(", ")} and ${moves[moves.length - 1]}`;
+  return `After the results we moved our call on ${moved}${kept ? `, and kept it on ${kept}` : ""}.`;
+}
+
+/**
+ * The headline when a stock of theirs has reported since they last looked: results are the news that morning. One
+ * report is told in the headline itself (its row then keeps only the figures); several are named, with the one that
+ * moved most. Where our call stands goes in the line under it, once for all of them.
+ */
+type ResultsLead = { text: string; sub: string | null; ticker: string | null; ids: string[] };
+
+function resultsLead(fresh: InboxItem[], example: boolean): ResultsLead | null {
+  const rows = fresh.filter(isResultRow);
+  if (rows.length === 0) return null;
+  const sub = resultCallWords(rows);
+  if (rows.length === 1) {
+    const only = rows[0]!;
+    return { text: only.result!.headline, sub, ticker: only.tickers[0]!, ids: [only.id] };
+  }
+  const whose = example ? "the example portfolio's" : "your";
+  const ordered = [...rows].sort((a, b) => Math.abs(b.result!.movePct ?? 0) - Math.abs(a.result!.movePct ?? 0) || a.tickers[0]!.localeCompare(b.tickers[0]!));
+  const tickers = ordered.map((row) => row.tickers[0]!);
+  const named = tickers.length <= 3 ? listTickers(tickers) : `${tickers.length} of ${whose} stocks`;
+  const top = ordered[0]!;
+  const text = top.result!.moveWords ? `${named} reported results, and ${top.tickers[0]} moved the most, ${top.result!.moveWords}.` : `${named} reported results.`;
+  return { text, sub, ticker: null, ids: [] };
+}
+
 /**
  * The headline's lead when the news is about prices: how many stocks moved at least twice their normal day on the
  * newest day (one stock: its move itself), and the soonest report coming up. Null when neither applies.
@@ -314,6 +363,8 @@ export type InboxTold = {
   reports: string[];
   /** Stocks whose report day the headline or the line under it names. */
   reportDays?: string[];
+  /** Results rows whose move the headline tells: the row keeps only the figures. */
+  resultIds?: string[];
 };
 
 /**
@@ -362,15 +413,18 @@ export function inboxReadTold(
   example: boolean,
   context: { upcoming?: UpcomingReport[]; today?: string } = {},
 ): { read: TheRead | null; told: InboxTold; stock: InboxStockRead | null } {
-  const told: InboxTold = { moveIds: [], reasonIds: [], reports: [], reportDays: [] };
+  const told: InboxTold = { moveIds: [], reasonIds: [], reports: [], reportDays: [], resultIds: [] };
   const today = context.today ?? null;
   const upcoming = today ? (context.upcoming ?? []) : [];
   if (items.length === 0 && upcoming.length === 0) return { read: null, told, stock: null };
   const fresh = example || !seenAt ? items : items.filter((item) => isUnread(item, seenAt));
   // Two things at most, so the headline stays one short line; the cards and the list carry the rest.
   const said = parts(fresh, example).slice(0, 2);
-  const lead = priceLead(fresh, upcoming, today, example);
+  // A report since they last looked is the news: it leads, ahead of the day's moves and the reports coming up.
+  const results = resultsLead(fresh, example);
+  const lead = results ? null : priceLead(fresh, upcoming, today, example);
   const headline =
+    results?.text ??
     lead?.text ??
     (example
       ? said.length > 0
@@ -380,7 +434,8 @@ export function inboxReadTold(
         ? `Since you last looked, ${joinParts(said)}.`
         : "Nothing new since you last looked.");
   // Prices first (the move, the report coming up), then what else the two weeks add up to; three cards at most.
-  const moves = movesCard(items, today, lead?.moveTicker ?? null);
+  // The headline told one stock's result and its move: the moves card gives that stock's normal day instead.
+  const moves = movesCard(items, today, lead?.moveTicker ?? results?.ticker ?? null);
   const reports = today ? reportsCard(upcoming, today, lead?.reportTicker ?? null) : null;
   const rest = [callsCard(items, example), moves ? null : agentsCard(items, example), investorsCard(items)].filter((card): card is Insight => card !== null);
   // The move and the report on the same stock are one card with two figures, not two cards with one logo.
@@ -397,7 +452,9 @@ export function inboxReadTold(
   // The card tells the history only when it has one (reportsCard): then its row says just the day.
   const reportLead = reports && (stock || insights.includes(reports)) ? upcoming.find((report) => report.ticker === reports.tickers?.[0]) : undefined;
   if (reportLead?.history) told.reports.push(reportLead.ticker);
-  return { read: { headline: capitalise(headline), ...(lead?.sub ? { sub: lead.sub } : {}), insights }, told, stock };
+  if (results) told.resultIds!.push(...results.ids);
+  const sub = results ? results.sub : lead?.sub;
+  return { read: { headline: capitalise(headline), ...(sub ? { sub } : {}), insights }, told, stock };
 }
 
 /**
@@ -427,8 +484,11 @@ function rowsAfterReadAll(items: InboxItem[], upcoming: UpcomingReport[], told: 
   const reasonIds = new Set(told.reasonIds);
   const reports = new Set(told.reports);
   const days = new Set(told.reportDays ?? []);
+  const results = new Set(told.resultIds ?? []);
   return {
     items: items.map((item) => {
+      // The headline tells this result and its move: the row says what was reported against the estimate.
+      if (results.has(item.id) && item.result) return { ...item, text: item.result.figures };
       if (!(moveIds.has(item.id) && item.id.startsWith("move:") && item.move && item.tickers.length === 1)) return item;
       const detail = reasonIds.has(item.id) ? null : item.detail;
       // Nothing left that the read does not say (the move, and its reason when it has one): no row for it (owner

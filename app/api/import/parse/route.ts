@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { anonymousSubject, consumeImportRead, refundImportRead } from "@/lib/import/limits";
 import { resolveHoldings } from "@/lib/import/resolve";
 import { getImportDirectory, getImportViewer } from "@/lib/import/server";
+import { cleanClientHoldings } from "@/lib/import/normalize";
 import { MAX_TEXT_CHARS, parseHoldingsText } from "@/lib/import/text";
 import { MAX_BODY_BYTES, MAX_IMAGE_BYTES, MAX_IMAGES, sniffImage } from "@/lib/import/upload";
 import { importModel, readHoldingsWithModel, type VisionImage } from "@/lib/import/vision";
@@ -13,12 +14,18 @@ import { importModel, readHoldingsWithModel, type VisionImage } from "@/lib/impo
  * live in memory for the one model call and are dropped with the request.
  * Only model reads are counted (lib/import/limits.ts).
  *
- * Form fields: `images` (up to 4 PNG, JPEG or WebP files), `text`.
+ * Form fields: `images` (up to 4 PNG, JPEG or WebP files), `text`, or
+ * `holdings` (JSON rows a browser read from a CSV file, checked by rules only).
  */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/** The rows a browser sends after reading a CSV: 100 rows of ticker, name and three numbers fit well inside this. */
+const MAX_HOLDINGS_JSON = 40_000;
+/** Longest text handed to the model when our rules cannot read it. */
+const MAX_MODEL_TEXT_CHARS = 20_000;
 
 function fail(status: number, error: string, extra: Record<string, unknown> = {}) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -33,6 +40,23 @@ export async function POST(req: NextRequest) {
     form = await req.formData();
   } catch {
     return fail(400, "bad_request");
+  }
+
+  // Holdings the browser already read from a CSV file (lib/import/brokers.ts): checked against the stocks we cover, nothing else.
+  const holdingsRaw = form.get("holdings");
+  if (typeof holdingsRaw === "string" && holdingsRaw) {
+    if (holdingsRaw.length > MAX_HOLDINGS_JSON) return fail(413, "too_large");
+    let list: unknown = null;
+    try {
+      list = JSON.parse(holdingsRaw);
+    } catch {
+      return fail(400, "bad_request");
+    }
+    const holdings = cleanClientHoldings(list);
+    if (!holdings) return fail(400, "bad_request");
+    const directory = await getImportDirectory();
+    if (directory.byTicker.size === 0) return fail(503, "directory_unavailable");
+    return NextResponse.json({ rows: resolveHoldings(holdings, directory), input: "csv", via: "rules", not_holdings: false, remaining: null });
   }
 
   const files = form.getAll("images").filter((item): item is File => typeof item === "object" && item !== null && "arrayBuffer" in item);
@@ -61,11 +85,15 @@ export async function POST(req: NextRequest) {
   if (images.length === 0) {
     const ruled = parseHoldingsText(text);
     const rows = resolveHoldings(ruled.rows, directory);
-    // A few characters the rules could not place are not worth a model read either.
-    if (rows.some((row) => row.status !== "unknown") || text.replace(/\s/g, "").length < 6) {
-      return NextResponse.json({ rows, input: ruled.input, via: "rules", not_holdings: false, remaining: null });
+    // A few characters the rules could not place are not worth a model read either. A broker export
+    // whose lines were all left out (only cash, say) is answered too, so the person sees why.
+    if (rows.some((row) => row.status !== "unknown") || text.replace(/\s/g, "").length < 6 || ruled.csv) {
+      return NextResponse.json({ rows, input: ruled.input, via: "rules", not_holdings: false, remaining: null, ...(ruled.csv ? { csv: ruled.csv } : {}) });
     }
   }
+
+  // The model reads at most a screenful of text (alone or next to screenshots); longer text is refused before a read is spent.
+  if (text.length > MAX_MODEL_TEXT_CHARS) return fail(400, "text_too_long", { max: MAX_MODEL_TEXT_CHARS });
 
   // No model configured: say so without spending anyone's read.
   if (!importModel()) return fail(503, "no_model");

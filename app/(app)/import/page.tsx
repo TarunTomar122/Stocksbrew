@@ -9,9 +9,9 @@ import { getUserDoc } from "@/lib/watchlist";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "What we think of your stocks",
+  title: "Bring your holdings in",
   description:
-    "Paste your tickers or a screenshot of your broker app and see our call on each stock, where your money sits by sector, today's move and who reports earnings soon. No account needed.",
+    "Upload the CSV your broker exports, paste your holdings or add a screenshot. Check every row, then see what your stocks are worth and what they made. Nothing connects to your broker.",
   alternates: { canonical: "/import" },
   // Kept out of search until the owner has reviewed it.
   robots: { index: false, follow: true },
@@ -25,8 +25,8 @@ export default async function ImportPage() {
     <AppPage width="read" prose={false}>
       <PageHead
         full
-        title="See what we think of your stocks"
-        lede="Paste your tickers or a screenshot of your broker app. You get our call on each stock, where your money sits and who reports soon, in a few seconds and without an account."
+        title="Bring your holdings in"
+        lede="Upload the CSV your broker exports, paste lines like NVDA 25 @ 120, or add a screenshot. You check every row before anything is saved, then My stocks shows what they are worth and what you made."
       />
       <ImportWorkspace signedIn={Boolean(session)} held={heldFromUserDoc(doc as Record<string, unknown> | null)} />
     </AppPage>

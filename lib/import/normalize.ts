@@ -223,3 +223,32 @@ export function mergeDuplicates(rows: ParsedHolding[]): ParsedHolding[] {
   }
   return order.map((key) => byKey.get(key)!).slice(0, MAX_IMPORT_ROWS);
 }
+
+/**
+ * Holdings a browser read from a file (lib/import/brokers.ts runs there too)
+ * and sent for checking. Cleaned with the same limits as everything else: a
+ * row without a readable ticker or name is dropped, impossible numbers become
+ * null, and nothing here is trusted beyond what any pasted text would be.
+ */
+export function cleanClientHoldings(raw: unknown): ParsedHolding[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_IMPORT_ROWS) return null;
+  const out: ParsedHolding[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const ticker = cleanTicker(row.ticker);
+    const name = cleanName(row.name);
+    if (!ticker && !name) continue;
+    const currency = foreignCurrency(row.currency);
+    out.push({
+      ticker,
+      name,
+      shares: positive(parseAmount(row.shares), LIMITS.shares),
+      averageCost: currency ? null : positive(parseAmount(row.averageCost), LIMITS.price),
+      marketValue: currency ? null : positive(parseAmount(row.marketValue), LIMITS.value),
+      confidence: row.confidence === "medium" || row.confidence === "low" ? row.confidence : ticker ? "high" : "medium",
+      ...(currency ? { currency } : {}),
+    });
+  }
+  return out;
+}

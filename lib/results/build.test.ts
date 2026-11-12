@@ -47,7 +47,8 @@ describe("days", () => {
 describe("the calendar row", () => {
   it("compares the actual with its own provider's estimate", () => {
     const event = eventFromDoc(row())!;
-    expect(event.eps).toMatchObject({ actual: -1.27, expected: -1.55, verdict: "beat", surprisePct: 18.1, source: "Yahoo Finance" });
+    expect(event.eps).toMatchObject({ actual: -1.27, expected: -1.55, verdict: "beat", source: "Yahoo Finance" });
+    expect(event.eps!.surprisePct).toBeCloseTo(18.06, 2);
     expect(event.session).toBe("amc");
   });
 

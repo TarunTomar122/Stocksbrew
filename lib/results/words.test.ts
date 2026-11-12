@@ -49,14 +49,15 @@ describe("numbers", () => {
 describe("the move", () => {
   it("says when the move happened", () => {
     expect(moveShort(move({}), TODAY)).toBe("up 25% today");
-    expect(moveShort(move({ kind: "day", day: "2026-11-10", pct: -13.51 }), TODAY)).toBe("down 14% the next day");
-    expect(moveShort(move({ kind: "day", day: "2026-11-09", nextDay: false, pct: 10.46 }), TODAY)).toBe("up 10% on the day");
+    expect(moveShort(move({ kind: "day", day: "2026-11-10", pct: -13.51 }), TODAY)).toBe("down 14% yesterday");
+    expect(moveShort(move({ kind: "day", day: "2026-11-09", nextDay: false, pct: 10.46 }), TODAY)).toBe("up 10% on Nov 9");
     expect(moveShort(move({ kind: "before_open", pct: 4.2 }), TODAY)).toBe("up 4.2% before the open");
     expect(moveShort(move({ pct: 0.01 }), TODAY)).toBe("flat today");
   });
 
   it("compares with the usual report move only with enough history", () => {
-    expect(usualClause(move({ pct: 10.46, usualPct: 2.02, usualCount: 7 }))).toBe("about 5.2 times its usual 2% move after a report");
+    // From the numbers the page shows: 10% against 2% is 5 times, not the 5.2 the unrounded figures give.
+    expect(usualClause(move({ pct: 10.46, usualPct: 2.02, usualCount: 7 }))).toBe("about 5 times its usual 2% move after a report");
     expect(usualClause(move({ pct: 25.45, usualPct: 17.41 }))).toBe("bigger than its usual 17% move after a report");
     expect(usualClause(move({ pct: -5, usualPct: 5.4 }))).toBe("about its usual 5.4% move after a report");
     expect(usualClause(move({ pct: 1, usualPct: 5.4 }))).toBe("smaller than its usual 5.4% move after a report");
@@ -78,7 +79,7 @@ describe("the sentence", () => {
       eps: { actual: 1.67, expected: 1.46, verdict: "beat", surprisePct: 14.4, source: "Nasdaq earnings calendar", asOf: null },
       move: move({ kind: "day", day: "2026-11-10", pct: -13.51, usualPct: 3.65, usualCount: 7 }),
     });
-    expect(resultSentence(qlys, "Qualys", TODAY)).toBe("Qualys beat the EPS estimate by 14%, and the stock fell 14% the next day, about 3.7 times its usual 3.6% move after a report.");
+    expect(resultSentence(qlys, "Qualys", TODAY)).toBe("Qualys beat the EPS estimate by 14%, and the stock fell 14% yesterday, about 3.8 times its usual 3.7% move after a report.");
   });
 
   it("adds the outlook from the release and leaves the move out when there is none", () => {
@@ -117,7 +118,7 @@ describe("the call and the card", () => {
     expect(resultFact(read(), TODAY)).toBe("Beat by 18%, up 25% today");
     expect(figureCells(read(), TODAY)).toEqual([
       { label: "EPS", value: "−$1.27", sub: "vs −$1.55 expected, beat by 18%", tone: "up" },
-      { label: "The stock", value: "+25.4%", sub: "Today, usually 17%", tone: "up" },
+      { label: "The stock", value: "+25%", sub: "Today, usually 17%", tone: "up" },
     ]);
     expect(reportedWords(read(), TODAY)).toBe("Reported Nov 10 after the close");
   });

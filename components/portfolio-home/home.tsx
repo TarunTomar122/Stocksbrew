@@ -14,8 +14,8 @@ const LINK = `font-medium text-oa-primary hover:underline ${FOCUS} rounded`;
 /* ── the example line ──────────────────────────────────────────────────── */
 
 const MARK = (
-  <Link href="/portfolio?tab=holdings" className={LINK}>
-    Mark the stocks you own in Portfolio
+  <Link href="/import" className={LINK}>
+    Bring your holdings in
   </Link>
 );
 
@@ -26,9 +26,9 @@ function reasonWords(reason: ExampleReason): React.ReactNode {
     case "no-us-holdings":
       return <>These tools cover US stocks and funds, and none of your holdings is one yet, so this is the example portfolio.</>;
     case "watching-only":
-      return <>You watch stocks but have not marked any as owned, so this is the example portfolio. {MARK} and this page is about yours.</>;
+      return <>You watch stocks but have not marked any as owned, so this is the example portfolio. {MARK} from your broker and this page is about yours.</>;
     case "no-holdings":
-      return <>You have no holdings marked yet, so this is the example portfolio. {MARK} and this page is about yours.</>;
+      return <>You have no holdings marked yet, so this is the example portfolio. {MARK} from your broker and this page is about yours.</>;
     case "signed-out":
       return <>This is an example portfolio of real stocks and funds with made-up share counts.</>;
   }

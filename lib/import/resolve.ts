@@ -40,6 +40,8 @@ export type ImportRow = {
   currency?: string;
   /** Set in the review table for a stock the person already holds; the save treats a missing one as "keep". */
   merge?: MergeMode;
+  /** The stock's last price in the search index, so the review can say what the shares are worth today. Never saved. */
+  price?: number | null;
 };
 
 /** Symbols we track under another class or a newer ticker. */
@@ -125,10 +127,22 @@ export function resolveHoldings(rows: ParsedHolding[], directory: Directory): Im
       entry = directory.byName.get(key) ?? directory.byName.get(key.replace(/ [a-c]$/, ""));
       if (entry) status = "suggested";
     }
-    // Two input rows that land on the same stock (GOOG and GOOGL): the first keeps it, the second shows as its own row to fix.
+    // Two input rows that land on the same stock (GOOG and GOOGL, tracked as one): one holding, shares added and the
+    // cost weighted by shares. Adding two lines together is our doing, so the row asks for a look.
     if (entry && used.has(entry.instrument_id)) {
-      entry = undefined;
-      status = "unknown";
+      const first = out.find((item) => item.instrument_id === entry!.instrument_id)!;
+      const shares = first.shares !== null && row.shares !== null ? first.shares + row.shares : first.shares ?? row.shares;
+      const bothCosts = first.shares !== null && row.shares !== null && first.average_cost !== null && row.averageCost !== null;
+      first.average_cost = bothCosts
+        ? Math.round(((first.shares! * first.average_cost! + row.shares! * row.averageCost!) / shares!) * 10_000) / 10_000
+        : first.shares === null || row.shares === null
+          ? // Only one line has shares: its cost goes with them.
+            (row.shares !== null ? row.averageCost : first.average_cost) ?? (first.shares === null && row.shares === null ? first.average_cost ?? row.averageCost : null)
+          : null;
+      first.market_value = first.market_value !== null && row.marketValue !== null ? first.market_value + row.marketValue : first.market_value ?? row.marketValue;
+      first.shares = shares;
+      if (first.confidence === "high") first.confidence = "medium";
+      return;
     }
     if (entry) used.add(entry.instrument_id);
     if (!entry && row.guess) return;
@@ -148,6 +162,7 @@ export function resolveHoldings(rows: ParsedHolding[], directory: Directory): Im
       // A ticker we had to guess is never "high", whatever the reader said.
       confidence,
       ...(row.currency ? { currency: row.currency } : {}),
+      price: entry && typeof entry.price === "number" && Number.isFinite(entry.price) && entry.price > 0 ? entry.price : null,
     });
   });
   return out;

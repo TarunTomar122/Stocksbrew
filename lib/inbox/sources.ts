@@ -15,7 +15,7 @@ import { moveLine } from "@/lib/move-line";
 import { getRebalancesSince } from "@/lib/strategies-rebalances";
 import { lastChange, readStoredCheck, CHECKS_COLLECTION } from "@/lib/thesis-watch/store";
 import { MEMO_COLLECTION } from "@/lib/memo/store";
-import { resultsFor } from "@/lib/results/server";
+import { resultsForChecked } from "@/lib/results/server";
 import { RESULTS_DAYS } from "@/lib/results/types";
 
 import { nyDay } from "./merge";
@@ -485,14 +485,18 @@ export async function insiderSource(stocks: InboxStock[], sinceDay: string): Pro
 
 /**
  * Results on the person's stocks from the last RESULTS_DAYS days (inside the inbox window), one item per report:
- * the shared cached list of recent reports, then one cached read per stock that reported.
+ * the shared cached list of recent reports, then one cached read per stock that reported. When a stock's read fails
+ * the source throws with the rows it did read (`partial`): the inbox shows them, but names the source missing, so the
+ * list is not cached as whole (lib/inbox/server.ts).
  */
 export async function resultsSource(stocks: InboxStock[], mode: Mode, sinceDay: string, today: string): Promise<InboxItem[]> {
   if (stocks.length === 0) return [];
   const positions = new Map(stocks.map((stock) => [stock.ticker, stock.position]));
   const floor = shiftDay(today, -RESULTS_DAYS);
-  const reads = await resultsFor([...positions.keys()], { since: sinceDay > floor ? sinceDay : floor, today });
-  return reads.map((read) => resultsItem(read, positions.get(read.ticker) ?? null, mode, today)).filter((item): item is InboxItem => item !== null);
+  const { reads, failed } = await resultsForChecked([...positions.keys()], { since: sinceDay > floor ? sinceDay : floor, today });
+  const items = reads.map((read) => resultsItem(read, positions.get(read.ticker) ?? null, mode, today)).filter((item): item is InboxItem => item !== null);
+  if (failed.length > 0) throw Object.assign(new Error(`results read failed for ${failed.join(", ")}`), { partial: items });
+  return items;
 }
 
 /* ── strategies they follow ─────────────────────────────────────────────── */
