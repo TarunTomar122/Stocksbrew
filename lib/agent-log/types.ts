@@ -24,7 +24,14 @@ export type AgentLogEntry = {
   href: string;
   /** A check that ran and found nothing new: kept only when the log has room. */
   quiet: boolean;
+  /**
+   * The stocks the run flagged, for the side rail's logo chips (owner rule 10): the move with it when the run measured
+   * one (a premarket gap, the day's biggest explained move), else null. At most three.
+   */
+  stocks?: AgentLogStock[];
 };
+
+export type AgentLogStock = { ticker: string; pct: number | null };
 
 export type AgentLog = {
   /** The New York trading day the log is about, "YYYY-MM-DD". */

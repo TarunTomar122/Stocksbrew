@@ -16,7 +16,7 @@ import { DEFAULT_SETUP, type BacktestSetup } from "./setup";
 
 export const EXAMPLE_MIX = {
   /** How the page names it in a sentence. */
-  words: "60% in the S&P 500 (SPY) and 40% in long-term US Treasuries (TLT), rebalanced every month",
+  words: "60% in the S&P 500 (SPY) and 40% in long-term US Treasuries (TLT)",
   holdings: EXAMPLE_MIXES[0]!.holdings,
 };
 

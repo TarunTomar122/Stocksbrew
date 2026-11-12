@@ -1,5 +1,5 @@
 import { nyDayOf, nyTime } from "./time";
-import type { AgentLog, AgentLogEntry, AgentLogSource } from "./types";
+import type { AgentLog, AgentLogEntry, AgentLogSource, AgentLogStock } from "./types";
 
 /**
  * The agent log's words: each source's stored facts become one line ("72" + "stocks checked before the open; …"),
@@ -82,6 +82,23 @@ function entry(source: AgentLogSource, at: string, figure: number, rest: string,
   return { source, at, time, figure: count(figure), rest, href, quiet, kind: row.kind, status: row.status };
 }
 
+/** Most stocks a line carries as chips. */
+const MAX_STOCKS = 3;
+
+/** The line with the stocks it flagged, each once, at most MAX_STOCKS; unchanged when there are none. */
+function withStocks(line: AgentLogEntry | null, stocks: Array<AgentLogStock | null | undefined>): AgentLogEntry | null {
+  if (!line) return null;
+  const seen = new Set<string>();
+  const kept: AgentLogStock[] = [];
+  for (const stock of stocks) {
+    const ticker = stock?.ticker?.trim().toUpperCase();
+    if (!ticker || seen.has(ticker) || !/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) continue;
+    seen.add(ticker);
+    kept.push({ ticker, pct: typeof stock!.pct === "number" && Number.isFinite(stock!.pct) ? stock!.pct : null });
+  }
+  return kept.length > 0 ? { ...line, stocks: kept.slice(0, MAX_STOCKS) } : line;
+}
+
 /* ── one line per source ─────────────────────────────────────────────────── */
 
 export function premarketEntry(facts: PremarketFacts): AgentLogEntry | null {
@@ -92,10 +109,11 @@ export function premarketEntry(facts: PremarketFacts): AgentLogEntry | null {
     big === 0
       ? `none was moving ${PREMARKET_GAP_PCT}% or more`
       : `${count(big)} ${big === 1 ? "was" : "were"} moving ${PREMARKET_GAP_PCT}% or more${leader ? `, led by ${moved(leader.ticker, leader.pct)}` : ""}`;
-  return entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket", {
+  const line = entry("premarket", facts.at, facts.scanned, `${facts.scanned === 1 ? "stock" : "stocks"} checked before the open; ${found}.`, "/premarket", {
     kind: "Premarket",
     status: big > 0 ? `${count(big)} of ${count(facts.scanned)} moving` : `${count(facts.scanned)} checked`,
   });
+  return withStocks(line, [leader]);
 }
 
 function briefsWords(facts: BriefsFacts): string {
@@ -136,12 +154,18 @@ function callsRow(facts: CallsFacts, looked: number): { kind: string; status: st
     : { kind: "Calls", status: `none of ${count(Math.max(looked, facts.reviewed))} changed` };
 }
 
+/** The stocks whose call changed, as chips (no move: the change is the news). */
+function changedStocks(facts: CallsFacts): AgentLogStock[] {
+  return facts.changes.filter((change) => change.ticker && CALL_WORDS[change.to]).map((change) => ({ ticker: change.ticker, pct: null }));
+}
+
 const callsHref = (one: string | null) => (one ? `/stock/${encodeURIComponent(one)}` : "/screener");
 
 export function callsEntry(facts: CallsFacts): AgentLogEntry | null {
   if (!valid(facts.reviewed)) return null;
   const words = callWords(facts, true);
-  return entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one), callsRow(facts, facts.reviewed));
+  const line = entry("calls", facts.at, facts.reviewed, `${facts.reviewed === 1 ? "call" : "calls"} reviewed; ${words.text}.`, callsHref(words.one), callsRow(facts, facts.reviewed));
+  return withStocks(line, changedStocks(facts));
 }
 
 /**
@@ -153,7 +177,7 @@ export function reviewEntry(briefs: BriefsFacts, calls: CallsFacts): AgentLogEnt
   if (!valid(calls.reviewed)) return briefsEntry(briefs);
   const words = callWords(calls, false);
   const at = Date.parse(calls.at) > Date.parse(briefs.at) ? calls.at : briefs.at;
-  return entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one), callsRow(calls, briefs.count));
+  return withStocks(entry("calls", at, briefs.count, `${briefsWords(briefs)}; ${words.text}.`, callsHref(words.one), callsRow(calls, briefs.count)), changedStocks(calls));
 }
 
 export function movesEntry(facts: MovesFacts, whose: string, href: string): AgentLogEntry | null {
@@ -164,17 +188,19 @@ export function movesEntry(facts: MovesFacts, whose: string, href: string): Agen
   // The leader is named without its figure: the mover row's change is from when the reason was researched, and a
   // live quote elsewhere on the page has moved on since.
   const biggest = leader ? `, including ${leader.ticker}'s, the biggest` : "";
+  // The chip carries the move as the run measured it, beside its ticker, so it reads as that run's figure.
+  const chips = [leader ? { ticker: leader.ticker, pct: leader.pct } : null];
   if (!facts.screened) {
-    return entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href, {
+    return withStocks(entry("moves", facts.at, facts.explained, `big ${facts.explained === 1 ? "move" : "moves"} explained with a reason we could confirm${biggest}.`, href, {
       kind: "Big moves",
       status: `${count(facts.explained)} explained`,
-    });
+    }), chips);
   }
   const reasons = facts.explained === 1 ? "has a reason we could confirm" : "have a reason we could confirm";
-  return entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href, {
+  return withStocks(entry("moves", facts.at, total, `of ${whose} biggest moves looked into; ${count(facts.explained)} ${reasons}${biggest}.`, href, {
     kind: "Big moves",
     status: `${count(facts.explained)} of ${count(total)} explained`,
-  });
+  }), chips);
 }
 
 export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
@@ -188,13 +214,16 @@ export function filingsEntry(facts: FilingsFacts): AgentLogEntry | null {
   const named = flagged.slice(0, 2).map((filing) => `${filing.what} at ${filing.ticker}`);
   const verb = flagged.length === 1 ? "was" : "were";
   const tail = flagged.length > 2 ? `, including ${joinAnd(named)}` : `: ${joinAnd(named)}`;
-  return entry(
-    "filings",
-    facts.at,
-    facts.count,
-    `${noun} read; ${count(flagged.length)} ${verb} big enough to flag${tail}.`,
-    "/filings",
-    { kind: "Filings", status: `${count(flagged.length)} of ${count(facts.count)} flagged` },
+  return withStocks(
+    entry(
+      "filings",
+      facts.at,
+      facts.count,
+      `${noun} read; ${count(flagged.length)} ${verb} big enough to flag${tail}.`,
+      "/filings",
+      { kind: "Filings", status: `${count(flagged.length)} of ${count(facts.count)} flagged` },
+    ),
+    flagged.map((filing) => ({ ticker: filing.ticker, pct: null })),
   );
 }
 
@@ -204,13 +233,16 @@ export function insidersEntry(facts: InsidersFacts): AgentLogEntry | null {
   const noun = facts.trades === 1 ? "insider trade" : "insider trades";
   if (buys === 0) return entry("insiders", facts.at, facts.trades, `${noun} read from Form 4 filings; none was a buy on the open market.`, "/insiders", { kind: "Insiders", status: `${count(facts.trades)} read` });
   const biggest = facts.biggest && valid(facts.biggest.value) ? `, the largest ${money(facts.biggest.value)} at ${facts.biggest.ticker}` : "";
-  return entry(
-    "insiders",
-    facts.at,
-    facts.trades,
-    `${noun} read from Form 4 filings; ${count(buys)} ${buys === 1 ? "was a buy" : "were buys"} on the open market${biggest}.`,
-    "/insiders",
-    { kind: "Insiders", status: `${count(buys)} of ${count(facts.trades)} buys` },
+  return withStocks(
+    entry(
+      "insiders",
+      facts.at,
+      facts.trades,
+      `${noun} read from Form 4 filings; ${count(buys)} ${buys === 1 ? "was a buy" : "were buys"} on the open market${biggest}.`,
+      "/insiders",
+      { kind: "Insiders", status: `${count(buys)} of ${count(facts.trades)} buys` },
+    ),
+    [biggest && facts.biggest ? { ticker: facts.biggest.ticker, pct: null } : null],
   );
 }
 

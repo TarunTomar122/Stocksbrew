@@ -163,3 +163,35 @@ export function wholeGap(value: number): string {
   const rounded = Math.round(value);
   return rounded === 0 ? "0%" : `${rounded > 0 ? "+" : "−"}${Math.abs(rounded)}%`;
 }
+
+// The brief's opening sentence talking about the coverage instead of the company ("Recent company-specific coverage
+// is thin for AA.", "Coverage is quiet: the latest article only reviews...", "...rather than treating stale headlines
+// as a fresh catalyst."): it says nothing about the company, so it is not shown (owner rule 7: when a reason is not
+// confirmed, write nothing).
+const COVERAGE_ONLY =
+  /\b(?:coverage|news) (?:is|was|remains) (?:thin|quiet|light|sparse|limited)\b|\b(?:offers|provides|contains|adds) (?:little|no) new\b|\bno new (?:company|operating)\b|\bcontains no [\w-]+(?:-specific)? development\b|\bstale headlines\b/i;
+// Only a sentence about the coverage itself counts: "The deal adds no new debt" is a fact about the company.
+const ABOUT_COVERAGE = /\b(?:coverage|articles?|headlines?|reporting)\b/i;
+
+// "JPMorgan's fresh news centers on a partnership with OpenAI intended to improve coding..." (the brief describing
+// the feed) said as what happened: "JPMorgan has a new partnership with OpenAI to improve coding...".
+const NEWS_CENTERS_ON = /^([A-Z][\w.&-]*(?: [A-Z][\w.&-]*){0,3})['’]s (?:fresh |latest |recent |current |new )?(?:news|coverage) (?:centers|centres|focuses|is focused|is centered) on (a|an) (?!new\b)(.+)$/;
+const BAD_NEWS = /\b(?:probe|investigation|lawsuit|suit|downgrade|recall|fine|charges?|loss|decline|drop|cut|layoffs?|outage|breach|sell-?off|warning|delay|scandal|halt|strike|shortfall|miss)\b/i;
+
+/**
+ * The brief's first sentence as a person would say it, or null when it only talks about the coverage. Narrow on
+ * purpose: only the two shapes above are touched, and any other sentence comes back as it was.
+ */
+export function plainBriefLead(sentence: string | null | undefined): string | null {
+  const text = (sentence ?? "").trim();
+  if (!text) return null;
+  // A sentence with a figure or a "but" carries a fact of its own ("Coverage is thin, but JPMorgan raised its dividend to
+  // $1.50."), so it stays.
+  if (COVERAGE_ONLY.test(text) && ABOUT_COVERAGE.test(text) && !/\d|,\s*but\b/.test(text)) return null;
+  const match = NEWS_CENTERS_ON.exec(text);
+  if (!match) return text;
+  const rest = match[3]!.replace(/\bintended to\b/g, "to");
+  // Bad news is something the company faces, not something it has: "Microsoft faces an antitrust probe."
+  if (BAD_NEWS.test(rest.split(/[,;]/)[0]!)) return `${match[1]} faces ${match[2]} ${rest}`;
+  return `${match[1]} has a new ${rest}`;
+}

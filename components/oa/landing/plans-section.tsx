@@ -39,7 +39,8 @@ export function PlansSection({ trialEligible }: { trialEligible: boolean }) {
             </Line>
           </ul>
           <div className="mt-auto pt-6">
-            <StartFreeButton surface="landing_pro_preview" variant="outline" label="Start free" className="w-full" />
+            {/* Says what Free gets, not a second "Start free": the header's is the view's one (judges, ship 42). */}
+            <StartFreeButton surface="landing_pro_preview" variant="outline" label={`Pick your ${coveredWord} stocks`} className="w-full" />
           </div>
         </div>
         <div className="oa-surface flex flex-col border border-[color-mix(in_srgb,var(--oa-primary)_55%,transparent)] bg-oa-card p-6">

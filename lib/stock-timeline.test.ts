@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analystTrendChanges, buildStockTimeline, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+import { analystTrendChanges, buildStockTimeline, developmentSentence, parseLooseDate, parseMonthPeriod, prettyDay, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { TimelineEvent } from "@/lib/stock";
@@ -183,6 +183,38 @@ describe("timelineHeadline", () => {
   });
 });
 
+describe("developmentSentence", () => {
+  const input = { ticker: "JPM", companyName: "JPMorgan Chase & Co.", day: "Nov 10", recent: true };
+  it("turns a company-first headline into a dated past-tense sentence", () => {
+    expect(developmentSentence("JPMorgan Chase (JPM) takes lead role in a major AI IPO", input)?.text).toBe("JPMorgan Chase took lead role in a major AI IPO on Nov 10.");
+    expect(developmentSentence("JPMorgan announces cash distributions for the JPMorgan ETFs", input)?.text).toBe("JPMorgan announced cash distributions for the JPMorgan ETFs on Nov 10.");
+  });
+  it("is null for questions, lists, other companies, maybes and price moves", () => {
+    expect(developmentSentence("Here’s how much you would have made owning JPMorgan Chase stock in the last 5 years", input)).toBeNull();
+    expect(developmentSentence("JPMorgan may sell $2 billion of Qualtrics debt at about 85 cents on the dollar", input)).toBeNull();
+    expect(developmentSentence("Anthropic plans IPO live stream with Amodei, JPMorgan CEO Dimon", input)).toBeNull();
+    expect(developmentSentence("JPMorgan vs. Bank of America: Which dividend stock is better for retirement?", input)).toBeNull();
+    expect(developmentSentence("JPMorgan’s stock drops as the bank reshuffles", input)).toBeNull();
+    // Price moves, analyst notes on other companies and headline-relative days are not developments.
+    expect(developmentSentence("JPMorgan closes at a record high", input)).toBeNull();
+    expect(developmentSentence("JPMorgan raises Nvidia price target to $250", input)).toBeNull();
+    expect(developmentSentence("JPMorgan announces a buyback today", input)).toBeNull();
+    // A short ticker that is also a word only counts in capitals.
+    expect(developmentSentence("All signed contracts point to a strong quarter", { ...input, ticker: "ALL", companyName: "The Allstate Corporation" })).toBeNull();
+    expect(developmentSentence("It takes more than AI to win", { ...input, ticker: "IT", companyName: "Gartner, Inc." })).toBeNull();
+    // The price after a comma is not part of what happened, and "U.S." does not end the clause.
+    expect(developmentSentence("JPMorgan signs U.S. payments deal, shares jump", input)?.text).toBe("JPMorgan signed U.S. payments deal on Nov 10.");
+  });
+});
+
+describe("timelineHeadline tails", () => {
+  it("strips a known site after a bar and a trailing ticker tag, and keeps a real second half", () => {
+    expect(timelineHeadline("Nvidia: Why I’m Buying The Fear (NASDAQ:NVDA) | Seeking Alpha", "Google News", "NVIDIA Corporation")).toBe("Nvidia: Why I’m buying the fear");
+    expect(timelineHeadline("Stock market today | Nifty 50 ends higher", "Mint", "")).toBe("Stock market today | Nifty 50 ends higher");
+    expect(timelineHeadline("Firmly Raises $15 Million Series A Round", "Business Wire", "")).toContain("Series A");
+  });
+});
+
 describe("weekChange", () => {
   const now = new Date("2026-11-12T07:00:00Z");
   const news = (title: string, at: string): StockTimelineItem => ({ id: title, kind: "news", at, precision: "time", title, source: "Yahoo Finance" });
@@ -198,23 +230,32 @@ describe("weekChange", () => {
     news("JPMorgan beats on trading revenue", "2026-10-20T13:00:00Z"),
   ];
 
-  it("names the subject most of the week's stories share, counting AI under its company names", () => {
-    expect(weekChange(jpm, { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Three of the eight stories on JPM in the past week are about AI.");
+  it("leads with the development behind the subject most stories share, said from its strongest headline", () => {
+    // AI is the subject (OpenAI and Anthropic count under it); the newest headline that says JPMorgan did something leads.
+    expect(weekChange(jpm, { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("JPMorgan partnered with OpenAI on Nov 11.");
   });
 
-  it("prefers a named subject to a broad topic and writes the name out in full", () => {
+  it("never describes the feed instead of the company", () => {
+    const line = weekChange(jpm, { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now }) ?? "";
+    expect(line).not.toMatch(/stories|are about/);
+  });
+
+  it("says something still going on in the present, only from a story of the last two days", () => {
     const nvda = [
       news("Dow Jones futures rise, techs fall as Nvidia may oust CEO Huang after CoreWeave leads rally", "2026-11-11T20:00:00Z"),
       news("Trump’s ties to Nvidia CEO Jensen Huang in the spotlight", "2026-11-11T19:00:00Z"),
       news("Nvidia board meets to decide CEO Huang’s future, source says", "2026-11-11T18:00:00Z"),
       news("Nasdaq-100 futures slide as the Nvidia sell-off resumes", "2026-11-11T17:00:00Z"),
     ];
-    expect(weekChange(nvda, { ticker: "NVDA", companyName: "NVIDIA Corporation", now })).toBe("Three of the four stories on NVDA in the past week are about Jensen Huang.");
+    expect(weekChange(nvda, { ticker: "NVDA", companyName: "NVIDIA Corporation", now })).toBe("Nvidia's board is meeting to decide CEO Huang’s future.");
+    // A week-old "meets" may be long settled: nothing leads instead.
+    const old = nvda.map((item) => ({ ...item, at: item.at.replace("2026-11-11", "2026-11-07") }));
+    expect(weekChange(old, { ticker: "NVDA", companyName: "NVIDIA Corporation", now })).toBeNull();
   });
 
   it("leads with a report, and with our own call when the news shares no subject", () => {
     const call: StockTimelineItem = { id: "call-2026-11-09", kind: "call", at: "2026-11-09", precision: "day", title: "Our call moved from Keep to Buy more", source: "stocksbrew call ledger" };
-    expect(weekChange([...jpm, call], { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Three of the eight stories on JPM in the past week are about AI.");
+    expect(weekChange([...jpm, call], { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("JPMorgan partnered with OpenAI on Nov 11.");
     expect(weekChange([jpm[0]!, call], { ticker: "JPM", companyName: "JPMorgan Chase & Co.", now })).toBe("Our call moved from Keep to Buy more on Nov 9.");
     const report: StockTimelineItem = { id: "earnings", kind: "earnings", at: "2026-11-10", precision: "day", title: "JPM reported earnings", source: "Earnings calendar" };
     expect(weekChange([report], { ticker: "JPM", now })).toBe("JPM reported earnings on Nov 10.");

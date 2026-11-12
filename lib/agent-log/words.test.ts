@@ -211,3 +211,12 @@ describe("batch time", () => {
     expect(batchTime([])).toBe("");
   });
 });
+
+describe("flagged stocks on a log line", () => {
+  it("carries the run's flagged stocks for the rail's chips, each once and at most three", () => {
+    const line = premarketEntry({ at: at("12:30"), scanned: 72, bigMoves: 24, leader: { ticker: "COHR", pct: 9.29 } });
+    expect(line?.stocks).toEqual([{ ticker: "COHR", pct: 9.29 }]);
+    const quiet = premarketEntry({ at: at("12:30"), scanned: 72, bigMoves: 0, leader: { ticker: "COHR", pct: 1 } });
+    expect(quiet?.stocks).toBeUndefined();
+  });
+});

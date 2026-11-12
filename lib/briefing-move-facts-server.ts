@@ -13,8 +13,8 @@ import { sharedCache } from "@/lib/shared-cache";
 const PRICES = "tm_price_history_daily";
 /** About three years of sessions: enough for "its biggest gain since …" and the 120-session normal day. */
 const KEEP_SESSIONS = 760;
-/** Most stocks read for one briefing; the cards past it go without a price fact. */
-const MAX_STOCKS = 12;
+/** Most stocks read for one briefing (the moving ones first); the stocks past it go without a price fact. */
+const MAX_STOCKS = 20;
 /** How long the page waits for the closes before the cards go without them. */
 const BUDGET_MS = 1500;
 
@@ -45,7 +45,8 @@ const readCloses = sharedCache(readClosesUncached, ["briefing-move-closes-v1"], 
  * other card says). Within BUDGET_MS, else nothing: a slow read never holds up the briefing. Today's briefing only.
  */
 export async function briefingMoveFacts(briefing: Briefing): Promise<Record<string, string[]> | undefined> {
-  // Only Worth knowing shows them (components/briefing/briefing-view.tsx), and its stocks come from `also_today`.
+  // Worth knowing's cards (its stocks come from `also_today`), then the quiet stocks in the side rail, which get one
+  // short fact each (lib/briefing-move-facts.ts quietFact).
   const moves = new Map<string, { pct: number; day: string; exactDay: boolean }>();
   for (const item of briefing.also_today) {
     const ticker = item.ticker?.trim().toUpperCase();
@@ -53,6 +54,14 @@ export async function briefingMoveFacts(briefing: Briefing): Promise<Record<stri
     const quoted = etDayOfStamp(item.price_as_of ?? null);
     const day = quoted ?? etDayOfStamp(item.as_of) ?? briefing.date;
     moves.set(ticker, { pct: item.day_change_pct, day, exactDay: quoted !== null });
+  }
+  // A quiet stock carries no quote time of its own: the portfolio's price time stands in (a guess without one).
+  const quietQuoted = etDayOfStamp(briefing.portfolio?.as_of ?? null);
+  const quietDay = quietQuoted ?? briefing.date;
+  for (const name of briefing.quiet?.names ?? []) {
+    const ticker = name.ticker?.trim().toUpperCase();
+    if (!ticker || moves.has(ticker) || name.day_change_pct == null || !Number.isFinite(name.day_change_pct)) continue;
+    moves.set(ticker, { pct: name.day_change_pct, day: quietDay, exactDay: quietQuoted !== null });
   }
   const tickers = [...moves.keys()].slice(0, MAX_STOCKS);
   if (tickers.length === 0) return undefined;

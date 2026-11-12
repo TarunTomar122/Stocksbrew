@@ -72,3 +72,49 @@ describe("withoutCircularReasons", () => {
     expect(withoutCircularReasons(input)).toBe(input);
   });
 });
+
+describe("contradictsPage", () => {
+  const others = [
+    { ticker: "NVDA", name: "NVIDIA Corporation", pct: 2.9 },
+    { ticker: "MSFT", name: "Microsoft", pct: -2.2 },
+  ];
+  it("drops a headline that says another stock on the page fell when our figure says it rose", async () => {
+    const { contradictsPage } = await import("./real-reasons");
+    expect(contradictsPage("Nvidia stock sinks as Jensen Huang ouster report sends investors toward AMD, Broadcom.", "AMD", others)).toBe(true);
+    expect(contradictsPage("Microsoft shares jump on a cloud deal.", "AMD", others)).toBe(true);
+  });
+  it("keeps a headline that agrees with the page, or only mentions the stock further on", async () => {
+    const { contradictsPage } = await import("./real-reasons");
+    expect(contradictsPage("Nvidia stock rises on a new chip.", "AMD", others)).toBe(false);
+    expect(contradictsPage("AMD jumps as investors rotate out of Nvidia, which sinks.", "AMD", others)).toBe(false);
+    expect(contradictsPage("Nvidia sinks after its report.", "NVDA", others)).toBe(false);
+  });
+  it("ignores a stock whose own move is too small to say which way", async () => {
+    const { contradictsPage } = await import("./real-reasons");
+    expect(contradictsPage("Nvidia stock sinks.", "AMD", [{ ticker: "NVDA", name: "NVIDIA", pct: 0.4 }])).toBe(false);
+  });
+});
+
+describe("withoutCircularReasons and stories the page contradicts", () => {
+  it("leaves out a story on one stock whose headline says another went the other way", () => {
+    const nvda = { ...move("NVDA", "NVIDIA", "Its biggest gain since Sep 2."), day_change_pct: 2.9, reason_status: "unconfirmed" as const };
+    const story = {
+      ...move("AMD", "Advanced Micro Devices", "AMD gained as investors moved over."),
+      id: "2026-11-11:news:AMD:x",
+      kind: "news" as const,
+      headline: "News on AMD: Nvidia stock sinks as Jensen Huang ouster report sends investors toward AMD, Broadcom",
+      reason_status: "not_applicable" as const,
+    };
+    const out = withoutCircularReasons(briefing([nvda, story]));
+    expect(out.also_today.map((entry) => entry.kind)).toEqual(["price_move"]);
+  });
+});
+
+describe("contradictsPage and tickers that are words", () => {
+  it("matches a ticker only in capitals", async () => {
+    const { contradictsPage } = await import("./real-reasons");
+    const others = [{ ticker: "ALL", name: "Allstate", pct: 2 }];
+    expect(contradictsPage("All shares fall as rates jump.", "AMD", others)).toBe(false);
+    expect(contradictsPage("ALL shares fall after a storm.", "AMD", others)).toBe(true);
+  });
+});

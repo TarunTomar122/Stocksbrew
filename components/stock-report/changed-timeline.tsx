@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { FADE_BOTTOM, useMoreBelow } from "@/components/follow/use-more-below";
 import type { StockTimelineItem } from "@/lib/stock-timeline";
 
 import { Missing } from "./primitives";
@@ -66,6 +67,8 @@ export function ChangedTimeline({ items, nowIso, ticker }: { items: StockTimelin
       window.removeEventListener("resize", onResize);
     };
   }, [shown.length]);
+  // The bottom edge fades while more rows sit below: the inner scroll has no bar to say so (owner rule 5).
+  const more = useMoreBelow(list, shown.length);
   if (!items.length) return <Missing>Nothing new on {ticker} yet.</Missing>;
   return (
     <ol
@@ -75,6 +78,7 @@ export function ChangedTimeline({ items, nowIso, ticker }: { items: StockTimelin
       onScroll={drawn ? undefined : () => setDrawn(true)}
       tabIndex={0}
       className="scrollbar-hide relative max-h-[34rem] overflow-y-auto overscroll-contain outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border sm:max-h-[19.5rem]"
+      style={more ? FADE_BOTTOM : undefined}
     >
       {shown.map((item) => (
         <TimelineRow key={item.id} item={item} nowIso={nowIso} />

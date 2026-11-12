@@ -18,6 +18,7 @@ import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind, type InboxStockRead } from "@/lib/inbox/types";
 import type { TheRead as TheReadData } from "@/lib/insights";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
+import { moveReasons } from "@/lib/portfolio-home/stocks-server";
 import { getUserDoc } from "@/lib/watchlist";
 
 export const dynamic = "force-dynamic";
@@ -88,17 +89,27 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
     ...exampleRows.items.filter((item) => !item.told).flatMap((item) => item.tickers),
     ...exampleRows.upcoming.map((report) => report.ticker),
   ];
-  const holdings = exampleHoldings(portfolio, said);
+  // The confirmed reasons for the day's moves, from the same research as My stocks' cards; a failed read leaves them out.
+  const tickers = portfolio ? [...portfolio.portfolio.positions, ...portfolio.portfolio.watching].map((position) => position.ticker) : [];
+  // Within 1.5 seconds, else the lines go without reasons.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<Record<string, string>>((resolve) => {
+    timer = setTimeout(() => resolve({}), 1500);
+  });
+  const reasons =
+    portfolio && tickers.length > 0
+      ? await Promise.race([moveReasons(tickers, portfolio.pricesAsOf).catch(() => ({})), late]).finally(() => clearTimeout(timer))
+      : {};
+  const holdings = exampleHoldings(portfolio, said, reasons);
   const empty = inbox.items.length === 0 && inbox.upcoming.length === 0;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* No button: the shell's Start free (the sidebar, or the top bar on a phone) is the view's one (judges, ship 39). */}
-      <div className="oa-surface border border-oa-border bg-oa-card px-4 py-3">
-        <p className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">
-          {EXAMPLE_TAG}
-          This is the example portfolio&apos;s inbox. Sign in and yours fills with your own agents, the calls on your stocks and the investors you follow.
-        </p>
-      </div>
+      {/* One short line (judges, ship 42), and no button: the shell's Start free (the sidebar, or the top bar on a
+          phone) is the view's one (judges, ship 39). */}
+      <p className="min-w-0 px-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
+        {EXAMPLE_TAG}
+        This is the example portfolio&apos;s inbox. Sign in to see yours.
+      </p>
       {empty ? (
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (

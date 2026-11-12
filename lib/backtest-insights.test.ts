@@ -31,10 +31,10 @@ describe("backtest read", () => {
     expect(read.insights[0].text).toBe("3.2 points a year ahead of the S&P 500, which made +12.0% a year.");
     expect(read.insights[0].figure).toEqual({ value: "+15.2%", label: "a year" });
     expect(read.insights[0].soWhat).toBe("The same $10,000 in the S&P 500 would be $34,000.");
-    expect(read.insights[2].text).toBe("Ahead of the S&P 500 in two of four full years, most in 2020: +45% against +18%.");
-    expect(read.insights[2].figure).toEqual({ value: "+27.0 pts", label: "in 2020" });
-    expect(read.insights[3].text).toBe("NVDA did the heavy lifting: +2,400% at a 20% weight.");
-    expect(read.insights[3].tickers).toEqual(["NVDA", "TLT"]);
+    // Three cards at most: the result, the worst fall and the holding that carried it.
+    expect(read.insights).toHaveLength(3);
+    expect(read.insights[2].text).toBe("NVDA did the heavy lifting: +2,400% at a 20% weight.");
+    expect(read.insights[2].tickers).toEqual(["NVDA", "TLT"]);
     expect(read.source).toBe("Backtested, not traded · Jan 2016 to Nov 2026");
     // The takeaway: what the extra return cost at the worst moment.
     expect(read.insights[1].text).toBe("The extra return came with a deeper worst fall: −38% against −24% for the S&P 500.");

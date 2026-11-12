@@ -2,11 +2,12 @@ import { SquircleCard } from "@/components/oa/squircle";
 import { Reveal } from "@/components/reveal";
 import { StockLogo } from "@/components/stock-logo";
 import { exampleBookView } from "@/lib/landing-example-book";
+import { pricesWords } from "@/lib/portfolio-prices";
 import { loadExampleIdeas } from "@/lib/portfolio-ideas/server";
 import { DEFAULT_RATES } from "@/lib/portfolio-ideas/tax";
 import { withTimeout } from "@/lib/portfolio-home/server";
 import { extraFacts, type PlainCall } from "@/lib/portfolio-home/stocks";
-import { loadExampleBook } from "@/lib/portfolio-home/stocks-server";
+import { exampleBookOnce } from "@/lib/portfolio-home/stocks-server";
 import { exampleReasonChecks } from "@/lib/thesis-watch/server";
 
 import { ChangeText, EmptyRow } from "./shared";
@@ -37,7 +38,7 @@ function cellClass(index: number, count: number): string {
  */
 export async function OnePlace() {
   const [book, ideas, reasons] = await Promise.all([
-    withTimeout(loadExampleBook(), "landing book"),
+    withTimeout(exampleBookOnce(), "landing book"),
     withTimeout(loadExampleIdeas(DEFAULT_RATES), "landing ideas"),
     withTimeout(exampleReasonChecks().then((checks) => (checks.length > 0 ? checks : null)), "landing reasons"),
   ]);
@@ -54,6 +55,7 @@ export async function OnePlace() {
     );
   }
 
+  const prices = pricesWords(view.pricesDay);
   const tone = view.day ? (view.day.pct >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400") : "";
   return (
     <Reveal delay={60}>
@@ -70,8 +72,12 @@ export async function OnePlace() {
             )}
             {view.calls ? ` ${view.calls}` : ""}
             {view.pending ? ` ${view.pending}` : ""}
+            {view.watching ? ` ${view.watching}` : ""}
           </p>
-          <p className="text-[13px] leading-5 text-oa-muted-fg">Example portfolio, not real money.</p>
+          {/* The snapshot's day, said once: the same prices as /portfolio, /briefing and /inbox (judges, ship 42). */}
+          <p className="text-[13px] leading-5 text-oa-muted-fg">
+            Example portfolio, not real money.{prices ? ` Prices from ${prices}.` : ""}
+          </p>
         </div>
         {/* Small stock cards, as on My stocks (owner rule 3): logo, the call, the day's move and one fact. */}
         <ul className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3">

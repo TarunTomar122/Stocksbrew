@@ -72,3 +72,14 @@ describe("moveFacts", () => {
     expect(moveFacts(0, series(quiet), "2026-12-31")).toEqual([]);
   });
 });
+
+describe("quietFact", () => {
+  it("cuts the first telling fact to one short line, never the normal day on its own", async () => {
+    const { quietFact } = await import("./briefing-move-facts");
+    expect(quietFact(["A normal day moves it about 1.1%", "Still down 21.9% over the past month"])).toBe("Down 21.9% in a month");
+    expect(quietFact(["About twice a normal 1.0% day", "Up 4.3% over the past month"])).toBe("Twice a normal day");
+    expect(quietFact(["Its biggest drop since Sep 2"])).toBe("Biggest drop since Sep 2");
+    expect(quietFact(["A normal day moves it about 1.1%"])).toBeNull();
+    expect(quietFact(undefined)).toBeNull();
+  });
+});

@@ -2,6 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { FitRows } from "@/components/agent-log/fit-rows";
+import { StockLogo } from "@/components/stock-logo";
 import { Bar } from "@/components/oa/kit/skeleton";
 import { getAgentLog } from "@/lib/agent-log/server";
 import type { AgentLog } from "@/lib/agent-log/types";
@@ -39,6 +40,31 @@ const FIT_LIST = "lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain scrollbar-
  * under itself rather than squeezing the kind to a letter.
  */
 const STATUS_ROW = "grid grid-cols-[auto_minmax(0,1fr)_3.6rem] content-center items-baseline gap-x-3 py-2 lg:min-h-9";
+
+/** "+24.9%" / "−5.5%", one decimal. */
+function chipPct(pct: number): string {
+  return `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`;
+}
+
+/**
+ * The stocks a run flagged, as small logo chips with their move under its status line (owner rule 10), inside the
+ * row's own link: the row opens the run's evidence, so the chips are not links of their own.
+ */
+function StockChips({ stocks }: { stocks: NonNullable<AgentLog["entries"][number]["stocks"]> }) {
+  return (
+    <span className="col-span-full mt-1 flex flex-wrap gap-1.5">
+      {stocks.map((stock) => (
+        <span key={stock.ticker} className="inline-flex h-6 items-center gap-1.5 rounded-md border border-oa-border bg-oa-bg pl-1 pr-2">
+          <StockLogo ticker={stock.ticker} size={16} />
+          <span className="oa-mono text-[12px] font-semibold leading-4 text-oa-fg">{stock.ticker}</span>
+          {stock.pct !== null ? (
+            <span className={`oa-mono text-[12px] tabular-nums leading-4 ${stock.pct >= 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>{chipPct(stock.pct)}</span>
+          ) : null}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /** In a fixed-height rail box the list is cut to whole rows (./fit-rows.tsx); anywhere else it is a plain list. */
 function ListOf({ fit, className, children }: { fit: boolean; className: string; children: React.ReactNode }) {
@@ -88,6 +114,7 @@ export function AgentLogView({
                 <time dateTime={entry.at} className="oa-mono whitespace-nowrap text-right text-[12px] tabular-nums leading-5 text-oa-muted-fg">
                   {entry.time}
                 </time>
+                {entry.stocks && entry.stocks.length > 0 ? <StockChips stocks={entry.stocks} /> : null}
               </Link>
             ) : (
               <Link

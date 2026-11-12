@@ -5,17 +5,17 @@ import { getLatestEarningsIntelForInstruments } from "@/lib/earnings-intel";
 import { getMarketsData } from "@/lib/markets";
 import { FUND_TOPIC, SECTOR_IDS } from "@/lib/markets-insights";
 import { getNewsFeed } from "@/lib/news";
-import { loadDatedPrices, loadExamplePortfolio } from "@/lib/portfolio-data";
+import { loadExamplePortfolio } from "@/lib/portfolio-data";
 import { callsFrom } from "@/lib/portfolio-home/stocks-server";
-import { onOneDay } from "@/lib/portfolio-prices";
 import { etDayOfStamp, oldestStamp } from "@/lib/quote-time";
 import { getScreenerRows } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 
 /**
  * The signed-out /briefing: the example portfolio's own briefing (owner, Nov 11), so a visitor sees what a member's
- * morning read looks like before signing up. The same made-up portfolio of real stocks as the signed-out My stocks
- * and the home page (lib/portfolio-data.ts), priced on the same dated quotes, with the calls anyone can see and no
+ * morning read looks like before signing up. The same made-up portfolio of real stocks as the signed-out My stocks,
+ * the inbox and the home page (lib/portfolio-data.ts), from the same cached snapshot (the same holdings, watched names,
+ * prices, moves and quote times), with the calls anyone can see and no
  * levels, built by the same builder as a member's briefing (lib/briefing.ts, mode "personal").
  *
  * Left out on purpose: the example account's agent runs (a run from this morning about yesterday's close reads as
@@ -88,11 +88,8 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
   const tickers = all.map((position) => position.ticker);
   const ids = all.map((position) => position.instrument_id);
 
-  const [market, dated, rows, reports, news, markets] = await Promise.all([
+  const [market, rows, reports, news, markets] = await Promise.all([
     loadMarketInputs(),
-    // The quotes again, for their times (the cached example keeps only the numbers): every number on the page then
-    // carries the time it was taken, and the header says that one clock.
-    guard("prices", loadDatedPrices(tickers), new Map()),
     guard("calls", getScreenerRows(tickers), new Map<string, ScreenerRow>()),
     guard("earnings reports", getLatestEarningsIntelForInstruments("US", ids), []),
     guard("news", getNewsFeed("US"), []),
@@ -100,17 +97,17 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
     getMarketsData().catch(() => null),
   ]);
   degraded.push(...market.degraded);
-  // Both loaders swallow their own errors: an empty answer for stocks that are always priced and called is a failed read.
-  if (dated.size === 0) degraded.push("prices");
+  // The loader swallows its own errors: an empty answer for stocks that are always called is a failed read.
   if (rows.size === 0) degraded.push("calls");
 
-  const { day: pricesDay, prices } = onOneDay(dated);
+  // One snapshot (owner, Nov 12): the prices, moves and their times are the cached example's own, the ones My stocks,
+  // the inbox and the home page show, never a second read of the quotes that could have moved on since.
+  const pricesDay = example.pricesAsOf;
   // Signed out, no stock shows its levels (lib/entitlements: levels are the plan's).
   const calls = callsFrom(rows, () => false, today);
   const positions: BriefingPosition[] = all.map((position) => {
-    const quote = prices.get(position.ticker);
     const call = calls[position.ticker];
-    const price = quote?.price ?? position.price;
+    const price = position.price;
     const shares = position.kind === "holding" && fin(position.shares) && position.shares > 0 ? position.shares : null;
     return {
       instrument_id: position.instrument_id,
@@ -118,8 +115,8 @@ export async function loadExampleBriefing(now: Date = new Date()): Promise<Examp
       name: position.name,
       relation: position.kind === "holding" ? "holding" : "watching",
       price: fin(price) ? price : null,
-      day_change_pct: quote ? quote.dayPct : position.dayPct,
-      price_as_of: quote?.at ?? null,
+      day_change_pct: position.dayPct,
+      price_as_of: example.quotedAt?.[position.ticker] ?? null,
       stance: call ? call.call.toLowerCase() : null,
       call_summary: call?.reason ?? null,
       watch_out: null,

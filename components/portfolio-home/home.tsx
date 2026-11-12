@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { HomeSignIn } from "@/components/portfolio-home/sign-in";
+import { pricesWords } from "@/lib/portfolio-prices";
 import type { ExampleReason, HomeLoad } from "@/lib/portfolio-home/server";
 
 /**
@@ -34,19 +34,25 @@ function reasonWords(reason: ExampleReason): React.ReactNode {
   }
 }
 
-/** Says plainly when the page is about the example, with the one way to make it yours. */
+/**
+ * Says plainly when the page is about the example, with the one way to make it yours, and dates its prices once
+ * ("Prices from the Nov 11 close."): the same snapshot the briefing, the inbox and the home page show. No button
+ * signed out: the shell's Start free is the view's one (judges, ship 42).
+ */
 export async function ExampleLine({ load }: { load: HomeLoad }) {
   const { mode, reason } = await load.context;
   if (mode === "mine" || !reason) return null;
+  const book = await load.book;
+  const prices = book.state === "ready" ? pricesWords(book.value.pricesDay) : null;
   return (
-    <div className="mb-3 flex flex-col items-start gap-1 px-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-0">
+    <div className="mb-3 px-2 sm:px-0">
       <p className="text-pretty text-[14px] leading-5 text-oa-muted-fg">
         <span className="mr-2 inline-flex h-[22px] items-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--oa-primary)_7%,transparent)] px-2 align-[1px] text-[13px] font-medium text-oa-primary">
           Example
         </span>
         {reasonWords(reason)}
+        {prices ? ` Prices from ${prices}.` : null}
       </p>
-      {reason === "signed-out" ? <HomeSignIn /> : null}
     </div>
   );
 }

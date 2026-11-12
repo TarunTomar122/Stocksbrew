@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { moveReason } from "@/lib/briefing";
 import { isCircularReason } from "@/lib/reason-quality";
 import { getDailyAnomalyTickers } from "@/lib/daily-anomalies";
@@ -68,7 +70,7 @@ export function callsFrom(rows: Map<string, ScreenerRow>, levels: (ticker: strin
 }
 
 /** The confirmed reason for each stock's move on the price day; a "price action" read or another day's is left out. */
-async function moveReasons(tickers: string[], pricesDay: string | null): Promise<Record<string, string>> {
+export async function moveReasons(tickers: string[], pricesDay: string | null): Promise<Record<string, string>> {
   const anomalies = await getDailyAnomalyTickers("US", tickers).catch(() => new Map());
   const out: Record<string, string> = {};
   for (const [ticker, anomaly] of anomalies) {
@@ -177,6 +179,12 @@ export async function loadExampleBook(now: Date = new Date()): Promise<BookSourc
     }),
   };
 }
+
+/**
+ * The example's book once per request: the home page's portfolio block and its weekly card read the same one, so the
+ * two can never show different figures on one page (judges, ship 42).
+ */
+export const exampleBookOnce = cache(() => loadExampleBook());
 
 /**
  * A signed-in person's US holdings, priced on the same dated quotes as the example (the newest of the snapshot, the

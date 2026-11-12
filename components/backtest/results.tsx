@@ -280,7 +280,7 @@ export function Panel({
 }
 
 /** The biases that flatter a result, in one short line. The order follows the caveat catalogue. */
-export const BIAS_ORDER = ["hindsight_picks", "survivorship", "partial_index", "estimated_size", "short_record", "late_start", "costs", "no_costs"];
+const BIAS_ORDER = ["hindsight_picks", "survivorship", "partial_index", "estimated_size", "short_record", "late_start", "costs", "no_costs"];
 const BIAS_IDS = new Set(BIAS_ORDER);
 
 export function CaveatLine({ caveats, className = "" }: { caveats: Caveat[]; className?: string }) {

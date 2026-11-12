@@ -347,3 +347,18 @@ describe("the market read's time", () => {
     expect(read?.asOf).toBe("2026-11-11T21:00:00Z");
   });
 });
+
+describe("withFlags", () => {
+  it("leads the first card about a flagged stock with the flag", async () => {
+    const { withFlags } = await import("./briefing-read");
+    const out = withFlags(
+      [
+        { id: "a", tone: "flat", text: "NVDA reports Tuesday.", soWhat: "Check our call on it before the report.", tickers: ["NVDA"] },
+        { id: "b", tone: "flat", text: "Two stocks moved.", tickers: ["NVDA", "AMD"] },
+      ],
+      { NVDA: "Your agent flagged its 5.5% drop yesterday." },
+    );
+    expect(out[0]!.soWhat).toBe("Your agent flagged its 5.5% drop yesterday. Check our call on it before the report.");
+    expect(out[1]!.soWhat).toBeUndefined();
+  });
+});

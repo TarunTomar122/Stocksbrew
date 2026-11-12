@@ -26,6 +26,20 @@ function ends(items: Pick[]): { top: Pick; bottom: Pick } | null {
   return { top: sorted[0]!, bottom: sorted[sorted.length - 1]! };
 }
 
+/**
+ * How many times bigger one figure is than another, in words, so a headline carries one number: "more than three
+ * times", "about twice", "40% more". Null when the two are too close to say it that way.
+ */
+export function timesWords(ratio: number): string | null {
+  if (!Number.isFinite(ratio) || ratio < 1.15) return null;
+  if (ratio < 1.9) return `${Math.round((ratio - 1) * 100)}% more`;
+  const words = ["", "", "twice", "three times", "four times", "five times", "six times", "seven times", "eight times", "nine times", "ten times"];
+  const whole = Math.floor(ratio + 0.1);
+  if (whole > 10) return `${Math.round(ratio)} times`;
+  const name = words[whole]!;
+  return ratio - whole >= 0.25 ? `more than ${name}` : `about ${name}`;
+}
+
 /** "3x" for big ratios, "1.6x" for small ones. */
 function times(ratio: number): string {
   return ratio >= 3 || Math.abs(ratio - Math.round(ratio)) < 0.1 ? `${Math.round(ratio)}x` : `${ratio.toFixed(1)}x`;
@@ -49,11 +63,77 @@ export function joinClauses(clauses: Array<{ text: string; symbols: string[] }>)
 export type WinnerClause = {
   id: string;
   text: string;
-  /** The same difference as a headline: the winner first, one comparison, its numbers ("NVDA keeps 65¢ ..."). */
+  /** The same difference as a headline with one figure: "NVDA keeps more than three times AMD's operating profit per sales dollar." */
   lead: string;
+  /** The two numbers behind a one-figure headline, said once under it ("NVDA keeps 65¢ of each sales dollar ...; AMD keeps 18¢."). */
+  sub?: string;
   symbols: string[];
   strength: number;
 };
+
+type Lead = { lead: string; sub?: string };
+
+// Each headline carries one figure (owner rule 8): how many times one is the other. The two numbers go under it.
+// When the two are too close for that, the headline keeps both, as before.
+
+function cheapLead(multiple: { top: Pick; bottom: Pick }, what: string): Lead {
+  const ratio = multiple.top.value / multiple.bottom.value;
+  // The cheaper one leads, as the share of the other's price it costs: "about half", "less than a third".
+  const whole = Math.floor(ratio + 0.1);
+  const part = ["", "", "half", "a third", "a quarter", "a fifth"][Math.min(whole, 5)];
+  const words = ratio >= 1.9 && part ? `${ratio - whole >= 0.25 || whole > 5 ? "less than" : "about"} ${part}` : null;
+  return words
+    ? {
+        lead: `${multiple.bottom.symbol} costs ${words} as much as ${multiple.top.symbol} for each $1 of ${what}.`,
+        sub: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${what}; ${multiple.top.symbol} costs $${multiple.top.value.toFixed(0)}.`,
+      }
+    : {
+        // Closer than half: how much less it costs, as one share.
+        lead: `${multiple.bottom.symbol} costs ${Math.round((1 - 1 / ratio) * 100)}% less than ${multiple.top.symbol} for each $1 of ${what}.`,
+        sub: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${what}; ${multiple.top.symbol} costs $${multiple.top.value.toFixed(0)}.`,
+      };
+}
+
+function growthLead(growth: { top: Pick; bottom: Pick }, ratio: number | null): Lead {
+  if (growth.top.value <= 0)
+    return { lead: `${growth.top.symbol}'s sales fell the least over the past year, ${pct(growth.top.value)} against ${pct(growth.bottom.value)} for ${growth.bottom.symbol}.` };
+  if (growth.bottom.value < 0)
+    return {
+      lead: `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year, while ${growth.bottom.symbol}'s shrank.`,
+      sub: `${growth.bottom.symbol}'s sales fell ${pct(growth.bottom.value)}.`,
+    };
+  const words = ratio && ratio >= 1.9 ? timesWords(ratio) : null;
+  return words
+    ? {
+        lead: `${growth.top.symbol}'s sales grew ${words} as fast as ${growth.bottom.symbol}'s over the past year.`,
+        sub: `${growth.top.symbol}'s sales grew ${pct(growth.top.value)}; ${growth.bottom.symbol}'s grew ${pct(growth.bottom.value)}.`,
+      }
+    : {
+        // Closer than twice: the gap in points, as one figure.
+        lead: `${growth.top.symbol}'s sales grew ${Math.round(growth.top.value - growth.bottom.value)} points faster than ${growth.bottom.symbol}'s over the past year.`,
+        sub: `${growth.top.symbol}'s sales grew ${pct(growth.top.value)}; ${growth.bottom.symbol}'s grew ${pct(growth.bottom.value)}.`,
+      };
+}
+
+function marginLead(margin: { top: Pick; bottom: Pick }): Lead {
+  const { top, bottom } = margin;
+  if (top.value <= 0) return { lead: `${bottom.symbol} loses more on its day-to-day business than ${top.symbol}.` };
+  if (bottom.value < 0)
+    return { lead: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit, while ${bottom.symbol} loses money on its day-to-day business.` };
+  // Under a cent the ratio means nothing ("65 times"), so the two figures stay in the headline.
+  const words = bottom.value >= 1 ? timesWords(top.value / bottom.value) : null;
+  if (!words)
+    return {
+      lead: `${top.symbol} keeps ${Math.round(top.value - bottom.value)}¢ more of each sales dollar as operating profit than ${bottom.symbol}.`,
+      sub: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit; ${bottom.symbol} keeps ${bottom.value.toFixed(0)}¢.`,
+    };
+  return {
+    lead: words.endsWith("more")
+      ? `${top.symbol} keeps ${words} operating profit per sales dollar than ${bottom.symbol}.`
+      : `${top.symbol} keeps ${words} ${bottom.symbol}'s operating profit per sales dollar.`,
+    sub: `${top.symbol} keeps ${top.value.toFixed(0)}¢ of each sales dollar as operating profit; ${bottom.symbol} keeps ${bottom.value.toFixed(0)}¢.`,
+  };
+}
 
 export function winnerClauses(rows: ScreenerRow[]): WinnerClause[] {
   const out: WinnerClause[] = [];
@@ -70,7 +150,7 @@ export function winnerClauses(rows: ScreenerRow[]): WinnerClause[] {
       text: pair
         ? `${multiple.bottom.symbol} costs less than ${multiple.top.symbol} for each $1 of ${forward ? "next year's expected " : ""}profit ($${multiple.bottom.value.toFixed(0)} against $${multiple.top.value.toFixed(0)})`
         : `${multiple.bottom.symbol} costs the least for each $1 of ${forward ? "next year's expected " : ""}profit ($${multiple.bottom.value.toFixed(0)})`,
-      lead: `${multiple.bottom.symbol} costs $${multiple.bottom.value.toFixed(0)} for each $1 of ${forward ? "next year's expected profit" : "last year's profit"}, against $${multiple.top.value.toFixed(0)} for ${multiple.top.symbol}.`,
+      ...cheapLead(multiple, forward ? "next year's expected profit" : "last year's profit"),
       symbols: [multiple.bottom.symbol, multiple.top.symbol],
       strength: Math.min(3, ratio - 1),
     });
@@ -87,12 +167,7 @@ export function winnerClauses(rows: ScreenerRow[]): WinnerClause[] {
           : growth.bottom.value < 0
             ? `${growth.top.symbol} grows revenue (${signedPct(growth.top.value)}) while ${growth.bottom.symbol}'s shrinks`
             : `${growth.top.symbol} grows fastest (${signedPct(growth.top.value)} a year)`,
-      lead:
-        growth.top.value <= 0
-          ? `${growth.top.symbol}'s sales fell the least over the past year, ${pct(growth.top.value)} against ${pct(growth.bottom.value)} for ${growth.bottom.symbol}.`
-          : growth.bottom.value < 0
-            ? `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year, while ${growth.bottom.symbol}'s fell ${pct(growth.bottom.value)}.`
-            : `${growth.top.symbol}'s sales grew ${pct(growth.top.value)} over the past year, against ${pct(growth.bottom.value)} for ${growth.bottom.symbol}.`,
+      ...growthLead(growth, ratio),
       symbols: [growth.top.symbol, growth.bottom.symbol],
       strength: Math.min(3, (growth.top.value - growth.bottom.value) / 15),
     });
@@ -107,12 +182,7 @@ export function winnerClauses(rows: ScreenerRow[]): WinnerClause[] {
           ? `${margin.bottom.symbol} loses money on its day-to-day business`
           : `${margin.bottom.symbol} keeps less of each sales dollar as profit than ${margin.top.symbol} (${pct(margin.bottom.value, 0)} against ${pct(margin.top.value, 0)})`,
       // Cents of each sales dollar, as "Where they differ" says it.
-      lead:
-        margin.top.value <= 0
-          ? `${margin.bottom.symbol} loses more on its day-to-day business than ${margin.top.symbol}.`
-          : margin.bottom.value < 0
-            ? `${margin.top.symbol} keeps ${margin.top.value.toFixed(0)}¢ of each sales dollar as operating profit, while ${margin.bottom.symbol} loses money on its day-to-day business.`
-            : `${margin.top.symbol} keeps ${margin.top.value.toFixed(0)}¢ of each sales dollar as operating profit, against ${margin.bottom.value.toFixed(0)}¢ for ${margin.bottom.symbol}.`,
+      ...marginLead(margin),
       symbols: [margin.bottom.symbol, margin.top.symbol],
       strength: Math.min(3, (margin.top.value - margin.bottom.value) / 12),
     });
@@ -161,10 +231,12 @@ export function buildCompareRead(input: {
   if (rows.length < 2) return null;
 
   const clauses = winnerClauses(rows).slice(0, 3);
-  // The headline is the strongest difference as one quantified comparison ("NVDA keeps 65¢ of each sales dollar as
-  // operating profit, against 18¢ for AMD."): one idea, its numbers (owner rule 8). The other differences follow as
-  // their own lines; the first is the headline, so it is not said again under it.
+  // The headline is the strongest difference as one figure ("NVDA keeps more than three times AMD's operating profit
+  // per sales dollar."), with the two numbers under it (owner rule 8). The other differences follow as their own
+  // lines; the first is the headline, so it is not said again under it.
   let headline = clauses[0]?.lead ?? "";
+  // The two numbers behind a one-figure headline, once, right under it.
+  const sub = clauses[0]?.sub;
   const clauseInsights: Insight[] = clauses.slice(1).map((clause) => ({
     id: `diff-${clause.id}`,
     tone: "flat",
@@ -288,5 +360,5 @@ export function buildCompareRead(input: {
     if (lead.soWhat) insights.unshift({ id: `${lead.id}-more`, tone: lead.tone, text: lead.soWhat, action: lead.action });
   }
   // The lead's second clause rides on top of the usual three points instead of pushing one out.
-  return { headline, insights: insights.slice(0, insights[0]?.id.endsWith("-more") ? 4 : 3), asOf: input.asOf ?? null };
+  return { headline, ...(sub ? { sub } : {}), insights: insights.slice(0, insights[0]?.id.endsWith("-more") ? 4 : 3), asOf: input.asOf ?? null };
 }

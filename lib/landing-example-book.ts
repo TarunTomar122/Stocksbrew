@@ -29,6 +29,10 @@ export type ExampleBookView = {
   calls: string;
   /** Stocks (not funds) with no call yet, said once rather than on each row. */
   pending: string;
+  /** "It also watches AMD, LLY and CAT.": the same watched names as My stocks and the briefing. Empty with none. */
+  watching: string;
+  /** The day its prices are from, YYYY-MM-DD, or null. */
+  pricesDay: string | null;
   rows: ExampleBookRow[];
 };
 
@@ -77,7 +81,10 @@ export function exampleBookView(source: BookSource, extra: Pick<BookFacts, "reas
   const waiting = rows.filter((row) => row.call === null && byTicker.get(row.ticker)?.sector !== FUNDS_SECTOR).map((row) => row.ticker);
   const pending = waiting.length > 0 ? `We have no call on ${joinList(waiting)} yet.` : "";
 
+  const watched = (source.portfolio.watching ?? []).map((position) => position.ticker).filter(Boolean);
   return {
+    watching: watched.length > 0 ? `It also watches ${joinList(watched)}.` : "",
+    pricesDay: source.pricesDay ?? null,
     value: `$${Math.round(totals.value).toLocaleString("en-US")}`,
     count: `${countWords(positions.length)} ${positions.length === 1 ? "holding" : "holdings"}`,
     day,

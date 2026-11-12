@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { InsiderGroupRow, InsiderRow, InsiderTableHead } from "@/components/follow/insider-rows";
+import { FADE_BOTTOM, useMoreBelow } from "@/components/follow/use-more-below";
 import type { InsiderTradeRow } from "@/lib/follow-shared";
 import { groupInsiderTrades } from "@/lib/insider-groups";
 
@@ -105,6 +106,9 @@ export function InsiderTable({
     };
   }, [visible.length, side, minValue, hidePlans, needle]);
 
+  // The bottom edge fades while more trades sit below, so the inner scroll is found without a scrollbar.
+  const more = useMoreBelow(scroller, `${visible.length}:${side}:${minValue}:${hidePlans}:${needle}`);
+
   // A new filter starts its list from the top.
   function reset<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -195,7 +199,10 @@ export function InsiderTable({
             ref={scroller}
             // relative: the rows' screen-reader-only text is absolutely placed, and without a positioned scroller it
             // would sit at its row's place far below and stretch the page by the whole hidden list.
-            className="relative max-h-[36rem] divide-y divide-oa-border overflow-y-auto overscroll-contain [scrollbar-width:none] md:max-h-[23.5rem] [&::-webkit-scrollbar]:hidden"
+            aria-label="Insider trades, newest filing first"
+            tabIndex={0}
+            className="relative max-h-[36rem] divide-y divide-oa-border overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border md:max-h-[23.5rem] [&::-webkit-scrollbar]:hidden"
+            style={more ? FADE_BOTTOM : undefined}
           >
             {visible.map((item, index) =>
               item.kind === "group" ? (

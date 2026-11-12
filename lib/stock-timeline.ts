@@ -15,6 +15,7 @@ import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
+import { etDay } from "@/lib/insight-format";
 import { CALL_PLAIN, headlineCase, plainAction } from "@/lib/plain-copy";
 
 /** The ledger's call ("Add") as a reader sees it ("Buy more"); anything else as it came. */
@@ -116,8 +117,20 @@ export function timelineHeadline(title: string, source: string | null | undefine
     const stripped = text.replace(tail, "");
     if (stripped) text = stripped;
   }
-  return headlineCase(text, companyName);
+  // A site's own tag on the end ("| Seeking Alpha") and a bracketed ticker after the last word ("(NASDAQ:NVDA)") say
+  // nothing the row does not; the row names its source and the page is the stock's own.
+  const untagged = text
+    .replace(SITE_TAIL, "")
+    .replace(/\s*\((?:(?:NASDAQ|NYSE|NYSEARCA|AMEX|OTC)\s*:\s*)?[A-Z][A-Z.]{0,5}\)\s*$/, "");
+  if (untagged.trim()) text = untagged.trim();
+  // A funding round keeps its letter ("Series A"), which the sentence casing reads as the article "a".
+  return headlineCase(text, companyName).replace(/\b(Series) ([a-h])\b(?=\s+(?:round|funding|financing|and|to|led)\b|\s*[,.;]|\s*$)/gi, (_m, word: string, letter: string) => `${word} ${letter.toUpperCase()}`);
 }
+
+// A site's own name after a bar at the end of a headline: only known sites, so "Stock market today | Nifty 50 ends
+// higher" keeps its second half.
+const SITE_TAIL =
+  /\s+\|\s+(?:seeking alpha|yahoo finance|yahoo|benzinga|marketwatch|investing\.com|reuters|bloomberg|cnbc|barron['’]s|the motley fool|motley fool|zacks|tipranks|forbes|business insider|insider monkey|nasdaq|thestreet|investopedia|morningstar|fortune|gurufocus|simply wall st|the economic times|economic times|livemint|mint|moneycontrol)\s*$/i;
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
@@ -571,11 +584,91 @@ function namesIn(title: string, skip: Set<string>, proper?: Set<string>): string
   return runs;
 }
 
+// Headline verbs for something that happened, said in the past tense: "JPMorgan partners with OpenAI" is "JPMorgan
+// partnered with OpenAI on Nov 11." Price-move verbs are not here: the move has its own line on the page.
+const DONE: Record<string, string> = {
+  partners: "partnered", signs: "signed", agrees: "agreed", announces: "announced", launches: "launched", unveils: "unveiled",
+  buys: "bought", acquires: "acquired", takes: "took", raises: "raised", cuts: "cut", wins: "won", files: "filed",
+  hires: "hired", names: "named", appoints: "appointed", completes: "completed", secures: "secured", lands: "landed", inks: "inked",
+  strikes: "struck", settles: "settled", declares: "declared", approves: "approved", reports: "reported", posts: "posted",
+  beats: "beat", misses: "missed", expands: "expanded", invests: "invested", backs: "backed", joins: "joined",
+  boosts: "boosted", hikes: "hiked", lifts: "lifted", lowers: "lowered",
+};
+// Verbs for something still going on, kept in the present ("Nvidia's board is weighing ..."), only for a story from
+// the last two days: a week-old "is weighing" may long be settled.
+const ONGOING: Record<string, string> = {
+  weighs: "is weighing", considers: "is considering", explores: "is exploring", plans: "plans", prepares: "is preparing",
+  meets: "is meeting", seeks: "is seeking", eyes: "is eyeing", mulls: "is weighing", nears: "is nearing",
+};
+
+/**
+ * One headline about the company as a plain sentence, when it says that the company did something: "JPMorgan
+ * partners with OpenAI: What it means for JPM's AI strategy" is "JPMorgan partnered with OpenAI on Nov 11.". Null
+ * for anything else (a question, a list, a price move, a story led by another company, "may", "could"). `done` is
+ * false for something still going on ("Nvidia's board is weighing ...").
+ */
+export function developmentSentence(
+  title: string,
+  input: { ticker: string; companyName?: string | null; day: string; recent: boolean },
+): { text: string; done: boolean } | null {
+  // The headline's own first clause: up to a colon, a dash, a bar or the end of its first sentence.
+  // "..., source says" is who said it, and "..., shares jump" is the price: neither is part of what happened. A full
+  // stop counts only after a word of two or more letters, so "U.S." stays inside the clause.
+  const clause = (title.split(/\s*(?::|\s[-–—|]\s|(?<=[a-z]{2})[.!?](?:\s|$)|[!?](?:\s|$))\s*/)[0]?.trim() ?? "")
+    .replace(/,\s+(?:a\s+)?(?:sources?|reports?|people|filing)\s+(?:says?|said|shows?)$/i, "")
+    .replace(/,\s+(?:its\s+)?(?:shares|stock)\b.*$/i, "");
+  if (!clause || /[?]/.test(title.slice(0, clause.length + 1))) return null;
+  const words = clause.split(/\s+/);
+  if (words.length < 3 || words.length > 16) return null;
+  const nameWords = (input.companyName ?? "")
+    .split(/[\s,.&()]+/)
+    .map((word) => word.replace(/[’']s$/i, "").toLowerCase())
+    .filter((word) => word.length > 1 && !["inc", "corp", "corporation", "co", "company", "ltd", "plc", "the", "group", "holdings"].includes(word));
+  // The company's own words match in any case; "name:" marks a ticker that is also one of them (NVIDIA's "nvda" is not).
+  const own = new Set([input.ticker.toLowerCase(), ...nameWords, ...nameWords.map((word) => `name:${word}`)]);
+  // The subject: the company's own words (and its ticker in brackets), then optionally its board.
+  let index = 0;
+  const subject: string[] = [];
+  while (index < words.length) {
+    const word = words[index]!;
+    const bare = word.replace(/[’']s$/i, "").replace(/[^\w&.-]/g, "").toLowerCase();
+    if (/^\([A-Z.]{1,6}\)$/.test(word) && word.slice(1, -1).toLowerCase() === input.ticker.toLowerCase()) {
+      index += 1;
+      continue;
+    }
+    if (!own.has(bare) || !/^[A-Z]/.test(word)) break;
+    // The ticker counts only as written, in capitals: "All signed..." is not ALL, "It took..." is not IT.
+    if (bare === input.ticker.toLowerCase() && !own.has(`name:${bare}`) && word.replace(/[’']s$/i, "").replace(/[^\w&.-]/g, "") !== input.ticker.toUpperCase()) break;
+    subject.push(word.replace(/[’']s$/i, ""));
+    index += 1;
+    if (/[’']s$/i.test(word)) break;
+  }
+  if (!subject.length) return null;
+  let who = subject.join(" ");
+  if (/^board$/i.test(words[index] ?? "")) {
+    who = `${who}'s board`;
+    index += 1;
+  }
+  const verb = (words[index] ?? "").toLowerCase();
+  const rest = words.slice(index + 1).join(" ");
+  if (!rest) return null;
+  // A price move ("raises ... higher", "closes at a record"), an analyst's note on another company ("raises Nvidia
+  // target") or a date the headline gives in its own words ("today", "on Tuesday") is not said as what happened.
+  if (/^(?:higher|lower|off|up|down|gains?|losses|at a record|to a record|\d)/i.test(rest)) return null;
+  if (/\b(?:price targets?|targets?|ratings?|stake in|shares of)\b/i.test(rest)) return null;
+  if (/\b(?:today|tonight|tomorrow|yesterday|this week|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(rest)) return null;
+  const done = Object.hasOwn(DONE, verb) ? DONE[verb] : null;
+  if (done) return { text: `${who} ${done} ${rest} on ${input.day}.`, done: true };
+  const ongoing = Object.hasOwn(ONGOING, verb) ? ONGOING[verb] : null;
+  if (ongoing && input.recent) return { text: `${who} ${ongoing} ${rest}.`, done: false };
+  return null;
+}
+
 /**
  * One line that says what changed for the stock in the past week, built from the timeline rows the page already
- * has (no model call): a results report, else the subject most of the week's stories share ("Three of the eight
- * stories on JPM in the past week are about AI."), else our call moving. Null when the week has nothing to say:
- * a count of unrelated stories is not a read.
+ * has (no model call): a results report; else the development behind the subject most of the week's stories share,
+ * said from its strongest headline ("JPMorgan partnered with OpenAI on Nov 11."); else our call moving. Null when the
+ * week has nothing to say: a count of stories is a read of the feed, not of the company (owner rule 8).
  */
 export function weekChange(items: StockTimelineItem[], input: { ticker: string; companyName?: string | null; now: Date }): string | null {
   const { ticker, now } = input;
@@ -631,11 +724,17 @@ export function weekChange(items: StockTimelineItem[], input: { ticker: string; 
     // Most stories first; on a tie the named subject beats the broad topic, then the newer one.
     .sort((a, b) => b.stories.size - a.stories.size || Number(a.topic) - Number(b.topic) || a.newest - b.newest)[0];
 
-  const total = stories.length;
-  const totalWord = total <= 10 ? ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][total] : String(total);
   if (!best) return callLine;
-  const k = best.stories.size;
-  const kWord = k <= 10 ? ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][k] : String(k);
-  if (k === total) return `${total === 2 ? "Both" : `All ${totalWord}`} stories on ${ticker} in the past week are about ${best.label}.`;
-  return `${kWord.charAt(0).toUpperCase()}${kWord.slice(1)} of the ${totalWord} stories on ${ticker} in the past week are about ${best.label}.`;
+  // The strongest row behind the subject: a headline that says the company did something, newest first, a finished
+  // thing ("partnered") before one still going on ("is weighing").
+  let ongoing: string | null = null;
+  for (const index of [...best.stories].sort((a, b) => a - b)) {
+    const story = stories[index]!;
+    const ms = timelineSortMs(story, now);
+    const sentence = developmentSentence(story.title, { ticker, companyName: input.companyName, day: prettyDay(etDay(story.at) ?? story.at.slice(0, 10), now), recent: nowMs - ms <= 2 * DAY_MS });
+    if (!sentence) continue;
+    if (sentence.done) return sentence.text;
+    ongoing ??= sentence.text;
+  }
+  return ongoing ?? callLine;
 }

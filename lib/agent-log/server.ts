@@ -69,7 +69,7 @@ async function loadAgentLog(today: string): Promise<AgentLog | null> {
 }
 
 /** Keyed by its argument (the New York day), so each day has its own entry. */
-const cachedLog = unstable_cache(loadAgentLog, ["agent-log-v5"], { revalidate: AGENT_LOG_REVALIDATE_SECONDS });
+const cachedLog = unstable_cache(loadAgentLog, ["agent-log-v6"], { revalidate: AGENT_LOG_REVALIDATE_SECONDS });
 
 /** The agent's log for the current New York trading day, or null when there is nothing real to show or the store is down. */
 export async function getAgentLog(now: Date = new Date()): Promise<AgentLog | null> {

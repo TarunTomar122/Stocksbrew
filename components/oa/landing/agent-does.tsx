@@ -6,7 +6,7 @@ import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { Reveal } from "@/components/reveal";
 import { findingWithin, leadPercent, type AgentCardId } from "@/lib/landing-agent-cards";
-import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
+import { loadExampleChecks, loadExampleFlagStep } from "@/lib/portfolio-home/example-check-server";
 import { AppLink } from "@/components/oa/app-link";
 import { nextCheckWords } from "@/lib/agent-watch";
 import { newYorkToday } from "@/lib/portfolio-data";
@@ -166,13 +166,16 @@ const CHECK_TITLE = "What an agent checked";
  * made-up check.
  */
 async function AgentCheckCard() {
-  const checks = await loadExampleChecks();
+  const [checks, step] = await Promise.all([loadExampleChecks(), loadExampleFlagStep().catch(() => null)]);
   const agents = CARDS_BY_ID.agents;
   if (!checks) return agents ? <Card card={agents} /> : null;
   const view = checks.featured;
   const ask = view.ask.replace(/\bany of these\b/, "any of my stocks");
   const evidence = view.findings[0]?.detail || null;
-  const note = evidence ?? `${view.decided}${view.next ? ` It checks again ${nextCheckWords(view.next, newYorkToday())}.` : ""}`;
+  // A flagged holding gets its next step (its report and its usual move on one, then our call) in place of the close
+  // the line above already says, so the agent reads as working for you (judges, ship 42).
+  const next = step && view.decision === "notify" && view.flagged.includes(step.ticker) ? step.step : null;
+  const note = next ?? evidence ?? `${view.decided}${view.next ? ` It checks again ${nextCheckWords(view.next, newYorkToday())}.` : ""}`;
   return (
     <li className="min-w-0">
       <AppLink href={CHECK_HREF} aria-labelledby={`landing-card-${CHECK_ID}`} aria-describedby={`landing-card-${CHECK_ID}-finding`} className={CARD_LINK}>

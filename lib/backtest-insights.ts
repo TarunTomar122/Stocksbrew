@@ -163,7 +163,9 @@ export function buildBacktestRead(run: BacktestReadInput, mixLabel = "this mix")
 
   return {
     headline,
-    insights: pickInsights([result, tradeOff, years, carry], 4),
+    // Three cards (owner rule 7): the result against the index, what it cost at its worst, and which holding carried
+    // it. Full years ahead or behind is the fallback, since the figures under the chart already count them.
+    insights: pickInsights([result, tradeOff, carry, years], 3),
     source: `Backtested, not traded · ${monthYear(run.period.start)} to ${monthYear(run.period.end)}`,
   };
 }

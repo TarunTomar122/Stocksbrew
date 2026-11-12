@@ -81,6 +81,7 @@ export function StockCard({
   muted = false,
   expanded = false,
   fill = "",
+  tag,
   className = "",
   ...rest
 }: {
@@ -104,6 +105,8 @@ export function StockCard({
   expanded?: boolean;
   /** Spans that stretch the last card over its row's empty columns (`stockGridFill`); an opened card takes the row anyway. */
   fill?: string;
+  /** A short word after the name, e.g. "you watch it" on a stock the person watches rather than holds. */
+  tag?: string | null;
   className?: string;
 } & Omit<React.HTMLAttributes<HTMLLIElement>, "children">) {
   const short = ticker ? shortCompanyName(name) : name;
@@ -125,7 +128,11 @@ export function StockCard({
           )}
           <div className="min-w-0 leading-5">
             <p className={`${ticker ? "oa-mono" : ""} text-[14px] font-semibold text-oa-fg`}>{ticker ?? name}</p>
-            {label ? <p className="text-pretty text-[12.5px] leading-4 text-oa-muted-fg">{label}</p> : null}
+            {label || tag ? (
+              <p className="text-pretty text-[12.5px] leading-4 text-oa-muted-fg">
+                {[label, tag].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
           </div>
         </div>
         {figure ? <p className={`oa-mono shrink-0 text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${figureTone}`}>{figure}</p> : null}

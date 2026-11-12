@@ -365,6 +365,11 @@ export function briefingRead(
     marketPct?: number | null;
     /** Held stocks' report histories by ticker (lib/briefing-report-history-server.ts), for the earnings card. */
     reports?: Readonly<Record<string, BriefingReportHistory>>;
+    /**
+     * What the person's agents flagged, by ticker, as one sentence ("Your agent flagged its 5.5% drop on Tuesday."):
+     * a card about that stock says it first, so the flag, the stock and the next step read as one thing.
+     */
+    flags?: Readonly<Record<string, string>>;
   } = {},
 ): TheRead | null {
   const open = [...grouped.needs_you, ...grouped.worth_knowing, ...grouped.coming_up];
@@ -592,7 +597,20 @@ export function briefingRead(
     sub = holdingsLine(new Set(stockGroups(shown).map((group) => group.key))) || undefined;
   }
   if (!headline && insights.length === 0) return null;
-  return { headline, sub, insights, asOf: options.example ? null : asOf };
+  return { headline, sub, insights: withFlags(insights, options.flags), asOf: options.example ? null : asOf };
+}
+
+/** Each card about one flagged stock leads its second line with the flag; the first such card only. Pure. */
+export function withFlags(insights: Insight[], flags: Readonly<Record<string, string>> | undefined): Insight[] {
+  if (!flags) return insights;
+  const done = new Set<string>();
+  return insights.map((insight) => {
+    const ticker = insight.tickers?.length === 1 ? insight.tickers[0]!.toUpperCase() : null;
+    const flag = ticker ? flags[ticker]?.trim() : undefined;
+    if (!ticker || !flag || done.has(ticker)) return insight;
+    done.add(ticker);
+    return { ...insight, soWhat: [flag, insight.soWhat].filter(Boolean).join(" ") };
+  });
 }
 
 /** Worth knowing shows this many stocks before "Show all" (re-exported by lib/briefing-anchors.ts). */

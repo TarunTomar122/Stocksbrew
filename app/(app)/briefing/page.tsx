@@ -27,6 +27,8 @@ import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { overnightResultFacts } from "@/lib/results/server";
+import { loadExampleChecks } from "@/lib/portfolio-home/example-check-server";
+import { flaggedMove, flagWords } from "@/lib/portfolio-home/example-check";
 
 export const dynamic = "force-dynamic";
 
@@ -155,6 +157,25 @@ async function reportHistory(data: BriefingPageData, day: string | null) {
   });
 }
 
+/**
+ * Signed out: the move the example's agents flagged on one of its holdings, for the read's card about that stock
+ * ("Your agent flagged its 5.5% drop on Tuesday."), so the flag, the stock and its next step read as one. The checks
+ * are the same cached runs My stocks and the home page show; slow or missing, the card is as it was.
+ */
+async function exampleFlags(data: BriefingPageData & { example?: ExampleBriefingExtras }, day: string | null): Promise<Record<string, string> | undefined> {
+  if (day || data.archived || !data.example || data.briefing.mode !== "personal") return undefined;
+  // The same 1.5 seconds as the page's other side reads: a slow check leaves the card as it was.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), 1500);
+  });
+  const checks = await Promise.race([loadExampleChecks().catch(() => null), late]).finally(() => clearTimeout(timer));
+  const today = newYorkToday();
+  const flag = flaggedMove(checks, today);
+  const held = flag && data.briefing.needs_you.concat(data.briefing.also_today).some((item) => item.ticker === flag.ticker && item.relation === "holding");
+  return flag && held ? { [flag.ticker]: flagWords(flag, today) } : undefined;
+}
+
 /** Free: the moves on stocks the agent does not cover, named with no explanation (lib/briefing.ts locked_moves). */
 async function lockedSlot(data: BriefingPageData) {
   const moves = data.briefing.locked_moves ?? [];
@@ -189,7 +210,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
       : null;
 
   // All cached reads; they run side by side.
-  const [locked, facts, prices, reports] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day)]);
+  const [locked, facts, prices, reports, flags] = await Promise.all([lockedSlot(data), resultFacts(data, day), priceFacts(data, day), reportHistory(data, day), exampleFlags(data, day)]);
 
   return (
     <AppPage>
@@ -218,6 +239,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           resultFacts={facts}
           moveFacts={prices}
           reportHistory={reports}
+          flags={flags}
           agentLog={
             day || data.archived ? null : (
               <Suspense fallback={<AgentLogGhost narrow className="lg:max-h-full" />}>

@@ -17,7 +17,7 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
-import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, relativeDays, signedPct } from "./format";
+import { capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, plainBriefLead, relativeDays, signedPct } from "./format";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, PROSE, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
@@ -64,23 +64,27 @@ function LongReportLink({ ticker }: { ticker: string }) {
   );
 }
 
-/** Shown where the price zones would be, on a stock the viewer's agent does not cover. */
-function LevelsLock({ ticker, instrumentId, tracked, gate, market }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"]; market: "US" | "IN" }) {
+/**
+ * The page's one lock (owner rule 1: one named lock, not a blurb beside a second button), in the stock header beside
+ * the call it unlocks. Its title is what it holds ("The price we'd buy JPM at comes with a free account."), and the
+ * body is one short sentence on what else comes with it.
+ */
+function LevelsLock({ ticker, instrumentId, tracked, gate, market, named }: { ticker: string; instrumentId: string; tracked: boolean; gate: ReportData["gate"]; market: "US" | "IN"; named: string | null }) {
   // "Covering" is our word; readers get "the full report on five (three on PAYWALL_V2) stocks you pick".
   const left = `${gate.slotsLeft} of your ${FREE_COVERED_WORD} free full reports ${gate.slotsLeft === 1 ? "is" : "are"} left`;
-  const title = gate.plan === "anon" ? `Read the full report on ${ticker} with a free account` : `Get the full report on ${ticker}`;
+  const title = named ? named.replace(/\.$/, "") : gate.plan === "anon" ? `Read the full report on ${ticker} with a free account` : `Get the full report on ${ticker}`;
+  const longReports = market === "US" && LONG_REPORTS_FREE > 0 ? ` and ${countWord(LONG_REPORTS_FREE).toLowerCase()} long research ${LONG_REPORTS_FREE === 1 ? "report" : "reports"} a month` : "";
   const body =
     gate.plan === "anon"
-      ? // The page's one lock (owner, Nov 12): the long research report, which also needs an account, is said here
-        // instead of in a second box at the foot of the page.
-        `Our call, why we made it and what would change it are free for everyone. A free account also gets the full report on ${FREE_COVERED_WORD} stocks you pick, with the prices where we'd buy more or sell some and a note before earnings${market === "US" && LONG_REPORTS_FREE > 0 ? `, and ${countWord(LONG_REPORTS_FREE).toLowerCase()} long research ${LONG_REPORTS_FREE === 1 ? "report" : "reports"} a month on any stock` : ""}.`
+      ? // The long research report needs an account too, so it is said here instead of in a second box (owner, Nov 12).
+        `A free account gets the full report on ${FREE_COVERED_WORD} stocks you pick${longReports}.`
       : !tracked
         ? gate.slotsLeft > 0
-          ? `Add ${ticker} to your portfolio and it gets one of your free full reports: the prices where we'd act, the whole brief and a note before earnings. ${left}.`
-          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Add ${ticker} to your portfolio and swap it in for one of them (one swap a week on Free), or go Pro for a full report on every stock.`
+          ? `Add ${ticker} to your portfolio to use one of your free full reports. ${left}.`
+          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Add ${ticker} and swap it in (one swap a week on Free), or go Pro for every stock.`
         : gate.slotsLeft > 0
-          ? `You follow ${ticker}. Turn on its full report to see the prices where we'd act, the whole brief and a note before earnings. ${left}.`
-          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Swap one out in Portfolio (free any time) to make room for ${ticker}, or go Pro for a full report on every stock.`;
+          ? `You follow ${ticker}. Turn on its full report to see it. ${left}.`
+          : `All ${FREE_COVERED_WORD} of your free full reports are in use. Swap one out in Portfolio to make room for ${ticker}, or go Pro for every stock.`;
   return (
     <div className="flex flex-col gap-2">
       <LockCard feature="stock_zones" plan={gate.plan} trialEligible={gate.trialEligible} ticker={ticker} title={title} body={body} stacked />
@@ -360,10 +364,18 @@ export function StockReport({
   const basisAsOf = basis && ready?.reasonAsOf ? fmtDate(ready.reasonAsOf, false) : "";
   // The brief leads with its own first sentence (what is happening to the company, in plain facts), not the
   // engine's title ("AI growth remains powerful as scrutiny raises the proof required"); the title is the fallback.
+  // The lead goes through plainBriefLead (./format.ts): a sentence that only describes the coverage ("Recent coverage is
+  // thin for AA.") is dropped and the next one leads; "X's fresh news centers on a partnership..." says what happened.
   const briefBody = (ready?.body ?? "").trim().replace(/\s+/g, " ");
-  const briefFirst = briefBody ? wholeSentences(briefBody, 1) : "";
-  const briefLead = briefFirst || ready?.headline || "";
-  const briefRest = briefFirst && briefBody.startsWith(briefFirst) ? briefBody.slice(briefFirst.length).trim() : briefFirst ? "" : briefBody;
+  const firstOf = (text: string) => (text ? wholeSentences(text, 1) : "");
+  const restAfter = (text: string, first: string) => (first && text.startsWith(first) ? text.slice(first.length).trim() : first ? "" : text);
+  let briefFirst = firstOf(briefBody);
+  let briefRest = restAfter(briefBody, briefFirst);
+  for (let guard = 0; guard < 2 && briefFirst && !plainBriefLead(briefFirst); guard += 1) {
+    briefFirst = firstOf(briefRest);
+    briefRest = restAfter(briefRest, briefFirst);
+  }
+  const briefLead = briefBody ? plainBriefLead(briefFirst) ?? "" : plainBriefLead(ready?.headline) ?? "";
   const callWord = ready?.call ? (CALL_PLAIN[ready.call as keyof typeof CALL_PLAIN] ?? ready.call) : null;
   const callAction = ready ? plainAction(ready.actionLabel, ready.call) : null;
   // The heading is the call word alone (Buy more, Keep, Sell some); the line under it is the call's own price against
@@ -379,8 +391,12 @@ export function StockReport({
         price: hasPrice ? stock.price : null,
         money: level,
         plan: data.gate.plan,
+        ticker: stock.ticker,
       })
     : null;
+  // The page's one lock, beside the call it unlocks: only the full report is behind it (the call, its reasons and
+  // what would change it are open on every stock).
+  const showLock = Boolean(ready) && !data.gate.levels;
   // What would change the call, set apart from the reasons so it reads as the conditions to watch.
   const changeBlock = (lines: string[]) => (
     // Capped on a wide screen so the box never widens the price column at the call's expense.
@@ -395,6 +411,11 @@ export function StockReport({
       </div>
     </div>
   );
+
+  // Where the box goes: under the price, so the left side never sits empty beside the call (owner rule 10); with the
+  // lock there instead, the box joins the call it qualifies, so the two sides stay about the same height.
+  const changeBox = conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null;
+  const changeBoxInCall = showLock && Boolean(changeBox);
 
   // Under the call: two questions for Ask and one thing to watch (lib/next-steps.ts). Ask and agents cover US stocks.
   const allSteps =
@@ -504,22 +525,11 @@ export function StockReport({
                       ) : meaning ? (
                         <h2 className="mt-1.5 text-pretty text-[17px] font-medium leading-6 tracking-tight text-oa-fg">{meaning}</h2>
                       ) : null}
+                      {/* The one level line under the call word. Where this plan does not show the price, the lock beside
+                          the call names it; the call column never says it a second time (owner rule 1). */}
                       {callWord && callUnder ? (
-                        <>
-                          <p className="mt-2 max-w-[62ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
-                          {/* The one pointer to the gate: the full-report box after the reasons (id "call"). */}
-                          {callUnder.gate ? (
-                            <p className="mt-0.5 text-[14px] leading-5">
-                              <a href="#call" className="text-oa-primary hover:underline">
-                                {callUnder.gate}
-                              </a>
-                            </p>
-                          ) : null}
-                        </>
+                        <p className="mt-2 max-w-[62ch] text-pretty text-[16px] font-medium leading-6 text-oa-fg">{callUnder.text}</p>
                       ) : null}
-                      {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
-                          looked at it again: the brief is rewritten, and the call decided, at that time. */}
-                      {callDates ? <p className="mt-1.5 text-pretty text-[13px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
                       {/* A showcase stock shows its whole report to everyone; say so, so nobody takes it for the free plan. */}
                       {data.gate.example ? (
                         <p className="mt-1.5">
@@ -531,25 +541,26 @@ export function StockReport({
                       {/* What the call rests on (each fact with its source and date), then what would change it.
                           All of it comes before any price, so a level never reads as more certain than its reasons. */}
                       {evidence.length ? (
-                        // No "Why:" label over the reasons (owner rule 6: no small labels over content); they follow the call.
-                        <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
-                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1.5">
+                        // No "Why:" label over the reasons (owner rule 6: no small labels over content); they follow the call,
+                        // a size down from the level line so the call reads first (owner rule 10).
+                        <div className="mt-2 max-w-[62ch] text-[14px] leading-5 text-oa-fg">
+                          <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
                             {evidence.map((line) => (
                               <li key={line.id} className="flex gap-2.5">
-                                <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
+                                <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
                                 <span className="min-w-0 text-pretty">
-                                  {line.text} <span className="text-[13px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
+                                  {line.text} <span className="text-[12.5px] leading-[18px] text-oa-muted-fg">{line.source}.</span>
                                 </span>
                               </li>
                             ))}
                           </ul>
                         </div>
                       ) : basis ? (
-                        <div className="mt-2.5 max-w-[62ch] text-[15px] leading-[21px] text-oa-fg">
+                        <div className="mt-2 max-w-[62ch] text-[14px] leading-5 text-oa-fg">
                           <ul role="list" aria-label={`Why we say ${callWord ?? "this"}`} className="flex flex-col gap-1">
                             {basis.facts.map((fact) => (
                               <li key={fact} className="flex gap-2.5">
-                                <span aria-hidden="true" className="mt-[8px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
+                                <span aria-hidden="true" className="mt-[7.5px] size-[5px] shrink-0 rounded-full bg-oa-muted-fg" />
                                 <span className="min-w-0 text-pretty">
                                   {basisAsOf && !factHasDate(fact) && basis.facts.some((other) => factHasDate(other)) ? (
                                     <>
@@ -570,16 +581,20 @@ export function StockReport({
                           ) : null}
                         </div>
                       ) : callReason ? (
-                        <p className="mt-2.5 max-w-[62ch] text-pretty text-[15px] leading-[21px] text-oa-fg">
+                        <p className="mt-2 max-w-[62ch] text-pretty text-[14px] leading-5 text-oa-fg">
                           {callReason}
                           {reasonIsNewer && ready.reasonAsOf ? (
                             <span className="text-[13px] text-oa-muted-fg"> This reason uses data to {fmtDate(ready.reasonAsOf, false)}.</span>
                           ) : null}
                         </p>
                       ) : null}
+                      {changeBoxInCall ? <div className="mt-3 md:[&>div]:max-w-[62ch]">{changeBox}</div> : null}
+                      {/* How long the call has stood (a call that keeps its date is one you can hold us to) and when we last
+                          looked at it again, quiet under the reasons so the call and its level lead. */}
+                      {callDates ? <p className="mt-1.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{callDates}</p> : null}
                       {/* With the conditions box under the price, the next steps move here on a wide screen so the two sides
                           stay even. On a phone they stay after the box, where they were. */}
-                      {callSteps && hasChangeBox ? (
+                      {callSteps && hasChangeBox && !changeBoxInCall ? (
                         <div className="mt-3 hidden md:block">
                           <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
                         </div>
@@ -601,15 +616,22 @@ export function StockReport({
                 </section>
                 {/* Under the price on a wide screen (after the call on a phone): what would change the call, and what to
                     do next. The call's own price is the line under the call word, so it is said once. */}
-                {ready && (hasChangeBox || callSteps) ? (
+                {ready && (hasChangeBox || callSteps || showLock) ? (
                   <div className="flex min-w-0 flex-col gap-3 border-t border-oa-border pt-3 md:col-start-1 md:row-start-2 md:border-t-0 md:pt-0">
                   {/* What would change the call, under the price where the left side has room: measured conditions first,
                       the steady call's own sentence when there are none. The company reason's "if sales slow sharply"
                       line is never shown: it names nothing anyone can check. */}
-                  {conditions.length ? changeBlock(conditions) : ruleChange ? changeBlock([ruleChange]) : null}
-                  {/* No lock line here: the page has one lock, the full-report box after the reasons (owner, Nov 12). */}
+                  {changeBoxInCall ? null : changeBox}
+                  {/* The page's one lock, under the price and beside the level it holds (id "call" for links to it).
+                      Capped like the conditions box, so it never widens the price side at the call's expense. */}
+                  {showLock ? (
+                    <div id="call" className="scroll-mt-16 md:max-w-[29rem] lg:scroll-mt-4">
+                      <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} market={market} named={callUnder?.gate ?? null} />
+                    </div>
+                  ) : null}
                   {callSteps ? (
-                    <div className={hasChangeBox ? "md:hidden" : undefined}>
+                    // Under the lock when the box sits in the call column: the left side then carries price, lock and step.
+                    <div className={hasChangeBox && !changeBoxInCall ? "md:hidden" : undefined}>
                       <CallNextSteps ticker={stock.ticker} steps={callSteps} stacked />
                     </div>
                   ) : null}
@@ -758,12 +780,6 @@ export function StockReport({
                         </ul>
                       </div>
                     ) : null}
-                  </div>
-                ) : null}
-                {/* After the reasons, which are open on every stock: only the full report is behind this. */}
-                {!data.gate.levels ? (
-                  <div id="call" className="scroll-mt-16 border-t border-oa-border p-3 lg:scroll-mt-4">
-                    <LevelsLock ticker={stock.ticker} instrumentId={stock.instrument_id} tracked={data.isTracked} gate={data.gate} market={market} />
                   </div>
                 ) : null}
               </div>

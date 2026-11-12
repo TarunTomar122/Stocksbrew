@@ -160,6 +160,11 @@ export type ExamplePortfolio = {
   pricesAsOf: string | null;
   /** S&P 500 move on that day, from the same quotes, or null when it is from another day. */
   marketPct: number | null;
+  /**
+   * When each price was taken (ISO), by ticker, so every page that shows the example (the briefing, My stocks, the
+   * inbox, the landing) prices it from this one snapshot and says the same clock. Missing for a ticker left out.
+   */
+  quotedAt: Record<string, string>;
 };
 
 /**
@@ -214,9 +219,11 @@ async function loadExamplePortfolioUncached(): Promise<ExamplePortfolio | null> 
   const series = new Map([...rawSeries].map(([ticker, history]) => [ticker, upTo(history, day)]));
   const rows: PortfolioRowInput[] = [];
   const holdings: Record<string, HoldingInput> = {};
+  const quotedAt: Record<string, string> = {};
   for (const item of EXAMPLE) {
     const quote = prices.get(item.ticker);
     if (!quote) continue; // no dated price: leave the row out rather than invent one
+    if (quote.at) quotedAt[item.ticker] = quote.at;
     const id = `US_${item.ticker}`;
     rows.push({
       instrument_id: id,
@@ -254,9 +261,9 @@ async function loadExamplePortfolioUncached(): Promise<ExamplePortfolio | null> 
   const sp500 = markets?.assets.find((asset) => asset.id === "sp500") ?? null;
   const bench = benchmarkForDay(spyRows.get(BENCHMARK_SYMBOL) ?? null, day, sp500);
   const marketPct = typeof bench?.day_pct === "number" && Number.isFinite(bench.day_pct) ? bench.day_pct : null;
-  return { portfolio, pricesAsOf: day, marketPct };
+  return { portfolio, pricesAsOf: day, marketPct, quotedAt };
 }
 
-export const loadExamplePortfolio = unstable_cache(loadExamplePortfolioUncached, ["portfolio-example-v2"], {
+export const loadExamplePortfolio = unstable_cache(loadExamplePortfolioUncached, ["portfolio-example-v3"], {
   revalidate: 600,
 });

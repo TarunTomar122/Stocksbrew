@@ -243,6 +243,7 @@ export function BriefingGroupCard({
   names = [],
   anchor = false,
   fill = "",
+  watchTag = true,
 }: {
   group: BriefingGroup;
   words: CardWords;
@@ -251,6 +252,8 @@ export function BriefingGroupCard({
   names?: readonly string[];
   /** Spans that let the last card fill its row (./stock-card.tsx `stockGridFill`). */
   fill?: string;
+  /** Say "you watch it" under the name of a watched stock; off when the section says it once for several. */
+  watchTag?: boolean;
   /** The first open card of its stock on the page: it carries the `brief-<ticker>` id the agents strip links to. */
   anchor?: boolean;
 }) {
@@ -283,6 +286,8 @@ export function BriefingGroupCard({
       muted={settled}
       expanded={expanded}
       fill={fill}
+      // Held and watched said apart, as on My stocks: a stock you only watch says so under its name.
+      tag={watchTag && ticker && group.relation === "watching" ? "you watch it" : null}
       cover={
         <button
           type="button"

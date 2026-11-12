@@ -7,7 +7,7 @@ import { Bar } from "@/components/oa/kit/skeleton";
 import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
 import { newYorkToday } from "@/lib/portfolio-data";
 import { agentLines, type AgentLine } from "@/lib/portfolio-home/agent-lines";
-import { loadExampleAgentsSource } from "@/lib/portfolio-home/example-check-server";
+import { loadExampleAgentsSource, loadExampleFlagStep } from "@/lib/portfolio-home/example-check-server";
 import { focusNoticed, prioritise } from "@/lib/portfolio-home/focus";
 import { watchPlan } from "@/lib/portfolio-home/loop";
 import { feedSources, type HomeLoad } from "@/lib/portfolio-home/server";
@@ -143,7 +143,7 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
   }
 
   // Signed out: the example's own agents, with what their latest real runs found. They open the agents page.
-  const example = !signedIn ? await loadExampleAgentsSource() : null;
+  const [example, step] = !signedIn ? await Promise.all([loadExampleAgentsSource(), loadExampleFlagStep().catch(() => null)]) : [null, null];
   if (example) {
     const { lines, sharedDay, ownTimes, sharedTime, next } = agentLines(example, today, { hrefFor: () => "/agents" });
     return (
@@ -159,6 +159,17 @@ export async function AgentsPanel({ load }: { load: HomeLoad }) {
           ))}
         </ul>
         <AgentFoot sharedDay={sharedDay} nextWords={next ? nextCheckWords(next, today) : null} paused={0} ownTimes={ownTimes} sharedTime={sharedTime} count={lines.length} />
+        {/* What the flag means for the holding and what to do next, so the agent reads as working for you (judges,
+            ship 42). Real data only: the flagged run, the stock's next report and its usual move on one. */}
+        {step ? (
+          <Link
+            href={`/stock/${encodeURIComponent(step.ticker)}`}
+            prefetch={false}
+            className="block border-t border-oa-border px-4 py-2.5 text-pretty text-[13.5px] leading-5 text-oa-fg outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+          >
+            {step.step}
+          </Link>
+        ) : null}
         <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5">
           <Link href="/agents" prefetch={false} className={WATCH_LINK}>
             Set one up for your stocks

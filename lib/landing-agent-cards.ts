@@ -20,6 +20,8 @@ import { HINDSIGHT_DISCOUNT, discounted } from "@/lib/goal/series";
 import { buildMemo } from "@/lib/memo/build";
 import { currentWeek, exampleHoldings, loadShapeFacts, loadSpanEvents, spanOf } from "@/lib/memo/data";
 import { BENCHMARK_SYMBOL } from "@/lib/portfolio-data";
+import { bookLead, signedPct } from "@/lib/portfolio-home/stocks";
+import { exampleBookOnce } from "@/lib/portfolio-home/stocks-server";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { leadPercent } from "@/lib/lead-percent";
 import { wholeSentences } from "@/lib/plain-copy";
@@ -272,6 +274,37 @@ const cachedCopy = sharedCache(copyFinding, ["landing-card-copy-v6"], { revalida
 const cachedAgent = sharedCache(agentFinding, ["landing-card-agents-v2"], { revalidate: REVALIDATE });
 const cachedBasket = sharedCache(basketFinding, ["landing-card-basket-v4"], { revalidate: REVALIDATE });
 
+/**
+ * The memo card's figure is the example's last five trading days as My stocks' lead says it (bookLead, from the same
+ * book the portfolio block above reads, once per request), so the home page and /portfolio never show two weekly
+ * figures for one portfolio (judges, ship 42). The memo itself adds only what else it lists. Without the week, the
+ * memo's own top line.
+ */
+async function weekFinding(day: string): Promise<AgentFinding> {
+  // The memo only adds the note: it gets two seconds, then the card goes on without it.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), 2000);
+  });
+  const [memo, book] = await Promise.all([
+    Promise.race([once(`memo:${day}`, () => cachedMemo(day)).catch(() => null), late]).finally(() => clearTimeout(timer)),
+    exampleBookOnce().catch(() => null),
+  ]);
+  const week = book ? bookLead(book)?.week ?? null : null;
+  if (!week) {
+    if (memo) return memo;
+    nothing("memo");
+  }
+  const moved = (pct: number) => (Math.abs(pct) < 0.05 ? "was flat" : `${pct > 0 ? "rose" : "fell"} ${Math.abs(pct).toFixed(1)}%`);
+  const way = moved(week.pct).replace(/^was /, "were ");
+  const market = week.marketPct !== null && Number.isFinite(week.marketPct) ? `, while the S&P 500 ${moved(week.marketPct)}` : "";
+  return {
+    figure: Math.abs(week.pct) < 0.05 ? "Flat" : signedPct(week.pct),
+    line: `Over the last five trading days the example's holdings ${way}${market}.`,
+    note: memo?.note ?? null,
+  };
+}
+
 /** The agent example asks about the stock the earnings card names, so the two cards tell one story. */
 const AGENT_FALLBACK_TICKER = "NVDA";
 
@@ -297,7 +330,7 @@ export function loadAgentFinding(id: AgentCardId): Promise<AgentFinding> {
   const day = newYorkToday();
   switch (id) {
     case "memo":
-      return once(`memo:${day}`, () => cachedMemo(day));
+      return weekFinding(day);
     case "xray":
       // No cache of its own: the shares come from the example's priced snapshot (loadExamplePortfolio), the one
       // /portfolio and /portfolio/xray read. Apple sits near 17.5% there, so an extra 30 minutes of age here was

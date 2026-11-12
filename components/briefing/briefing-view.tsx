@@ -28,6 +28,7 @@ import { readAskContext } from "./ask";
 import { BriefingGroupCard, type GroupActions } from "./briefing-group";
 import { sectionWords } from "./card-words";
 import { StockCardGrid, StockChip, StockChipRow, stockGridFill } from "./stock-card";
+import { quietFact } from "@/lib/briefing-move-facts";
 import { longDay, pricesLine, shortDay, signedPct, sourceTime } from "./format";
 import Link from "next/link";
 
@@ -65,6 +66,8 @@ export type BriefingViewProps = {
    * of its own still gets a card with one ("Its biggest gain since Sep 9"), not a bare chip (owner rule 3).
    */
   moveFacts?: Readonly<Record<string, readonly string[]>>;
+  /** What the person's agents flagged, by ticker, said on the read's card about that stock (lib/briefing-read.ts). */
+  flags?: Readonly<Record<string, string>>;
   /** Held stocks' report histories by ticker (lib/briefing-report-history-server.ts): the read's earnings card figure. */
   reportHistory?: Readonly<Record<string, BriefingReportHistory>>;
   /** When the server rendered the page (ms). The read dates old moves against it, so server and browser agree. */
@@ -153,14 +156,70 @@ function quietHead(asOf: string | null | undefined, date: string, archived: bool
   return `Your other stocks${earlierSession(asOf, date) || (archived ? " that day" : " today")}`;
 }
 
-// Written out whole so Tailwind finds them.
-const QUIET_SM = ["", "sm:col-span-4", "sm:col-span-3", "sm:col-span-2"];
+/** One quiet stock: logo, ticker and move, and its one short fact beside them. The row opens the stock. */
+function QuietRow({ name, fact }: { name: Briefing["quiet"]["names"][number]; fact: string | null }) {
+  const move = name.day_change_pct;
+  const tone = move == null ? "text-oa-muted-fg" : move >= 0 ? "text-signal-bullish" : "text-signal-bearish";
+  return (
+    <li>
+      <Link
+        prefetch={false}
+        href={`/stock/${encodeURIComponent(name.ticker)}`}
+        className="-mx-2 grid min-h-8 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 rounded-md px-2 py-1 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+      >
+        <span className="flex items-center gap-1.5">
+          <StockLogo ticker={name.ticker} size={20} />
+          <span className="oa-mono w-11 text-[13.5px] font-semibold text-oa-fg">{name.ticker}</span>
+          <span className={`oa-mono w-[3.1rem] text-right text-[13.5px] tabular-nums ${tone}`}>{move != null ? signedPct(move, 1) : "–"}</span>
+        </span>
+        <span className="min-w-0 text-pretty text-right text-[12px] leading-4 text-oa-muted-fg">{fact ?? ""}</span>
+      </Link>
+    </li>
+  );
+}
 
-/** The quiet chips' grid (2 columns, 4 from `sm`, 2 again in the `lg` rail): the last chip fills what its row leaves. */
-function quietChipFill(index: number, count: number): string {
-  if (index !== count - 1) return "min-w-0";
-  const odd = count % 2 === 1;
-  return `min-w-0 ${odd ? "col-span-2" : ""} ${QUIET_SM[count % 4]} ${odd ? "lg:col-span-2" : "lg:col-span-1"}`;
+/**
+ * "Your other stocks today" in the rail: the holdings with nothing new, then the stocks you watch under a quiet
+ * label (owner rule 6). About eight rows show; a longer list scrolls inside with no visible bar (owner rule 5).
+ */
+function QuietList({ head, names, facts }: { head: string; names: Briefing["quiet"]["names"]; facts?: Readonly<Record<string, readonly string[]>> }) {
+  const held = names.filter((name) => name.relation !== "watching");
+  const watched = names.filter((name) => name.relation === "watching");
+  // Worked out in the order shown, so no two rows say the same words (owner rule 1).
+  const used = new Set<string>();
+  const factBy = new Map<string, string | null>();
+  for (const name of [...held, ...watched]) {
+    const fact = quietFact(facts?.[name.ticker.toUpperCase()], used);
+    if (fact) used.add(fact);
+    factBy.set(name.ticker, fact);
+  }
+  const factOf = (ticker: string) => factBy.get(ticker) ?? null;
+  return (
+    <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-2.5 pt-3`}>
+      <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
+        {head}
+      </h2>
+      <div className="scrollbar-hide mt-1.5 max-h-[25rem] overflow-y-auto overscroll-contain">
+        {held.length > 0 ? (
+          <ul aria-label="You hold">
+            {held.map((name) => (
+              <QuietRow key={name.ticker} name={name} fact={factOf(name.ticker)} />
+            ))}
+          </ul>
+        ) : null}
+        {watched.length > 0 ? (
+          <>
+            <p className={`text-[12.5px] leading-5 text-oa-muted-fg ${held.length > 0 ? "mt-2 border-t border-oa-border pt-2" : ""}`}>You watch</p>
+            <ul aria-label="You watch">
+              {watched.map((name) => (
+                <QuietRow key={name.ticker} name={name} fact={factOf(name.ticker)} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </div>
+    </section>
+  );
 }
 
 /**
@@ -197,8 +256,13 @@ function GroupCards({
   // Every company in the section keeps its capitals in an opened card's sources too, as on the card faces.
   const names = groups.filter((group) => group.ticker).map((group) => group.name).filter(Boolean);
   const chipped = groups.filter(bare);
+  // One watched card says so under its name; several are named once above the cards (owner rule 1).
+  const watched = personal ? cards.filter((group) => group.ticker && group.relation === "watching").map((group) => group.ticker as string) : [];
+  const watchLine =
+    watched.length > 1 ? `${watched.slice(0, -1).join(", ")} and ${watched[watched.length - 1]} are stocks you watch rather than hold.` : null;
   return (
     <>
+      {watchLine ? <p className="mb-2.5 text-pretty px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0">{watchLine}</p> : null}
       {words.shared.length > 0 ? (
         <ul className="mb-2.5 grid gap-1 px-2 sm:px-0">
           {words.shared.map((line) => (
@@ -236,6 +300,7 @@ function GroupCards({
               actions={actions}
               anchor={anchors?.has(group) ?? false}
               fill={stockGridFill(index, cards.length)}
+              watchTag={watched.length <= 1}
             />
           ))}
         </StockCardGrid>
@@ -383,6 +448,7 @@ export function BriefingView({
   example = null,
   resultFacts,
   moveFacts,
+  flags,
   reportHistory,
   renderedAt,
 }: BriefingViewProps) {
@@ -402,7 +468,7 @@ export function BriefingView({
   // Your own briefing reads holdings first, then what you watch, then the market (lib/briefing-read.ts).
   const grouped = personal ? holdingsFirst(groupBriefingSections(sections, briefing.mode)) : groupBriefingSections(sections, briefing.mode);
   // The read, with its next steps beside the findings (lib/next-steps.ts).
-  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now, { example: Boolean(example), marketPct: example?.market?.pct ?? null, reports: reportHistory }), {
+  const read = briefingSteps(briefingRead(briefing, grouped, personal ? null : session, now, { example: Boolean(example), marketPct: example?.market?.pct ?? null, reports: reportHistory, flags }), {
     mode: personal ? "personal" : "market",
     lead: personal ? null : briefingLead(grouped.needs_you),
   });
@@ -752,32 +818,21 @@ export function BriefingView({
 
         {/* Your agents: useful, but not the lead (owner, Nov 11), so under the market card. */}
         {rail}
-        {/* The stocks with nothing new today, always in view as logo chips with their move (owner rule 2: no "Show"
-            toggle). Secondary, so in the rail; nothing at all when every stock has a card above. */}
+        {/* The stocks with nothing new today, always in view, each with its move and one short fact of its own
+            (judges, ship 42: a ticker and a number alone said nothing). What you hold first, then what you watch, said
+            apart so the list agrees with My stocks. Secondary, so in the rail; nothing when every stock has a card. */}
         {personal && briefing.quiet.names.length > 0 ? (
-          <section aria-labelledby="quiet-head" className={`${CARD} px-4 pb-3.5 pt-3`}>
-            <h2 id="quiet-head" className="text-pretty text-[15px] font-semibold leading-6 text-oa-fg">
-              {quietHead(briefing.portfolio?.as_of, briefing.date, archived)}
-            </h2>
-            {/* About eight rows at most; a long list scrolls inside with no visible bar (owner rule 5). */}
-            <ul className="scrollbar-hide mt-2.5 grid max-h-[23.5rem] grid-cols-2 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-4 lg:grid-cols-2">
-              {briefing.quiet.names.map((name, index) => (
-                <StockChip
-                  key={name.ticker}
-                  className={quietChipFill(index, briefing.quiet.names.length)}
-                  ticker={name.ticker}
-                  figure={name.day_change_pct != null ? signedPct(name.day_change_pct, 1) : null}
-                  tone={name.day_change_pct == null ? "flat" : name.day_change_pct >= 0 ? "up" : "down"}
-                />
-              ))}
-            </ul>
-          </section>
+          <QuietList
+            head={quietHead(briefing.portfolio?.as_of, briefing.date, archived)}
+            names={briefing.quiet.names}
+            facts={archived ? undefined : moveFacts}
+          />
         ) : null}
         {/* What the agent did today across the market: secondary, so in the rail (owner rule 10), for everyone. On a wide
             screen it sits in the space the cards above leave (absolute inside it, so it never makes the rail taller
             than the main column beyond its own minimum). */}
         {agentLog ? (
-          <div data-rail-log className="relative min-w-0 lg:min-h-[21rem] lg:flex-1 [&:not(:has(section,[aria-hidden=true]))]:hidden">
+          <div data-rail-log className="relative min-w-0 lg:min-h-[15rem] lg:flex-1 [&:not(:has(section,[aria-hidden=true]))]:hidden">
             <div className="lg:absolute lg:inset-x-0 lg:top-0 lg:flex lg:max-h-full lg:flex-col">{agentLog}</div>
           </div>
         ) : null}

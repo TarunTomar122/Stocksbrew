@@ -4,9 +4,20 @@ import { runDocId } from "@/lib/agent-jobs";
 import { AGENT_RUNS_COLLECTION } from "@/lib/agent-jobs-data";
 import { EXAMPLE_AGENTS_UID } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { EXAMPLE_STOCK_TICKERS, newYorkToday } from "@/lib/portfolio-data";
+import { moveStats, sessionWords, whenWords } from "@/lib/earnings-season";
+import { loadTickerEarnings } from "@/lib/earnings-season-data";
+import { EXAMPLE_STOCK_TICKERS, loadExamplePortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { EXAMPLE_AGENTS } from "@/lib/portfolio-home/example-agents";
-import { exampleAgentsSource, shapeExampleChecks, storedCheckFromDoc, type ExampleChecksView, type StoredCheck } from "@/lib/portfolio-home/example-check";
+import {
+  exampleAgentsSource,
+  flaggedMove,
+  flagStepWords,
+  shapeExampleChecks,
+  storedCheckFromDoc,
+  type ExampleChecksView,
+  type FlaggedMove,
+  type StoredCheck,
+} from "@/lib/portfolio-home/example-check";
 import { previousMarketDay, type AgentsSource } from "@/lib/portfolio-home/log";
 import { sharedCache } from "@/lib/shared-cache";
 
@@ -81,4 +92,42 @@ export async function loadExampleAgentsSource(now: Date = new Date()): Promise<A
   const today = newYorkToday(now);
   const runs = await exampleRuns(today);
   return runs ? exampleAgentsSource(EXAMPLE_AGENTS, runs) : null;
+}
+
+/** How long the report history may take before the step goes without its usual move. */
+const STEP_HISTORY_MS = 1500;
+
+export type ExampleFlagStep = FlaggedMove & { step: string };
+
+/**
+ * The move the example's agents flagged on one of its holdings, with the step after it ("NVDA reports on Tuesday after
+ * the close, and its usual move on a report is 3.2%. Check our call on it before then."), for My stocks and the home
+ * page. The same cached runs, snapshot and report history the briefing reads. Null when no single holding was
+ * flagged lately, or the reads failed.
+ */
+export async function loadExampleFlagStep(now: Date = new Date()): Promise<ExampleFlagStep | null> {
+  const today = newYorkToday(now);
+  const [checks, example] = await Promise.all([loadExampleChecks(now), loadExamplePortfolio().catch(() => null)]);
+  const flag = flaggedMove(checks, today);
+  const position = flag ? example?.portfolio.positions.find((entry) => entry.ticker === flag.ticker && entry.kind === "holding") : null;
+  if (!flag || !position) return null;
+  const next = position.nextEarnings;
+  let usualPct: number | null = null;
+  if (next) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), STEP_HISTORY_MS);
+    });
+    const loaded = await Promise.race([loadTickerEarnings([flag.ticker], today).catch(() => null), late]).finally(() => clearTimeout(timer));
+    const entry = loaded?.get(flag.ticker);
+    if (entry && !entry.fund) usualPct = moveStats(entry.history.past, entry.history.typicalDayPct).usual;
+  }
+  const session = next?.time === "amc" || next?.time === "bmo" ? sessionWords(next.time) : "";
+  const step = flagStepWords({
+    ticker: flag.ticker,
+    report: next ? { day: next.date, when: whenWords(next.date, today), session } : null,
+    usualPct,
+    today,
+  });
+  return { ...flag, step };
 }

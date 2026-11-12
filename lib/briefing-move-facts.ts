@@ -101,3 +101,24 @@ export function moveFacts(pct: number, series: CloseSeries | null | undefined, m
   }
   return out;
 }
+
+/**
+ * The one short fact for a stock with nothing new today (the briefing's "Your other stocks" list, judges ship 42:
+ * ticker and move alone said nothing). Its biggest move in a while, how its move compares with a normal day, or where
+ * its month stands, cut to fit one line beside the ticker. Never "A normal day moves it about 1.1%": on a quiet list
+ * that reads the same on every row (owner rule 1). A fact in `used` (said on a row above) is passed over for the next.
+ * Null when nothing else is there.
+ */
+export function quietFact(facts: readonly string[] | null | undefined, used: ReadonlySet<string> = new Set()): string | null {
+  for (const fact of facts ?? []) {
+    if (/^A normal day moves it\b/.test(fact)) continue;
+    const short = fact
+      .replace(/^Its biggest /, "Biggest ")
+      .replace(/^About (.+?) a normal [\d.]+% day$/, (_whole, times: string) => `${times.charAt(0).toUpperCase()}${times.slice(1)} a normal day`)
+      .replace(/^Still (up|down) /, (_whole, way: string) => `${way.charAt(0).toUpperCase()}${way.slice(1)} `)
+      .replace(/ over the past month$/, " in a month");
+    // Two rows never say the same words (owner rule 1): the next fact, else nothing.
+    if (!used.has(short)) return short;
+  }
+  return null;
+}

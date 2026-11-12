@@ -10,7 +10,8 @@ const SPY: ScreenerRow = { symbol: "SPY", ret_1y: 14, day_pct: 1, benchmark: tru
 describe("compare read", () => {
   it("leads with the biggest difference as one quantified comparison, then the others", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY });
-    expect(read?.headline).toBe("NVDA keeps 65¢ of each sales dollar as operating profit, against 18¢ for AMD.");
+    expect(read?.headline).toBe("NVDA keeps more than three times AMD's operating profit per sales dollar.");
+    expect(read?.sub).toBe("NVDA keeps 65¢ of each sales dollar as operating profit; AMD keeps 18¢.");
     expect(read?.insights.slice(0, 2).map((item) => item.text)).toEqual([
       "NVDA grows revenue 2x faster than AMD (+83% a year against +40%).",
       "NVDA costs less than AMD for each $1 of next year's expected profit ($15 against $30).",
@@ -52,8 +53,15 @@ describe("compare read", () => {
 
   it("writes each kind of difference as a headline with its numbers", () => {
     const lead = (a: ScreenerRow, b: ScreenerRow) => winnerClauses([a, b])[0]?.lead;
-    expect(lead({ symbol: "A", rev_growth: 30 }, { symbol: "B", rev_growth: -6 })).toBe("A's sales grew 30% over the past year, while B's fell 6.0%.");
-    expect(lead({ symbol: "A", fwd_pe: 12 }, { symbol: "B", fwd_pe: 40 })).toBe("A costs $12 for each $1 of next year's expected profit, against $40 for B.");
+    expect(lead({ symbol: "A", rev_growth: 30 }, { symbol: "B", rev_growth: -6 })).toBe("A's sales grew 30% over the past year, while B's shrank.");
+    expect(lead({ symbol: "A", fwd_pe: 12 }, { symbol: "B", fwd_pe: 40 })).toBe("A costs less than a third as much as B for each $1 of next year's expected profit.");
+    expect(lead({ symbol: "A", fwd_pe: 20 }, { symbol: "B", fwd_pe: 30 })).toBe("A costs 33% less than B for each $1 of next year's expected profit.");
+    expect(lead({ symbol: "A", rev_growth: 30 }, { symbol: "B", rev_growth: 20 })).toBe("A's sales grew 10 points faster than B's over the past year.");
+    expect(lead({ symbol: "A", op_margin: 40 }, { symbol: "B", op_margin: 35 })).toBe("A keeps 5¢ more of each sales dollar as operating profit than B.");
+    expect(lead({ symbol: "A", rev_growth: 40 }, { symbol: "B", rev_growth: 10 })).toBe("A's sales grew about four times as fast as B's over the past year.");
+    expect(lead({ symbol: "A", op_margin: 30 }, { symbol: "B", op_margin: 20 })).toBe("A keeps 50% more operating profit per sales dollar than B.");
+    expect(lead({ symbol: "A", op_margin: 30 }, { symbol: "B", op_margin: 15 })).toBe("A keeps about twice B's operating profit per sales dollar.");
+    expect(winnerClauses([{ symbol: "A", op_margin: 30 }, { symbol: "B", op_margin: 15 }])[0]?.sub).toBe("A keeps 30¢ of each sales dollar as operating profit; B keeps 15¢.");
     expect(lead({ symbol: "A", op_margin: 30 }, { symbol: "B", op_margin: -8 })).toBe("A keeps 30¢ of each sales dollar as operating profit, while B loses money on its day-to-day business.");
   });
 
@@ -64,7 +72,8 @@ describe("compare read", () => {
 
   it("mixes the year, the calls and the next difference on the desk", () => {
     const read = buildCompareRead({ rows: [NVDA, AMD], benchmark: SPY, spread: true });
-    expect(read?.headline).toBe("NVDA keeps 65¢ of each sales dollar as operating profit, against 18¢ for AMD.");
+    expect(read?.headline).toBe("NVDA keeps more than three times AMD's operating profit per sales dollar.");
+    expect(read?.sub).toBe("NVDA keeps 65¢ of each sales dollar as operating profit; AMD keeps 18¢.");
     expect(read?.insights.map((item) => item.id)).toEqual(["year", "calls", "diff-growth"]);
   });
 

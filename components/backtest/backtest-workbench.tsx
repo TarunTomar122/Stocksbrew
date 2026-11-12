@@ -23,7 +23,7 @@ import { TheRead } from "@/components/oa/insight";
 import { START_MONEY, buildBacktestRead } from "@/lib/backtest-insights";
 import type { Caveat } from "@/lib/backtest/types";
 
-import { BIAS_ORDER, Panel, StatGrid, YearTable } from "./results";
+import { Panel, StatGrid, YearTable } from "./results";
 import { trackBacktestRun, trackLimitHit } from "@/lib/product-analytics";
 
 type Row = { id: number; symbol: string; weight: string };
@@ -39,14 +39,13 @@ function makeRows(holdings: { symbol: string; weight: number }[]): Row[] {
   return holdings.map((item) => ({ id: nextId++, symbol: item.symbol, weight: String(Math.round(item.weight * 100) / 100) }));
 }
 
-/** The biases that apply to this run, as one plain sentence next to the result. */
-function caveatSentence(caveats: Caveat[], example: boolean): string {
-  const titles = BIAS_ORDER.map((id) => caveats.find((caveat) => caveat.id === id))
-    // The example is a decades-old rule of thumb, not tickers picked for how they did, so the hindsight warning is the user's own runs only.
-    .filter((caveat): caveat is Caveat => Boolean(caveat) && !(example && caveat!.id === "hindsight_picks"))
-    .map((caveat) => caveat.title.replace(/\.$/, ""));
-  const rest = titles.map((title) => title.charAt(0).toLowerCase() + title.slice(1)).join("; ");
-  return `A replay of past prices, not real trades${rest ? `: ${rest}` : ""}.`;
+/**
+ * The one honest caveat under the result, when it applies: tickers chosen today, knowing how they did. Nothing else
+ * goes here (owner rule 8: no mechanics copy); the example is a decades-old rule of thumb, so it has none.
+ */
+function hindsightSentence(caveats: Caveat[], example: boolean): string | undefined {
+  if (example || !caveats.some((caveat) => caveat.id === "hindsight_picks")) return undefined;
+  return "You picked these tickers today, knowing how they turned out, so read this as a description of the past.";
 }
 
 /** Holdings as cards: the logo, its own return big, and how its share of the mix moved. Rows fill edge to edge. */
@@ -83,8 +82,9 @@ function ResultView({ run, example }: { run: BacktestRun; example: boolean }) {
   const b = run.summary.benchmark;
   const read = React.useMemo(() => {
     const base = buildBacktestRead({ ...run, benchmark }, example ? "the 60/40 mix" : "this mix");
-    // The hindsight caveat sits right under the number it qualifies, as one sentence.
-    return { ...base, sub: caveatSentence(run.caveats, example), source: `Prices through ${longDay(run.price_as_of)}` };
+    // The hindsight caveat sits right under the number it qualifies, as one sentence, and only on your own picks.
+    const sub = hindsightSentence(run.caveats, example);
+    return { ...base, ...(sub ? { sub } : {}), source: `Prices through ${longDay(run.price_as_of)}` };
   }, [run, benchmark, example]);
   // The chart in money: what $10,000 became on each day, in the mix and in the comparison fund. The thinned curve
   // can skip the first day, so the start (the $10,000 itself) is put back, or the legend's change would not match the read.

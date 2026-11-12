@@ -133,7 +133,7 @@ function CallLine({ card }: { card: StockCard }) {
   );
 }
 
-function StockCardView({ card, className }: { card: StockCard; className: string }) {
+function StockCardView({ card, className, wide = false }: { card: StockCard; className: string; wide?: boolean }) {
   const attention = card.fact !== null && card.fact.priority >= ATTENTION;
   return (
     <li className={className}>
@@ -143,27 +143,31 @@ function StockCardView({ card, className }: { card: StockCard; className: string
         title={card.name}
         data-track-links="insight_clicked"
         data-track-insight-kind={`home-stock-${card.fact?.kind ?? "none"}`}
-        className={`${CARD} flex h-full flex-col px-3.5 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}
+        // An odd last card spans the row: side by side from `sm`, its figures on the left and its fact on the right,
+        // so it never stretches with a hollow right half (owner rule 4).
+        className={`${CARD} flex h-full flex-col px-3.5 py-2.5 transition-colors hover:bg-oa-accent ${wide && card.fact ? "sm:grid sm:grid-cols-2 sm:items-center sm:gap-x-4" : ""} ${FOCUS}`}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <StockLogo ticker={card.ticker} size={22} eager />
-          <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
-          <span className="ml-auto flex shrink-0 items-baseline gap-2">
-            {card.dayMove !== null ? <span className={`oa-mono text-[12px] tabular-nums ${tone(card.dayMove)}`}>{signedDollars(card.dayMove)}</span> : null}
-            <span className={`oa-mono text-[16px] font-semibold leading-6 tabular-nums ${tone(card.dayPct)}`}>{card.dayPct !== null ? signedPct(card.dayPct, 2) : "–"}</span>
+        <span className="block min-w-0">
+          <span className="flex min-w-0 items-center gap-2">
+            <StockLogo ticker={card.ticker} size={22} eager />
+            <span className="oa-mono text-[14.5px] font-semibold tabular-nums text-oa-fg">{card.ticker}</span>
+            <span className="ml-auto flex shrink-0 items-baseline gap-2">
+              {card.dayMove !== null ? <span className={`oa-mono text-[12px] tabular-nums ${tone(card.dayMove)}`}>{signedDollars(card.dayMove)}</span> : null}
+              <span className={`oa-mono text-[16px] font-semibold leading-6 tabular-nums ${tone(card.dayPct)}`}>{card.dayPct !== null ? signedPct(card.dayPct, 2) : "–"}</span>
+            </span>
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-baseline justify-between gap-3 text-[13px] leading-[18px]">
+            <CallLine card={card} />
+            {card.gain !== null ? (
+              <span className={`oa-mono shrink-0 text-[12.5px] tabular-nums ${tone(card.gain)}`}>
+                {signedDollars(card.gain)}
+                {card.gainPct !== null ? <span className="text-oa-muted-fg"> {signedPct(card.gainPct, Math.abs(card.gainPct) < 0.5 ? 1 : 0)}</span> : null}
+              </span>
+            ) : null}
           </span>
         </span>
-        <span className="mt-0.5 flex min-w-0 items-baseline justify-between gap-3 text-[13px] leading-[18px]">
-          <CallLine card={card} />
-          {card.gain !== null ? (
-            <span className={`oa-mono shrink-0 text-[12.5px] tabular-nums ${tone(card.gain)}`}>
-              {signedDollars(card.gain)}
-              {card.gainPct !== null ? <span className="text-oa-muted-fg"> {signedPct(card.gainPct, Math.abs(card.gainPct) < 0.5 ? 1 : 0)}</span> : null}
-            </span>
-          ) : null}
-        </span>
         {card.fact ? (
-          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
+          <span className={`mt-1.5 block text-pretty text-[13px] leading-[18px] ${wide ? "sm:mt-0 sm:border-l sm:border-oa-border sm:pl-4" : ""} ${attention ? "font-medium text-oa-fg" : "text-oa-muted-fg"}`}>{card.fact.text}</span>
         ) : null}
       </Link>
     </li>
@@ -234,7 +238,7 @@ export async function StockList({ load }: { load: HomeLoad }) {
           measures it is close to the measured one (firstCap). */}
       <FitCards className={`scrollbar-hide grid grid-cols-1 content-start gap-2.5 overflow-y-auto overscroll-contain sm:grid-cols-2 ${firstCap(cards.length)}`}>
         {cards.map((card, index) => (
-          <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} />
+          <StockCardView key={card.ticker} card={card} className={cellClass(index, cards.length)} wide={index === cards.length - 1 && cards.length % 2 === 1} />
         ))}
       </FitCards>
     </section>

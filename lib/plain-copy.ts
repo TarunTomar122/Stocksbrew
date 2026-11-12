@@ -115,6 +115,21 @@ const NAME_PRONE = new Set(["dollar", "dollars", "partner", "partners", "value",
 
 const COMMON_ENDING = /^[a-z]{3,}(?:ing|ments?|tions?|sions?|ness)$|^[a-z]{4,}(?:ed|ly)$/;
 
+// The stock page's "What changed", Nov 12 ("JPMorganChase Provides $1.75 Million to Help Thousands of Veteran and
+// Military Spouse Entrepreneurs", "Jensen Huang Heat Intensifies as Taiwan Revokes Entry", "biggest Threat is AI that
+// needs Fewer chips"). Ordinary words go on the common list; words that also start company names ("Future", "Forward",
+// "Heat", "Man", "Net", "Path") go on the name-prone list, so they keep their capital beside an unknown name.
+for (const word of (
+  "pill pills provide provides thousands veteran veterans military spouse spouses entrepreneur entrepreneurs business " +
+  "businesses compete competes contract contracts create creates techs hang hangs warn challenge challenges playbook " +
+  "forgive ruthless intensify intensifies revoke revokes entry passport threat threats fewer collide collides cheapest " +
+  "sellers inflows outflows merchant merchants adopt adopts agent agents agentic"
+).split(" ")) {
+  if (word) COMMON.add(word);
+}
+for (const word of ["future", "futures", "forward", "heat", "man", "net", "path", "balance", "commerce"]) NAME_PRONE.add(word);
+for (const word of ["taiwan", "hong", "kong", "wegovy", "ozempic", "zepbound", "mounjaro"]) KNOWN_NAMES.add(word);
+
 // A wire service's desk tag in front of a headline ("Analysis-", "EXCLUSIVE:", "UPDATE 2-", "BREAKINGVIEWS-").
 const SOURCE_TAG =
   /^(?:analysis|exclusive|update(?:\s*\d+)?|refile|corrected|correction|breakingviews|factbox|explainer|insight|wrapup(?:\s*\d+)?|instant\s+view|fact\s*check)\s*(?:-|–|—|:)\s*/i;

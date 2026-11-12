@@ -375,3 +375,80 @@ export function exampleAgentsSource(agents: Array<{ id: string; draft: Pick<Agen
     })),
   };
 }
+
+/* ── one flagged move, tied to what comes next ─────────────────────────── */
+
+/** A move an agent flagged on one stock: its size and the day it closed there. */
+export type FlaggedMove = { ticker: string; pct: number; day: string };
+
+/** A flag older than this many days is not "lately": nothing is tied to it. */
+const FLAG_MAX_DAYS = 5;
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * The newest move the agents flagged on a single stock, from the checks as shown (featured first): its ticker, its
+ * move and the close it was on. Null when no check found exactly one stock's move with a number. Pure.
+ */
+export function flaggedMove(checks: Pick<ExampleChecksView, "featured" | "others"> | null | undefined, today?: string): FlaggedMove | null {
+  if (!checks) return null;
+  for (const view of [checks.featured, ...checks.others]) {
+    if (view.decision !== "notify") continue;
+    const moves = view.findings.filter((finding) => finding.ticker && typeof finding.change_pct === "number" && Number.isFinite(finding.change_pct));
+    if (moves.length !== 1 || view.more > 0) continue;
+    const finding = moves[0]!;
+    const day = DAY.test(finding.at ?? "") ? finding.at! : view.day;
+    if (today && DAY.test(today) && DAY.test(day) && (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000 > FLAG_MAX_DAYS) return null;
+    return { ticker: finding.ticker!.toUpperCase(), pct: finding.change_pct!, day };
+  }
+  return null;
+}
+
+/** "on Tuesday" within the week before `today`, else "on Nov 10". */
+export function flagDayWords(day: string, today: string): string {
+  if (!DAY.test(day) || !DAY.test(today)) return "";
+  const gap = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
+  if (gap === 0) return "today";
+  if (gap === 1) return "yesterday";
+  // A weekday name only for a day earlier this same week: last Friday, said on a Thursday, would read as tomorrow.
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  const todayWeekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (gap > 1 && gap < 7 && weekday < todayWeekday) return `on ${WEEKDAYS[weekday]}`;
+  return `on ${shortDate(day)}`;
+}
+
+/** "Your agent flagged its 5.5% drop on Tuesday.": the flag in the words of the stock's own card. */
+export function flagWords(flag: FlaggedMove, today: string): string {
+  const when = flagDayWords(flag.day, today);
+  return `Your agent flagged its ${Math.abs(flag.pct).toFixed(1)}% ${flag.pct < 0 ? "drop" : "jump"}${when ? ` ${when}` : ""}.`;
+}
+
+/** A report soon enough to be the step after a flagged move. */
+const STEP_REPORT_DAYS = 14;
+
+/** "5.9%", "16%": as the briefing's earnings card says a usual report move. */
+function usualWord(value: number): string {
+  return Math.abs(value) >= 10 ? `${Math.round(Math.abs(value))}%` : `${Math.abs(value).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+/**
+ * The step after a flagged move, from real data only: "NVDA reports on Tuesday after the close, and its usual move on
+ * a report is 3.2%. Check our call on it before then." With no report in the next two weeks, the step is the call
+ * itself. `when` is the report day in words ("on Tuesday", lib/earnings-season.ts whenWords). Pure.
+ */
+export function flagStepWords(input: {
+  ticker: string;
+  report: { day: string; when: string; session: string } | null;
+  usualPct: number | null;
+  today: string;
+}): string {
+  const { ticker, report } = input;
+  const gap = report && DAY.test(report.day) && DAY.test(input.today) ? Math.round((Date.parse(`${report.day}T12:00:00Z`) - Date.parse(`${input.today}T12:00:00Z`)) / 86_400_000) : null;
+  // A report today only counts after the close: before the open it may already be out, and "before then" is gone.
+  const ahead = gap !== null && (gap >= 1 || (gap === 0 && report?.session === "after the close"));
+  if (report && gap !== null && ahead && gap <= STEP_REPORT_DAYS) {
+    const usual = input.usualPct !== null && Number.isFinite(input.usualPct) && input.usualPct > 0 ? `, and its usual move on a report is ${usualWord(input.usualPct)}` : "";
+    return `${ticker} reports ${report.when}${report.session ? ` ${report.session}` : ""}${usual}. Check our call on it before then.`;
+  }
+  return `Check our call on ${ticker} before you act on the move.`;
+}

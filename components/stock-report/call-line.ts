@@ -3,7 +3,7 @@
  * line under it with the call's own price and where today's price sits against it, in plain words. When the
  * viewer's plan does not show levels, the line says what the call is waiting for without the number and points once
  * to the full report. Call words are plain letters (Buy more, Keep, Sell some); a word with anything else in it is
- * never matched. Pure, so it is tested on its own.
+ * never matched. A word said twice at the start ("Wait wait for a dip") is said once. Pure, so it is tested on its own.
  */
 
 import type { CallLevel } from "@/lib/call-level";
@@ -16,7 +16,8 @@ const WITHOUT_WORD: Record<string, string> = {
 };
 
 function asSentence(text: string): string | null {
-  const trimmed = text.trim();
+  // "Wait wait for a dip" (an action that already starts with the word it is joined to) reads "Wait for a dip".
+  const trimmed = text.trim().replace(/^([a-z']+)\s+\1\b/i, "$1");
   if (!trimmed) return null;
   const first = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
   return /[.!?]$/.test(first) ? first : `${first}.`;
@@ -48,7 +49,10 @@ export type HiddenLevel = { label: CallLevel["label"]; reached: boolean };
 export type CallLine = {
   /** The line under the call word. */
   text: string;
-  /** Set when the call has a price this plan does not show: the one pointer to the full report. */
+  /**
+   * Set when the call has a price this plan does not show: what the page's one lock is called ("The price we'd buy
+   * JPM at comes with a free account."). The call column never says it; the lock beside it does.
+   */
   gate: string | null;
 };
 
@@ -72,6 +76,8 @@ export function callLine(input: {
   money: (value: number) => string;
   /** "anon" when signed out: the price then comes with a free account. */
   plan: string;
+  /** Names the stock in the gate ("The price we'd buy JPM at"). */
+  ticker?: string;
 }): CallLine | null {
   const { level, hidden, price, money } = input;
   const today = price != null && price > 0 ? `today's ${money(price)}` : null;
@@ -99,7 +105,8 @@ export function callLine(input: {
           : hidden.reached
             ? `${At} is high enough that we'd sell some.`
             : `We'd sell some if it rises from ${at}.`;
-    const what = hidden.label === "We'd sell some above" ? "The price we'd sell at" : "The price we'd buy at";
+    const stock = input.ticker ? `${input.ticker} ` : "";
+    const what = hidden.label === "We'd sell some above" ? `The price we'd sell ${stock}at` : `The price we'd buy ${stock}at`;
     return { text, gate: input.plan === "anon" ? `${what} comes with a free account.` : `${what} is in the full report.` };
   }
   const action = (input.callAction ?? "").trim();

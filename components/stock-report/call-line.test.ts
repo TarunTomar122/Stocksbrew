@@ -25,6 +25,12 @@ describe("callMeaning", () => {
     expect(callMeaning("Keep", null)).toBeNull();
     expect(callMeaning(null, "We'd keep it")).toBe("We'd keep it.");
   });
+
+  it("never says a word twice at the start (a judge read \"Wait wait for a dip\")", () => {
+    expect(callMeaning(null, "Wait wait for a dip")).toBe("Wait for a dip.");
+    expect(callMeaning("Keep", "wait wait for a dip")).toBe("Wait for a dip.");
+    expect(callMeaning("Buy more", "Buy more on a dip, not here")).toBe("Wait for a dip before adding.");
+  });
 });
 
 const money = (value: number) => `$${value.toFixed(2)}`;
@@ -49,6 +55,10 @@ describe("callLine", () => {
     const sell = callLine({ ...base, callWord: "Sell some", hidden: { label: "We'd sell some above", reached: false } });
     expect(sell?.text).toBe("We'd sell some if it rises from today's $343.37.");
     expect(sell?.gate).toBe("The price we'd sell at is in the full report.");
+    // With the ticker, the gate names the stock: it is the lock's title.
+    expect(callLine({ ...base, plan: "anon", ticker: "JPM", hidden: { label: "We'd buy more below", reached: false } })?.gate).toBe(
+      "The price we'd buy JPM at comes with a free account.",
+    );
     // No dollar figure in a hidden line besides today's price.
     for (const hidden of [
       { label: "We'd buy more above", reached: false },

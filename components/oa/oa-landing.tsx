@@ -134,8 +134,9 @@ export async function OaLanding() {
           {!user.isSubscribed ? (
             <section id="pricing" className="scroll-mt-24">
               <SectionHead
-                title={`Our call on ${CALL_COVERAGE} is free. Pro adds the full report on all of them.`}
-                lede={`Why we made each call and what would change it are free too. A free account also gets the full report on ${countWord(limitFor("covered_stocks", "free"))} stocks you pick, with the prices where we'd buy more or sell some.`}
+                // One heading, one idea (owner rule 6, judges ship 42): the two plans in one sentence.
+                title="Our calls are free, and Pro adds the full report."
+                lede={`Our call on ${CALL_COVERAGE}, why we made it and what would change it are free. A free account also gets the full report on ${countWord(limitFor("covered_stocks", "free"))} stocks you pick, with the prices where we'd buy more or sell some.`}
                 href="/pricing"
                 hrefLabel="Compare the plans"
               />
