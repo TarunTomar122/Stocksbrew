@@ -210,6 +210,18 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~12:30 ET: briefing desk live (9c4820c1)
+- /briefing opens on the agent's desk: "Needs you" (one row of compact proposal cards, Accept/Dismiss, "Show N more"
+  folding inside ProposalCards so heading, bell and queue counts stay equal), "You decided" (up to 3 lines),
+  "Checked: nothing to do" (a small card per stock with the fact that settled it), the thesis strip in one line under
+  the market read. Signed out: a lone checked stock is said inline next to the heading.
+- Council: BLOCK (r3), BLOCK (r4), APPROVE (r5: UI 8, UX 8, usability 8, wording 8, agent feel 7, similarity 7).
+  Shots: scratchpad/briefing-desk/r5/, cmp5-*.png.
+- QA (fresh agent on the commit): 4 confirmed (queue hidden after Accept, count vs bell drift, heading over an empty
+  fold, a 5th answer hiding a stock's card) + 1 plausible (throttled sync reported complete) all fixed with tests.
+- tsc clean, 4464/4464 tests both ways, deployed and checked live (/, /briefing, /calendar, /explore 200 in ~0.5s).
+- Open: fixture cases at 1440 and a speed re-measure (UI-only change, no new reads); app/dev/briefing-desk stays local.
+
 ### 2026-11-13 ~10:50 ET: Dodo live on the VPS, ops alert emails on, radar-alerts off
 - Dodo: owner made a live API key; DODO_API_KEY, DODO_WEBHOOK_SECRET and the three product ids (yearly, monthly,
   India) are in ~/.config/tikrr/web.env and /etc/tikrr/web.env (DODO_MODE=live). Key checked read-only plus write

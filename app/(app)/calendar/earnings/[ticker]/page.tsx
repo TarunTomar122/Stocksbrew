@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { EarningsStats, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
 import { AppPage, FOCUS, PageHead, Ticker } from "@/components/oa/kit";
 import { loadEarningsDetail } from "@/lib/calendar";
-import { summarizeReports, todayET, weekStart } from "@/lib/calendar-shared";
+import { calendarHref, parseCalendarFilters, summarizeReports, todayET } from "@/lib/calendar-shared";
 import { loadWire } from "@/lib/wire";
 import { normalizeTicker } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
@@ -68,7 +68,7 @@ export default async function EarningsDetailPage({ params }: Props) {
           Calendar
         </Link>
         <span aria-hidden="true">/</span>
-        <Link prefetch={false} href={`/calendar?w=${weekStart(anchor)}`} className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
+        <Link prefetch={false} href={calendarHref(parseCalendarFilters(undefined, today), today, { center: anchor })} className={`rounded hover:text-oa-fg hover:underline ${FOCUS}`}>
           Week of the report
         </Link>
         <span aria-hidden="true">/</span>

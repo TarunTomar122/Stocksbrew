@@ -1,3 +1,4 @@
+import { isNyseTradingDay } from "@/lib/market-session";
 import { surprise, surpriseFrom, type ToneWord } from "@/lib/tone";
 
 /**
@@ -50,6 +51,64 @@ export function defaultWeekStart(today: string): string {
 /** Monday to Friday of the week starting on `monday`. */
 export function weekDays(monday: string): string[] {
   return [0, 1, 2, 3, 4].map((offset) => addDays(monday, offset));
+}
+
+/* ── The week view's window ─────────────────────────────────────────────── */
+
+/** Trading days the week view shows either side of its centre day: two before, the centre, two after. */
+export const WINDOW_BEFORE = 2;
+export const WINDOW_AFTER = 2;
+
+/** A weekday the NYSE is open. */
+export function isTradingDay(day: string): boolean {
+  return isNyseTradingDay(day);
+}
+
+/** `day` itself when the market trades on it, else the next day it does (a weekend or a holiday moves forward). */
+export function tradingDayOnOrAfter(day: string): string {
+  let at = day;
+  // A long weekend plus a holiday is four days at most; ten is a safe bound.
+  for (let step = 0; step < 10 && !isTradingDay(at); step += 1) at = addDays(at, 1);
+  return at;
+}
+
+/** The `count` trading days strictly before (`direction` -1) or after (+1) `day`, nearest first. */
+function tradingDaysFrom(day: string, count: number, direction: 1 | -1): string[] {
+  const out: string[] = [];
+  let at = day;
+  for (let guard = 0; out.length < count && guard < count * 4 + 10; guard += 1) {
+    at = addDays(at, direction);
+    if (isTradingDay(at)) out.push(at);
+  }
+  return out;
+}
+
+/**
+ * The trading days the week view shows for an anchor day (`filters.center`, any day): the anchor's own trading day
+ * (the next one when it falls on a weekend or a holiday) in the middle, with WINDOW_BEFORE trading days before it and
+ * WINDOW_AFTER after, oldest first. Weekends and holidays are skipped; WeekView mentions any that hold events.
+ */
+export function windowDays(anchor: string): string[] {
+  const center = tradingDayOnOrAfter(anchor);
+  return [...tradingDaysFrom(center, WINDOW_BEFORE, -1).reverse(), center, ...tradingDaysFrom(center, WINDOW_AFTER, 1)];
+}
+
+/**
+ * The days the week view loads: its first day through the day before the next trading day after its last, so a
+ * weekend or a holiday inside the window, or right after it (a window that ends on a Friday), is not lost.
+ */
+export function windowSpan(anchor: string): { from: string; to: string } {
+  const shown = windowDays(anchor);
+  return { from: shown[0]!, to: addDays(tradingDayOnOrAfter(addDays(shown[shown.length - 1]!, 1)), -1) };
+}
+
+/** "Nov 11 to 17, 2026", "Nov 30 to Dec 4, 2026", "Dec 30, 2026 to Jan 5, 2027". */
+export function fmtDayRange(from: string, to: string): string {
+  const start = parts(from);
+  const end = parts(to);
+  const left = `${MONTHS[start.month - 1]} ${start.date}${start.year !== end.year ? `, ${start.year}` : ""}`;
+  const right = start.month === end.month && start.year === end.year ? `${end.date}` : `${MONTHS[end.month - 1]} ${end.date}`;
+  return `${left} to ${right}, ${end.year}`;
 }
 
 /** New York's calendar day for an instant. */
@@ -376,8 +435,11 @@ export type CalendarFilters = {
   view: CalendarView;
   type: CalendarType | null;
   mine: boolean;
-  /** Monday of the week shown (week view). */
-  week: string;
+  /**
+   * The day the week view centres on (`w` in the URL; today by default). Any day: the window centres on its trading
+   * day (windowDays), and the arrows move it a week at a time, so a holiday in between never shifts the weekday.
+   */
+  center: string;
   /** YYYY-MM shown (month view). */
   month: string;
   /** First day shown (list view). */
@@ -400,12 +462,13 @@ export function parseCalendarFilters(params: Record<string, ParamValue> | undefi
   // A single day only makes sense as a list.
   const view: CalendarView = day ? "list" : viewRaw === "month" || viewRaw === "list" ? viewRaw : "week";
   const typeRaw = first(params?.type).toLowerCase();
-  const weekParam = parseDay(first(params?.w));
+  // `w` once held the Monday of a week; an old link still opens, centred on that Monday.
+  const centerParam = parseDay(first(params?.w));
   return {
     view,
     type: CALENDAR_TYPES.find((entry) => entry.id === typeRaw)?.id ?? null,
     mine: first(params?.mine) === "1",
-    week: weekParam ? weekStart(weekParam) : defaultWeekStart(today),
+    center: centerParam ?? today,
     month: parseMonth(first(params?.m)) ?? today.slice(0, 7),
     from: parseDay(first(params?.from)) ?? today,
     day,
@@ -419,7 +482,7 @@ export function calendarHref(filters: CalendarFilters, today: string, patch: Par
   if (next.view !== "week") query.set("view", next.view);
   if (next.type) query.set("type", next.type);
   if (next.mine) query.set("mine", "1");
-  if (next.view === "week" && next.week !== defaultWeekStart(today)) query.set("w", next.week);
+  if (next.view === "week" && tradingDayOnOrAfter(next.center) !== tradingDayOnOrAfter(today)) query.set("w", next.center);
   if (next.view === "month" && next.month !== today.slice(0, 7)) query.set("m", next.month);
   if (next.view === "list") {
     if (next.day) query.set("day", next.day);
@@ -439,8 +502,7 @@ export function viewRange(filters: CalendarFilters): { from: string; to: string 
     if (filters.day) return { from: filters.day, to: filters.day };
     return { from: filters.from, to: addDays(filters.from, LIST_SPAN_DAYS - 1) };
   }
-  // The weekend after the week is loaded too, so the odd Saturday report is not lost.
-  return { from: filters.week, to: addDays(filters.week, 6) };
+  return windowSpan(filters.center);
 }
 
 export function filterItems(

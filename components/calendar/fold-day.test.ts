@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { foldDay, weekBudget } from "@/components/calendar/fold-day";
+import { foldDay, stackDays, weekBudget } from "@/components/calendar/fold-day";
 
 const head = (id: string) => ({ id, weight: 0 });
 const row = (id: string, weight = 1) => ({ id, weight });
@@ -70,5 +70,32 @@ describe("weekBudget", () => {
     expect(weekBudget([day(2), day(20), day(9)], { min: 8, max: 15 })).toBe(10);
     // Empty days and a week of only near-empty days.
     expect(weekBudget([[], day(1)], { min: 8, max: 15 })).toBe(15);
+  });
+});
+
+describe("stackDays", () => {
+  it("keeps busy days in their own columns", () => {
+    expect(stackDays([18, 18, 18, 18, 18], { limit: 19 })).toEqual([[0], [1], [2], [3], [4]]);
+    // A quiet day beside busy ones has nobody to share with.
+    expect(stackDays([12, 18, 18, 18, 18], { limit: 19 })).toEqual([[0], [1], [2], [3], [4]]);
+  });
+
+  it("stacks quiet neighbours so the columns end closest together", () => {
+    // Thanksgiving week: a quiet Friday and Monday share a column between busy days.
+    expect(stackDays([17, 17, 6, 8, 17], { limit: 19 })).toEqual([[0], [1], [2, 3], [4]]);
+    // A sparse window (My stocks only): one fuller day, then two quiet ones together.
+    expect(stackDays([10, 7, 5], { limit: 18 })).toEqual([[0], [1, 2]]);
+    // Equal quiet days already end level: each keeps its column.
+    expect(stackDays([5, 5, 5, 5], { limit: 19 })).toEqual([[0], [1], [2], [3]]);
+    // Uneven quiet days pair up to end level.
+    expect(stackDays([4, 6, 6, 4], { limit: 19 })).toEqual([[0, 1], [2, 3]]);
+  });
+
+  it("never stacks today, nor anything onto it, nor past the limit", () => {
+    expect(stackDays([5, 5, 10, 5, 5], { limit: 19, alone: [2] })).toEqual([[0, 1], [2], [3, 4]]);
+    expect(stackDays([5, 5], { limit: 19, alone: [0] })).toEqual([[0], [1]]);
+    expect(stackDays([10, 10], { limit: 19 })).toEqual([[0], [1]]);
+    expect(stackDays([], { limit: 19 })).toEqual([]);
+    expect(stackDays([4], { limit: 19 })).toEqual([[0]]);
   });
 });

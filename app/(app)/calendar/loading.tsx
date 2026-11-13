@@ -1,6 +1,6 @@
 import { Bar, ChipRowGhost, PageHeadGhost, SkeletonFrame } from "@/components/oa/kit/skeleton";
 
-/** The week view's shape: title row with the view switch, one row of type chips, then the day columns with today wide. */
+/** The week view's shape: title row with the view switch, one row of type chips, then the day columns with today wide in the middle. */
 export default function CalendarLoading() {
   return (
     <SkeletonFrame label="Loading the calendar">
@@ -8,7 +8,7 @@ export default function CalendarLoading() {
       <ChipRowGhost count={5} className="mb-3 !flex-nowrap overflow-hidden" />
       <Bar className="mb-3 h-[52px] w-full rounded-md lg:hidden" />
       <div className="oa-surface overflow-hidden border border-oa-border bg-oa-card">
-        <div className="grid lg:grid-cols-[0.85fr_1.9fr_1fr_1fr_1fr]">
+        <div className="grid lg:grid-cols-[1fr_1fr_1.7fr_1fr_1fr]">
           {Array.from({ length: 5 }, (_, day) => (
             <div key={day} className={`border-b border-oa-border last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0 ${day > 1 ? "max-lg:hidden" : ""}`}>
               <div className="flex h-10 items-center justify-between border-b border-oa-border bg-oa-bg px-3">

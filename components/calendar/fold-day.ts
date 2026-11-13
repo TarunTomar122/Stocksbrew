@@ -66,3 +66,38 @@ export function weekBudget<T extends Sized>(days: T[][], { min, max }: { min: nu
   if (quiet.length === 0) return max;
   return Math.min(max, Math.max(min, Math.min(...quiet)));
 }
+
+/**
+ * Days side by side, grouped into columns: quiet days next to each other may share a column, stacked, so the columns
+ * end as level as the days allow (owner rule 4, BALANCE CHECK) instead of a quiet Friday ending halfway down beside
+ * busy days, or a sparse window (a filter leaves three quiet days) running one tall column beside short ones.
+ * `heights` are the days' shown heights (header included) and `limit` one column's height: a column of several days
+ * stays within it. A day in `alone` (today, the wide one) keeps a column to itself. Of every arrangement in day order,
+ * the one whose columns end closest together wins, and on a tie the one with more columns. Returns the days' indexes
+ * by column.
+ */
+export function stackDays(heights: number[], { limit, alone = [] }: { limit: number; alone?: number[] }): number[][] {
+  const count = heights.length;
+  const singles = heights.map((_, index) => [index]);
+  // A week has five days; past a dozen the arrangements are too many to try, and each day keeps its own column.
+  if (count < 2 || count > 12) return singles;
+  let best = singles;
+  let bestSpread = Math.max(...heights) - Math.min(...heights);
+  // Each bit says whether day i + 1 starts a new column.
+  for (let mask = 0; mask < 1 << (count - 1); mask += 1) {
+    const groups: number[][] = [[0]];
+    for (let index = 1; index < count; index += 1) {
+      if (mask & (1 << (index - 1))) groups.push([index]);
+      else groups[groups.length - 1]!.push(index);
+    }
+    const sums = groups.map((group) => group.reduce((sum, index) => sum + heights[index]!, 0));
+    const fits = groups.every((group, at) => group.length === 1 || (sums[at]! <= limit && !group.some((index) => alone.includes(index))));
+    if (!fits) continue;
+    const spread = Math.max(...sums) - Math.min(...sums);
+    if (spread < bestSpread - 1e-9 || (Math.abs(spread - bestSpread) <= 1e-9 && groups.length > best.length)) {
+      best = groups;
+      bestSpread = spread;
+    }
+  }
+  return best;
+}

@@ -11,10 +11,13 @@ import {
   fmtIpoPrice,
   fmtMonth,
   fmtTimeET,
+  fmtDayRange,
   fmtWeekRange,
   heatLevel,
+  isTradingDay,
   monthBounds,
   monthGrid,
+  tradingDayOnOrAfter,
   normalizeAgentEvent,
   normalizeEarnings,
   parseCalendarFilters,
@@ -28,9 +31,11 @@ import {
   topReporters,
   viewRange,
   weekDays,
+  windowSpan,
   weekStart,
   weekdayIndex,
   weekdayName,
+  windowDays,
   type CalendarItem,
   type EarningsItem,
 } from "@/lib/calendar-shared";
@@ -207,20 +212,28 @@ describe("normalising stored rows", () => {
 });
 
 describe("filters in the URL", () => {
-  it("defaults to this week and normalises a week parameter to its Monday", () => {
+  it("centres the week on today by default and keeps a pinned day as it is", () => {
     const base = parseCalendarFilters(undefined, TODAY);
-    expect(base).toEqual({ view: "week", type: null, mine: false, week: "2026-11-09", month: "2026-11", from: TODAY, day: null });
-    expect(parseCalendarFilters({ w: "2026-11-05" }, TODAY).week).toBe("2026-11-02");
-    expect(parseCalendarFilters({ w: "garbage", view: "sideways", type: "ipo" }, TODAY)).toMatchObject({ view: "week", week: "2026-11-09", type: "ipo" });
+    expect(base).toEqual({ view: "week", type: null, mine: false, center: TODAY, month: "2026-11", from: TODAY, day: null });
+    // Any day pins the window, an old Monday link included.
+    expect(parseCalendarFilters({ w: "2026-11-05" }, TODAY).center).toBe("2026-11-05");
+    expect(parseCalendarFilters({ w: "2026-11-02" }, TODAY).center).toBe("2026-11-02");
+    expect(parseCalendarFilters({ w: "garbage", view: "sideways", type: "ipo" }, TODAY)).toMatchObject({ view: "week", center: TODAY, type: "ipo" });
+    expect(parseCalendarFilters({ w: "2026-02-31" }, TODAY).center).toBe(TODAY);
     expect(parseCalendarFilters({ day: "2026-11-12", view: "month" }, TODAY)).toMatchObject({ view: "list", day: "2026-11-12" });
-    expect(parseCalendarFilters(undefined, "2026-11-14").week).toBe("2026-11-16");
+    expect(parseCalendarFilters(undefined, "2026-11-14").center).toBe("2026-11-14");
   });
 
   it("builds links without defaults and round-trips", () => {
     const base = parseCalendarFilters(undefined, TODAY);
     expect(calendarHref(base, TODAY)).toBe("/calendar");
     expect(calendarHref(base, TODAY, { type: "ipo" })).toBe("/calendar?type=ipo");
-    expect(calendarHref(base, TODAY, { week: "2026-11-16" })).toBe("/calendar?w=2026-11-16");
+    expect(calendarHref(base, TODAY, { center: "2026-11-16" })).toBe("/calendar?w=2026-11-16");
+    // A day that centres where today does is the default: no `w`.
+    expect(calendarHref(base, TODAY, { center: TODAY })).toBe("/calendar");
+    expect(calendarHref({ ...base, center: "2026-11-14" }, "2026-11-15")).toBe("/calendar");
+    const pinned = parseCalendarFilters(Object.fromEntries(new URL(calendarHref(base, TODAY, { center: "2026-11-20" }), "https://x.test").searchParams), TODAY);
+    expect(pinned.center).toBe("2026-11-20");
     expect(calendarHref(base, TODAY, { view: "month" })).toBe("/calendar?view=month");
     expect(calendarHref(base, TODAY, { view: "month", month: "2026-12", mine: true })).toBe("/calendar?view=month&mine=1&m=2026-12");
     expect(calendarHref(base, TODAY, { view: "list", day: "2026-11-12" })).toBe("/calendar?view=list&day=2026-11-12");
@@ -232,7 +245,12 @@ describe("filters in the URL", () => {
 
   it("loads the right span for each view", () => {
     const base = parseCalendarFilters(undefined, TODAY);
-    expect(viewRange(base)).toEqual({ from: "2026-11-09", to: "2026-11-15" });
+    // Thu Nov 5 and Fri Nov 6, today, Tue Nov 10 and Wed Nov 11: the weekend between is loaded too.
+    expect(viewRange(base)).toEqual({ from: "2026-11-05", to: "2026-11-11" });
+    // A window that ends on a Friday loads the weekend after it too.
+    expect(viewRange({ ...base, center: "2026-11-11" })).toEqual({ from: "2026-11-09", to: "2026-11-15" });
+    // Ending the day before Thanksgiving: the holiday is loaded, so an event on it is not lost.
+    expect(viewRange({ ...base, center: "2026-11-23" })).toEqual({ from: "2026-11-19", to: "2026-11-26" });
     expect(viewRange({ ...base, view: "month", month: "2026-11" })).toEqual({ from: "2026-11-02", to: "2026-12-04" });
     expect(viewRange({ ...base, view: "list" })).toEqual({ from: TODAY, to: "2026-11-29" });
     expect(viewRange({ ...base, view: "list", day: "2026-11-12" })).toEqual({ from: "2026-11-12", to: "2026-11-12" });
@@ -316,5 +334,59 @@ describe("normalizeEarnings surprise", () => {
     const item = normalizeEarnings({ event_date: "2026-11-09", ticker: "CEG", market: "US", reported_eps: 5.06, eps_estimate: 3.9, eps_surprise_pct: 30.08, surprise_label: "beat" })!;
     expect(item.surpriseLabel).toBe("beat");
     expect(item.surprisePct).toBe(30.08);
+  });
+});
+
+describe("the week view's window", () => {
+  it("knows trading days: weekdays that are not NYSE holidays", () => {
+    expect(isTradingDay("2026-11-13")).toBe(true); // Friday
+    expect(isTradingDay("2026-11-14")).toBe(false); // Saturday
+    expect(isTradingDay("2026-11-26")).toBe(false); // Thanksgiving
+    expect(isTradingDay("2026-12-25")).toBe(false); // Christmas
+    expect(tradingDayOnOrAfter("2026-11-13")).toBe("2026-11-13");
+    expect(tradingDayOnOrAfter("2026-11-14")).toBe("2026-11-16");
+    expect(tradingDayOnOrAfter("2026-11-26")).toBe("2026-11-27");
+    expect(tradingDayOnOrAfter("2026-12-24")).toBe("2026-12-24");
+  });
+
+  it("puts today in the middle, two trading days either side", () => {
+    // Friday Nov 13: Wed and Thu before, Mon and Tue after.
+    expect(windowDays("2026-11-13")).toEqual(["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17"]);
+    // Monday: the Thursday and Friday before.
+    expect(windowDays("2026-11-09")).toEqual(["2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11"]);
+    // Midweek: one plain week.
+    expect(windowDays("2026-11-11")).toEqual(["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]);
+    expect(windowDays("2026-11-11")[2]).toBe("2026-11-11");
+  });
+
+  it("centres a weekend or a holiday on the next trading day and skips holidays inside", () => {
+    expect(windowDays("2026-11-14")).toEqual(["2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18"]);
+    expect(windowDays("2026-11-15")).toEqual(windowDays("2026-11-16"));
+    // Thanksgiving: Friday Nov 27 in the middle, the holiday left out.
+    expect(windowDays("2026-11-26")).toEqual(["2026-11-24", "2026-11-25", "2026-11-27", "2026-11-30", "2026-12-01"]);
+    // Across Christmas and the new year.
+    expect(windowDays("2026-12-28")).toEqual(["2026-12-23", "2026-12-24", "2026-12-28", "2026-12-29", "2026-12-30"]);
+    expect(windowDays("2026-12-31")).toEqual(["2026-12-29", "2026-12-30", "2026-12-31", "2027-01-04", "2027-01-05"]);
+  });
+
+  it("steps a week at a time from the anchor, keeping the weekday in the middle", () => {
+    const today = "2026-11-13";
+    expect(windowDays(addDays(today, 7))[2]).toBe("2026-11-20");
+    expect(windowDays(addDays(today, -7))[2]).toBe("2026-11-06");
+    // Into a holiday and back: the anchor round-trips even though the middle moved to the next trading day.
+    const thanksgiving = addDays("2026-11-19", 7);
+    expect(windowDays(thanksgiving)[2]).toBe("2026-11-27");
+    expect(windowDays(addDays(thanksgiving, -7))[2]).toBe("2026-11-19");
+  });
+
+  it("loads the window and any closed days inside or right after it", () => {
+    expect(windowSpan("2026-11-13")).toEqual({ from: "2026-11-11", to: "2026-11-17" });
+    expect(windowSpan("2026-12-29")).toEqual({ from: "2026-12-24", to: "2027-01-03" });
+  });
+
+  it("labels the window across months and years", () => {
+    expect(fmtDayRange("2026-11-11", "2026-11-17")).toBe("Nov 11 to 17, 2026");
+    expect(fmtDayRange("2026-11-25", "2026-12-01")).toBe("Nov 25 to Dec 1, 2026");
+    expect(fmtDayRange("2026-12-29", "2027-01-05")).toBe("Dec 29, 2026 to Jan 5, 2027");
   });
 });

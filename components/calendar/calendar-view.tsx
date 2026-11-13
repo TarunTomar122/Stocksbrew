@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
-import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, Verdict, fmtCompact } from "@/components/oa/kit";
 import { SERIES_VARS } from "@/components/backtest/format";
 import { barGeometry } from "@/components/stock-report/fact-bars";
 import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
@@ -13,25 +13,28 @@ import {
   SESSION_LABEL,
   addDays,
   calendarHref,
-  defaultWeekStart,
+  dayDiff,
   earningsCount,
   emptyDay,
   fmtEps,
   fmtIpoPrice,
   fmtMonth,
   fmtShortDay,
+  fmtDayRange,
   fmtTimeET,
-  fmtWeekRange,
   heatLevel,
+  isTradingDay,
   monthGrid,
+  tradingDayOnOrAfter,
   reactionBasisLabel,
   relativeDay,
   resultWord,
   surprisePctOf,
   shiftMonth,
   topReporters,
-  weekDays,
   weekdayName,
+  windowDays,
+  windowSpan,
   type CalendarFilters,
   type CalendarType,
   type DayBuckets,
@@ -43,8 +46,8 @@ import {
 } from "@/lib/calendar-shared";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
-import { DayFold } from "@/components/calendar/day-fold";
-import { foldDay, weekBudget, type DayBlock } from "@/components/calendar/fold-day";
+import { WeekGrid, type WeekCard } from "@/components/calendar/week-grid";
+import { blockHeight, foldDay, stackDays, weekBudget, type DayBlock } from "@/components/calendar/fold-day";
 
 const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors lg:h-8 " + FOCUS;
@@ -145,11 +148,13 @@ export function PeriodNav({ filters, today, className = "" }: { filters: Calenda
     home = !filters.day && filters.from === today ? null : calendarHref(filters, today, { day: null, from: today });
     homeLabel = filters.day ? "Whole list" : "From today";
   } else {
-    label = fmtWeekRange(filters.week);
-    prev = calendarHref(filters, today, { week: addDays(filters.week, -7) });
-    next = calendarHref(filters, today, { week: addDays(filters.week, 7) });
-    home = filters.week === defaultWeekStart(today) ? null : calendarHref(filters, today, { week: defaultWeekStart(today) });
-    homeLabel = "This week";
+    const days = windowDays(filters.center);
+    label = fmtDayRange(days[0]!, days[days.length - 1]!);
+    // A week at a time, from the anchor, so the same weekday stays in the middle.
+    prev = calendarHref(filters, today, { center: addDays(filters.center, -7) });
+    next = calendarHref(filters, today, { center: addDays(filters.center, 7) });
+    home = isHome(filters, today) ? null : calendarHref(filters, today, { center: today });
+    homeLabel = "Today";
   }
   return (
     <div className={`flex shrink-0 items-center gap-1.5 ${className}`}>
@@ -169,47 +174,58 @@ export function PeriodNav({ filters, today, className = "" }: { filters: Calenda
   );
 }
 
+/** Whether the week view is on its default window, centred on today (or the next trading day). */
+function isHome(filters: CalendarFilters, today: string): boolean {
+  return tradingDayOnOrAfter(filters.center) === tradingDayOnOrAfter(today);
+}
+
 /**
- * Phone only: the week as five tap targets with earlier / later at the ends.
+ * Phone only: the window's days as tap targets with earlier / later at the ends, today in the middle.
  * Each day jumps down the page to its list, a day that has passed included.
  */
 function DayStrip({ filters, today, days }: { filters: CalendarFilters; today: string; days: Map<string, DayBuckets> }) {
-  const thisWeek = filters.week === defaultWeekStart(today);
+  const shown = windowDays(filters.center);
   return (
     <div className="lg:hidden">
-      <nav aria-label="Days of this week" className="oa-surface grid grid-cols-[2.5rem_repeat(5,minmax(0,1fr))_2.5rem] overflow-hidden border border-oa-border bg-oa-card">
-        <Link prefetch={false} href={calendarHref(filters, today, { week: addDays(filters.week, -7) })} aria-label="Earlier week" className={`flex items-center justify-center text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
+      <nav aria-label="Days shown" className="oa-surface grid overflow-hidden border border-oa-border bg-oa-card" style={{ gridTemplateColumns: `2.5rem repeat(${shown.length},minmax(0,1fr)) 2.5rem` }}>
+        <Link prefetch={false} href={calendarHref(filters, today, { center: addDays(filters.center, -7) })} aria-label="A week earlier" className={`flex items-center justify-center text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
           ←
         </Link>
-        {weekDays(filters.week).map((day) => {
+        {shown.map((day) => {
           const bucket = days.get(day) ?? emptyDay(day);
           const isToday = day === today;
           const past = day < today;
-          return (
-            <AppLink
-              key={day}
-              href={`#d-${day}`}
-              aria-current={isToday ? "date" : undefined}
-              aria-label={`${weekdayName(day, true)}, ${fmtShortDay(day)}: ${bucket.total} event${bucket.total === 1 ? "" : "s"}`}
-              className={`flex h-[52px] flex-col items-center justify-center border-l border-oa-border hover:bg-oa-accent ${FOCUS} ${
-                isToday ? "shadow-[inset_0_-2px_0_var(--oa-primary)]" : past ? "bg-oa-bg" : ""
-              }`}
-            >
+          const label = `${weekdayName(day, true)}, ${fmtShortDay(day)}: ${bucket.total} event${bucket.total === 1 ? "" : "s"}`;
+          const look = `flex h-[52px] flex-col items-center justify-center border-l border-oa-border ${
+            isToday ? "shadow-[inset_0_-2px_0_var(--oa-primary)]" : past ? "bg-oa-bg" : ""
+          }`;
+          const face = (
+            <>
               <span className={`text-[12.5px] leading-4 ${isToday ? "font-medium text-oa-primary" : "text-oa-muted-fg"}`}>{isToday ? "Today" : weekdayName(day)}</span>
               <span className={`${NUM} text-[15px] leading-5 ${isToday ? "font-semibold text-oa-fg" : past ? "text-oa-muted-fg" : "font-medium text-oa-fg"}`}>{Number(day.slice(8))}</span>
-              <span className={`${NUM} text-[11px] leading-3 text-oa-muted-fg`}>{bucket.total || " "}</span>
+              <span className={`${NUM} text-[11px] leading-3 text-oa-muted-fg`}>{bucket.total || " "}</span>
+            </>
+          );
+          // A day with nothing on it has no card to jump to, so it is not a link.
+          return bucket.total ? (
+            <AppLink key={day} href={`#d-${day}`} aria-current={isToday ? "date" : undefined} aria-label={label} className={`${look} hover:bg-oa-accent ${FOCUS}`}>
+              {face}
             </AppLink>
+          ) : (
+            <span key={day} aria-current={isToday ? "date" : undefined} className={look}>
+              {face}
+            </span>
           );
         })}
-        <Link prefetch={false} href={calendarHref(filters, today, { week: addDays(filters.week, 7) })} aria-label="Later week" className={`flex items-center justify-center border-l border-oa-border text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
+        <Link prefetch={false} href={calendarHref(filters, today, { center: addDays(filters.center, 7) })} aria-label="A week later" className={`flex items-center justify-center border-l border-oa-border text-[15px] text-oa-muted-fg hover:bg-oa-accent ${FOCUS}`}>
           →
         </Link>
       </nav>
-      {thisWeek ? null : (
+      {isHome(filters, today) ? null : (
         <p className="mt-2 text-[14px] text-oa-muted-fg">
-          {fmtWeekRange(filters.week)}.{" "}
-          <Link prefetch={false} href={calendarHref(filters, today, { week: defaultWeekStart(today) })} className="text-oa-primary underline underline-offset-2">
-            Back to this week
+          {fmtDayRange(shown[0]!, shown[shown.length - 1]!)}.{" "}
+          <Link prefetch={false} href={calendarHref(filters, today, { center: today })} className="text-oa-primary underline underline-offset-2">
+            Back to today
           </Link>
         </p>
       )}
@@ -274,42 +290,27 @@ export function PreReadMark({ className = "" }: { className?: string }) {
  * are not. A chip, not coloured text, so it can't be read as the sign of the
  * stock move printed beside it.
  */
-function ResultWord({ item, compact = false }: { item: EarningsItem; compact?: boolean }) {
+function ResultWord({ item }: { item: EarningsItem }) {
   const result = resultWord(item);
   if (!result || result.tone === "flat") return null;
-  return <Verdict tone={result.tone} className={`self-center ${compact ? "lg:hidden" : ""}`}>{result.word}</Verdict>;
+  return <Verdict tone={result.tone} className="self-center">{result.word}</Verdict>;
 }
 
 /**
- * The narrow desktop columns have no room for the chip, so the mark sits on the
- * ticker instead, away from the stock move, with the word for screen readers.
+ * A reported result: beat or miss and by how much against the estimate ("Beat 12%", "Miss 5.2%"), coloured by the
+ * result; the word alone when there is no estimate to size it against. Nothing for a result in line.
  */
-function ResultMark({ item }: { item: EarningsItem }) {
+function ResultFigure({ item, big = false }: { item: EarningsItem; big?: boolean }) {
   const result = resultWord(item);
   if (!result || result.tone === "flat") return null;
-  return (
-    <span className="-ml-1 hidden shrink-0 items-center lg:inline-flex">
-      <span aria-hidden="true" className="inline-flex">
-        <ToneGlyph tone={result.tone} className="size-2" />
-      </span>
-      <span className="sr-only">{result.word}</span>
-    </span>
-  );
-}
-
-/**
- * A reported result before the stock has a move: beat or miss and by how much against the estimate ("Beat 12%",
- * "Miss 5.2%"), coloured by the result. Nothing when there is no estimate to measure it against.
- */
-function ResultFigure({ item, className = "" }: { item: EarningsItem; className?: string }) {
-  const result = resultWord(item);
   const pct = surprisePctOf(item);
-  if (!result || result.tone === "flat" || pct === null || !Number.isFinite(pct)) return null;
-  const size = Math.abs(pct) >= 10 ? `${Math.round(Math.abs(pct))}` : Math.abs(pct).toFixed(1).replace(/\.0$/, "");
+  // Only a stored beat or miss, no estimate to size it against: the word alone.
+  const size = pct === null || !Number.isFinite(pct) ? null : Math.abs(pct) >= 10 ? `${Math.round(Math.abs(pct))}` : Math.abs(pct).toFixed(1).replace(/\.0$/, "");
   return (
     // "Miss", not "Missed", and a size smaller: it has to fit a narrow desktop column beside the moves.
-    <span title={`${result.word} the estimate for profit a share by ${size}%`} className={`${NUM} whitespace-nowrap text-[12.5px] ${result.tone === "up" ? "text-signal-bullish" : "text-signal-bearish"} ${className}`}>
-      {result.tone === "up" ? "Beat" : "Miss"} {size}%
+    <span title={size === null ? `${result.word} the estimate for profit a share` : `${result.word} the estimate for profit a share by ${size}%`} className={`${NUM} whitespace-nowrap ${big ? "text-[14px]" : "text-[12.5px]"} ${result.tone === "up" ? "text-signal-bullish" : "text-signal-bearish"}`}>
+      {result.tone === "up" ? "Beat" : "Miss"}
+      {size === null ? "" : ` ${size}%`}
     </span>
   );
 }
@@ -329,118 +330,141 @@ function LastReport({ item, className = "" }: { item: EarningsItem; className?: 
 }
 
 /**
- * One report, one line. `compact` (the narrow columns beside today's lead)
- * keeps the ticker and the one number; the lead column and the phone add the
- * company and, once reported, actual against estimate. `narrow` (every desktop
- * column but today's, so all five in a past or future week) swaps the result
- * chip for a mark on the ticker and drops what does not fit on a reported row:
- * the estimate, the company and the "2d" note.
+ * Today's report, one line in the wide column: the ticker, the company, and once reported the result word, the
+ * reported figure against the estimate with its bars, and the stock's move; before it, the estimate (said once in the
+ * group's heading, so only the number).
  */
-function EarningsLine({
-  item,
-  compact,
-  narrow = compact,
-  quiet,
-  mark,
-  desktopOnly = false,
-}: {
-  item: EarningsItem;
-  compact: boolean;
-  /** A desktop week column too narrow for the chip: every day but today's lead. */
-  narrow?: boolean;
-  quiet: boolean;
-  mark: boolean;
-  /**
-   * A day that has passed, in a narrow column: the row is only the ticker, the result and the move, without the name
-   * and figures that made the page heavy (owner rule 11). The result is a mark on the desktop column and its word on a
-   * phone, where the row has the room.
-   */
-  desktopOnly?: boolean;
-}) {
+function EarningsLine({ item, quiet, mark }: { item: EarningsItem; quiet: boolean; mark: boolean }) {
   const reported = item.epsActual !== null;
-  const detail = compact ? "lg:hidden" : "";
-  const result = reported
-    ? `${fmtEps(item.epsActual)}${item.epsEstimate !== null ? ` vs ${fmtEps(item.epsEstimate)} est` : ""}${
-        item.surprisePct !== null ? `, ${item.surprisePct > 0 ? "+" : item.surprisePct < 0 ? "−" : ""}${Math.abs(item.surprisePct).toFixed(1)}% surprise` : ""
-      }`
-    : item.epsEstimate !== null
-      ? `expected ${fmtEps(item.epsEstimate)} a share`
-      : "";
-  if (desktopOnly && narrow) {
-    return (
-      <Link prefetch={false} data-row="" href={earningsHref(item.ticker)} title={[item.company, result].filter(Boolean).join(": ")} className={`flex min-h-10 items-center gap-x-2 px-3 py-0.5 hover:bg-oa-accent lg:min-h-[30px] ${FOCUS}`}>
-        <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] font-medium text-oa-fg`}>
-          <StockLogo ticker={item.ticker} size={16} atOnce />
-          {item.ticker}
-        </span>
-        {reported && item.reaction ? <ResultMark item={item} /> : null}
-        <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
-          {reported ? <ResultWord item={item} compact /> : null}
-          {reported ? (
-            // The move when there is one (the mark on the ticker says beat or miss); before it, the result against the
-            // estimate in words ("Beat 12%"), never a bare EPS beside other rows' moves (owner rule 6).
-            item.reaction ? <ReactionValue item={item} narrow /> : <ResultFigure item={item} />
-          ) : item.epsEstimate !== null && !quiet ? (
-            <span className={`${NUM} text-oa-muted-fg`}>{fmtEps(item.epsEstimate)}</span>
-          ) : null}
-        </span>
-      </Link>
-    );
-  }
   return (
     <Link prefetch={false}
       data-row=""
       href={earningsHref(item.ticker)}
-      title={[item.company, result].filter(Boolean).join(": ")}
-      className={`flex min-h-10 items-center gap-x-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${narrow ? "" : "flex-wrap"} ${FOCUS}`}
+      title={[item.company, resultTitle(item)].filter(Boolean).join(": ")}
+      className={`flex min-h-10 flex-wrap items-center gap-x-2 px-3 py-1 hover:bg-oa-accent lg:min-h-[30px] lg:py-0.5 ${FOCUS}`}
     >
-      <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"} ${compact ? "" : narrow ? "min-w-[4.5rem] lg:min-w-0" : "min-w-[4.5rem]"}`}>
+      <span className={`${NUM} inline-flex min-w-[4.5rem] shrink-0 items-center gap-1.5 text-[14px] ${quiet ? "font-medium text-oa-fg" : "font-semibold text-oa-fg"}`}>
         <StockLogo ticker={item.ticker} size={16} atOnce />
         {item.ticker}
       </span>
-      {narrow && reported && item.reaction ? <ResultMark item={item} /> : null}
-      {/* Wraps on a phone rather than cutting the name; the narrow desktop columns still clip. */}
-      {/* Wide rows wrap the result under the name rather than letting the two overlap. */}
-      <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg ${narrow ? "lg:truncate" : "min-w-[6rem]"} ${detail} ${narrow && reported ? "lg:hidden" : ""}`}>
+      {/* Wraps rather than cutting the name; the result wraps under the name rather than overlapping it. */}
+      <span className="min-w-[6rem] flex-1 text-pretty text-[14px] leading-5 text-oa-muted-fg">
         {shortCompanyName(item.company)}
-        {/* Under the name, so the estimate keeps its place on the line (the narrow desktop columns have no room). */}
-        {!reported && item.lastReport ? <LastReport item={item} className={`flex ${narrow ? "lg:hidden" : ""}`} /> : null}
+        {/* Under the name, so the estimate keeps its place on the line. */}
+        {!reported && item.lastReport ? <LastReport item={item} className="flex" /> : null}
       </span>
       <span className="ml-auto flex shrink-0 items-baseline gap-2 text-[14px]">
         {mark && !reported && item.hasPreRead ? <PreReadMark className="self-center" /> : null}
         {reported ? (
           <>
-            <ResultWord item={item} compact={narrow} />
-            {/* A narrow desktop column has room for one figure: the move, or before it the result against the estimate
-                ("Beat 12%"), never a bare EPS beside other rows' moves (owner rule 6). */}
-            {narrow && !item.reaction ? <ResultFigure item={item} className="hidden lg:inline" /> : null}
-            <span className={`${NUM} inline-flex items-baseline gap-1.5 text-[12.5px] text-oa-muted-fg ${narrow ? "lg:hidden" : detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
+            <ResultWord item={item} />
+            <span className={`${NUM} inline-flex items-baseline gap-1.5 text-[12.5px] text-oa-muted-fg ${item.reaction ? "max-[420px]:hidden" : ""}`}>
               <EpsBars actual={item.epsActual} estimate={item.epsEstimate} />
               {fmtEps(item.epsActual)}
-              {/* "expected" is said once, in the group's key over the bars, so a narrow column fits the figures. */}
+              {/* "expected" is said once, in the group's key over the bars. */}
               {item.epsEstimate !== null ? (
-                <span className={narrow ? "lg:hidden" : ""}>
+                <span>
                   {" "}
                   vs {fmtEps(item.epsEstimate)}
                   <span className="sr-only"> expected</span>
                 </span>
               ) : null}
             </span>
-            <ReactionValue item={item} narrow={narrow} />
+            <ReactionValue item={item} />
           </>
         ) : null}
-        {/* A day that has passed (`quiet`) never shows the estimate in the result's place: a row without results there
-            shows no figure until they are in. */}
-        {reported || quiet ? null : item.epsEstimate !== null ? (
-          <span className={`${NUM} text-oa-muted-fg`}>
-            {/* The number alone: the session heading says once what it is ("Expected profit a share"), so the words
-                are not repeated on every row (owner, Nov 11). Screen readers still get them. */}
-            <span className="sr-only">expected </span>
-            {fmtEps(item.epsEstimate)}
-            <span className="sr-only"> a share</span>
-          </span>
-        ) : null}
+        {/* A day that has passed (`quiet`) never shows the estimate in the result's place. */}
+        {reported || quiet ? null : item.epsEstimate !== null ? <EstimateValue item={item} /> : null}
       </span>
+    </Link>
+  );
+}
+
+/** "$1.24 vs $1.10 est, +12.7% surprise", or "expected $1.10 a share": a row's full figures, for its hover title. */
+function resultTitle(item: EarningsItem): string {
+  if (item.epsActual !== null) {
+    return `${fmtEps(item.epsActual)}${item.epsEstimate !== null ? ` vs ${fmtEps(item.epsEstimate)} est` : ""}${
+      item.surprisePct !== null ? `, ${item.surprisePct > 0 ? "+" : item.surprisePct < 0 ? "−" : ""}${Math.abs(item.surprisePct).toFixed(1)}% surprise` : ""
+    }`;
+  }
+  return item.epsEstimate !== null ? `expected ${fmtEps(item.epsEstimate)} a share` : "";
+}
+
+/** The estimate alone: the session heading says once what it is ("Expected profit a share"); screen readers get the words. */
+function EstimateValue({ item }: { item: EarningsItem }) {
+  return (
+    <span className={`${NUM} text-oa-muted-fg`}>
+      <span className="sr-only">expected </span>
+      {fmtEps(item.epsEstimate)}
+      <span className="sr-only"> a share</span>
+    </span>
+  );
+}
+
+/** The company's short name for a row's second line; empty when it only repeats the ticker. */
+function rowName(item: EarningsItem): string {
+  const short = shortCompanyName(item.company);
+  return short && short.toUpperCase() !== item.ticker ? short : "";
+}
+
+/**
+ * A DayReportLine's height in short rows at lg, for the fold: one line, two (a name or a second figure), or three where
+ * "last report …" wraps under the name in a narrow column.
+ */
+function dayRowWeight(item: EarningsItem, past: boolean): number {
+  const reported = item.epsActual !== null;
+  if (!reported && !past && item.lastReport) return 2.1;
+  const second = rowName(item) !== "" || (reported && item.reaction !== null && resultWord(item) !== null);
+  return second ? 1.5 : 1;
+}
+
+/**
+ * A report in any column but today's: two short lines, so a narrow column keeps what today's wide one says (owner,
+ * Nov 13: "this used to have a bit more info that i liked"). Line one is the logo, the ticker and the figure that
+ * matters most: the stock's move once there is one, else the result against the estimate ("Beat 12%"), else the
+ * estimate. Line two is the company and, beside it, the second figure: beat or miss by how much under a move, or how
+ * the stock moved after its last report under an estimate. A day that has passed shows no estimate. No pre-read mark:
+ * on a week of coming reports it sat beside most tickers (owner rule 1); the report's page has the pre-read.
+ */
+function DayReportLine({ item, quiet }: { item: EarningsItem; quiet: boolean }) {
+  const reported = item.epsActual !== null;
+  const name = rowName(item);
+  const flat = reported && resultWord(item)?.tone === "flat";
+  const inLine = flat ? <span className="whitespace-nowrap text-[12.5px] text-oa-muted-fg">In line</span> : null;
+  const main = reported ? (
+    item.reaction ? <ReactionValue item={item} narrow /> : (inLine ?? <ResultFigure item={item} big />)
+  ) : !quiet && item.epsEstimate !== null ? (
+    <EstimateValue item={item} />
+  ) : null;
+  const side = reported
+    ? item.reaction
+      ? (inLine ?? <ResultFigure item={item} />)
+      : null
+    : !quiet && item.lastReport
+      ? <LastReport item={item} className="inline-flex whitespace-nowrap" />
+      : null;
+  return (
+    <Link
+      prefetch={false}
+      data-row=""
+      href={earningsHref(item.ticker)}
+      title={[item.company, resultTitle(item)].filter(Boolean).join(": ")}
+      className={`flex min-h-10 flex-col justify-center px-3 py-1 hover:bg-oa-accent ${FOCUS}`}
+    >
+      <span className="flex items-center gap-2">
+        <span className={`${NUM} inline-flex min-w-0 items-center gap-1.5 text-[14px] leading-5 ${quiet ? "font-medium" : "font-semibold"} text-oa-fg`}>
+          <StockLogo ticker={item.ticker} size={16} atOnce />
+          {item.ticker}
+        </span>
+        <span className="ml-auto flex shrink-0 items-baseline text-[14px] leading-5">{main}</span>
+      </span>
+      {name || side ? (
+        // The name gives way (cut with …) down to a few letters; past that the second figure moves under it.
+        <span className="flex flex-wrap items-baseline gap-x-2 pl-[22px] text-[12.5px] leading-[18px]">
+          {name ? <span className="min-w-[3rem] flex-1 truncate text-oa-muted-fg">{name}</span> : null}
+          {side ? <span className="ml-auto shrink-0">{side}</span> : null}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -540,10 +564,14 @@ function DividendLine({ item }: { item: DividendItem }) {
  * own box), in short rows. Every heading and row is weighed by its height (dayBlocks), and the week shares one budget:
  * the height of its quietest day that has events, kept between DAY_MIN and DAY_MAX, so the busy days fold to the
  * quiet one's height and the columns end level (judge90) instead of one running on beside a blank column. A day
- * quieter than DAY_MIN keeps its own short height.
+ * quieter than DAY_MIN keeps its own short height (and shares a column with a quiet neighbour, stackDays). DAY_MIN
+ * lets a busy day show about seven or eight two-line rows before its fold (owner, Nov 13: "this used to have a bit
+ * more info").
  */
-const DAY_MIN = 8;
-const DAY_MAX = 15;
+const DAY_MIN = 14;
+const DAY_MAX = 20;
+/** A day card's header (the day and its count, two lines in a narrow column) and the gap under it, in short rows. */
+const DAY_HEAD = 2.2;
 /** A heading's line, and a second line under one (its "Expected profit a share", its bars' key, a wrapped title). */
 const HEADING = 1;
 const SUBLINE = 0.6;
@@ -572,14 +600,11 @@ function More({ count, href }: { count: number; href: string }) {
  * counts about one, its "Expected profit a share" or bar key a little more), so the fold can cut whatever mix of reports,
  * IPOs and dividends the day has, and the week can fold every day to one height (weekBudget).
  */
-function dayBlocks(bucket: DayBuckets, { today, hasLead, mark }: { today: string; hasLead: boolean; mark: boolean }): DayBlock[] {
+function dayBlocks(bucket: DayBuckets, { today, mark }: { today: string; mark: boolean }): DayBlock[] {
   const isToday = bucket.day === today;
   const past = bucket.day < today;
-  // With today on screen it leads and the other days run narrow; any other week is five equal days.
-  const compact = hasLead && !isToday;
   const sessions = (["bmo", "amc", "unknown"] as Session[]).filter((session) => bucket.earnings[session].length > 0);
   const blocks: DayBlock[] = [];
-  if (bucket.total === 0) blocks.push({ node: <p key="none" className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p>, weight: 0, height: 1.8 });
   if (bucket.economic.length) {
     blocks.push({ node: <h3 key="eco-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>, weight: 0, height: HEADING });
     // A title and its time: two lines.
@@ -591,18 +616,16 @@ function dayBlocks(bucket: DayBuckets, { today, hasLead, mark }: { today: string
     const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
     // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
     const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
-    // The reported-vs-expected bars' key, once per day over the first group that draws them. The bars hide where
-    // a row has no room (a narrow desktop column; a small phone beside a move), and the key hides with them.
-    // A passed day in a narrow column (`desktopOnly`) draws its rows without bars on every screen, so no key.
-    const drawsBars = !(past && compact);
+    // The reported-vs-expected bars' key, once over the first group that draws them. Only today's wide rows draw
+    // bars (the other days' two-line rows say the result in words), and a small phone hides them beside a move.
     const paired = (list: EarningsItem[]) => list.filter((item) => hasEpsPair(item.epsActual, item.epsEstimate));
-    const sayKey = drawsBars && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
+    const sayKey = isToday && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
     // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
     const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
-    const keyClass = `${isToday ? "" : "lg:hidden"} ${keyAlways ? "" : "max-[420px]:hidden"}`;
+    const keyClass = keyAlways ? "" : "max-[420px]:hidden";
     blocks.push({
       node: (
-        <h3 key={`${session}-h`} className={`${SECTION} flex items-baseline justify-between gap-2`}>
+        <h3 key={`${session}-h`} title={sayExpected && !isToday ? "The figures are the expected profit a share" : undefined} className={`${SECTION} flex items-baseline justify-between gap-2`}>
           <span>
             {/* A narrow desktop column says the session in a few words, on one line ("Time not announced yet"
                 wrapped into the ticker under it); a phone and today's wide column keep the full words. */}
@@ -615,28 +638,31 @@ function dayBlocks(bucket: DayBuckets, { today, hasLead, mark }: { today: string
               </>
             )}
             {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
-            {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
+            {/* A narrow desktop column has no room for it beside the count (it wrapped the heading to three lines): there
+                it is the heading's hover title, and the figures carry the words for screen readers. */}
+            {sayExpected ? <span className={`block font-normal ${isToday ? "" : "lg:hidden"}`}>Expected profit a share</span> : null}
             {sayKey ? <EpsKey className={`mt-0.5 flex ${keyClass}`} /> : null}
           </span>
           <span className={`${NUM} shrink-0`}>{rows.length}</span>
         </h3>
       ),
       weight: 0,
-      // Its own line, plus "Expected profit a share" under it, plus the bars' key where it shows at lg (today only).
-      height: HEADING + (sayExpected ? SUBLINE : 0) + (sayKey && isToday ? SUBLINE : 0),
+      // Its own line, plus "Expected profit a share" under it and the bars' key (today's wide column only, at lg).
+      height: HEADING + (sayExpected && isToday ? SUBLINE : 0) + (sayKey ? SUBLINE : 0),
     });
     for (const item of rows) {
-      blocks.push({
-        node: <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />,
-          // Today's wide rows carry a second line (the result bars, the last report) more often than not.
-        weight: isToday ? 1.5 : 1,
-      });
+      blocks.push(
+        isToday
+          ? // Today's wide row wraps to a second line once it carries the result bars or the last report.
+            { node: <EarningsLine key={item.id} item={item} quiet={past} mark={mark} />, weight: item.epsActual !== null || (!past && item.lastReport) ? 1.5 : 1 }
+          : { node: <DayReportLine key={item.id} item={item} quiet={past} />, weight: dayRowWeight(item, past) },
+      );
     }
   });
   if (bucket.ipos.length) {
     blocks.push({ node: <h3 key="ipo-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>, weight: 0, height: HEADING });
-    // A name and its facts: two lines in today's wide column, about three where a narrow one wraps them.
-    for (const item of bucket.ipos) blocks.push({ node: <IpoLine key={item.id} item={item} />, weight: isToday ? 1.75 : 3 });
+    // A name and its facts: two or three lines in today's wide column (the exchange wraps), more where a narrow one wraps them.
+    for (const item of bucket.ipos) blocks.push({ node: <IpoLine key={item.id} item={item} />, weight: isToday ? 2.2 : 3 });
   }
   if (bucket.dividends.length) {
     blocks.push({
@@ -658,9 +684,22 @@ function dayBlocks(bucket: DayBuckets, { today, hasLead, mark }: { today: string
   return blocks;
 }
 
-function DayColumn({ bucket, today, filters, blocks, budget }: { bucket: DayBuckets; today: string; filters: CalendarFilters; blocks: DayBlock[]; budget: number }) {
+/** A day's card for the week grid: its header link (server-rendered), its blocks, and the server's fold of them. */
+function dayCard({ bucket, today, filters, blocks, budget }: { bucket: DayBuckets; today: string; filters: CalendarFilters; blocks: DayBlock[]; budget: number }): WeekCard {
   const isToday = bucket.day === today;
   const past = bucket.day < today;
+  // Recent days in words (owner rule 4): "Today", "Yesterday", "Tomorrow", the weekday for the rest of the past
+  // week, with no date beside them (it is in the hover title); days further on keep their date.
+  const ago = dayDiff(bucket.day, today) ?? 0;
+  const near = isToday
+    ? "Today"
+    : ago === 1
+      ? "Yesterday"
+      : ago === -1
+        ? "Tomorrow"
+        : ago > 1 && ago < 7
+          ? weekdayName(bucket.day, true)
+          : null;
   const dayHref = calendarHref(filters, today, { view: "list", day: bucket.day });
   const all = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown];
   // A day that has passed counts only the reports whose results are in: the header's "N reported" matches the rows
@@ -668,16 +707,10 @@ function DayColumn({ bucket, today, filters, blocks, budget }: { bucket: DayBuck
   const reports = past ? all.filter((item) => item.epsActual !== null).length : earningsCount(bucket);
   const beats = all.filter((item) => resultWord(item)?.tone === "up").length;
   const misses = all.filter((item) => resultWord(item)?.tone === "down").length;
-  return (
-    <section
-      id={`d-${bucket.day}`}
-      aria-label={`${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`}
-      // Each day is its own card, as tall as what it holds: a quiet day is not padded out to the busiest one's height
-      // (owner rule 4: no card padded to match a taller neighbour).
-      className={`oa-surface min-w-0 scroll-mt-16 overflow-hidden border border-oa-border lg:order-none ${past ? "order-2 bg-oa-bg" : "order-1 bg-oa-card"}`}
-    >
+  const head = (
       <AppLink
         href={dayHref}
+        title={`${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`}
         className={`flex min-h-10 flex-wrap items-center justify-between gap-x-2 border-b border-oa-border px-3 py-2 hover:bg-oa-accent ${FOCUS} ${
           past || isToday ? "" : "bg-oa-bg"
         }`}
@@ -685,12 +718,9 @@ function DayColumn({ bucket, today, filters, blocks, budget }: { bucket: DayBuck
         {/* Today is said in its own words and colour, not with a coloured edge on the column (owner rule 6). */}
         <span className="flex items-baseline gap-2 whitespace-nowrap">
           <span className={isToday ? "text-[15px] font-semibold text-oa-primary" : `text-[14px] font-medium ${past ? "text-oa-muted-fg" : "text-oa-fg"}`}>
-            {isToday ? "Today" : weekdayName(bucket.day)}
+            {near ?? weekdayName(bucket.day)}
           </span>
-          <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
-            {isToday ? `${weekdayName(bucket.day)} ` : ""}
-            {fmtShortDay(bucket.day)}
-          </span>
+          {near ? null : <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{fmtShortDay(bucket.day)}</span>}
         </span>
         <span className={`${NUM} whitespace-nowrap text-[12.5px] text-oa-muted-fg`}>
           {/* A day that has passed says so, so its % moves never read as a forecast. */}
@@ -719,16 +749,21 @@ function DayColumn({ bucket, today, filters, blocks, budget }: { bucket: DayBuck
         </span>
       </AppLink>
 
-      {(() => {
-        const { shown, rest, hidden } = foldDay(blocks, budget, FOLD_HEIGHTS);
-        return (
-          <div className={hidden ? "" : "pb-2"}>
-            <DayFold shown={shown.map((block) => block.node)} rest={rest.map((block) => block.node)} count={hidden} />
-          </div>
-        );
-      })()}
-    </section>
   );
+  return {
+    day: bucket.day,
+    label: `${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`,
+    // Each day is its own card; a past day sits after the coming ones on a phone.
+    className: past ? "order-2 bg-oa-bg" : "order-1 bg-oa-card",
+    head,
+    blocks: blocks.map((block, index) => ({ key: blockKey(block.node, index), node: block.node, row: block.weight > 0 })),
+    ssrCut: foldDay(blocks, budget, FOLD_HEIGHTS).shown.length,
+  };
+}
+
+/** A block's React key ("eco-h", an item id), so the client keeps each row's identity. */
+function blockKey(node: React.ReactNode, index: number): string {
+  return React.isValidElement(node) && node.key != null ? String(node.key) : `b${index}`;
 }
 
 /**
@@ -760,32 +795,55 @@ export function WeekView({
   /** Mark the reports that have a pre-read (only when that is the exception). */
   markPreRead: boolean;
 }) {
-  const weekdays = weekDays(filters.week);
-  const weekend = [addDays(filters.week, 5), addDays(filters.week, 6)].map((day) => days.get(day)).filter((bucket): bucket is DayBuckets => Boolean(bucket?.total));
-  const hasLead = weekdays.includes(today);
-  // Today takes the room; days that have passed give some up.
-  const template = weekdays.map((day) => (!hasLead ? "minmax(0,1fr)" : day === today ? "minmax(0,1.8fr)" : day < today ? "minmax(0,0.9fr)" : "minmax(0,1fr)")).join(" ");
-  const columns = weekdays.map((day) => {
-    const bucket = days.get(day) ?? emptyDay(day);
-    return { bucket, blocks: dayBlocks(bucket, { today, hasLead, mark: markPreRead }) };
-  });
-  // One height for the week: the busy days fold to the quietest one's (fold-day.ts weekBudget).
-  const budget = weekBudget(
-    columns.map((column) => column.blocks),
-    { min: DAY_MIN, max: DAY_MAX },
-  );
+  const shown = windowDays(filters.center);
+  // A weekend or a holiday inside the window (or right after it) is skipped, unless it holds events: then one line
+  // under the days says so.
+  const span = windowSpan(filters.center);
+  const extra: DayBuckets[] = [];
+  for (let day = span.from; day <= span.to; day = addDays(day, 1)) {
+    const bucket = days.get(day);
+    if (!isTradingDay(day) && bucket?.total) extra.push(bucket);
+  }
+  // A day with nothing on it (a filter like "My stocks only" leaves many) gets no card (owner rule 4); the day strip
+  // and the range still say which days these are.
+  const buckets = shown.map((day) => days.get(day) ?? emptyDay(day)).filter((bucket) => bucket.total > 0);
+  const columns = buckets.map((bucket) => ({ bucket, blocks: dayBlocks(bucket, { today, mark: markPreRead }) }));
+  // The server's fold (the phone's, and the desktop's until WeekGrid measures): one height for the window, the busy
+  // days folded to the quietest one's (fold-day.ts weekBudget), never below DAY_MIN.
+  const budget = Math.max(DAY_MIN, weekBudget(columns.map((column) => column.blocks), { min: 0, max: DAY_MAX }));
+  // Sparse (a filter like "My stocks only", or a quiet window): no day needs folding. Then each day keeps its own
+  // content-high card in equal columns across the row: no stacking, no stretching, no leveling.
+  const sparse = columns.every(({ blocks }) => foldDay(blocks, budget, FOLD_HEIGHTS).hidden === 0);
+  // Dense: quiet neighbours share a column, so none is left a tall card with little in it; today stays alone.
+  const groups = sparse
+    ? columns.map((column) => [column])
+    : stackDays(
+        columns.map(({ blocks }) => Math.min(blocks.reduce((sum, block) => sum + blockHeight(block), 0), budget + FOLD_HEIGHTS.button) + DAY_HEAD),
+        { limit: budget + FOLD_HEIGHTS.button + DAY_HEAD + 0.5, alone: columns.flatMap(({ bucket }, index) => (bucket.day === today ? [index] : [])) },
+      ).map((indexes) => indexes.map((index) => columns[index]!));
+  // Dense: today takes the room in the middle; with today elsewhere (another week, a weekend) every column is the same
+  // width. Sparse: equal columns across the row.
+  const template = groups.map((group) => (!sparse && group.some(({ bucket }) => bucket.day === today) ? "minmax(0,1.7fr)" : "minmax(0,1fr)")).join(" ");
   return (
     <>
-      {/* The days size to their own events, side by side from lg, so no day is padded to match a busier one. */}
-      <div className="flex flex-col gap-2 lg:grid lg:items-start lg:[grid-template-columns:var(--cal-cols)]" style={{ "--cal-cols": template } as React.CSSProperties}>
-        {columns.map(({ bucket, blocks }) => (
-          <DayColumn key={bucket.day} bucket={bucket} today={today} filters={filters} blocks={blocks} budget={budget} />
-        ))}
-      </div>
-      {weekend.length ? (
+      {buckets.length === 0 ? (
+        <Panel>
+          <Empty title="Nothing on these days" />
+        </Panel>
+      ) : (
+        <WeekGrid
+          template={template}
+          level={!sparse}
+          columns={groups.map((group) => ({
+            key: group[0]!.bucket.day,
+            cards: group.map(({ bucket, blocks }) => dayCard({ bucket, today, filters, blocks, budget })),
+          }))}
+        />
+      )}
+      {extra.length ? (
         <p className="mt-3 text-[14px] text-oa-muted-fg">
-          Also that weekend:{" "}
-          {weekend.map((bucket, index) => (
+          Also on days the market is closed:{" "}
+          {extra.map((bucket, index) => (
             <React.Fragment key={bucket.day}>
               {index > 0 ? ", " : ""}
               <Link prefetch={false} href={calendarHref(filters, today, { view: "list", day: bucket.day })} className="text-oa-fg underline decoration-oa-border underline-offset-2">
