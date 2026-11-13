@@ -20,6 +20,10 @@ stocksbrew.online, www.stocksbrew.online {
 				request>headers>Cookie delete
 				request>headers>Authorization delete
 				request>headers>X-Forwarded-For delete
+				# Behind Cloudflare the visitor IP arrives in these headers instead of remote_ip.
+				request>headers>Cf-Connecting-Ip delete
+				request>headers>True-Client-Ip delete
+				request>headers>X-Real-Ip delete
 			}
 		}
 	}
