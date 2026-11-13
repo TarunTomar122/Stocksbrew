@@ -77,6 +77,7 @@ function Head({
   id,
   hidden = false,
   place,
+  total = 0,
 }: {
   /** The tone mark; none for the "No read yet" group. */
   side: SideKey | null;
@@ -90,6 +91,8 @@ function Head({
   hidden?: boolean;
   /** Grid placement in the paired rows (`cell`). */
   place?: Cell;
+  /** Good plus mixed or bad: a column's header draws its count as a share of this, on one scale for both columns. */
+  total?: number;
 }) {
   // Not the `hidden` attribute: the `flex` class would still show it. A folded group's header is simply left out.
   if (hidden) return null;
@@ -108,6 +111,15 @@ function Head({
       {side ? <ToneGlyph tone={SIDE[side].tone} decorative /> : null}
       <span className={side ? "text-oa-fg" : ""}>{text}</span>
       {count === null ? <span className="ml-1 font-normal">None today</span> : <span className={NUM}>{count}</span>}
+      {/* Good against mixed or bad as a share of both (judges, sweep 87): the two headers' bars read as one comparison. */}
+      {side && kind === "side" && count !== null && total > count ? (
+        <span aria-hidden="true" className="ml-1 inline-block h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-oa-bg">
+          <span
+            className={`block h-full rounded-full ${SIDE[side].tone === "up" ? "bg-signal-bullish" : "bg-signal-bearish"}`}
+            style={{ width: `${(count / total) * 100}%` }}
+          />
+        </span>
+      ) : null}
     </h3>
   );
 }
@@ -178,7 +190,7 @@ export function ToneColumns({
   /** A column or group's header: the side's name and its count, or "None today". */
   const sideHead = (side: SideKey, headId: string) => {
     const n = count[side];
-    return <Head id={headId} side={side} text={SIDE[side].label} count={n ? n : null} rows={rows} kind="side" />;
+    return <Head id={headId} side={side} text={SIDE[side].label} count={n ? n : null} rows={rows} kind="side" total={count.good + count.rest} />;
   };
 
   let body: React.ReactNode;
@@ -231,7 +243,7 @@ export function ToneColumns({
             const col = index === 0 ? 1 : 2;
             return (
               <section key={side} aria-labelledby={headId} className={`min-w-0 md:contents ${rows && index === 1 ? "border-oa-border max-md:border-t" : ""}`}>
-                <Head id={headId} side={side} text={SIDE[side].label} count={count[side]} rows={rows} kind="side" place={cell(col, 1, rows)} />
+                <Head id={headId} side={side} text={SIDE[side].label} count={count[side]} rows={rows} kind="side" place={cell(col, 1, rows)} total={count.good + count.rest} />
                 <List className={`${listClass(rows, "col")} md:contents`}>
                   {seq[side].slice(0, column).map((item, offset) => placed(item, cell(col, offset + 2, rows), !open && offset >= even))}
                 </List>

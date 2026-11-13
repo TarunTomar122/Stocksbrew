@@ -17,6 +17,8 @@ import { daysFromToday, etDayOf, onDayWords, weekdayName } from "@/lib/day-words
 import { can, limitFor, type Plan } from "@/lib/entitlements";
 import { quote, risks } from "@/lib/filing-changes/words";
 import { firstSentence } from "@/lib/thread/record";
+import { basketDrafts, basketStale, type ProposalBasket } from "@/lib/basket-agent/proposals";
+import type { BasketChange } from "@/lib/basket-agent/model";
 
 export const PROPOSALS_COLLECTION = "tm_agent_proposals";
 export const PROPOSAL_VERSION = 1;
@@ -53,7 +55,10 @@ export type ProposalKind =
   | "earnings_soon"
   | "agent_resume"
   | "agent_pause"
-  | "agent_flagged";
+  | "agent_flagged"
+  /** An idea basket's agent found a company whose reason broke, or one that now fits better (lib/basket-agent). */
+  | "basket_drop"
+  | "basket_add";
 
 export type ProposalAction =
   /** Set a price alert; with `replaces`, the old alert is turned off once the new one is set (a move). */
@@ -64,7 +69,18 @@ export type ProposalAction =
   | { type: "agent_enable"; job_id: string; job_name: string; enabled: boolean }
   | { type: "agent_create"; template: string; name: string; trigger: AgentTrigger; scope: AgentScope }
   /** Opens the practice ticket filled in; the person still places the order there. */
-  | { type: "practice_ticket"; ticker: string; side: "buy" | "sell" };
+  | { type: "practice_ticket"; ticker: string; side: "buy" | "sell" }
+  /** Takes a company out of, or puts one into, the person's idea basket (lib/basket-agent). Nothing is bought or sold. */
+  | {
+      type: "basket_edit";
+      basket_id: string;
+      basket_name: string;
+      op: BasketChange["op"];
+      ticker: string;
+      company: string | null;
+      kind: BasketChange["kind"];
+      reason: string | null;
+    };
 
 /** What the agent read, with the date of each source. */
 export type ProposalSource = { label: string; at: string; href: string | null };
@@ -227,6 +243,8 @@ export type ProposalInputs = {
   upcoming?: ProposalUpcoming[] | null;
   /** Shares held in the practice account, by ticker: a practice sale is only offered for a stock it holds. */
   practice?: Record<string, number> | null;
+  /** The person's idea baskets with their recent checks (lib/basket-agent). */
+  baskets?: ProposalBasket[] | null;
 };
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -377,7 +395,11 @@ function roomForAlert(inputs: ProposalInputs): boolean {
 /** Whether one more agent can run on this plan (the jobs read is needed to say). */
 function roomForAgent(inputs: ProposalInputs): boolean {
   if (!inputs.jobs) return false;
-  return inputs.jobs.filter((job) => job.enabled).length < limitFor("agents", inputs.plan);
+  // Idea baskets that are switched on take the same slots (lib/basket-agent). A read that failed (null) means no room
+  // can be promised; baskets the caller did not read at all (undefined) count as none.
+  if (inputs.baskets === null) return false;
+  const baskets = inputs.baskets?.filter((basket) => basket.enabled).length ?? 0;
+  return inputs.jobs.filter((job) => job.enabled).length + baskets < limitFor("agents", inputs.plan);
 }
 
 /** "The next level down is $131.20, its 60-day low." */
@@ -1180,6 +1202,7 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
     ...agentResumeRules(inputs),
     ...flaggedRules(inputs),
     ...agentPauseRules(inputs),
+    ...basketDrafts(inputs.baskets, inputs.today),
   ]
     .map(fitWords)
     .filter((draft): draft is ProposalDraft => draft !== null)
@@ -1239,6 +1262,58 @@ export function pickNew(drafts: ProposalDraft[], existing: Proposal[], now: Date
     room -= 1;
   }
   return out;
+}
+
+/** Idea-basket proposals waiting at once: one per basket, two in all (lib/basket-agent), so they never fill the queue. */
+export const MAX_BASKET_WAITING = 2;
+
+function basketOf(entry: Pick<ProposalDraft, "action">): string | null {
+  return entry.action.type === "basket_edit" ? entry.action.basket_id : null;
+}
+
+/**
+ * What to store and what to set aside, strongest first. Like pickNew (no stored event twice, no idea within its
+ * cooldown, one per stock, MAX_PENDING waiting in all), plus: idea-basket proposals stay within MAX_BASKET_WAITING
+ * (one per basket), and a stronger draft takes the place of a weaker waiting one, for the same stock or for the last
+ * slot. The weaker one is returned in `outranked` to be marked expired ("outranked"), never deleted. One being applied
+ * is never set aside.
+ */
+export function pickProposals(drafts: ProposalDraft[], existing: Proposal[], now: Date, max = MAX_PENDING): { fresh: ProposalDraft[]; outranked: Proposal[] } {
+  const ids = new Set(existing.map((proposal) => proposal.id));
+  const cooldown = now.getTime() - IDEA_COOLDOWN_DAYS * DAY_MS;
+  const ideas = new Set(existing.filter((proposal) => isWaiting(proposal, now) || Date.parse(proposal.created_at) >= cooldown).map((proposal) => proposal.idea));
+  let held = existing.filter((proposal) => isWaiting(proposal, now));
+  const fresh: ProposalDraft[] = [];
+  const outranked: Proposal[] = [];
+  const movable = (proposal: Proposal) => proposal.status === "pending";
+  const setAside = (proposal: Proposal) => {
+    held = held.filter((entry) => entry.id !== proposal.id);
+    outranked.push(proposal);
+  };
+  for (const draft of drafts) {
+    if (ids.has(proposalId(draft.event.key)) || ideas.has(draft.idea)) continue;
+    const basket = basketOf(draft);
+    if (basket) {
+      const queued = [...held, ...fresh].filter((entry) => basketOf(entry) !== null);
+      if (queued.length >= MAX_BASKET_WAITING || queued.some((entry) => basketOf(entry) === basket)) continue;
+    }
+    if (draft.ticker) {
+      if (fresh.some((entry) => entry.ticker === draft.ticker)) continue;
+      const holder = held.find((entry) => entry.ticker === draft.ticker);
+      if (holder) {
+        if (!movable(holder) || holder.priority >= draft.priority) continue;
+        setAside(holder);
+      }
+    }
+    if (held.length + fresh.length >= max) {
+      const weakest = held.filter(movable).sort((a, b) => a.priority - b.priority)[0];
+      if (!weakest || weakest.priority >= draft.priority) continue;
+      setAside(weakest);
+    }
+    fresh.push(draft);
+    ideas.add(draft.idea);
+  }
+  return { fresh, outranked };
 }
 
 export function newProposal(uid: string, draft: ProposalDraft, now: Date): Proposal {
@@ -1317,6 +1392,8 @@ export function staleReason(proposal: Proposal, inputs: ProposalInputs): string 
     }
     case "agent_create":
       return inputs.jobs?.some((job) => job.enabled && job.trigger.type === "event" && action.trigger.type === "event" && job.trigger.event === action.trigger.event) ? "agent_exists" : null;
+    case "basket_edit":
+      return basketStale(action, inputs.baskets);
     case "practice_ticket": {
       // Only a call that was read and differs; a stock missing from the read says nothing.
       const log = inputs.calls?.[action.ticker];

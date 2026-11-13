@@ -95,6 +95,7 @@ export default async function InsidersPage() {
           side="buy"
           unit="insider"
           figure={(row) => fmtUsd(row.value ?? 0)}
+          measure={(row) => row.value ?? 0}
           rows={byValue}
           empty="No open-market insider buys in the last two weeks."
         />

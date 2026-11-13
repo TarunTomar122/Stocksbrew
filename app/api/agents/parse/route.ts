@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { hiddenTemplateIds } from "@/lib/agent-jobs";
 import { listJobs } from "@/lib/agent-jobs-data";
+import { runningBasketCount } from "@/lib/basket-agent/count";
 import { MAX_JOBS_PER_USER } from "@/lib/agent-jobs";
 import { anonymousPlainSubject, consumePlainParse } from "@/lib/agents-plain/limits";
 import { plainModelReader } from "@/lib/agents-plain/model";
@@ -51,11 +52,12 @@ export async function POST(req: NextRequest) {
   // Which of these the person already has, so the page counts only new agents and says so.
   let existing: boolean[] = spec.watches.map(() => false);
   if (viewer.uid) {
-    const jobs = await listJobs(viewer.uid).catch(() => null);
+    const [jobs, baskets] = await Promise.all([listJobs(viewer.uid).catch(() => null), runningBasketCount(viewer.uid).catch(() => 0)]);
     if (jobs) {
       existing = spec.watches.map((watch) => jobs.some((job) => sameJob(job, watch.draft)));
       capacity = {
-        running: jobs.filter((job) => job.enabled).length,
+        // Idea baskets switched on take the same slots (lib/basket-agent), as every limit check counts them.
+        running: jobs.filter((job) => job.enabled).length + baskets,
         total: jobs.length,
         limit: limitFor("agents", viewer.plan),
         max: MAX_JOBS_PER_USER,

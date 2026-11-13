@@ -11,6 +11,7 @@
 import { randomBytes } from "node:crypto";
 
 import { loadFilingFacts, loadNewsFacts } from "@/lib/agent-events-data";
+import { runningBasketCount } from "@/lib/basket-agent/count";
 import { listEarningsDayReports } from "@/lib/earnings-day";
 import type { EarningsReportFact } from "@/lib/earnings-day-agent";
 import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-day-shared";
@@ -183,7 +184,8 @@ export async function createJob(
     id: randomBytes(8).toString("hex").slice(0, 12),
     uid,
     mode: "tell_me",
-    enabled: planMayRun(draft, plan) && existing.filter((job) => job.enabled).length < runLimit,
+    // Idea-basket agents that are switched on count toward the same limit (lib/basket-agent).
+    enabled: planMayRun(draft, plan) && existing.filter((job) => job.enabled).length + (await runningBasketCount(uid)) < runLimit,
     created_at: stamp,
     updated_at: stamp,
     last_checked_day: null,
@@ -207,7 +209,7 @@ export async function updateJob(
     throw new AgentJobError(PRO_EVENTS_PAUSED, 409, "agent_events");
   }
   if (patch.enabled === true && !job.enabled) {
-    const running = (await listJobs(uid)).filter((other) => other.enabled && other.id !== jobId).length;
+    const running = (await listJobs(uid)).filter((other) => other.enabled && other.id !== jobId).length + (await runningBasketCount(uid));
     if (running >= runLimit) {
       throw new AgentJobError(
         runLimit === 1

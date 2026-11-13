@@ -43,10 +43,24 @@ function Pct({ value, lead = false }: { value: number | null | undefined; lead?:
  * tick where the S&P 500 stands, so each basket reads against it at a glance (owner VISUALS CHECK).
  */
 function YearBar({ value, domain, spy, className = "" }: { value: number | null | undefined; domain: [number, number]; spy: number | null; className?: string }) {
-  return <SignedBar value={value} domain={domain} mark={spy} className={`h-1.5 ${className}`} />;
+  return <SignedBar value={value} domain={domain} mark={spy} strongZero className={`h-1.5 ${className}`} />;
 }
 
-function BasketRow({ basket, index, domain, spy }: { basket: Basket; index: number; domain: [number, number]; spy: number | null }) {
+/** The S&P 500 tick's key, said once over the bars (council, sweep 87: the black mark needed a name). */
+function SpyKey() {
+  return (
+    <span className="inline-flex items-center gap-1.5 normal-case tracking-normal">
+      <span aria-hidden="true" className="inline-block h-3 w-0.5 rounded-full bg-oa-fg" />
+      S&amp;P 500
+    </span>
+  );
+}
+
+/** Each window's scale (every basket and the S&P 500 in it) and the S&P 500's own figure, for that column's bars. */
+type Scales = Record<BasketWindow, { domain: [number, number]; spy: number | null }>;
+
+function BasketRow({ basket, index, scales }: { basket: Basket; index: number; scales: Scales }) {
+  const { domain, spy } = scales[LEAD_WINDOW];
   const priced = basket.perf.ret_1m?.priced ?? 0;
   const partial = priced > 0 && priced < basket.size;
   return (
@@ -74,10 +88,14 @@ function BasketRow({ basket, index, domain, spy }: { basket: Basket; index: numb
             {basket.size > 3 ? <span className="shrink-0">+{basket.size - 3}</span> : null}
             {partial ? <span className="truncate">{`${priced} of ${basket.size} priced`}</span> : null}
           </span>
-          <span className={`${NUM} mt-1 flex gap-x-3 text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
+          {/* Phone: the other windows side by side, each with its bar on that window's scale (judges, sweep 87). */}
+          <span className={`${NUM} mt-1.5 grid max-w-[22rem] grid-cols-3 gap-x-4 text-[12.5px] leading-[18px] text-oa-muted-fg lg:hidden`}>
             {BASKET_WINDOWS.filter((window) => window.id !== LEAD_WINDOW).map((window) => (
-              <span key={window.id}>
-                {window.label} <Pct value={basket.perf[window.id]?.pct} />
+              <span key={window.id} className="flex min-w-0 flex-col gap-1">
+                <span className="whitespace-nowrap">
+                  {window.label} <Pct value={basket.perf[window.id]?.pct} />
+                </span>
+                <YearBar value={basket.perf[window.id]?.pct} domain={scales[window.id].domain} spy={scales[window.id].spy} />
               </span>
             ))}
           </span>
@@ -98,7 +116,8 @@ function BasketRow({ basket, index, domain, spy }: { basket: Basket; index: numb
         {BASKET_WINDOWS.map((window) => (
           <span key={window.id} className="hidden text-right lg:block">
             <Pct value={basket.perf[window.id]?.pct} lead={window.id === LEAD_WINDOW} />
-            {window.id === LEAD_WINDOW ? <YearBar value={basket.perf[window.id]?.pct} domain={domain} spy={spy} className="mt-1.5" /> : null}
+            {/* Every window gets its bar on its own column's scale, with a tick at the S&P 500 (judges, sweep 87). */}
+            <YearBar value={basket.perf[window.id]?.pct} domain={scales[window.id].domain} spy={scales[window.id].spy} className="mt-1.5" />
           </span>
         ))}
       </Link>
@@ -113,8 +132,13 @@ export default async function ThemesPage() {
   const benchmark = baskets[0]?.benchmark ?? null;
   const lines = baskets.reduce((sum, basket) => sum + basket.size, 0);
   // One scale for every basket's year and the S&P 500's, so the bars read as one chart down the column.
-  const spy = benchmark?.[LEAD_WINDOW] ?? null;
-  const domain = barDomain([...baskets.map((basket) => basket.perf[LEAD_WINDOW]?.pct), spy]);
+  const scales = Object.fromEntries(
+    BASKET_WINDOWS.map(({ id }) => {
+      const mark = benchmark?.[id] ?? null;
+      return [id, { domain: barDomain([...baskets.map((basket) => basket.perf[id]?.pct), mark]), spy: mark }];
+    }),
+  ) as Scales;
+  const { domain, spy } = scales[LEAD_WINDOW];
 
   const itemList = {
     "@context": "https://schema.org",
@@ -140,8 +164,9 @@ export default async function ThemesPage() {
           <>
             <div className={`oa-caption hidden h-9 border-b border-oa-border bg-oa-bg px-4 ${ROW}`}>
               <span />
-              <span>
+              <span className="flex items-center gap-3">
                 {baskets.length} ideas, {lines} lines
+                {benchmark ? <SpyKey /> : null}
               </span>
               <span className="hidden lg:block">Leading names</span>
               {BASKET_WINDOWS.map((window) => (
@@ -151,8 +176,9 @@ export default async function ThemesPage() {
                 </span>
               ))}
             </div>
-            <p className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-2 lg:hidden">
-              {baskets.length} ideas, best this year first
+            <p className="oa-caption flex items-center justify-between gap-3 border-b border-oa-border bg-oa-bg px-4 py-2 lg:hidden">
+              <span>{baskets.length} ideas, best this year first</span>
+              {benchmark ? <SpyKey /> : null}
             </p>
             {benchmark ? (
               <div className={`border-b border-oa-border px-4 py-2 text-[14px] text-oa-muted-fg ${ROW}`}>
@@ -164,21 +190,21 @@ export default async function ThemesPage() {
                   </span>
                   <span className="flex w-20 shrink-0 flex-col items-end gap-1 lg:hidden">
                     <Pct value={benchmark[LEAD_WINDOW]} />
-                    <SignedBar value={spy} domain={domain} color="var(--oa-muted-fg)" className="h-1.5 w-full" />
+                    <SignedBar value={spy} domain={domain} color="var(--oa-muted-fg)" strongZero className="h-1.5 w-full" />
                   </span>
                 </span>
                 <span className="hidden lg:block" />
                 {BASKET_WINDOWS.map((window) => (
                   <span key={window.id} className={`${NUM} hidden text-right lg:block`}>
                     {benchmark[window.id] == null ? "n/a" : `${benchmark[window.id]! > 0 ? "+" : benchmark[window.id]! < 0 ? "−" : ""}${Math.abs(benchmark[window.id]!).toFixed(1)}%`}
-                    {window.id === LEAD_WINDOW ? <SignedBar value={spy} domain={domain} color="var(--oa-muted-fg)" className="mt-1.5 h-1.5" /> : null}
+                    <SignedBar value={benchmark[window.id]} domain={scales[window.id].domain} color="var(--oa-muted-fg)" strongZero className="mt-1.5 h-1.5" />
                   </span>
                 ))}
               </div>
             ) : null}
             <ol>
               {ranked.map((basket, index) => (
-                <BasketRow key={basket.slug} basket={basket} index={index} domain={domain} spy={spy} />
+                <BasketRow key={basket.slug} basket={basket} index={index} scales={scales} />
               ))}
             </ol>
           </>

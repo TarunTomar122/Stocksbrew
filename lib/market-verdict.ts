@@ -104,7 +104,11 @@ export function fedVerdict(move: string | null | undefined): VerdictLine | null 
 
 export function movesVerdict(gains: number, total: number): VerdictLine | null {
   if (!Number.isInteger(gains) || !Number.isInteger(total) || total < 3 || gains < 0 || gains > total) return null;
-  const why = `${gains} of the ${total} biggest stock moves were gains.`;
+  // Only funds and indexes are counted (gold, gas or bitcoin rallying is not a good day for stocks), so it says so.
+  const why =
+    gains === total
+      ? `All ${total} of the biggest fund and index moves were gains.`
+      : `${gains === 0 ? "None" : gains} of the ${total} biggest fund and index moves were gains.`;
   if (gains / total >= MOVES_CLEAR) return { verdict: "good", why };
   if (gains / total <= 1 - MOVES_CLEAR) return { verdict: "bad", why };
   return { verdict: "neutral", why };

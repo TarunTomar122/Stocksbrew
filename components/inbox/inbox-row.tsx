@@ -86,7 +86,7 @@ export function InboxRow({
       ) : null}
       <span className="mt-0.5 flex shrink-0 items-center">
         {lead ? (
-          <StockLogo ticker={lead} size={compact ? 24 : 28} />
+          <StockLogo ticker={lead} size={compact ? 24 : 28} atOnce />
         ) : (
           <span className={`flex items-center justify-center rounded-md border border-oa-border bg-oa-bg text-oa-muted-fg ${compact ? "size-6" : "size-7"}`}>
             <NavIcon name={KIND_ICON[item.kind]} className={compact ? "size-3.5" : "size-4"} />
@@ -211,7 +211,7 @@ export function InboxGroupRow({
     <li data-inbox-id={first.id} className={`relative flex items-start gap-3 ${compact ? "py-2.5 pl-5 pr-3" : "py-3 pl-6 pr-4"} transition-colors hover:bg-oa-accent`}>
       {anyUnread ? <span aria-hidden="true" className={`absolute ${compact ? "left-2 top-[21px]" : "left-2.5 top-[25px]"} size-1.5 rounded-full bg-oa-primary`} /> : null}
       <span className="mt-0.5 flex shrink-0 items-center">
-        {group.ticker ? <StockLogo ticker={group.ticker} size={compact ? 24 : 28} /> : null}
+        {group.ticker ? <StockLogo ticker={group.ticker} size={compact ? 24 : 28} atOnce /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p>

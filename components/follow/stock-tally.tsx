@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { NUM, Panel, Ticker } from "@/components/oa/kit";
+import { MoveBar } from "@/components/oa/kit/tone";
 import type { StockTally } from "@/lib/follow-insights";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { shortBuyerName } from "@/lib/buyer-name";
@@ -18,6 +19,7 @@ export function StockTallyPanel({
   empty,
   right,
   figure,
+  measure,
 }: {
   label: React.ReactNode;
   takeaway?: React.ReactNode;
@@ -29,9 +31,14 @@ export function StockTallyPanel({
   right?: React.ReactNode;
   /** The row's figure instead of the head count (e.g. the money in), for a list ranked by something else. */
   figure?: (row: StockTally) => string;
+  /** What the row's bar measures when `figure` is not the head count (the money in); the head count otherwise. */
+  measure?: (row: StockTally) => number;
 }) {
   // One row per company (Alphabet once, not GOOGL and GOOG); the other class is named on the row.
   const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
+  // Each row's figure as a bar on the list's own scale, so the ranking reads at a glance (judges, sweep 87).
+  const sized = (row: StockTally) => (measure ? measure(row) : (side === "buy" ? row.buyers : row.sellers).length);
+  const most = Math.max(0, ...shown.map(sized));
   return (
     // The head count's unit is said once, as the figure column's head, not on every row (owner rule 1).
     <Panel flush fill label={label} right={right ?? (figure ? undefined : <span className="text-oa-muted-fg">{`${unit[0]!.toUpperCase()}${unit.slice(1)}s`}</span>)}>
@@ -59,8 +66,9 @@ export function StockTallyPanel({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`${NUM} text-[14px] font-medium ${side === "buy" ? "text-signal-bullish" : "text-signal-bearish"}`}>
-                    {figure ? figure(row) : who.length}
+                  <p className={`${NUM} flex items-center justify-end gap-2.5 text-[14px] font-medium ${side === "buy" ? "text-signal-bullish" : "text-signal-bearish"}`}>
+                    {most > 0 ? <MoveBar value={side === "buy" ? sized(row) : -sized(row)} max={most} width={64} /> : null}
+                    <span className={figure ? "min-w-[3.5rem]" : "min-w-[1.25rem]"}>{figure ? figure(row) : who.length}</span>
                   </p>
                   {other > 0 ? (
                     <p className={`${NUM} text-[12px] text-oa-muted-fg`}>

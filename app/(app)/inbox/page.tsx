@@ -7,8 +7,8 @@ import { InboxList } from "@/components/inbox/inbox-list";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { ExampleReportCards, type CardQuote } from "@/components/inbox/report-cards";
 import { AppPage, PageHead } from "@/components/oa/kit";
-import { ProposalsSection } from "@/components/proposals/proposals-section";
-import { loadProposalCards, type ProposalCardsLoad } from "@/lib/proposals-server";
+import { ProposalsLine } from "@/components/proposals/proposals-line";
+import { proposalsBrief } from "@/lib/proposals-brief";
 import { getSessionUser } from "@/lib/auth-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { exampleReports, type ExampleReportStock } from "@/lib/inbox/example-reports";
@@ -116,7 +116,7 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   );
 }
 
-async function UserInbox({ uid, kind, proposals }: { uid: string; kind: InboxKind | null; proposals: Promise<ProposalCardsLoad | null> }) {
+async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null }) {
   // Without the user doc there are no stocks, follows or read mark to go on: say the inbox could not be read.
   const [doc, viewer] = await Promise.all([getUserDoc(uid).catch(() => undefined), getViewer()]);
   if (doc === undefined) return <EmptyInbox unavailable />;
@@ -124,15 +124,12 @@ async function UserInbox({ uid, kind, proposals }: { uid: string; kind: InboxKin
   if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
   const { seenAt } = readState(inbox.items, doc, inbox.today);
   const rows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today);
-  // A report a proposal card above already offers a reminder for is said once, on the card (owner rule 1).
-  const offered = new Set(((await proposals)?.cards ?? []).filter((card) => card.kind === "earnings_soon" && card.ticker).map((card) => card.ticker!));
-  const upcoming = rows.upcoming.filter((report) => !offered.has(report.ticker.toUpperCase()));
-  if (rows.items.length === 0 && upcoming.length === 0) return null;
+  if (rows.items.length === 0 && rows.upcoming.length === 0) return null;
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
       <InboxList
         items={rows.items.map(forClient)}
-        upcoming={upcoming}
+        upcoming={rows.upcoming}
         seenAt={seenAt}
         today={inbox.today}
         example={false}
@@ -148,13 +145,15 @@ async function UserInbox({ uid, kind, proposals }: { uid: string; kind: InboxKin
 async function InboxBody({ kind }: { kind: InboxKind | null }) {
   const session = await getSessionUser().catch(() => null);
   if (!session) return <ExampleInbox kind={kind} />;
-  // The agent's proposals waiting for an answer sit on top. They start now beside the list's reads, bounded from
-  // here, and render with the list, so it never jumps down when they arrive.
-  const proposals = loadProposalCards(session.uid).catch(() => null);
+  // The proposals have one home, /agent (judges, sweep 87: the same cards on both pages). Here they are one line that
+  // opens them there, the same line as the briefing's. The count starts now beside the list's reads, bounded
+  // (lib/proposals-brief.ts), and renders with the list, so the list never jumps down when it arrives.
+  const brief = proposalsBrief(session.uid).catch(() => null);
+  const [list, waiting] = await Promise.all([UserInbox({ uid: session.uid, kind }), brief]);
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      <ProposalsSection load={proposals} />
-      <UserInbox uid={session.uid} kind={kind} proposals={proposals} />
+      <ProposalsLine brief={waiting} />
+      {list}
     </div>
   );
 }

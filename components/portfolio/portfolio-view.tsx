@@ -34,6 +34,7 @@ import { ReasonsStrip } from "@/components/thesis/reasons-sheet";
 import { ShareButton } from "@/components/share/share-button";
 import { RadarBatchEditModal } from "@/components/radar-batch-edit-modal";
 import { StockLogo } from "@/components/stock-logo";
+import { VsBar } from "@/components/oa/kit/vs-bar";
 import { WatchlistAiPromptButton } from "@/components/watchlist-ai-prompt-button";
 import type { IdeaCard } from "@/components/radar-next/types";
 import type { HealthProps } from "@/lib/radar-next-data";
@@ -437,6 +438,18 @@ export function PortfolioView({
                     <Dash />
                   )}
                 </HeaderFigure>
+                {/* What the holdings with a cost are worth now against what they cost, on one scale (judges, sweep 87):
+                    the gain above, drawn. Only when every valued holding has a cost, so "Worth now" is the total value above
+                    and not a smaller sum. From md, where the header has the room beside the figures. */}
+                {totals.gain !== null && totals.cost !== null && totals.cost > 0 && totals.withCost === totals.valued ? (
+                  <VsBar
+                    value={totals.cost + totals.gain}
+                    versus={totals.cost}
+                    labels={["Worth now", "Cost"]}
+                    format={(n) => fmtMoney(n, 0)}
+                    className="hidden w-60 self-end pb-0.5 md:grid"
+                  />
+                ) : null}
               </div>
             </div>
           </div>

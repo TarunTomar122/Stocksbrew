@@ -10,7 +10,7 @@ import { extraFacts, type PlainCall } from "@/lib/portfolio-home/stocks";
 import { exampleBookOnce } from "@/lib/portfolio-home/stocks-server";
 import { exampleReasonChecks } from "@/lib/thesis-watch/server";
 
-import { ChangeText, EmptyRow } from "./shared";
+import { ChangeText, EmptyRow, fmtPrice } from "./shared";
 import Link from "next/link";
 
 const CALL_CHIP: Record<PlainCall, string> = {
@@ -77,7 +77,11 @@ export async function OnePlace() {
                   <StockLogo ticker={row.ticker} size={22} circle />
                   <span className="oa-mono text-[14.5px] font-semibold text-oa-fg">{row.ticker}</span>
                   {row.call ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${CALL_CHIP[row.call]}`}>{row.call}</span> : null}
-                  {row.dayPct !== null ? <ChangeText pct={row.dayPct} className="oa-mono ml-auto text-[16px] font-semibold" /> : null}
+                  {/* The price beside the day's move (owner rule 4: every stock card shows its current price). */}
+                  <span className="oa-mono ml-auto flex shrink-0 items-baseline gap-2 tabular-nums">
+                    {row.price !== null ? <span className="text-[14px] text-oa-fg">{fmtPrice(row.price)}</span> : null}
+                    {row.dayPct !== null ? <ChangeText pct={row.dayPct} className="text-[15px] font-semibold" /> : null}
+                  </span>
                 </span>
                 {/* The chip says the call; the line is the one thing that matters for it now, as on its /portfolio card. */}
                 {row.line ? <span className="mt-1.5 block text-pretty text-[13.5px] leading-[19px] text-oa-muted-fg">{row.line}</span> : null}

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
+import { BasketList } from "@/components/basket-agent/basket-list";
+import { basketsOverPlan, listBasketRuns, listBaskets } from "@/lib/basket-agent/data";
+import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { PlainAgentBox } from "@/components/agents-plain/plain-agent-box";
 import { AppPage } from "@/components/oa/kit";
@@ -109,14 +112,23 @@ export default async function AgentJobsPage({
   const wantsSample = (!session || Boolean(watch)) && sampleDraft.ok;
   const noLinkedAgent = !searchParams?.draft && !words;
 
-  const [linked, jobs, runs, scope, viewer, early] = await Promise.all([
+  const [linked, jobs, runs, scope, viewer, early, ideaBaskets] = await Promise.all([
     noLinkedAgent ? null : linkedDraft(searchParams?.draft, words, hidden).catch(() => null),
     session ? listJobs(session.uid).catch(() => []) : [],
     session ? listRuns(session.uid).catch(() => []) : [],
     session ? resolveScope(session.uid, { kind: "watchlist" }).catch(() => ({ tickers: [], levels: {} })) : { tickers: [], levels: {} },
     session ? getViewer() : null,
     wantsSample && noLinkedAgent ? sampleFrom() : null,
+    // Idea baskets the agent watches (lib/basket-agent): the person's own, with their latest checks.
+    // Their runs are read only when there are baskets (most people have none).
+    session
+      ? listBaskets(session.uid)
+          .then(async (list) => ({ list, runs: list.length > 0 ? await listBasketRuns(session.uid, null, 60).catch(() => []) : [] }))
+          .catch(() => ({ list: [], runs: [] }))
+      : { list: [], runs: [] },
   ]);
+  const baskets = ideaBaskets.list;
+  const basketRuns = ideaBaskets.runs;
   // A visitor who came with an agent of their own sees that one instead, so the example is not read at all.
   const sample = noLinkedAgent ? early : wantsSample && !linked ? await sampleFrom() : null;
   // Names for the rows of a run ("SPCX Space Exploration"), from the read above: no read of their own.
@@ -142,6 +154,19 @@ export default async function AgentJobsPage({
           hiddenTemplates={hidden}
           lead={<PlainAgentBox signedIn={Boolean(session)} available={sources} prefill={linked ? null : words} />}
         />
+        {session ? (
+          <BasketList
+            baskets={baskets}
+            runs={basketRuns}
+            today={day}
+            nextCheck={schedule.next}
+            overPlan={
+              viewer
+                ? basketsOverPlan(baskets, jobs.filter((job) => job.enabled).length, limitFor("agents", viewer.plan))
+                : new Set()
+            }
+          />
+        ) : null}
     </AppPage>
   );
 }

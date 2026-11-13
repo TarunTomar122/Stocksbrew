@@ -21,12 +21,14 @@ async function deleteQueryBatch(query: Query, batchSize = 400): Promise<void> {
  */
 export async function switchOffUserAlertsAndAgents(uid: string, now = new Date()): Promise<{ alerts: number; agents: number }> {
   const stamp = now.toISOString();
-  const [alerts, jobs] = await Promise.all([
+  const [alerts, jobs, baskets] = await Promise.all([
     adminFirestore.collection("tm_alerts").where("uid", "==", uid).get(),
     adminFirestore.collection("tm_agent_jobs").where("uid", "==", uid).get(),
+    // Idea baskets the agent watches (lib/basket-agent) are agents too.
+    adminFirestore.collection("tm_agent_baskets").where("uid", "==", uid).get(),
   ]);
   const liveAlerts = alerts.docs.filter((doc) => doc.data()?.active !== false);
-  const liveJobs = jobs.docs.filter((doc) => doc.data()?.archived !== true);
+  const liveJobs = [...jobs.docs, ...baskets.docs].filter((doc) => doc.data()?.archived !== true);
   const updates = [
     ...liveAlerts.map((doc) => [doc.ref, { active: false, updated_at: stamp }] as const),
     ...liveJobs.map((doc) => [doc.ref, { archived: true, enabled: false, updated_at: stamp }] as const),

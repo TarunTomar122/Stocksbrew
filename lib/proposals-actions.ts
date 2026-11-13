@@ -31,6 +31,8 @@ import {
   type ProposalStatus,
 } from "@/lib/proposals";
 import { addRadarStock } from "@/lib/radar-mutations";
+import { applyBasketChange } from "@/lib/basket-agent/data";
+import { basketHref, MAX_LINES, MIN_LINES } from "@/lib/basket-agent/model";
 import { createStockAlert, deleteStockAlert, StockAlertError } from "@/lib/stock-alerts";
 import { freshStaleReason } from "@/lib/proposals-server";
 
@@ -92,6 +94,8 @@ export type ActionDeps = {
   listJobs: typeof listJobs;
   updateJob: typeof updateJob;
   createJob: typeof createJob;
+  /** Takes a company out of, or puts one into, the person's idea basket (lib/basket-agent/data.ts). Defaults to it. */
+  editBasket?: typeof applyBasketChange;
   /**
    * The facts read again right before the action: why the proposal no longer fits (lib/proposals.ts staleReason on a
    * fresh read of the stock's price, the person's alerts, our call, the practice account), or null.
@@ -114,6 +118,7 @@ export const defaultActionDeps: ActionDeps = {
   listJobs,
   updateJob,
   createJob,
+  editBasket: applyBasketChange,
   staleNow: (uid, proposal) => freshStaleReason(uid, proposal),
 };
 
@@ -249,6 +254,23 @@ async function agentAction(action: Extract<ProposalAction, { type: "agent_enable
   }
 }
 
+/** An idea basket edit: only the basket changes, nothing is bought or sold. */
+async function basketAction(action: Extract<ProposalAction, { type: "basket_edit" }>, actor: Actor, now: Date, deps: ActionDeps): Promise<ProposalResult> {
+  const href = basketHref(action.basket_id);
+  try {
+    const outcome = await (deps.editBasket ?? applyBasketChange)(actor.uid, { basket_id: action.basket_id, op: action.op, ticker: action.ticker, company: action.company, kind: action.kind, reason: action.reason }, now);
+    if (outcome === "missing") return fail("stale", "That idea basket no longer exists.", now);
+    if (outcome === "full") return fail("basket_full", `That basket already holds ${MAX_LINES} companies. Take one out first.`, now);
+    if (outcome === "min") return fail("basket_min", `A basket keeps at least ${MIN_LINES} companies. Add one first.`, now);
+    const where = `“${action.basket_name}”`;
+    if (outcome === "already") return ok("already", action.op === "drop" ? `${action.ticker} is already out of ${where}.` : `${action.ticker} is already in ${where}.`, now, { href });
+    return ok("done", action.op === "drop" ? `Took ${action.ticker} out of ${where}.` : `Added ${action.ticker} to ${where}.`, now, { ref: action.basket_id, href });
+  } catch (error) {
+    console.warn("[proposals] basket write failed:", error instanceof Error ? error.message : error);
+    return fail("failed", "The basket could not be changed just now. Try again in a minute.", now);
+  }
+}
+
 export function practiceHref(ticker: string, side: "buy" | "sell"): string {
   return `/practice?symbol=${encodeURIComponent(ticker)}&side=${side}#ticket`;
 }
@@ -266,6 +288,8 @@ export async function applyAction(proposal: Proposal, actor: Actor, now: Date, d
     case "agent_enable":
     case "agent_create":
       return agentAction(action, actor, now, deps);
+    case "basket_edit":
+      return basketAction(action, actor, now, deps);
     case "practice_ticket":
       return ok("opened", `Opened a practice ticket for ${action.ticker}. Nothing is placed until you confirm.`, now, { href: practiceHref(action.ticker, action.side) });
   }
@@ -308,7 +332,7 @@ export async function decideProposal(
   const stale = await deps.staleNow(input.actor.uid, claim.proposal).catch(() => UNVERIFIED);
   const result =
     stale === UNVERIFIED
-      ? fail("unverified", UNVERIFIED_WORDS, now)
+      ? fail("unverified", claim.proposal.action.type === "basket_edit" ? BASKET_UNVERIFIED_WORDS : UNVERIFIED_WORDS, now)
       : stale
         ? fail("stale", STALE_WORDS[stale] ?? STALE_WORDS.default!, now)
         : await applyAction(claim.proposal, input.actor, now, deps);
@@ -331,6 +355,9 @@ export async function decideProposal(
 /** An accept refused because the latest facts could not be read: nothing ran, try again. */
 export const UNVERIFIED_WORDS = "Couldn't check the latest price; try again in a minute.";
 
+/** The same for an idea-basket change, whose re-check reads the basket, not a price. */
+export const BASKET_UNVERIFIED_WORDS = "Couldn't check the basket; try again in a minute.";
+
 /** Why an accept was refused because the facts changed, one line for the card. */
 const STALE_WORDS: Record<string, string> = {
   price_past_level: "The price is already past that level, so the alert would fire at once. This one is gone.",
@@ -343,5 +370,7 @@ const STALE_WORDS: Record<string, string> = {
   agent_gone: "That agent no longer exists. This one is gone.",
   agent_already: "That agent is already set that way. This one is gone.",
   agent_exists: "You already have an agent for that. This one is gone.",
+  basket_gone: "That idea basket no longer exists. This one is gone.",
+  basket_already: "The basket already has that change. This one is gone.",
   default: "The facts changed since, so this one is gone.",
 };

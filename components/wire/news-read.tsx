@@ -86,7 +86,7 @@ export function RowTone({ counts, stories }: { counts: ToneCounts; stories: numb
   return (
     <span className={`${NUM} inline-flex items-center text-right text-[12.5px] leading-[18px]`} title={label}>
       <span className="sr-only">{label}</span>
-      <span aria-hidden="true" className={colour}>
+      <span aria-hidden="true" className={`whitespace-nowrap ${colour}`}>
         {word.text}
       </span>
     </span>

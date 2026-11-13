@@ -15,7 +15,7 @@ import { getLandingUserContext } from "@/components/landing-data";
 import { pricingMarket } from "@/lib/pricing";
 import { headers } from "next/headers";
 
-import { AgentDoes } from "./landing/agent-does";
+import { AgentSequenceGhost, AgentSequenceSection } from "./landing/agent-sequence";
 import { HeroDemo, HeroDemoGhost } from "./landing/hero-demo";
 import { MarketTiles, MarketTilesGhost } from "./landing/market-tiles";
 import { OnePlace } from "./landing/one-place";
@@ -93,6 +93,13 @@ export async function OaLanding() {
           />
         </section>
 
+        {/* Right under the hero, the agent at work: one real proposal on the example portfolio, from the event to what
+            it checked, what it drafted, your answer and the next check. It replaces the three agent cards that sat
+            lower down, so the page is no longer; on a day with no proposal those cards show here instead. */}
+        <Suspense fallback={<AgentSequenceGhost className="mt-8 sm:mt-12" />}>
+          <AgentSequenceSection className="mt-8 sm:mt-12" />
+        </Suspense>
+
         {/* Under the hero: the day's check of the whole market as figure tiles, from the jobs' own records. Nothing at
             all when there are not two checks to show, so no empty box. */}
         <Suspense fallback={<MarketTilesGhost className="mt-8 sm:mt-12" />}>
@@ -116,16 +123,6 @@ export async function OaLanding() {
             <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
               <OnePlace />
             </Suspense>
-          </section>
-
-          {/* the example's three agents and what each found on its last real run: the pitch is what the demo did */}
-          <section id="what-it-does" className="scroll-mt-24">
-            <SectionHead
-              title="Three agents watch the example portfolio."
-              href="/agents"
-              hrefLabel="Set one up"
-            />
-            <AgentDoes />
           </section>
 
           {/* plans: hidden once you already subscribe */}

@@ -28,7 +28,7 @@ import {
   candidates,
   isWaiting,
   newProposal,
-  pickNew,
+  pickProposals,
   proposalDocId,
   proposalId,
   PROPOSALS_COLLECTION,
@@ -56,6 +56,8 @@ import { getDailySeries } from "@/lib/screener-series";
 import { filingLine } from "@/lib/since-visit-server";
 import { CHECKS_COLLECTION, checkDocId, lastChange, readStoredCheck } from "@/lib/thesis-watch/store";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
+import { listBasketRuns, listBaskets } from "@/lib/basket-agent/data";
+import type { ProposalBasket } from "@/lib/basket-agent/proposals";
 
 /** How long any one read may take before the rules go on without it. */
 const READ_MS = 2500;
@@ -296,6 +298,20 @@ async function readReasons(uid: string, stocks: ProposalStock[]): Promise<Record
   return out;
 }
 
+/** The person's idea baskets with their last few checks, newest first (lib/basket-agent). */
+export async function readBaskets(uid: string): Promise<ProposalBasket[]> {
+  const baskets = await listBaskets(uid);
+  // Most people have no baskets: their runs are not read at all.
+  const runs = baskets.length > 0 ? await listBasketRuns(uid, null, 80) : [];
+  return baskets.map((basket) => ({
+    id: basket.id,
+    name: basket.name,
+    enabled: basket.enabled,
+    tickers: basket.lines.map((line) => line.ticker),
+    runs: runs.filter((run) => run.basket_id === basket.id).slice(0, 10).map((run) => ({ day: run.day, ran_at: run.ran_at, decision: run.decision, changes: run.changes })),
+  }));
+}
+
 /** Everything the rules read for this person. A read that fails or runs out of time is left undefined. */
 export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: Date = new Date()): Promise<{ inputs: ProposalInputs; complete: boolean }> {
   const viewer = viewerFromUserDoc(uid, doc);
@@ -309,7 +325,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
       if (value === null) complete = false;
       return value ?? undefined;
     });
-  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice] = await Promise.all([
+  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice, baskets] = await Promise.all([
     guard(resolveScope(uid, { kind: "watchlist" }, { calls: true })),
     guard(readSeries(tickers)),
     guard(readQuotes(stocks)),
@@ -322,6 +338,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     guard(listJobs(uid)),
     guard(reportsSource(inboxStocks(doc, viewer), today)),
     guard(readPractice(uid)),
+    guard(readBaskets(uid)),
   ]);
   const inputs: ProposalInputs = {
     now,
@@ -358,6 +375,8 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     jobs: jobs?.map((job) => ({ id: job.id, name: job.name, enabled: job.enabled, trigger: job.trigger, scope: job.scope })),
     upcoming: upcoming?.map((report) => ({ ticker: report.ticker, date: report.date, session: report.session, usualPct: report.usualPct })),
     practice,
+    // A failed read is null, not "none": the agent-room check then says there is no room (lib/proposals.ts roomForAgent).
+    baskets: baskets === undefined ? null : baskets,
   };
   return { inputs, complete };
 }
@@ -390,6 +409,11 @@ export async function freshStaleReason(uid: string, proposal: Proposal, now: Dat
       const doc = await within(getUserDoc(uid), READ_MS);
       if (!doc) return UNVERIFIED;
       return staleReason(proposal, { ...base, plan: viewerFromUserDoc(uid, doc).plan, stocks: proposalStocks(doc) });
+    }
+    case "basket_edit": {
+      const baskets = await within(readBaskets(uid), READ_MS);
+      if (!baskets) return UNVERIFIED;
+      return staleReason(proposal, { ...base, baskets });
     }
     case "agent_enable":
     case "agent_create": {
@@ -499,7 +523,17 @@ async function runSync(uid: string, options: { now?: Date; force?: boolean; doc?
     else kept.push(proposal);
   }
 
-  const fresh = pickNew(drafts, kept, now).map((draft) => newProposal(uid, draft, now));
+  // A stronger proposal takes a weaker waiting one's place (for the same stock, or the last slot): that one is marked
+  // expired as "outranked", never deleted, and goes to the record like any other that went stale.
+  const picked = pickProposals(drafts, kept, now);
+  for (const proposal of picked.outranked) {
+    if (await expire(uid, proposal, "outranked", now).catch(() => false)) {
+      expired += 1;
+      const index = kept.findIndex((entry) => entry.id === proposal.id);
+      if (index >= 0) kept[index] = { ...proposal, status: "expired", expired_reason: "outranked", updated_at: now.toISOString() };
+    }
+  }
+  const fresh = picked.fresh.map((draft) => newProposal(uid, draft, now));
   let created = 0;
   for (const proposal of fresh) {
     if (await store(proposal).catch((error) => {
@@ -565,11 +599,13 @@ export async function loadProposalCards(uid: string, options: { syncMs?: number;
 
 /** The person's agents now (the same cached read as the agents list): how many run, how many are paused, the next check. */
 async function agentsStatus(uid: string, today: string): Promise<{ running: number; paused: number; next: string | null } | null> {
-  const loaded = await within(loadWatches(uid, today), 1500);
+  const [loaded, baskets] = await Promise.all([within(loadWatches(uid, today), 1500), within(listBaskets(uid), 1500)]);
   if (!loaded || loaded.state !== "ready") return null;
   const { next } = agentLines(loaded.value, today, { describe: describeWatch });
-  const running = loaded.value.jobs.filter((job) => job.enabled).length;
-  return { running, paused: loaded.value.jobs.length - running, next: next ? nextCheckWords(next, today) : null };
+  // Idea baskets are agents too (lib/basket-agent), counted as every limit check counts them.
+  const basketsOn = (baskets ?? []).filter((basket) => basket.enabled).length;
+  const running = loaded.value.jobs.filter((job) => job.enabled).length + basketsOn;
+  return { running, paused: loaded.value.jobs.length + (baskets ?? []).length - running, next: next ? nextCheckWords(next, today) : null };
 }
 
 /** The cards for the page: the waiting proposals with each stock's latest price and day move. */

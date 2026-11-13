@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 
 import { LockCard } from "@/components/oa/gate";
 import { AppPage, Delta, NUM, PageHead, Panel, StatStrip, type StatItem } from "@/components/oa/kit";
-import { BasketActions } from "@/components/screener/basket-actions";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { BookHead, BookLine } from "@/components/themes-book/book";
+import { ThemeActions } from "@/components/basket-agent/theme-actions";
 import { limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
@@ -121,7 +121,7 @@ export default async function ThemeBookPage({ params }: Props) {
         className="[&_.oa-head-lede]:hidden"
         actions={
           <div className="max-sm:hidden">
-            <BasketActions symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} watchLabel="Save as watchlist" />
+            <ThemeActions theme={basket.slug} symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} />
           </div>
         }
       />
@@ -150,7 +150,7 @@ export default async function ThemeBookPage({ params }: Props) {
         </Panel>
       </div>
       <div className="mt-4 sm:hidden">
-        <BasketActions symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} watchLabel="Save as watchlist" />
+        <ThemeActions theme={basket.slug} symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} />
       </div>
 
       <Panel

@@ -19,6 +19,7 @@ import {
 } from "@/lib/ask-cards";
 import { CALL_WORDS, MAX_JOBS_PER_USER, decisionLabel, describeJob, hiddenTemplateIds, planMayRun, type AgentJob, type AgentJobDraft, type AgentRun } from "@/lib/agent-jobs";
 import { listJobs, listRuns } from "@/lib/agent-jobs-data";
+import { runningBasketCount } from "@/lib/basket-agent/count";
 import { WATCH_KINDS as PLAIN_WATCH_KINDS, parsePlainRequest, type CallLookup, type PlainCall, type WatchKind as PlainWatchKind } from "@/lib/agents-plain/parse";
 import { sameJob } from "@/lib/agents-plain/save";
 import { plainCallLookup, plainCatalog } from "@/lib/agents-plain/server";
@@ -559,7 +560,13 @@ function capitalise(text: string): string {
  * the plan does not run, then the running limit. Null when they would simply start. Agents the person already has
  * are skipped on save, so they do not count. Pure.
  */
-export function watchOutlook(input: { drafts: AgentJobDraft[]; jobs: Array<Pick<AgentJob, "template" | "trigger" | "scope" | "enabled">>; plan: Plan }): WatchCard["outlook"] {
+export function watchOutlook(input: {
+  drafts: AgentJobDraft[];
+  jobs: Array<Pick<AgentJob, "template" | "trigger" | "scope" | "enabled">>;
+  plan: Plan;
+  /** Idea-basket agents switched on (lib/basket-agent): they take the same slots as jobs. */
+  baskets?: number;
+}): WatchCard["outlook"] {
   // The same agent twice in one request is saved once, as the route does.
   const unique = input.drafts.filter((draft, index) => input.drafts.findIndex((other) => sameJob(other, draft)) === index);
   const fresh = unique.filter((draft) => !input.jobs.some((job) => sameJob(job, draft)));
@@ -580,7 +587,7 @@ export function watchOutlook(input: { drafts: AgentJobDraft[]; jobs: Array<Pick<
   if (proOnly > 0) {
     return { kind: "pro_only", line: `Watching filings and news is part of Pro, so ${proOnly === count ? (one ? "this one" : "these") : `${proOnly} of these`} will be saved paused.` };
   }
-  const running = input.jobs.filter((job) => job.enabled).length;
+  const running = input.jobs.filter((job) => job.enabled).length + (input.baskets ?? 0);
   const limit = limitFor("agents", input.plan);
   const paused = Math.max(0, running + count - limit);
   if (paused === 0) return null;
@@ -692,13 +699,13 @@ export async function watchCard(context: MineToolContext, input: WatchInput): Pr
   let note: string | null = [timing.note, ...spec.watches.map((watch) => watch.note)].filter(Boolean).join(" ") || null;
   const drafts = spec.watches.map((watch) => watch.draft);
   if (context.uid) {
-    const jobs = await listJobs(context.uid).catch(() => null);
+    const [jobs, baskets] = await Promise.all([listJobs(context.uid).catch(() => null), runningBasketCount(context.uid).catch(() => 0)]);
     if (jobs) {
       const matches = spec.watches.map((watch) => jobs.find((job) => sameJob(job, watch.draft)) ?? null);
       // "Already" only when every agent the request would make exists. Anything less is still offered.
       if (matches.every(Boolean)) existing = matches.map((job) => ({ name: job!.name, enabled: job!.enabled }));
       const plan = context.viewer?.uid === context.uid ? context.viewer.plan : null;
-      outlook = plan ? watchOutlook({ drafts, jobs, plan }) : null;
+      outlook = plan ? watchOutlook({ drafts, jobs, plan, baskets }) : null;
     }
   } else {
     // The Agents page shows the agent and its last four weeks before any sign-in; only saving it takes an account.

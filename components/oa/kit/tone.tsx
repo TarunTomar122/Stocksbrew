@@ -116,6 +116,7 @@ export function SignedBar({
   color,
   mark,
   markColor = "var(--oa-fg)",
+  strongZero = false,
   className = "",
 }: {
   value: number | null | undefined;
@@ -123,6 +124,8 @@ export function SignedBar({
   color?: string;
   mark?: number | null;
   markColor?: string;
+  /** A zero line that reads at a glance in a column of short bars: taller, solid, and in muted ink so a mark stands apart. */
+  strongZero?: boolean;
   className?: string;
 }) {
   if (value == null || !Number.isFinite(value)) return null;
@@ -153,7 +156,10 @@ export function SignedBar({
           style={{ left: `${tick.negative ? tick.left : tick.left + tick.width}%`, background: markColor }}
         />
       ) : null}
-      <span className="absolute -bottom-0.5 -top-0.5 w-px -translate-x-1/2 bg-oa-fg/60" style={{ left: `${geometry.zero}%` }} />
+      <span
+        className={`absolute w-px -translate-x-1/2 ${strongZero ? "-bottom-1 -top-1 bg-oa-muted-fg" : "-bottom-0.5 -top-0.5 bg-oa-fg/60"}`}
+        style={{ left: `${geometry.zero}%` }}
+      />
     </span>
   );
 }
@@ -200,6 +206,7 @@ export function PairBar({
   versus,
   labels,
   texts,
+  spoken,
   className = "",
 }: {
   value: number | null | undefined;
@@ -208,6 +215,8 @@ export function PairBar({
   labels: [string, string];
   /** Each line's figure as printed. */
   texts: [string, string];
+  /** Each figure as a screen reader says it, when a printed one is left blank (the figure is already said above). */
+  spoken?: [string, string];
   className?: string;
 }) {
   if (value == null || versus == null || !Number.isFinite(value) || !Number.isFinite(versus)) return null;
@@ -217,7 +226,7 @@ export function PairBar({
     <span
       className={`${PAIR_VARS} grid grid-cols-[auto_minmax(2.5rem,1fr)_auto] items-start gap-x-2 ${className}`}
       role="img"
-      aria-label={`${labels[0]} ${texts[0]}, ${labels[1]} ${texts[1]}`}
+      aria-label={`${labels[0]} ${(spoken ?? texts)[0]}, ${labels[1]} ${(spoken ?? texts)[1]}`}
     >
       <span aria-hidden="true" className="flex flex-col gap-1 text-[12px] leading-4 text-oa-muted-fg">
         <span className="whitespace-nowrap">{labels[0]}</span>

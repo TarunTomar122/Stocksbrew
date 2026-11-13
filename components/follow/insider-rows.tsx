@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { DOWN, ExternalLink, Ticker, UP } from "@/components/follow/bits";
+import { MoveBar } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
 import {
@@ -125,6 +126,8 @@ function spanDayWords(cluster: InsiderCluster, today: string): string {
  * show; the rest scroll inside with no bar. The row opens the stock's insider page, which has every filing.
  */
 export function ClusterRows({ clusters, today = etToday() }: { clusters: InsiderCluster[]; today?: string }) {
+  // Each cluster's money in as a bar on one scale, so the amounts compare at a glance (judges, sweep 87).
+  const most = Math.max(0, ...clusters.map((cluster) => cluster.total_value ?? 0));
   return (
     <ul className="max-h-[31rem] divide-y divide-oa-border overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {clusters.map((cluster) => {
@@ -137,23 +140,33 @@ export function ClusterRows({ clusters, today = etToday() }: { clusters: Insider
                 <span className="self-center">
                   <ClusterStock cluster={cluster} size={20} />
                 </span>
-                <span className="text-[14px] leading-5 text-oa-fg">
-                  {cluster.insiders} insiders bought
-                  {cluster.total_value != null ? <span className={`oa-mono ml-1 font-medium ${UP}`}>{fmtUsd(cluster.total_value)}</span> : null}
-                </span>
+                <span className="text-[14px] leading-5 text-oa-fg">{cluster.insiders} insiders bought</span>
               </span>
-              <span className="oa-mono shrink-0 text-[12.5px] leading-5 text-oa-muted-fg">{spanDayWords(cluster, today)}</span>
+              {/* The amount at the right with its bar, so the bars line up down the list. */}
+              {cluster.total_value != null ? (
+                <span className="flex shrink-0 items-center gap-2 self-center sm:gap-2.5">
+                  {/* Shorter on a phone, so the amount stays on the stock's line. */}
+                  {most > 0 ? <MoveBar value={cluster.total_value} max={most} width={40} className="sm:hidden" /> : null}
+                  {most > 0 ? <MoveBar value={cluster.total_value} max={most} width={88} className="max-sm:hidden" /> : null}
+                  <span className={`oa-mono min-w-[3.75rem] text-right text-[14px] font-medium ${UP}`}>{fmtUsd(cluster.total_value)}</span>
+                </span>
+              ) : null}
             </div>
-            {shown.length ? (
-              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 pl-7 text-[12.5px] leading-[18px] text-oa-muted-fg">
-                {shown.map((member) => (
-                  <span key={`${member.insider}-${member.role}`} title={`${member.insider}, ${member.role}`} className="whitespace-nowrap">
-                    {surname(member.insider)} <span className="oa-mono text-oa-fg">{memberAmount(member)}</span>
-                  </span>
-                ))}
-                {rest > 0 ? <span>+{rest} more</span> : null}
-              </p>
-            ) : null}
+            <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 pl-7">
+              {shown.length ? (
+                <p className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] leading-[18px] text-oa-muted-fg">
+                  {shown.map((member) => (
+                    <span key={`${member.insider}-${member.role}`} title={`${member.insider}, ${member.role}`} className="whitespace-nowrap">
+                      {surname(member.insider)} <span className="oa-mono text-oa-fg">{memberAmount(member)}</span>
+                    </span>
+                  ))}
+                  {rest > 0 ? <span>+{rest} more</span> : null}
+                </p>
+              ) : (
+                <span />
+              )}
+              <span className="oa-mono shrink-0 text-[12.5px] leading-[18px] text-oa-muted-fg">{spanDayWords(cluster, today)}</span>
+            </div>
           </li>
         );
       })}

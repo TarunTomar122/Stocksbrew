@@ -506,6 +506,13 @@ describe("Watch this", () => {
     expect(watchOutlook({ drafts: [move], jobs: [{ ...(move as object), enabled: true } as never], plan: "free" })).toBeNull();
   });
 
+  it("counts idea baskets that are on against the running limit, as saving does", () => {
+    const move = { template: "t", name: "n", trigger: { type: "price", rule: "daily_move", pct: 5 }, scope: { kind: "tickers", tickers: ["NVDA"] } } as never;
+    const limit = limitFor("agents", "free");
+    expect(watchOutlook({ drafts: [move], jobs: [], plan: "free", baskets: limit - 1 })).toBeNull();
+    expect(watchOutlook({ drafts: [move], jobs: [], plan: "free", baskets: limit })).toMatchObject({ kind: "paused" });
+  });
+
   it("says 'already' only when the person really has that agent", async () => {
     state.jobs = [{ id: "mine000001", uid: UID, name: "NVDA below $150", enabled: false, template: "price-level", trigger: { type: "price", rule: "crosses_below", level: 150 }, scope: { kind: "tickers", tickers: ["NVDA"] } }];
     expect(await run(tools(UID), "suggest_watch", { kind: "price_below", ticker: "NVDA", level: 150 })).toMatchObject({

@@ -1,5 +1,6 @@
 import { PairBar, SignedBar, ToneGlyph, barDomain } from "@/components/oa/kit/tone";
 import { TableBox } from "@/components/oa/kit/table-box";
+import { barGeometry } from "@/components/stock-report/fact-bars";
 import type { Caveat, CurveStats, YearRow } from "@/lib/backtest/types";
 import { beatYearsSentence, swingSentence } from "@/lib/backtest-insights";
 import { markFor } from "@/lib/tone";
@@ -237,6 +238,35 @@ export function StatGrid({
   );
 }
 
+/** "−23%", "0", "+26%": a whole-number end of the year bars' shared scale (returns arrive as fractions). */
+function scaleEnd(value: number): string {
+  const rounded = Math.round(value * 100);
+  return rounded === 0 ? "0" : `${rounded > 0 ? "+" : "−"}${Math.abs(rounded)}%`;
+}
+
+/**
+ * The year bars' one scale, said over their column (judges, sweep 87): the lowest year at the left, zero where the
+ * zero line runs down the rows, the highest at the right, so a loss reads as a loss and the rows compare.
+ */
+function ScaleHead({ domain }: { domain: [number, number] }) {
+  const [low, high] = domain;
+  if (!(high > low)) return null;
+  const zero = barGeometry([low, high]).zero;
+  // The zero label only where it does not sit on top of an end's own label.
+  const showZero = low < 0 && high > 0 && zero > 22 && zero < 78;
+  return (
+    <span aria-hidden="true" className="oa-mono relative block h-4 text-[10.5px] font-normal leading-4 tabular-nums text-oa-muted-fg">
+      <span className="absolute left-0">{scaleEnd(low)}</span>
+      {showZero ? (
+        <span className="absolute -translate-x-1/2" style={{ left: `${zero}%` }}>
+          0
+        </span>
+      ) : null}
+      <span className="absolute right-0">{scaleEnd(high)}</span>
+    </span>
+  );
+}
+
 export function YearTable({
   years,
   benchmarkLabel,
@@ -273,6 +303,7 @@ export function YearTable({
             </th>
             <th className="w-[34%] px-2 py-2">
               <span className="sr-only">Both on one scale</span>
+              <ScaleHead domain={domain} />
             </th>
             {gap ? <th className="oa-caption px-3.5 py-2 text-right">Gap</th> : null}
           </tr>

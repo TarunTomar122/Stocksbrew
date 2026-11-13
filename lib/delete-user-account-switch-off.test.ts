@@ -50,4 +50,12 @@ describe("account deletion switches off alerts and agents (bug 17)", () => {
     expect(h.docs.get("tm_agent_jobs/other__j1")).toEqual({ uid: "other", enabled: true });
     expect(h.docs.size).toBe(5);
   });
+
+  it("archives the person's idea baskets too, so the nightly run stops checking them", async () => {
+    h.docs.set("tm_agent_baskets/gone__b1", { uid: "gone", enabled: true, name: "AI power" });
+    h.docs.set("tm_agent_baskets/other__b1", { uid: "other", enabled: true });
+    await expect(switchOffUserAlertsAndAgents("gone", new Date("2026-11-12T00:00:00Z"))).resolves.toEqual({ alerts: 1, agents: 2 });
+    expect(h.docs.get("tm_agent_baskets/gone__b1")).toMatchObject({ archived: true, enabled: false, name: "AI power" });
+    expect(h.docs.get("tm_agent_baskets/other__b1")).toEqual({ uid: "other", enabled: true });
+  });
 });

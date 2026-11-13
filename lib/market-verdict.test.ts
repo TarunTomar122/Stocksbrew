@@ -66,7 +66,9 @@ describe("movesVerdict", () => {
     expect(v(movesVerdict(5, 7))).toBe("good");
     expect(v(movesVerdict(2, 7))).toBe("bad");
     expect(v(movesVerdict(4, 7))).toBe("neutral");
-    expect(movesVerdict(5, 7)?.why).toBe("5 of the 7 biggest stock moves were gains.");
+    expect(movesVerdict(5, 7)?.why).toBe("5 of the 7 biggest fund and index moves were gains.");
+    expect(movesVerdict(3, 3)?.why).toBe("All 3 of the biggest fund and index moves were gains.");
+    expect(movesVerdict(0, 4)?.why).toBe("None of the 4 biggest fund and index moves were gains.");
   });
   it("gives no verdict on too few moves", () => {
     expect(movesVerdict(2, 2)).toBeNull();

@@ -182,7 +182,8 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Ship 23 + 23.1 live (Nov 11).
 - [ ] Since-your-last-visit briefing: changed calls, material holding moves and agent findings since the last open (judge's top ask; needs a last-visit field on the user doc).
 - [x] Thesis agents on top of lib/thesis-watch: a checkable reason per holding, monitored nightly, surfaced in the briefing and as reason_broken proposals.
-- [ ] Idea → watched basket agent: a sourced basket that becomes a standing agent proposing drops/adds for approval, with a no-hindsight replay (in progress, judge87's bold ask).
+- [x] Idea → watched basket agent (88, local): theme/Ask → editor → 4-week replay → nightly checks → basket_drop/basket_add proposals. Open: Ask's "Watch this idea" button unseen with a live model; Firestore rollback needs a composite index for run lists.
+- [x] Landing shows the agent at work on a real proposal (88).
 - [x] Filing changes: risk factor diffs per 10-K/10-Q (tm_filing_changes, stock page, record, proposals). Open: the partial-10-Q repeat fix and quote length (in progress).
 - [ ] LocalDB field select: code ready (SQLite json_extract); needs the owner's go for a VPS pull + restart of tikrr-localdb.
 - [ ] Judge visuals list: logos on backtest SPY/TLT inputs and AMD "What changed"; comparison bars on compare, themes vs SPY, X-ray mix vs S&P, inbox report moves; prices on inbox report cards and signals rows.
@@ -193,7 +194,34 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
-### 2026-11-13 ~01:30: filing changes (new capability), lighter pages, LocalDB field select (all local; batch 87 forming)
+### 2026-11-13 ~03:30: idea baskets (new capability), the agent at work on the landing, visuals sweep (ship-queue 88, local)
+
+- **ship-queue d5bb082 (88)** on 2813642 (87): tsc and lint clean, 3951/3951 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
+- **Idea baskets (judge87's bold ask):** "Watch this idea" on a theme page or an Ask answer opens an editor (reasons per company, each with a kind).
+  - It replays the last 4 weeks with dated data only, then runs nightly with the agents.
+  - Each run checks every reason with the reason-watcher rules and ends in a decision.
+  - It drafts `basket_drop`/`basket_add` proposals into Needs you, priced below holding proposals.
+  - The Free/Pro agent limit counts jobs and baskets together.
+  - Real test basket "Test basket: AI capex" (owner's account, archive via More → Remove): today "Add CEG" (+38% revenue growth against GOOGL's +22%; GOOGL weaker on a −24% EPS outlook). The replay proposed "Drop NVDA" (growth slowed from 114% to 71%) and "Add MOD" on Oct 16.
+  - The builder's own QA fixed 3 bugs (deleted accounts' baskets running, the agent room check, the silent paused state) and the no-hindsight leaks.
+  - Shots: scratchpad/basket-agent/.
+- **Landing agent strip:** under the hero, one real proposal from the example portfolio, rebuilt every 30 min:
+  - NVDA's Tuesday −5.5% → what I checked → proposed alert $158 → you decide → next check Fri.
+  - It replaces the three example agent cards (the fallback when there's no proposal).
+  - Two council rounds fixed: own level only, day words, ≤4-word labels, illustrative decision shapes, a real weekday.
+  - Shots: scratchpad/landing-seq/r2/.
+- **Judge87 sweep:**
+  - Bars on one signed scale: sectors (day/month/year), market today, President posts vs the S&P, insiders, calendar (EPS vs expected), themes (with an S&P key), backtest years, portfolio gain.
+  - Decorative bars removed (news mix, sectors rising/buy-more).
+  - Prices on /agent record rows; /inbox points to the /agent queue.
+  - Briefing filler gone; landing example cards show prices; SEC prompt at 14 words.
+  - Two council rounds. Shots: scratchpad/sweep87/r2, r3.
+- **Running:** a cross-cutting QA pass on 88; the Codex council on the basket pages.
+
+### 2026-11-13 ~01:30: filing changes (new capability), lighter pages, LocalDB field select (ship-queue 87, local)
+
+- **ship-queue:** 2813642 (87) on f970ab4 (86) → cd91d1b (85) → dcb8e90 (84). Checks on 87: tsc and lint clean, 3888/3888 tests both ways, `next build` OK (stock page 213 kB, briefing 137 kB), backend 1428 passed with the same 3 old failures. Not pushed: Vercel is still 402.
+- **Filing QA round:** partial 10-Qs no longer re-announce risks (a new `repeated` field); nothing is hover-only; Title Case is lowered by a word list from 4,900 filer headings; negations count; the SEC rate is 2.5/s; `--force` keeps compared_at. Rerun: 553 written, 0 failures.
 
 - **Filing changes (new, real data):** the agent diffs each company's risk factor headings in its newest 10-K/10-Q against the previous filing. It works by rules only and quotes the company's own words.
   - Full production run: 553 stocks written to `tm_filing_changes`, 503 with a readable comparison.

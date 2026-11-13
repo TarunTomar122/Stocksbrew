@@ -52,8 +52,8 @@ export const BRIEFING_GUIDES: Guide[] = [
         "The names on your account where nothing happened today, with their day change. It is short on purpose. The point is that a name missing from the lists above was checked and had nothing, which is different from not being checked.",
       ),
       note(
-        "If nothing needs you, the page says so in its first line and shows the market view underneath. An empty Needs you list is the normal state on most days.",
-        "Nothing needs you today",
+        "If nothing needs you, the page skips the Do today list and opens on the market view. An empty Needs you list is the normal state on most days.",
+        "When nothing needs you",
       ),
     ],
     related: ["start/read-a-briefing", "briefing/reasons", "agents/did-nothing-is-a-result"],

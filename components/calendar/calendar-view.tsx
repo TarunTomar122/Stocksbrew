@@ -2,6 +2,8 @@ import * as React from "react";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
 import { Delta, Empty, FOCUS, NUM, Panel, Tag, Ticker, ToneGlyph, Verdict, fmtCompact } from "@/components/oa/kit";
+import { SERIES_VARS } from "@/components/backtest/format";
+import { barGeometry } from "@/components/stock-report/fact-bars";
 import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -247,7 +249,8 @@ function ReactionValue({ item, className = "", narrow = false }: { item: Earning
   if (!item.reaction) return null;
   return (
     <span title={`${reactionBasisLabel(item.reaction, item.session)}.`} className={`inline-flex items-baseline gap-1 ${className}`}>
-      <Delta value={item.reaction.pct} />
+      {/* One decimal in a narrow column: "+19.94%" ran past a 1280 column's edge (council, sweep 87). */}
+      <Delta value={item.reaction.pct} digits={narrow ? 1 : 2} />
       {/* A narrow desktop column has no room for "2d"; the title still says it. */}
       {item.reaction.basis === "2d" ? <span className={`${NUM} text-[11px] text-oa-muted-fg ${narrow ? "lg:hidden" : ""}`}>2d</span> : null}
     </span>
@@ -410,9 +413,17 @@ function EarningsLine({
             {/* A narrow desktop column has room for one figure: the move, or before it the result against the estimate
                 ("Beat 12%"), never a bare EPS beside other rows' moves (owner rule 6). */}
             {narrow && !item.reaction ? <ResultFigure item={item} className="hidden lg:inline" /> : null}
-            <span className={`${NUM} text-[12.5px] text-oa-muted-fg ${narrow ? "lg:hidden" : detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
+            <span className={`${NUM} inline-flex items-baseline gap-1.5 text-[12.5px] text-oa-muted-fg ${narrow ? "lg:hidden" : detail} ${item.reaction ? "max-[420px]:hidden" : ""}`}>
+              <EpsBars actual={item.epsActual} estimate={item.epsEstimate} />
               {fmtEps(item.epsActual)}
-              {item.epsEstimate !== null ? <span className={narrow ? "lg:hidden" : ""}> vs {fmtEps(item.epsEstimate)} expected</span> : null}
+              {/* "expected" is said once, in the group's key over the bars, so a narrow column fits the figures. */}
+              {item.epsEstimate !== null ? (
+                <span className={narrow ? "lg:hidden" : ""}>
+                  {" "}
+                  vs {fmtEps(item.epsEstimate)}
+                  <span className="sr-only"> expected</span>
+                </span>
+              ) : null}
             </span>
             <ReactionValue item={item} narrow={narrow} />
           </>
@@ -612,6 +623,15 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
           // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
           const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
+          // The reported-vs-expected bars' key, once per day over the first group that draws them. The bars hide where
+          // a row has no room (a narrow desktop column; a small phone beside a move), and the key hides with them.
+          // A passed day in a narrow column (`desktopOnly`) draws its rows without bars on every screen, so no key.
+          const drawsBars = !(past && compact);
+          const paired = (list: EarningsItem[]) => list.filter((item) => hasEpsPair(item.epsActual, item.epsEstimate));
+          const sayKey = drawsBars && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
+          // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
+          const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
+          const keyClass = `${isToday ? "" : "lg:hidden"} ${keyAlways ? "" : "max-[420px]:hidden"}`;
           return (
             <div key={session}>
               <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
@@ -628,6 +648,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
                   )}
                   {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
                   {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
+                  {sayKey ? <EpsKey className={`mt-0.5 flex ${keyClass}`} /> : null}
                 </span>
                 <span className={`${NUM} shrink-0`}>{rows.length}</span>
               </h3>
@@ -842,8 +863,64 @@ export function MonthView({ days, filters, today }: { days: Map<string, DayBucke
   );
 }
 
+/**
+ * Reported profit a share against the estimate as two short bars on one signed scale with one marked zero (judges,
+ * sweep 87): copper the result, teal the estimate, as in every other "this vs that" bar, keyed once per section
+ * (EpsKey). A loss runs left of zero. Nothing without both figures; the figures themselves sit beside it.
+ */
+export function EpsBars({ actual, estimate, className = "" }: { actual: number | null; estimate: number | null; className?: string }) {
+  if (!hasEpsPair(actual, estimate)) return null;
+  // One signed scale for both, from one zero (council, sweep 87): a loss of $0.61 runs further left than one of $0.13.
+  const geometry = barGeometry([actual!, estimate!]);
+  return (
+    <span aria-hidden="true" className={`${SERIES_VARS} relative inline-flex w-14 shrink-0 flex-col justify-center gap-[3px] self-center ${className}`}>
+      {(["bg-[var(--series-a)]", "bg-[var(--series-b)]"] as const).map((fill, index) => {
+        const bar = geometry.bars[index]!;
+        // A small figure still shows a sliver, grown away from the zero so it never crosses it; with no room on its side
+        // of the zero (a cent's profit beside a dollar's loss), a dot at the zero says it is there.
+        const room = bar.negative ? geometry.zero : 100 - geometry.zero;
+        const width = Math.min(Math.max(bar.width, 4), room);
+        const left = bar.negative ? geometry.zero - width : geometry.zero;
+        return (
+          <span key={fill} className="relative block h-1.5 rounded-full bg-oa-bg">
+            {bar.width > 0 && width >= 4 ? (
+              <span className={`absolute inset-y-0 ${bar.negative ? "rounded-l-full" : "rounded-r-full"} ${fill}`} style={{ left: `${left}%`, width: `${width}%` }} />
+            ) : bar.width > 0 ? (
+              <span className={`absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full ${fill}`} style={{ left: `${geometry.zero}%` }} />
+            ) : null}
+          </span>
+        );
+      })}
+      {/* The zero, marked through both bars: at the right end when both are losses, the left when both are profits. */}
+      <span className="absolute -bottom-1 -top-1 w-px -translate-x-1/2 bg-oa-muted-fg" style={{ left: `${geometry.zero}%` }} />
+    </span>
+  );
+}
+
+function hasEpsPair(actual: number | null, estimate: number | null): boolean {
+  return actual !== null && estimate !== null && Number.isFinite(actual) && Number.isFinite(estimate);
+}
+
+/** The copper and teal pair's key, said once per section (council, sweep 87), never on a row. */
+function EpsKey({ className = "" }: { className?: string }) {
+  return (
+    // The bars it explains are hidden from screen readers (the figures beside them say it), so the key is too.
+    <span aria-hidden="true" className={`${SERIES_VARS} inline-flex items-center gap-2.5 whitespace-nowrap text-[11.5px] font-normal normal-case tracking-normal text-oa-muted-fg ${className}`}>
+      <span className="inline-flex items-center gap-1">
+        <span aria-hidden="true" className="inline-block h-1.5 w-3 rounded-full bg-[var(--series-a)]" />
+        Reported
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span aria-hidden="true" className="inline-block h-1.5 w-3 rounded-full bg-[var(--series-b)]" />
+        Expected
+      </span>
+    </span>
+  );
+}
+
 /* ── List ──────────────────────────────────────────────────────────────── */
 
+/** The list's columns. The bars' key sits in the day's header (ListDay), not here, so the table keeps its width. */
 const EARNINGS_COLUMNS: DataColumn[] = [
   { id: "ticker", label: "Company" },
   { id: "when", label: "When", hideOnMobile: true },
@@ -876,7 +953,8 @@ function earningsRows(items: EarningsItem[], mark: boolean): DataRow[] {
       </span>,
       <span key="e" className={`${NUM} ${item.epsEstimate === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(item.epsEstimate) || "n/a"}</span>,
       item.epsActual !== null ? (
-        <span key="a" className={`${NUM} text-oa-fg`}>
+        <span key="a" className={`${NUM} inline-flex items-center justify-end gap-2 text-oa-fg`}>
+          <EpsBars actual={item.epsActual} estimate={item.epsEstimate} className="max-sm:hidden" />
           {fmtEps(item.epsActual)}
         </span>
       ) : (
@@ -905,6 +983,8 @@ function earningsRows(items: EarningsItem[], mark: boolean): DataRow[] {
 function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets; today: string; single: boolean; filters: CalendarFilters; mark: boolean }) {
   const earnings = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown];
   const others = bucket.economic.length + bucket.ipos.length + bucket.dividends.length;
+  // The reported-vs-expected bars' key, once for the day's table, beside its count (the bars show from sm).
+  const bars = earnings.some((item) => hasEpsPair(item.epsActual, item.epsEstimate));
   return (
     <Panel
       flush
@@ -914,7 +994,12 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
           {weekdayName(bucket.day, true)}, {fmtShortDay(bucket.day)} · {relativeDay(bucket.day, today)}
         </Link>
       }
-      right={<span className={NUM}>{bucket.total}</span>}
+      right={
+        <span className="flex items-center gap-4">
+          {bars ? <EpsKey className="max-sm:hidden" /> : null}
+          <span className={NUM}>{bucket.total}</span>
+        </span>
+      }
     >
       {others ? (
         <div className="grid border-b border-oa-border last:border-b-0 sm:grid-cols-3">

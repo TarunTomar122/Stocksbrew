@@ -9,7 +9,7 @@
 import Link from "next/link";
 import type * as React from "react";
 
-import { ToneGlyph } from "@/components/oa/kit/tone";
+import { PairBar, SignedBar, ToneGlyph, barDomain } from "@/components/oa/kit/tone";
 import { KindIcon, type KindIconName } from "@/components/oa/nav-icon";
 import { StockLogo } from "@/components/stock-logo";
 import { marketKindIcon } from "@/components/markets/market-kind";
@@ -50,6 +50,11 @@ type Card = {
   /** The card's one line when it is not the verdict's reason; the reason then sits in the chip's hover title. */
   line?: string | null;
   visual?: React.ReactNode;
+  /**
+   * The figure held against another period or market as bars on one scale (judges, sweep 87): the next biggest
+   * moves, a month ago, the usual mix, the S&P 500. Only from loaded figures; null when the other one is missing.
+   */
+  compare?: React.ReactNode;
 };
 
 function signed(value: number, digits: number): string {
@@ -110,6 +115,61 @@ export function moverLabel(asset: MarketAsset): string {
   return kind ? `${own}, ${kind}` : own;
 }
 
+/** What an asset stood at a month ago, from today's level and its month change; null without one. */
+export function monthAgoLevel(asset: MarketAsset): number | null {
+  const month = asset.change.m1;
+  if (month == null || !Number.isFinite(month) || !(asset.price > 0)) return null;
+  if (asset.change_mode === "pct") return month <= -100 ? null : asset.price / (1 + month / 100);
+  if (asset.change_mode === "bps") return asset.price - month / 100;
+  return asset.price - month;
+}
+
+/**
+ * The first bar's figure is the card's own headline, printed big just above, so it is not printed again beside its
+ * bar (council, sweep 87); only what it is held against gets a figure. A no-break space keeps the rows level.
+ */
+const SAID_ABOVE = "\u00a0";
+
+/** Two levels as bars on one scale, today first (copper) then what it is held against (teal). */
+function levelPair(value: number | null, versus: number | null, labels: [string, string], format: (n: number) => string): React.ReactNode {
+  if (value == null || versus == null || !Number.isFinite(value) || !Number.isFinite(versus)) return null;
+  return <PairBar value={value} versus={versus} labels={labels} texts={[SAID_ABOVE, format(versus)]} spoken={[format(value), format(versus)]} />;
+}
+
+/** A mover's name short enough for a bar's label: a fund by its ticker (two chip funds both read "Chips"), no "(Henry Hub)". */
+function moverShort(asset: MarketAsset): string {
+  if (asset.class === "etf") return asset.symbol;
+  return name(asset).replace(/\s*\([^)]*\)\s*$/, "");
+}
+
+/** The biggest moves across markets on one scale with one zero line: the leader, then the two after it. */
+function moveRows(movers: readonly MarketAsset[]): React.ReactNode {
+  const rows = movers.filter((asset) => asset.change.d1 != null && Number.isFinite(asset.change.d1)).slice(0, 3);
+  if (rows.length < 2) return null;
+  const domain = barDomain(rows.map((asset) => asset.change.d1));
+  return (
+    <ul aria-label="The biggest moves across markets" className="grid grid-cols-[auto_minmax(2.5rem,1fr)_auto] items-center gap-x-2 gap-y-1 text-[12px] leading-4">
+      {rows.map((asset, index) => (
+        <li key={asset.id} className="contents">
+          <span className="max-w-[9rem] truncate text-oa-muted-fg">{moverShort(asset)}</span>
+          <SignedBar value={asset.change.d1} domain={domain} />
+          {/* The leader's move is the card's headline above; only the next ones print theirs. */}
+          <span className="oa-mono whitespace-nowrap text-right tabular-nums text-oa-fg">
+            {index === 0 ? (
+              <>
+                {SAID_ABOVE}
+                <span className="sr-only">{`${signed(asset.change.d1 as number, 1)}%`}</span>
+              </>
+            ) : (
+              `${signed(asset.change.d1 as number, 1)}%`
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** "Bitcoin −1.5% and Tech −1.1% were next": the moves after the biggest, so one figure is not left on its own. */
 export function nextMovesLine(rest: readonly MarketAsset[]): string | null {
   const parts = rest
@@ -154,6 +214,7 @@ function movedCard(data: MarketsData): Card | null {
   // is not a good day for stocks.
   const stockMoves = movers.filter((asset) => asset.class === "index" || asset.class === "etf");
   const gains = stockMoves.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
+  const bars = moveRows(movers);
   return {
     key: "moved",
     title: "Biggest move across markets",
@@ -164,8 +225,9 @@ function movedCard(data: MarketsData): Card | null {
     label: moverLabel(top),
     mark: <MoverMark asset={top} />,
     verdict: movesVerdict(gains, stockMoves.length),
-    // The one line is what came next; the verdict's own count moves to the chip's hover title.
-    line: nextMovesLine(movers.slice(1)),
+    // What came next is drawn as bars beside the leader; without two moves to draw, it stays one line, and the
+    // verdict's own count moves to the chip's hover title.
+    ...(bars ? { compare: bars } : { line: nextMovesLine(movers.slice(1)) }),
   };
 }
 
@@ -181,6 +243,7 @@ function stocksCard(data: MarketsData): Card | null {
     tone: "flat",
     label: "VIX, the fear gauge",
     verdict: vixVerdict(vix.price),
+    compare: levelPair(vix.price, monthAgoLevel(vix), ["Now", "Month ago"], (n) => n.toFixed(1)),
     visual: vix.spark.length > 1 ? <Sparkline values={vix.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
@@ -201,8 +264,30 @@ function ratesCard(data: MarketsData): Card | null {
     tone: "flat",
     label: "10-year yield",
     verdict: yieldVerdict(change),
+    compare: levelPair(ten.value, before ?? null, ["Now", "Month ago"], (n) => `${n.toFixed(2)}%`),
+    // The bars show it is lower or higher than a month ago, so the line keeps only what that means (council, sweep 87).
+    line: rateLine(yieldVerdict(change)),
     visual: curve.points.length > 2 ? <CurveLines curve={curve} /> : null,
   };
+}
+
+/** "Lower than a month ago: cheaper borrowing." -> "Cheaper borrowing.": the part after the colon, or the whole line. */
+export function rateLine(verdict: VerdictLine | null): string | null {
+  if (!verdict) return null;
+  const after = verdict.why.split(": ")[1];
+  return after ? `${after.charAt(0).toUpperCase()}${after.slice(1)}` : verdict.why;
+}
+
+/** The S&P 500's change over the past month, percent, or null. */
+function spMonth(data: MarketsData): number | null {
+  const month = (data.assets.find((asset) => asset.id === "sp500") ?? data.assets.find((asset) => asset.id === "spy"))?.change.m1;
+  return month != null && Number.isFinite(month) ? month : null;
+}
+
+function monthVsSp(gold: number, sp: number | null): React.ReactNode {
+  if (sp == null) return null;
+  const pct = (n: number) => `${n > 0 ? "+" : n < 0 ? MINUS : ""}${Math.abs(n).toFixed(1)}%`;
+  return <PairBar value={gold} versus={sp} labels={["Gold", "S&P 500"]} texts={[SAID_ABOVE, pct(sp)]} spoken={[pct(gold), pct(sp)]} />;
 }
 
 function commoditiesCard(data: MarketsData): Card | null {
@@ -219,6 +304,8 @@ function commoditiesCard(data: MarketsData): Card | null {
       tone: "flat",
       label: "Gold, past month",
       verdict: goldVerdict(month),
+      // Gold's month against the S&P 500's: a flight to safety shows as gold up while stocks fall.
+      compare: monthVsSp(month, spMonth(data)),
       visual: gold.spark.length > 1 ? <Sparkline values={gold.spark} tone="flat" width={96} height={28} /> : null,
     };
   }
@@ -251,6 +338,7 @@ function optionsCard(data: MarketsData): Card | null {
     // A put is a bet on a fall, a call a bet on a rise.
     label: "puts per call",
     verdict: putCallVerdict(ratio.price, average),
+    compare: levelPair(ratio.price, average ?? null, ["Today", "20-day average"], (n) => n.toFixed(2)),
     visual: ratio.spark.length > 1 ? <Sparkline values={ratio.spark} tone="flat" width={96} height={28} /> : null,
   };
 }
@@ -260,6 +348,22 @@ function fedLabel(words: string): string {
   const move = /^(raises|cuts) rates by (more than )?([\d.]+) percentage points?$/.exec(words);
   if (!move) return /^holds\b/.test(words) ? "the Fed holds" : `the Fed ${words}`;
   return `of a ${move[2] ? "more than " : ""}${move[3]}-point Fed ${move[1] === "raises" ? "hike" : "cut"}`;
+}
+
+/** "Hike 0.25", "Cut >0.5", "Hold": a Fed outcome short enough for a bar's label; the market's own words otherwise. */
+function outcomeShort(label: string, fed: boolean): string {
+  const words = fed ? fedOutcomeWords(label) : null;
+  if (words) {
+    if (words.startsWith("holds")) return "Hold";
+    const move = /^(raises|cuts) rates by (more than )?([\d.]+)/.exec(words);
+    if (move) return `${move[1] === "raises" ? "Hike" : "Cut"} ${move[2] ? ">" : ""}${move[3]}`;
+  }
+  const own = label.trim();
+  return own.length > 14 ? `${own.slice(0, 13).trimEnd()}…` : own;
+}
+
+function outcomePair(first: string, second: string, a: number, b: number, fed: boolean): React.ReactNode {
+  return levelPair(a, b, [outcomeShort(first, fed), outcomeShort(second, fed)], (n) => formatProbability(n));
 }
 
 function predictionsCard(data: MarketsData): Card | null {
@@ -285,6 +389,8 @@ function predictionsCard(data: MarketsData): Card | null {
     tone: "flat",
     label: words ? `chance ${fedLabel(words)}${month ? ` in ${month}` : ""}` : yes ? `chance of yes: ${lead.question.trim().replace(/[.?!]$/, "")}` : `chance of ${headline.label}`,
     verdict: fedVerdict(words),
+    // A pick-one market's favourite against the runner-up (a yes-or-no market's "no" is only the rest of 100%).
+    compare: !yes && ranked[1] ? outcomePair(headline.label, ranked[1].label, headline.probability, ranked[1].probability, lead.topic === "fed") : null,
   };
 }
 
@@ -307,6 +413,7 @@ function MarketCard({ card }: { card: Card }) {
             the foot, so a card without one has no padded band where the picture would be (owner rule 4). */}
         {card.mark ? card.mark : card.visual ? <div className="mt-1 shrink-0">{card.visual}</div> : null}
       </div>
+      {card.compare ? <div className="mt-2.5 min-w-0">{card.compare}</div> : null}
       {card.verdict || card.line ? (
         <p className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5">
           {card.verdict ? (
@@ -357,7 +464,7 @@ export function MarketCards({ data, className = "" }: { data: MarketsData; class
         {tally ? <span className="shrink-0 text-[13px] text-oa-muted-fg">{tally}</span> : null}
       </div>
       {/* Each card as tall as its own words (owner rule 4): a short card is not stretched to its longest neighbour. */}
-      <ul role="list" className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul role="list" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <MarketCard key={card.key} card={card} />
         ))}

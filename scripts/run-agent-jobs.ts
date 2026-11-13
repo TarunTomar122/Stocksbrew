@@ -1,6 +1,7 @@
 /**
  * Evaluate every enabled standing job once and record each decision in
- * `tm_agent_runs` (including "checked, nothing to do").
+ * `tm_agent_runs` (including "checked, nothing to do"), then check every idea
+ * basket that is switched on and record its decision in `tm_agent_basket_runs`.
  *
  *   node_modules/.bin/vite-node -c scripts/jobs.config.ts scripts/run-agent-jobs.ts         # run for real
  *   node_modules/.bin/vite-node -c scripts/jobs.config.ts scripts/run-agent-jobs.ts --dry   # decide, write nothing
@@ -22,11 +23,18 @@ process.env.NEXT_PUBLIC_DEV_UNLOCK_PRO = "0";
 export {};
 
 async function main() {
+  const started = Date.now();
   const { runAllEnabledJobs } = await import("@/lib/agent-jobs-data");
   const dryRun = process.argv.includes("--dry");
   const summary = await runAllEnabledJobs(new Date(), (line) => console.log(`[agent-jobs] ${line}`), { dryRun });
   console.log(`[agent-jobs]${dryRun ? " dry run, nothing written:" : ""} ${JSON.stringify(summary)}`);
-  if (summary.failed > 0) process.exitCode = 1;
+  // Idea baskets the agent watches (lib/basket-agent), after the jobs: within each account's plan the jobs come first.
+  const { runAllBasketAgents } = await import("@/lib/basket-agent/data");
+  // The step is stopped at 20 minutes (backend/agentdata/schedule.py): no basket starts after 17.
+  const baskets = await runAllBasketAgents(new Date(), (line) => console.log(`[agent-jobs] ${line}`), { dryRun, deadline: started + 17 * 60_000 });
+  if (baskets.deferred > 0) console.log(`[agent-jobs] ${baskets.deferred} baskets left for the next run (time budget)`);
+  console.log(`[agent-jobs] baskets${dryRun ? " dry run, nothing written:" : ""} ${JSON.stringify(baskets)}`);
+  if (summary.failed > 0 || baskets.failed > 0) process.exitCode = 1;
 }
 
 // Awaited at the top level: vite-node closes its module server once the top level returns, and any import still

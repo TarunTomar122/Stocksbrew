@@ -1,7 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Delta, Empty, FOCUS, NUM, Panel, Ticker, Verdict, fmtAgo, fmtDay } from "@/components/oa/kit";
+import { Delta, Empty, FOCUS, NUM, Panel, SignedBar, Ticker, Verdict, barDomain, fmtAgo, fmtDay } from "@/components/oa/kit";
 import { capitalize, stampWords } from "@/lib/day-words";
 import type { PolicyData, RedditData, RedditThread } from "@/lib/signals";
 import { MoreLocked } from "@/components/oa/gate";
@@ -17,6 +17,7 @@ import {
   redditHighlight,
   redditMovesToday,
   signalsHref,
+  withoutContradictedClause,
   type MentionVelocity,
   type PolicyPost,
   type RedditName,
@@ -70,15 +71,12 @@ function paceWords(velocity: MentionVelocity): string | null {
 }
 
 /**
- * The mood as one coloured word (Hopeful, Worried, Mixed). The list only has rows with a read mood (showsRedditRow);
- * should one slip through, neutral reads "Neutral" muted and unread is blank, never a "no clear lean" phrase.
+ * The mood as one coloured word (Hopeful, Worried, Mixed). Only rows with a read mood that leans somewhere reach the
+ * list (showsRedditRow), so there is no unread or neutral case to draw.
  */
 function MoodWord({ name }: { name: RedditName }) {
-  // Not read yet: blank, never a dash that reads as a minus. Read and neutral: the word, muted.
-  if (!name.stanceRead) return <span className="sr-only">Mood not read yet</span>;
-  if (name.stance === "neutral") return <span className="text-[13px] text-oa-muted-fg">Neutral</span>;
   const mood = moodWord(name.stance);
-  if (!mood) return <span className="sr-only">No clear mood</span>;
+  if (!mood) return null;
   const tone = mood.tone === "up" ? "text-signal-bullish" : mood.tone === "down" ? "text-signal-bearish" : "text-oa-muted-fg";
   return <span className={`text-[13px] font-medium ${tone}`}>{mood.word}</span>;
 }
@@ -240,14 +238,24 @@ export function redditRowLine(name: Pick<RedditName, "catalysts" | "summary">, m
     const fits = shortFact(redditHighlight(one, movesToday), SAID_WORDS);
     if (fits) return fits;
   }
+  // No whole sentence fits: what the posts are about, as the read named it ("CEO succession and board
+  // investigation"), so the row still says what is being said (judges, sweep 87: NVDA and SPY had a mood and no
+  // highlight). A topic, not a sentence, so no full stop; never one cut short.
+  for (const catalyst of name.catalysts) {
+    // A catalyst the feed cut short ("…", "...") is skipped, never shown as if whole.
+    if (/(?:…|\.\.\.)\s*$/.test(catalyst.trim())) continue;
+    const topic = withoutContradictedClause(catalyst.trim().replace(/[.!;:,]+$/, ""), movesToday);
+    const words = topic.split(/\s+/).filter(Boolean).length;
+    if (words >= 2 && words <= SAID_WORDS) return `${topic.charAt(0).toUpperCase()}${topic.slice(1)}`;
+  }
   return null;
 }
 
 /**
  * Whether a name gets a row (owner rule 3: every row carries its mood). A fund or an index needs a clear lean
  * (lib/signals-shared.ts inRedditList); a stock needs a read mood that leans somewhere: Hopeful, Worried or Mixed.
- * Neutral or not yet read, it has no row. A row with its mood but no whole highlight of 12 words keeps the mood and
- * the counts, with no line (redditRowLine).
+ * Neutral or not yet read, it has no row. RedditSection also leaves out a name with nothing said that fits a row
+ * (redditRowLine returns null), so every row has its mood and a highlight.
  */
 export function showsRedditRow(name: Pick<RedditName, "ticker" | "stance" | "stanceRead">): boolean {
   if (!inRedditList(name as RedditName)) return false;
@@ -255,7 +263,9 @@ export function showsRedditRow(name: Pick<RedditName, "ticker" | "stance" | "sta
 }
 
 export function RedditSection({ data }: { data: RedditData }) {
-  const names = rankReddit(data.names.filter(showsRedditRow));
+  // A row says what people are saying, or it is left out (owner rule 3: mood and a highlight on every row).
+  const movesToday = redditMovesToday(data.names);
+  const names = rankReddit(data.names.filter((name) => showsRedditRow(name) && redditRowLine(name, movesToday) !== null));
   const days = Math.round(data.windowHours / 24);
   return (
     <>
@@ -287,7 +297,9 @@ export function RedditSection({ data }: { data: RedditData }) {
 
 /* ── Policy ────────────────────────────────────────────────────────────── */
 
-const POLICY_COLS = "lg:grid lg:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,11rem)_5.5rem] lg:items-center lg:gap-x-4";
+const POLICY_COLS = "lg:grid lg:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,11rem)_9.5rem] lg:items-center lg:gap-x-4";
+/** The same grid without the names column, for a list where no post names a company (council, sweep 87: no empty column). */
+const POLICY_COLS_NO_NAMES = "lg:grid lg:grid-cols-[8.5rem_minmax(0,1fr)_9.5rem] lg:items-center lg:gap-x-4";
 
 /**
  * When a post went up, in day words (owner rule 4: "say yesterday"): "Today, 7:04 AM", "Yesterday, 1:47 AM",
@@ -299,21 +311,28 @@ function postedWords(iso: string): string {
   // stampWords gives only the time for today.
   return /^\d/.test(stamp) ? `Today, ${stamp}` : capitalize(stamp);
 }
-function PolicyLine({ post }: { post: PolicyPost }) {
+/**
+ * The S&P 500's move since a post as a bar on one scale shared by every post in the list, with the figure beside it
+ * (judges, sweep 87): a fall runs left of the zero line, so the posts compare at a glance.
+ */
+function SinceBar({ pct, domain, className = "" }: { pct: number; domain: [number, number]; className?: string }) {
+  return (
+    <span className={`flex items-center justify-end gap-2 ${className}`}>
+      <SignedBar value={pct} domain={domain} className="w-12 shrink-0 lg:w-16" />
+      <Delta value={pct} className="w-[3.75rem] shrink-0 text-right text-[13px] lg:text-[14px]" />
+    </span>
+  );
+}
+
+function PolicyLine({ post, domain, names }: { post: PolicyPost; domain: [number, number]; names: boolean }) {
   const stamp = postedWords(post.publishedAt);
   return (
-    <div className={`px-4 py-2.5 lg:py-2 ${POLICY_COLS}`}>
+    <div className={`px-4 py-2.5 lg:py-2 ${names ? POLICY_COLS : POLICY_COLS_NO_NAMES}`}>
       <div className="flex items-baseline justify-between gap-3 lg:contents">
         <time dateTime={post.publishedAt} className={`${NUM} whitespace-nowrap text-[12.5px] leading-5 text-oa-muted-fg`}>
           {stamp}
         </time>
-        <span className="text-right text-[13px] lg:order-last lg:hidden">
-          {post.market ? (
-            <>
-              <Delta value={post.market.pct} className="text-[13px]" />
-            </>
-          ) : null}
-        </span>
+        <span className="text-right text-[13px] lg:order-last lg:hidden">{post.market ? <SinceBar pct={post.market.pct} domain={domain} /> : null}</span>
       </div>
       <p className="mt-0.5 min-w-0 text-pretty text-[14px] leading-5 text-oa-fg lg:mt-0 group-open:lg:text-oa-muted-fg">
         {post.stance !== "neutral" ? (
@@ -323,22 +342,24 @@ function PolicyLine({ post }: { post: PolicyPost }) {
         ) : null}
         {post.summary}
       </p>
-      <span className="hidden min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] lg:flex">
-        {post.names.slice(0, 2).map((name) => (
-          <span key={name.ticker} className="inline-flex items-baseline gap-1.5">
-            <StockLogo ticker={name.ticker} size={14} className="self-center" />
-            <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
-            {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
-          </span>
-        ))}
-        {post.names.length > 2 ? <span className="text-oa-muted-fg">+{post.names.length - 2}</span> : null}
-      </span>
+      {names ? (
+        <span className="hidden min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] lg:flex">
+          {post.names.slice(0, 2).map((name) => (
+            <span key={name.ticker} className="inline-flex items-baseline gap-1.5">
+              <StockLogo ticker={name.ticker} size={14} className="self-center" />
+              <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
+              {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
+            </span>
+          ))}
+          {post.names.length > 2 ? <span className="text-oa-muted-fg">+{post.names.length - 2}</span> : null}
+        </span>
+      ) : null}
       <span
         className="hidden text-right lg:block"
         title={post.market ? `SPY from the ${fmtDay(post.market.fromDate)} close to ${fmtDay(post.market.toDate)}` : undefined}
       >
         {/* No session since the post yet: the cell stays empty rather than saying "n/a". */}
-        {post.market ? <Delta value={post.market.pct} className="text-[14px]" /> : null}
+        {post.market ? <SinceBar pct={post.market.pct} domain={domain} /> : null}
       </span>
     </div>
   );
@@ -392,12 +413,15 @@ function PolicyDetail({ post }: { post: PolicyPost }) {
  * at the top of the list's scroll box.
  */
 function PolicyList({ posts }: { posts: PolicyPost[] }) {
+  const domain = barDomain(posts.map((post) => post.market?.pct));
+  // The names column only when a post in view names a company.
+  const names = posts.some((post) => post.names.length > 0);
   return (
     <>
-      <div className={`sticky top-0 z-[2] hidden border-b border-oa-border bg-oa-bg px-4 py-2 ${POLICY_COLS}`}>
+      <div className={`sticky top-0 z-[2] hidden border-b border-oa-border bg-oa-bg px-4 py-2 ${names ? POLICY_COLS : POLICY_COLS_NO_NAMES}`}>
         <span className="oa-caption">Posted</span>
         <span className="oa-caption">What it said</span>
-        <span className="oa-caption">Names, since</span>
+        {names ? <span className="oa-caption">Names, since</span> : null}
         <span className="oa-caption text-right">S&amp;P since</span>
       </div>
       {/* Phone: the column words once, not "S&P since" on every row (owner, Nov 11). */}
@@ -410,7 +434,7 @@ function PolicyList({ posts }: { posts: PolicyPost[] }) {
           <li key={post.id} className="border-b border-oa-border last:border-b-0">
             <details className="group">
               <summary data-track="signal_opened" data-track-kind="policy" className={`cursor-pointer list-none hover:bg-oa-accent group-open:bg-oa-bg group-open:hover:bg-oa-accent [&::-webkit-details-marker]:hidden ${FOCUS}`}>
-                <PolicyLine post={post} />
+                <PolicyLine post={post} domain={domain} names={names} />
               </summary>
               <PolicyDetail post={post} />
             </details>

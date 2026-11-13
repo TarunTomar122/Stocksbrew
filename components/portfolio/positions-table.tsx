@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { CallCell, Dash, EarningsCell, FOCUS, NUM, Pct, signTone, TD, TH } from "@/components/portfolio/parts";
 import { StockLogo } from "@/components/stock-logo";
+import { SignedBar, barDomain } from "@/components/oa/kit/tone";
 import { ThesisLine } from "@/components/thesis/thesis-line";
 import { WholeRows } from "@/components/wire/whole-rows";
 import { needsLook, orderPositions } from "@/lib/portfolio-attention";
@@ -408,6 +409,8 @@ export function PositionsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- effectiveSort is rebuilt each render; its fields are the deps
     [positions, effectiveSort.key, effectiveSort.direction, picked, today, every],
   );
+  // One scale for every holding's gain, so the Gain % bars read as one chart down the column.
+  const gainDomain = useMemo(() => barDomain(every.map((position) => position.gainPct)), [every]);
   // The cards fold after about eight, but never before the last one that needs a look (owner rule 4).
   const fold = lookFirst ? Math.max(CARD_FOLD, sorted.filter((position) => needsLook(position, today)).length) : CARD_FOLD;
 
@@ -482,7 +485,11 @@ export function PositionsTable({
                         ) : column.key === "dayPct" ? (
                           <Pct value={position.dayPct} />
                         ) : column.key === "gainPct" ? (
-                          <Pct value={position.gainPct} digits={1} />
+                          // Gain against cost as a bar on one scale for every holding, one zero line (judges, sweep 87).
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <SignedBar value={position.gainPct} domain={gainDomain} strongZero className="hidden !h-1.5 w-8 shrink-0 lg:block" />
+                            <Pct value={position.gainPct} digits={1} />
+                          </span>
                         ) : column.key === "value" ? (
                           <ValueCell position={position} />
                         ) : column.key === "gain" ? (

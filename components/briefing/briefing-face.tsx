@@ -911,11 +911,10 @@ export function BriefingFace(props: BriefingFaceProps) {
         <MarketBand strip={strip} clock={clock} live={!archived} date={date} />
       </div>
 
-      {/* Nothing to do is one quiet line, not a titled module around it (owner rule 4: no card without data). */}
-      {showDo && doToday && doCards.length === 0 ? (
-        <p className={`min-w-0 px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0 ${SPAN.all}`}>
-          {doToday.kind === "quiet" ? (archived ? "Nothing needed you that day." : "Nothing needs you today.") : "What needs you couldn't load just now."}
-        </p>
+      {/* Nothing to do shows nothing (judges, sweep 87: "Nothing needs you today" was filler, and it contradicted the
+          agent's proposals above it). Only a failed read says so, so quiet is never mistaken for a broken page. */}
+      {showDo && doToday && doCards.length === 0 && doToday.kind !== "quiet" ? (
+        <p className={`min-w-0 px-2 text-[13.5px] leading-5 text-oa-muted-fg sm:px-0 ${SPAN.all}`}>What needs you couldn&apos;t load just now.</p>
       ) : null}
 
       {showDo && doToday && doCards.length > 0 ? (

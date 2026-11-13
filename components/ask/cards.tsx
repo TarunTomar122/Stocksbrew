@@ -42,6 +42,7 @@ import { beatShare, markFor, priceVsTarget, rsiWord, scoreVerdict, type Tone } f
 import { WATCH_HOW_WORDS, WATCH_WHEN_PLAIN, saveOutcome, watchWhenWords, type SaveResponse, type SaveState } from "@/lib/ask-answer";
 import { lockCopy } from "@/lib/entitlements";
 import { announceBookChanged } from "@/lib/radar-track-events";
+import { ASK_HANDOFF_KEY } from "@/lib/basket-agent/model";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppLink } from "@/components/oa/app-link";
@@ -1090,10 +1091,9 @@ const ORIGIN_TAGS: Record<string, { text: string; tone: "primary" | "neutral" | 
 
 function Basket({ card, actions }: { card: BasketCard; actions: CardActions }) {
   const save = useAction();
-  const agent = useAction();
+  const router = useRouter();
   const tickers = card.lines.map((line) => line.ticker);
   const saved = save.state.phase === "done" && save.state.results.some((row) => row.ok);
-  const watching = agent.state.phase === "done" && agent.state.results.some((row) => row.ok);
   return (
     <Frame
       label="Basket"
@@ -1194,31 +1194,21 @@ function Basket({ card, actions }: { card: BasketCard; actions: CardActions }) {
           <OaButton
             size="sm"
             variant="secondary"
-            loading={agent.state.phase === "running"}
-            disabled={watching}
             onClick={() => {
-              if (!actions.signedIn) return actions.signIn();
-              void agent.run(
-                "/api/agent-jobs",
-                { template: "morning-check", name: `Watch: ${card.title}`.slice(0, 80), scope: { kind: "tickers", tickers }, trigger: {} },
-                (data) =>
-                  data.ok
-                    ? [{ ticker: "Agent", ok: true, message: "Set. It checks these names every market day and tells you what moved, who reports and who disclosed a trade." }]
-                    : [{ ticker: "Agent", ok: false, message: String(data.error ?? "Could not set up the agent.") }],
-              );
+              // The reasons go over in this tab's storage; the address carries the idea and the tickers.
+              try {
+                window.sessionStorage.setItem(ASK_HANDOFF_KEY, JSON.stringify({ idea: card.thesis, lines: card.lines.map((line) => ({ ticker: line.ticker, company: line.company, reason: line.why_it_fits })) }));
+              } catch {
+                // Storage blocked: the editor fills the reasons it can from our themes.
+              }
+              router.push(`/agents/baskets/new?idea=${encodeURIComponent(card.thesis)}&tickers=${encodeURIComponent(tickers.join(","))}`);
             }}
           >
-            {watching ? "Agent is watching" : "Set an agent to watch it"}
+            Watch this idea
           </OaButton>
         </div>
-        {!actions.signedIn ? <p className="mt-2 text-[12.5px] text-oa-muted-fg">Saving and agents need an account. Backtesting does not.</p> : null}
+        {!actions.signedIn ? <p className="mt-2 text-[12.5px] text-oa-muted-fg">Saving and watching need an account. Backtesting does not.</p> : null}
         <Results state={save.state} />
-        <Results state={agent.state} />
-        {watching ? (
-          <Link prefetch={false} href="/agents" className="mt-1 inline-block text-[13px] font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
-            See its run log
-          </Link>
-        ) : null}
       </div>
     </Frame>
   );

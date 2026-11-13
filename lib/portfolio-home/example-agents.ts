@@ -50,7 +50,7 @@ export const EXAMPLE_AGENTS: ExampleAgent[] = [
   },
   {
     id: "examplefilings",
-    ask: "Tell me when any of these files something big with the SEC, like a deal, a restatement or an annual report.",
+    ask: "Tell me when any of these makes a big SEC filing, like a deal.",
     draft: {
       template: "sec-filing",
       name: "Big SEC filings",

@@ -40,8 +40,24 @@ function Lead({ item }: { item: RecordItem }) {
   );
 }
 
-function Row({ item }: { item: RecordItem }) {
+const MOVE_VERB = /\b(?:rose|fell|jumped|dropped|gained|slid|climbed|sank|rallied|tumbled|surged|plunged|soared|slumped|moved)\b/i;
+const NOT_PRICE = /\b(?:revenue|sales|earnings|profit|income|EPS|margin|guidance|stake|dividend)\b/i;
+
+/** The line is about the share price moving ("NVDA fell, about twice a normal day"), not a result or a holding change. */
+function isPriceMove(text: string): boolean {
+  return MOVE_VERB.test(text) && !NOT_PRICE.test(text);
+}
+
+/** "$166.04": a share price, with cents. */
+function sharePrice(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function Row({ item, price = null }: { item: RecordItem; price?: number | null }) {
   const quiet = item.kind === "quiet";
+  // A stock's move gets the stock's price now beside it (owner rule 4); a line that already shows the price does not,
+  // and neither does a figure that is not the share price's move ("revenue of $211M, up 55%").
+  const priceNow = item.ticker && item.figure && item.figure.label !== "price now" && price !== null && isPriceMove(item.text) ? price : null;
   const body = (
     <>
       <Lead item={item} />
@@ -52,7 +68,14 @@ function Row({ item }: { item: RecordItem }) {
       {item.tag ? (
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${TAG_TONE[item.tag] ?? "text-oa-muted-fg bg-oa-accent"}`}>{item.tag}</span>
       ) : item.figure ? (
-        <span className={`oa-mono shrink-0 text-[14px] font-semibold tabular-nums ${TONE[item.figure.tone]}`}>{item.figure.value}</span>
+        <span className="oa-mono flex shrink-0 items-baseline gap-2 tabular-nums">
+          {priceNow !== null ? (
+            <span className="text-[13.5px] text-oa-fg" title="Price now">
+              {sharePrice(priceNow)}
+            </span>
+          ) : null}
+          <span className={`text-[14px] font-semibold ${TONE[item.figure.tone]}`}>{item.figure.value}</span>
+        </span>
       ) : null}
     </>
   );
@@ -84,7 +107,18 @@ function withAnswered(days: RecordDay[], answered: RecordItem[], today: string):
  * What the agent did, newest day first: one line per proposal answered and per note, under a quiet day label. The
  * first RECORD_LINES lines show; the rest wait behind one "Show N more" (no inner scroll, owner rules 4 and 5).
  */
-export function ActivityRecord({ days: stored, today, empty = null }: { days: RecordDay[]; today: string; empty?: string | null }) {
+export function ActivityRecord({
+  days: stored,
+  today,
+  empty = null,
+  prices = {},
+}: {
+  days: RecordDay[];
+  today: string;
+  empty?: string | null;
+  /** Each stock's latest price, for the current price beside a stock's move. */
+  prices?: Readonly<Record<string, number>>;
+}) {
   const [all, setAll] = React.useState(false);
   const headingId = React.useId();
   // A proposal answered on this page shows here at once, under today, until the page's refresh brings the stored line.
@@ -131,7 +165,7 @@ export function ActivityRecord({ days: stored, today, empty = null }: { days: Re
             <p className="bg-oa-bg px-3.5 py-1.5 text-[12.5px] font-medium text-oa-muted-fg">{day.label}</p>
             <ul className="divide-y divide-oa-border border-t border-oa-border">
               {day.items.map((item) => (
-                <Row key={item.id} item={item} />
+                <Row key={item.id} item={item} price={item.ticker ? prices[item.ticker] ?? null : null} />
               ))}
             </ul>
           </div>
