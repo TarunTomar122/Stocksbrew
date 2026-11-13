@@ -86,6 +86,13 @@ function enrich(seed: Seed, row: ScreenerRow | undefined, today: string): IdeaHo
   };
 }
 
+/**
+ * What a caller needs worked out. `lookAlikes: false` leaves out the funds that look like a fund held at a loss
+ * (`losses[].similar` is then empty for funds): finding them reads every covered fund's full SEC holdings, about 8 MB,
+ * which only the ideas pages show. The landing reads the losses and trims alone.
+ */
+export type IdeasOptions = { lookAlikes?: boolean };
+
 async function finish(
   seeds: Seed[],
   subject: IdeasSubject,
@@ -93,6 +100,7 @@ async function finish(
   today: string,
   pricesAsOf: string | null,
   pricesAt: string | null = null,
+  options: IdeasOptions = {},
 ): Promise<IdeasView | null> {
   if (seeds.length === 0) return null;
   const tickers = seeds.map((seed) => seed.ticker);
@@ -124,9 +132,14 @@ async function finish(
   const positions: XrayPositionInput[] = holdings.map((holding) => ({ ticker: holding.ticker, name: holding.name, value: holding.value, looksLikeFund: holding.fund }));
   const xray = buildXray(positions, { funds: heldFunds, sectorOf, nameOf, benchmarkSectors: facts.spSectorWeights });
 
-  // Fund look-alikes are needed only when a fund sits at a loss; the docs are cached for an hour.
+  // Fund look-alikes are needed only when a fund sits at a loss and the caller shows them; the docs are cached for an hour.
+  const lookAlikes = options.lookAlikes !== false;
   const fundAtLoss = holdings.some((holding) => holding.fund && fin(holding.price) && holding.lots.some((lot) => lot.costPerShare > holding.price!));
-  const allFunds: Record<string, FundDoc | undefined> = fundAtLoss ? { ...(await loadFunds(fundTickers.filter((fund) => fund.ok).map((fund) => fund.ticker))), ...heldFunds } : heldFunds;
+  const allFunds: Record<string, FundDoc | undefined> = !lookAlikes
+    ? {}
+    : fundAtLoss
+      ? { ...(await loadFunds(fundTickers.filter((fund) => fund.ok).map((fund) => fund.ticker))), ...heldFunds }
+      : heldFunds;
 
   // Losses first: a stock listed as a loss to sell never gets an add idea (buying it back would be a wash sale).
   const losses = buildLosses({ holdings, universe: snapshot?.rows ?? [], funds: allFunds, rates, today });
@@ -198,7 +211,7 @@ async function finish(
 }
 
 /** The example portfolio the Portfolio page shows visitors: invented shares, saved days and costs at the close on those days. */
-export async function loadExampleIdeas(rates: TaxRates): Promise<IdeasView | null> {
+export async function loadExampleIdeas(rates: TaxRates, options: IdeasOptions = {}): Promise<IdeasView | null> {
   const example = await loadExamplePortfolio().catch(() => null);
   if (!example) return null;
   const today = newYorkToday();
@@ -223,7 +236,7 @@ export async function loadExampleIdeas(rates: TaxRates): Promise<IdeasView | nul
         recentBuys: saved && saved >= addDays(today, -WASH_DAYS) ? [saved] : [],
       };
     });
-  return finish(seeds, "example", rates, today, example.pricesAsOf);
+  return finish(seeds, "example", rates, today, example.pricesAsOf, null, options);
 }
 
 function tickerFromId(id: string): string {

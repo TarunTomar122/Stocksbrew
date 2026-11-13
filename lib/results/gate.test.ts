@@ -20,14 +20,17 @@ vi.mock("@/lib/firebase-admin", () => {
   return {
     adminAuth: {},
     adminFirestore: {
-      collection: () => ({
-        where: () => ({
+      collection: () => {
+        // Chainable: the recent-events read bounds event_date on both sides.
+        const query = {
+          where: () => query,
           get: async () => {
             store.queries += 1;
             return { docs: [{ data: () => row }] };
           },
-        }),
-      }),
+        };
+        return query;
+      },
       doc: (path: string) => path,
       getAll: async (...paths: string[]) =>
         paths.map((path) => (path.startsWith("tm_call_stability/") ? { exists: true, id: "US_CEG", data: () => ({ call: "Add", session: "2026-11-11", changes: [] }) } : missing)),

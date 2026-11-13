@@ -91,14 +91,15 @@ async function readDividends(ticker: string) {
 
 /** Labelled headlines about one company since `since`, and how many were negative. */
 async function readNewsTone(ticker: string, since: string): Promise<StockFacts["news"]> {
-  const snap = await adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker).limit(150).get();
+  // Ids and times only: the headlines themselves are not shown here.
+  const snap = await adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker).limit(150).select("id", "published_at").get();
   const ids = snap.docs
     .map((doc) => ({ id: String((doc.data() as { id?: string }).id ?? doc.id), at: String((doc.data() as { published_at?: string }).published_at ?? "") }))
     .filter((row) => row.at >= since)
     .map((row) => row.id)
     .slice(0, 100);
   if (ids.length === 0) return null;
-  const labels = await adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_agent_news_tone").doc(id)));
+  const labels = await adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_agent_news_tone").doc(id)), { fieldMask: ["tone"] });
   let labelled = 0;
   let negative = 0;
   for (const label of labels) {

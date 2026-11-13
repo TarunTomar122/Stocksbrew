@@ -58,7 +58,8 @@ const docKey = (ticker: string) => ticker.toUpperCase().replace(/\//g, "-");
 /* ── the shared list ────────────────────────────────────────────────────── */
 
 async function readRecentEventsUncached(since: string, today: string): Promise<ResultEvent[]> {
-  const query = adminFirestore.collection(EVENTS).where("event_date", ">=", since) as unknown as {
+  // Up to today only: the calendar holds months of reports still ahead, which the list drops anyway.
+  const query = adminFirestore.collection(EVENTS).where("event_date", ">=", since).where("event_date", "<", shiftDay(today, 1)) as unknown as {
     select?: (fields: string[]) => { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
     get(): Promise<{ docs: Array<{ data(): unknown }> }>;
   };

@@ -19,7 +19,8 @@ import { limitFor, systemPlanOf, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
 import { callWord } from "@/lib/stock-chart";
-import { getUserDoc, resolveIsSubscribed, type UserDoc } from "@/lib/watchlist";
+import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { readStoredWatchlistView } from "@/lib/watchlist-view-read";
 import {
   AGENT_JOB_ID_RE,
   EMPTY_FACTS,
@@ -343,15 +344,11 @@ export async function resolveScope(
   // Signed out (a replay on the page): the call is free, its levels are not.
   if (!uid) return options.calls ? { tickers, levels, calls: await loadCalls(tickers, instrumentIdOf, () => false, levels, new Map()) } : { tickers, levels };
 
-  const [userSnap, viewSnap] = await adminFirestore.getAll(
-    adminFirestore.collection("users").doc(uid),
-    adminFirestore.collection("tm_watchlist_views").doc(uid),
-  );
-  const tracked = userSnap.exists
-    ? ((userSnap.data()?.tracked_stocks as unknown[]) ?? []).filter((id): id is string => typeof id === "string")
-    : [];
-  const rows = viewSnap.exists ? ((viewSnap.data()?.rows as Array<Record<string, unknown>>) ?? []) : [];
-  const viewer = viewerFromUserDoc(uid, userSnap.exists ? ({ ...(userSnap.data() as Record<string, unknown>), uid } as UserDoc) : null);
+  // The request's own reads of both (the page and its proposals ask for the same two documents; the view is up to ~400 KB).
+  const [userDoc, view] = await Promise.all([getUserDoc(uid), readStoredWatchlistView(uid)]);
+  const tracked = userDoc ? (((userDoc.tracked_stocks as unknown[] | undefined) ?? []).filter((id): id is string => typeof id === "string")) : [];
+  const rows = view ? ((view.rows as Array<Record<string, unknown>> | undefined) ?? []) : [];
+  const viewer = viewerFromUserDoc(uid, userDoc);
   const tickerById = new Map<string, string>();
   const names: Record<string, string> = {};
   const stances = new Map<string, AgentCall>();

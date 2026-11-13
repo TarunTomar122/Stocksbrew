@@ -5,6 +5,7 @@ import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { plainRuleChange } from "@/lib/rule-copy";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
 import { llmApiKey, llmApiUrl, llmHeaders, llmModel } from "@/lib/server-llm";
+import { readStoredWatchlistView } from "@/lib/watchlist-view-read";
 
 const MONTHS: Record<string, number> = {
   jan: 0,
@@ -301,13 +302,11 @@ export type WatchlistView = {
 };
 
 // -----------------------------------------------------------------------------
-// Reader (cheap - one Firestore read)
+// Reader (one store read per request, shared: lib/watchlist-view-read.ts)
 // -----------------------------------------------------------------------------
 
 export async function getWatchlistView(uid: string): Promise<WatchlistView | null> {
-  const doc = await adminFirestore.collection("tm_watchlist_views").doc(uid).get();
-  if (!doc.exists) return null;
-  return doc.data() as WatchlistView;
+  return (await readStoredWatchlistView(uid)) as WatchlistView | null;
 }
 
 export async function getRadarUserView(uid: string): Promise<RadarUserView | null> {

@@ -10,7 +10,7 @@ import { listRuns } from "@/lib/agent-jobs-data";
 import { filingFact, filingHeadline, isMajorFiling, ITEM_WORDS, MAJOR_ITEMS } from "@/lib/agent-events-filings";
 import { within } from "@/lib/briefing-premarket-server";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getFilingsStream } from "@/lib/filings";
+import { getFilingsSince } from "@/lib/filings";
 import { getInsiderTrades } from "@/lib/follow";
 import { resultsFor } from "@/lib/results/server";
 import { resultFact } from "@/lib/results/words";
@@ -146,8 +146,8 @@ async function readInsiders(tickers: Set<string>, from: number): Promise<SinceIn
     .map((trade) => ({ symbol: trade.symbol, side: trade.tx_type, value: trade.value, role: trade.role, insider: trade.insider, filed_at: trade.filed_at }));
 }
 
-async function readFilings(tickers: Set<string>, from: number): Promise<SinceInputs["filings"]> {
-  const stream = await getFilingsStream();
+async function readFilings(tickers: Set<string>, from: number, now: Date): Promise<SinceInputs["filings"]> {
+  const stream = await getFilingsSince(from, now.getTime());
   const out: NonNullable<SinceInputs["filings"]> = [];
   for (const filing of stream) {
     const at = Date.parse(filing.filedAt);
@@ -211,7 +211,7 @@ export async function loadSinceVisit(uid: string, now: Date = new Date()): Promi
     guard("agent runs", readAgentRuns(uid, window.from)),
     guard("results", readResults(tickers, window, today)),
     guard("insiders", readInsiders(tickerSet, window.from)),
-    guard("filings", readFilings(tickerSet, window.from)),
+    guard("filings", readFilings(tickerSet, window.from, now)),
     guard("prices", readSeries(tickers)),
   ]);
   return { kind: "ready", load: { window, inputs: { calls, reasons, agentRuns, results, insiders, filings, series }, complete } };

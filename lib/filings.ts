@@ -21,25 +21,63 @@ export { FILING_GROUPS, type Filing, type FilingGroup, type FilingsMeta } from "
  */
 
 const STREAM_LIMIT = 5000;
+/** The fields normalizeFiling reads; the rest of each document (CIK, accession, index URL, capture time...) stays in the store. */
+const FILING_FIELDS = ["ticker", "company", "form", "form_group", "role", "is_amendment", "headline", "items", "filed_at", "url"];
+
+function normalizeSnapshot(docs: Array<{ id: string; data(): unknown }>): Filing[] {
+  const out: Filing[] = [];
+  for (const doc of docs) {
+    const filing = normalizeFiling(doc.data() as Record<string, unknown>, doc.id);
+    if (filing) out.push(filing);
+  }
+  // Filings filed the same second keep one order (by id), whichever read they came from.
+  return out.sort((a, b) => (a.filedAt < b.filedAt ? 1 : a.filedAt > b.filedAt ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
 
 async function getFilingsStreamUncached(): Promise<Filing[]> {
   const snap = await adminFirestore
     .collection("tm_agent_filings")
     .orderBy("filed_at", "desc")
     .limit(STREAM_LIMIT)
+    .select(...FILING_FIELDS)
     .get();
-  const out: Filing[] = [];
-  for (const doc of snap.docs) {
-    const filing = normalizeFiling(doc.data() as Record<string, unknown>, doc.id);
-    if (filing) out.push(filing);
-  }
-  return out.sort((a, b) => (a.filedAt < b.filedAt ? 1 : a.filedAt > b.filedAt ? -1 : 0));
+  return normalizeSnapshot(snap.docs);
 }
 
 /** Newest first. Empty when the job has not run. */
 export const getFilingsStream = unstable_cache(getFilingsStreamUncached, ["agent-filings-stream-v2"], {
   revalidate: 600,
 });
+
+/** Days the shared recent read covers: the agents' and proposals' six-day look-back, plus a day. */
+const RECENT_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+/** Every filing stored on or after `sinceDay`: a day before the window, a margin for any time not stored in UTC (sec_filings.py stores UTC). */
+async function getRecentFilingsUncached(sinceDay: string): Promise<Filing[]> {
+  const snap = await adminFirestore
+    .collection("tm_agent_filings")
+    .where("filed_at", ">=", sinceDay)
+    .orderBy("filed_at", "desc")
+    .limit(STREAM_LIMIT)
+    .select(...FILING_FIELDS)
+    .get();
+  return normalizeSnapshot(snap.docs);
+}
+
+// Keyed by the window's first day, so one entry is shared by every reader that day, at the stream's freshness.
+const getRecentFilingsCached = unstable_cache(getRecentFilingsUncached, ["agent-filings-recent-v1"], { revalidate: 600 });
+
+/**
+ * The stream from `fromMs` on, newest first: a reader that walks the stream until a filing is older than `fromMs`
+ * finds the same filings in the same order here. Inside the last RECENT_DAYS this reads only those days (a few hundred
+ * filings rather than the whole 90-day window); an older start reads the whole stream.
+ */
+export async function getFilingsSince(fromMs: number, now: number = Date.now()): Promise<Filing[]> {
+  const windowStart = Date.parse(new Date(now - RECENT_DAYS * DAY_MS).toISOString().slice(0, 10));
+  if (!Number.isFinite(fromMs) || fromMs < windowStart) return getFilingsStream();
+  return getRecentFilingsCached(new Date(windowStart - DAY_MS).toISOString().slice(0, 10));
+}
 
 async function getFilingsMetaUncached(): Promise<FilingsMeta | null> {
   const doc = await adminFirestore.collection("tm_agent_filings_meta").doc("US").get();

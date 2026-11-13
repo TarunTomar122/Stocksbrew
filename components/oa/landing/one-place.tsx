@@ -28,7 +28,8 @@ const CALL_CHIP: Record<PlainCall, string> = {
 export async function OnePlace() {
   const [book, ideas, reasons] = await Promise.all([
     withTimeout(exampleBookOnce(), "landing book"),
-    withTimeout(loadExampleIdeas(DEFAULT_RATES), "landing ideas"),
+    // Only the losses and trims are shown here, so no fund look-alikes (they read every covered fund's holdings).
+    withTimeout(loadExampleIdeas(DEFAULT_RATES, { lookAlikes: false }), "landing ideas"),
     withTimeout(exampleReasonChecks().then((checks) => (checks.length > 0 ? checks : null)), "landing reasons"),
   ]);
   const extra = extraFacts({

@@ -80,8 +80,15 @@ export const getFollowSources = unstable_cache(
  * Cached on its own: the full sources are about half a megabyte.
  */
 export const getFollowSlugs = unstable_cache(
-  async (): Promise<string[]> => (await getFollowSources()).map((source) => source.slug),
-  ["follow-slugs-v1"],
+  async (): Promise<string[]> => {
+    // The two fields the sources' filter reads, not the ~2 KB documents (the whole collection is about half a megabyte).
+    const snap = await adminFirestore.collection("tm_follow_sources").limit(1000).select("slug", "kind").get();
+    return snap.docs
+      .map((doc) => doc.data() as Pick<FollowSource, "slug" | "kind">)
+      .filter((source) => source && typeof source.slug === "string" && (source.kind === "fund" || source.kind === "congress"))
+      .map((source) => source.slug);
+  },
+  ["follow-slugs-v2"],
   { revalidate: REVALIDATE },
 );
 

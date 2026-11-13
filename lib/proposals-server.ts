@@ -20,7 +20,7 @@ import { loadWatches } from "@/lib/agent-watch-server";
 import { agentLines } from "@/lib/portfolio-home/agent-lines";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFilingChangesFor } from "@/lib/filing-changes/server";
-import { getFilingsStream } from "@/lib/filings";
+import { getFilingsSince } from "@/lib/filings";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { inboxStocks } from "@/lib/inbox/server";
 import { reportsSource } from "@/lib/inbox/sources";
@@ -225,8 +225,8 @@ async function readResults(tickers: string[], today: string): Promise<NonNullabl
 }
 
 async function readFilings(tickers: Set<string>, now: Date): Promise<NonNullable<ProposalInputs["filings"]>> {
-  const stream = await getFilingsStream();
   const from = now.getTime() - 6 * 86_400_000;
+  const stream = await getFilingsSince(from, now.getTime());
   const out: NonNullable<ProposalInputs["filings"]> = [];
   for (const filing of stream) {
     const at = Date.parse(filing.filedAt);

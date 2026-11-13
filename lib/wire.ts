@@ -24,6 +24,10 @@ const TONE_META = { collection: "tm_agent_news_tone_meta", id: "US" };
 const WIRE_DEPTH = 2500;
 const LABEL_HOURS = 52;
 const TICKER_DEPTH = 150;
+/** The headline fields toWireItem reads (the store also keeps feed, capture time, match notes...). */
+const HEADLINE_FIELDS = ["id", "title", "url", "source_name", "source_kind", "published_at", "summary", "stock_tickers"];
+/** The label fields the wire reads (the store also keeps the title, model, method and scoring time). */
+const LABEL_FIELDS = ["id", "tone", "scope", "theme"];
 
 type RawHeadline = {
   id?: string;
@@ -76,7 +80,7 @@ function toWireItem(raw: RawHeadline, fallbackId: string): WireItem | null {
 
 // Throws on a failed read, so a failure is never cached as "no headlines" for two minutes.
 async function loadLiveUncached(): Promise<WireItem[]> {
-  const snap = await adminFirestore.collection(LIVE_COLLECTION).orderBy("published_at", "desc").limit(WIRE_DEPTH).get();
+  const snap = await adminFirestore.collection(LIVE_COLLECTION).orderBy("published_at", "desc").limit(WIRE_DEPTH).select(...HEADLINE_FIELDS).get();
   return snap.docs
     .map((doc) => toWireItem(doc.data() as RawHeadline, doc.id))
     .filter((item): item is WireItem => item !== null);
@@ -107,7 +111,7 @@ const loadLabelsCached = unstable_cache(
     const labels: NewsLabels = {};
     let meta: LabelsMeta = { updatedAt: null, model: null };
     const [snap, metaSnap] = await Promise.all([
-      adminFirestore.collection(TONE_COLLECTION).where("published_at", ">=", sinceIso).limit(6000).get(),
+      adminFirestore.collection(TONE_COLLECTION).where("published_at", ">=", sinceIso).limit(6000).select(...LABEL_FIELDS).get(),
       adminFirestore.collection(TONE_META.collection).doc(TONE_META.id).get(),
     ]);
     for (const doc of snap.docs) {
@@ -154,6 +158,7 @@ const loadLiveForTicker = unstable_cache(
         .collection(LIVE_COLLECTION)
         .where("stock_tickers", "array-contains", ticker)
         .limit(TICKER_DEPTH)
+        .select(...HEADLINE_FIELDS)
         .get();
       return snap.docs
         .map((doc) => toWireItem(doc.data() as RawHeadline, doc.id))

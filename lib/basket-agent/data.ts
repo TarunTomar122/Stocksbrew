@@ -866,9 +866,11 @@ async function readNews(
   ticker: string,
   since: string,
 ): Promise<TickerHistory["news"]> {
+  // Ids and times only: the replay counts tones by day and shows no headline.
   const query = adminFirestore
     .collection("tm_agent_news")
-    .where("stock_tickers", "array-contains", ticker);
+    .where("stock_tickers", "array-contains", ticker)
+    .select("id", "published_at");
   const snap = await (async () => {
     try {
       return await query.orderBy("published_at", "desc").limit(150).get();
@@ -892,6 +894,7 @@ async function readNews(
     ...rows.map((row) =>
       adminFirestore.collection("tm_agent_news_tone").doc(row.id),
     ),
+    { fieldMask: ["tone"] },
   );
   const out: TickerHistory["news"] = [];
   labels.forEach((label, index) => {

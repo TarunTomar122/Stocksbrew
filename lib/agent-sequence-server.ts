@@ -14,7 +14,7 @@ import { agentMarketDay, listJobs, listRuns, resolveScope } from "@/lib/agent-jo
 import { nextCheckFor } from "@/lib/agent-watch";
 import { EXAMPLE_AGENTS_UID } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { getFilingsStream } from "@/lib/filings";
+import { getFilingsSince } from "@/lib/filings";
 import { reportsSource } from "@/lib/inbox/sources";
 import { EXAMPLE_STOCK_TICKERS } from "@/lib/portfolio-data";
 import { firstSequence, type AgentSequence } from "@/lib/agent-sequence";
@@ -57,7 +57,7 @@ const exampleStocks = (): ProposalStock[] => EXAMPLE_STOCK_TICKERS.map((ticker) 
 async function readFilings(tickers: Set<string>, now: Date): Promise<NonNullable<ProposalInputs["filings"]>> {
   const from = now.getTime() - 6 * 86_400_000;
   const out: NonNullable<ProposalInputs["filings"]> = [];
-  for (const filing of await getFilingsStream()) {
+  for (const filing of await getFilingsSince(from, now.getTime())) {
     const at = Date.parse(filing.filedAt);
     if (Number.isFinite(at) && at <= from) break;
     if (!tickers.has(filing.ticker)) continue;
