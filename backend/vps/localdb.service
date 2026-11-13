@@ -31,7 +31,9 @@ RestrictRealtime=true
 LockPersonality=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 SystemCallArchitectures=native
-ReadWritePaths=/srv/tikrr-data
+# The database lives on the fast system disk since 2026-11-13 (/srv/tikrr-data/localdb is a symlink there):
+# SQLite must be able to create its WAL and shm files next to it, or every read fails.
+ReadWritePaths=/srv/tikrr-data /var/lib/tikrr
 UMask=0077
 
 [Install]
