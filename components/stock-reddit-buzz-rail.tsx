@@ -63,7 +63,7 @@ function resolveRedditPostUrl(post: RedditTopPost): string | null {
 }
 
 export function StockRedditBuzzRail({ context }: Props) {
-  const { cue, generated_at, post_count, top_posts } = context;
+  const { cue, generated_at, scan_post_count, top_posts } = context;
   const hasThreads = top_posts.length > 0;
 
   return (
@@ -80,7 +80,7 @@ export function StockRedditBuzzRail({ context }: Props) {
             </span>
           </div>
           <p className="text-[11px] text-[#9ca3af]">
-            {post_count} posts scanned · {timeAgo(generated_at)}
+            {scan_post_count} posts scanned · {timeAgo(generated_at)}
           </p>
         </div>
       </div>

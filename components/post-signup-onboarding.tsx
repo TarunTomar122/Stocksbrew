@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useUser } from "@/lib/auth-context";
+import { startFirstLook } from "@/lib/first-look/client";
 import { addPicks, couldNotAddMessage, hasPendingPicks, savePendingPicks, takePendingPicks, type PendingPick } from "@/lib/pending-picks";
 import { captureEvent } from "@/lib/posthog";
 import { POST_SIGNUP_ONBOARDING_PENDING, POST_SIGNUP_ONBOARDING_SEEN } from "@/lib/sign-in";
@@ -59,6 +60,9 @@ export function PostSignupOnboarding() {
             captureEvent("onboarding_viewed", { retry: true });
             return;
           }
+          // Their first look waits for them on /agent (lib/first-look); this landing still goes to My stocks. Only the
+          // first add after sign-up starts it: the server never restarts a look that exists.
+          if (taken.tries === 0) void startFirstLook("landing");
           // A failure that may pass (a slow new profile, the network) is tried again on the next page the person
           // opens, a client navigation included (this component stays mounted and re-runs on the new path).
           if (failed.length && !signedOut) savePendingPicks(failed, taken.tries + 1);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -28,7 +29,21 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
   return (
     <AppPage width="dash">
       <JsonLd data={toolPageLd("/portfolio")} />
-      <PageHead title="My stocks" note={false} />
+      <PageHead
+        title="My stocks"
+        note={false}
+        inline
+        // A thesis across the holdings, with measurable lines per company, that the agent checks on every report and filing.
+        actions={
+          <Link
+            prefetch={false}
+            href="/agents/theses/new"
+            className="inline-flex h-8 items-center rounded-lg border border-oa-border bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg hover:bg-[color-mix(in_srgb,var(--oa-secondary)_95%,var(--ink))]"
+          >
+            Write a thesis
+          </Link>
+        }
+      />
       <Suspense fallback={<PortfolioGhost />}>
         <HoldingsStream tab={tab} />
       </Suspense>

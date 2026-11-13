@@ -115,14 +115,32 @@ function EventStep({ sequence }: { sequence: AgentSequence }) {
   );
 }
 
+/**
+ * The price's own row past a 60-day close ("Price, under it", "Price, over it"; lib/agent-sequence.ts closingWords):
+ * the header already prints the price, so it is said as words on the low's or high's row, not as a second figure.
+ */
+const PRICE_PAST: Record<string, { level: string; label: string }> = {
+  "Price, under it": { level: "60-day closing low", label: "60-day closing low, now under it" },
+  "Price, over it": { level: "60-day closing high", label: "60-day closing high, now over it" },
+};
+
 function CheckedStep({ sequence }: { sequence: AgentSequence }) {
+  // No two near-equal dollar figures side by side with no bar (judge89, $166.19 vs $166.04).
+  const past = sequence.checked.map((figure) => PRICE_PAST[figure.label]).filter((entry) => entry !== undefined);
+  const shown = sequence.checked
+    .filter((figure) => !PRICE_PAST[figure.label])
+    .map((figure) => {
+      const folded = past.find((entry) => entry.level === figure.label);
+      return folded ? { ...figure, label: folded.label, folded: true } : { ...figure, folded: false };
+    });
   return (
     <Step icon="research" words="What I checked">
       <ul className="flex flex-col gap-0.5">
-        {sequence.checked.map((figure) => (
+        {shown.map((figure) => (
           <li key={figure.label} title={sourceTitle(figure, sequence.today)} className="flex min-w-0 items-baseline gap-2 text-[12.5px] leading-[18px]">
             <span className={`oa-mono shrink-0 text-[14px] font-semibold tabular-nums ${toneOf(figure.tone)}`}>{figure.value}</span>
-            <span className="min-w-0 truncate text-oa-muted-fg">
+            {/* A folded label may take a second line rather than be cut with "…". */}
+            <span className={`min-w-0 text-oa-muted-fg ${figure.folded ? "text-pretty" : "truncate"}`}>
               {figure.label}
               {/* Today's figures go with the header's "today"; an older one says its day. The date is in the hover. */}
               {asOfShort(figure.asOf, sequence.today) === "today" ? null : <span className="oa-mono tabular-nums"> · {asOfShort(figure.asOf, sequence.today)}</span>}

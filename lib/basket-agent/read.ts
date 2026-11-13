@@ -198,16 +198,19 @@ async function overPlan(uid: string, baskets: readonly BasketAgent[], plan: Plan
 
 /** The person's baskets, oldest first (as their list shows them), each with its latest check. */
 export async function loadBasketSummaries(uid: string, plan: Plan): Promise<BasketSummary[]> {
-  const baskets = await listBaskets(uid);
+  const all = await listBaskets(uid);
+  // A thesis over holdings is not an idea basket and has no basket checks to read out (lib/thesis-monitor).
+  const baskets = all.filter((basket) => basket.source.kind !== "holdings");
   if (baskets.length === 0) return [];
-  const [runs, over] = await Promise.all([listBasketRuns(uid), overPlan(uid, baskets, plan)]);
+  // The plan's room counts every basket, theses over holdings too.
+  const [runs, over] = await Promise.all([listBasketRuns(uid), overPlan(uid, all, plan)]);
   return baskets.map((basket) => summarizeBasket(basket, runs, over.has(basket.id)));
 }
 
 /** One of the person's baskets in full, or null when they have none by that id (someone else's id included). */
 export async function loadBasketDetail(uid: string, id: string, plan: Plan): Promise<BasketDetail | null> {
   const basket = await getBasket(uid, id.trim().toLowerCase());
-  if (!basket) return null;
+  if (!basket || basket.source.kind === "holdings") return null;
   const [runs, over] = await Promise.all([
     listBasketRuns(uid, basket.id, 1 + RECENT_RUNS),
     basket.enabled ? listBaskets(uid).then((all) => overPlan(uid, all, plan)).catch(() => new Set<string>()) : Promise.resolve(new Set<string>()),

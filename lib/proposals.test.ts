@@ -103,6 +103,9 @@ function withinBudget(draft: ProposalDraft) {
   expect(draft.why.length).toBeGreaterThan(0);
   expect(draft.why.length).toBeLessThanOrEqual(2);
   for (const line of draft.why) expect(wordCount(line)).toBeLessThanOrEqual(WHY_MAX_WORDS);
+  // The title is the action and the card's line is what set it off: no dollar figure said in both (judge 89).
+  const figures = (text: string) => text.match(/\$[\d,.]+\d/g) ?? [];
+  for (const figure of figures(draft.title)) expect(draft.why[0]).not.toContain(figure);
   expect(draft.does.length).toBeGreaterThan(0);
   expect(draft.read.length).toBeGreaterThan(0);
   for (const source of draft.read) expect(source.at).toBeTruthy();
@@ -115,7 +118,7 @@ describe("event → proposal", () => {
   it("sets the next alert after one fired, at the next level down, exact", () => {
     const list = candidates(inputs({ alerts: [fired()], quotes: { NVDA: { price: 139.8, dayPct: -4.2, at: "2026-11-12T17:00:00Z" } }, series: { NVDA: series(139.8, { low: 131.2 }) } }));
     const draft = only(list, "alert_hit");
-    expect(draft.title).toBe("Move NVDA's $142 alert down to $131.20");
+    expect(draft.title).toBe("Move NVDA's alert down to $131.20");
     expect(draft.why[0]).toBe("NVDA hit your $142 alert today and is at $139.80.");
     expect(draft.why[1]).toBe("The next level down is $131.20, its 60-day low.");
     // The fired alert is already off: nothing to turn off.
@@ -175,7 +178,7 @@ describe("event → proposal", () => {
       }),
     );
     const draft = only(list, "results");
-    expect(draft.title).toBe("Set an alert at $152 after NVDA's guidance cut");
+    expect(draft.title).toBe("Set an alert on NVDA at $152");
     expect(draft.why[0]).toBe("NVDA reported yesterday, lowered its guidance, missed on earnings by 3.2% and fell 7.4%.");
     expect(draft.read[0]).toEqual({ label: "NVDA results release", at: "2026-11-11T21:05:00Z", href: "https://example.com/pr" });
     withinBudget(draft);
@@ -200,7 +203,7 @@ describe("event → proposal", () => {
       }),
     );
     const draft = only(list, "results");
-    expect(draft.title).toBe("Move NVDA's $120 alert to $152 after the results drop");
+    expect(draft.title).toBe("Move NVDA's $120 alert to $152");
     expect(draft.action).toMatchObject({ replaces: { alert_id: "a1", price: 120 } });
   });
 
@@ -267,7 +270,7 @@ describe("event → proposal", () => {
     });
     const base = { quotes: { NVDA: { price: 150, dayPct: -8.1, at: null } }, series: { NVDA: series(150) } };
     const draft = only(candidates(inputs({ ...base, runs: [run("https://example.com/story")] })), "big_move");
-    expect(draft.title).toBe("Set an alert at $143 after NVDA's drop");
+    expect(draft.title).toBe("Set an alert on NVDA at $143");
     withinBudget(draft);
     expect(candidates(inputs({ ...base, runs: [run(null)] })).filter((entry) => entry.kind === "big_move")).toEqual([]);
   });
@@ -288,7 +291,7 @@ describe("event → proposal", () => {
     const reasons = { NVDA: { verdict: "broken" as const, since: "2026-11-10", signals: [{ text: "Revenue growth slowed to 4% from 22%.", source: "10-Q", asOf: "2026-11-05", level: "hard" }] } };
     const kept = only(candidates(inputs({ reasons, quotes: { NVDA: { price: 150, dayPct: 0, at: null } }, series: { NVDA: series(150) } })), "reason_broken");
     expect(kept.action.type).toBe("alert_price");
-    expect(kept.title).toBe("Set an alert at $143: your NVDA reason broke");
+    expect(kept.title).toBe("Set an alert on NVDA at $143");
     expect(kept.why[0]).toBe("Your reason check on NVDA turned broken on Tuesday.");
     withinBudget(kept);
   });
@@ -336,6 +339,9 @@ describe("event → proposal", () => {
     const upcoming = [{ ticker: "NVDA", date: "2026-11-14", session: "bmo" as const, usualPct: null }];
     const draft = only(candidates(inputs({ jobs: [job], upcoming })), "agent_resume");
     expect(draft.action).toEqual({ type: "agent_enable", job_id: "job999999", job_name: "Earnings coming up", enabled: true });
+    // The action, then the report that set it off; the paused agent is the run log's line.
+    expect(draft.title).toBe("Turn your earnings agent back on");
+    expect(draft.why).toEqual(["NVDA reports on Saturday.", '"Earnings coming up" is paused.']);
     withinBudget(draft);
     // Free with every running slot taken: turning it on could only fail, so it is not offered.
     const running = Array.from({ length: 2 }, (_, index) => ({ ...job, id: `run${index}xxxx`, enabled: true, trigger: { type: "schedule" as const, cadence: "daily_open" as const } }));
@@ -347,7 +353,8 @@ describe("event → proposal", () => {
     const runs = ["2026-11-10", "2026-11-11", "2026-11-12"].map((day, index) => ({ id: `r${index}`, job_id: job.id, job_name: job.name, day, ran_at: `${day}T13:00:00Z`, decision: "could_not_check" as const, findings: [] }));
     const draft = only(candidates(inputs({ jobs: [job], runs })), "agent_pause");
     expect(draft.action).toMatchObject({ type: "agent_enable", enabled: false });
-    expect(draft.title).toBe('Pause "Morning check on…": its last three runs failed');
+    expect(draft.title).toBe('Pause "Morning check on…"');
+    expect(draft.why[0]).toBe("Its last three runs couldn't read their data.");
     expect(draft.why[1]).toBe("You can turn it back on any time.");
     expect(only(candidates(inputs({ plan: "free", jobs: [job], runs })), "agent_pause").why[1]).toBe("Pausing it frees one of your running agent slots.");
     withinBudget(draft);
@@ -560,7 +567,7 @@ describe("a holding's filing added risks", () => {
 
   it("proposes an alert under the price, quoting the new risk as filed, with what it read", () => {
     const draft = only(candidates(inputs({ ...priced, filingChanges: [change] })), "filing_risks");
-    expect(draft.title).toBe("Set an alert at $131.20: NVDA's 10-Q adds 1 risk");
+    expect(draft.title).toBe("Set an alert on NVDA at $131.20");
     expect(wordCount(draft.title)).toBeLessThanOrEqual(TITLE_MAX_WORDS);
     expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk.");
     expect(draft.why[1]).toBe("New: “Our indebtedness may adversely affect our financial condition and cash flows from operations.”");

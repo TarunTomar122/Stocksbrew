@@ -215,16 +215,16 @@ function CallChip({ position, stacked = false }: { position: PortfolioPosition; 
 }
 
 /**
- * The holdings cards' money row: what went in, what it is worth, the gain and the gain in percent, on one line. The
- * labels sit once over the list (MoneyHeader), not on every card; the grid is shared so the two line up.
+ * The holdings cards' money row: the gain since buying as a bar on one scale for every card (one zero line), then
+ * the gain in dollars and in percent (judge89: no invested and value side by side as two figures with no bar). The
+ * label sits once over the list (MoneyHeader), not on every card; the grid is shared so the two line up.
  */
-const MONEY_GRID = "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_4rem] gap-x-2";
+const MONEY_GRID = "grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] items-center gap-x-3";
 
 function MoneyHeader() {
   return (
     <div className={`${MONEY_GRID} border-b border-oa-border bg-oa-bg px-3 py-1.5 text-[11.5px] leading-4 text-oa-muted-fg`}>
-      <span>Invested</span>
-      <span className="text-right">Value</span>
+      <span>Since you bought</span>
       <span className="text-right">Gain</span>
       <span className="text-right">Gain %</span>
     </div>
@@ -247,11 +247,14 @@ function PositionCard({
   kind,
   today,
   money,
+  gainDomain,
 }: {
   position: PortfolioPosition;
   kind: "holding" | "watchlist";
   today: string;
-  /** Some holding in the list has shares, so the money row shows (dashes where this one has none). */
+  /** One scale for every holding's gain, so the cards' bars compare. */
+  gainDomain: [number, number];
+  /** Some holding in the list has a gain, so the gain row shows (dashes where this one has none). */
   money: boolean;
 }) {
   const holding = kind === "holding";
@@ -298,17 +301,7 @@ function PositionCard({
       </div>
       {holding && money ? (
         <div className={`${MONEY_GRID} ${NUM} whitespace-nowrap text-[13px] leading-5`}>
-          <span className="truncate text-oa-muted-fg">{position.cost !== null ? fmtMoney(position.cost, cardDigits(position.cost)) : <Dash />}</span>
-          <span className="truncate text-right text-oa-fg" title={position.valueSource === "entered" ? "The value you typed in. Add shares to price it live." : undefined}>
-            {position.value !== null ? (
-              <>
-                {fmtMoney(position.value, cardDigits(position.value))}
-                {position.valueSource === "entered" ? <span className="text-oa-muted-fg">*</span> : null}
-              </>
-            ) : (
-              <Dash />
-            )}
-          </span>
+          {position.gainPct !== null ? <SignedBar value={position.gainPct} domain={gainDomain} strongZero className="!h-1.5 w-full" /> : <span />}
           <span className={`truncate text-right ${position.gain !== null ? signTone(position.gain) : ""}`}>
             {position.gain !== null ? fmtSignedMoney(position.gain, cardDigits(position.gain)) : <Dash />}
           </span>
@@ -388,8 +381,8 @@ export function PositionsTable({
     }
   };
   const columns = (kind === "holding" ? HOLDING_COLUMNS : WATCH_COLUMNS).filter(filled);
-  // The phone cards follow the same rule: the invested, value and total row shows once any holding has shares.
-  const anyMoney = every.some((position) => position.value !== null || position.gain !== null);
+  // The phone cards' gain row shows once any holding has a gain (shares and a cost).
+  const anyMoney = every.some((position) => position.gain !== null || position.gainPct !== null);
   const sortable = columns;
   // The phone cards show about eight, then one quiet toggle for the rest; a card list never scrolls inside a box.
   const [showAll, setShowAll] = useState(false);
@@ -585,7 +578,7 @@ export function PositionsTable({
             return (
               <li key={position.instrument_id}>
                 <Link href={`/stock/${position.ticker}`} prefetch={false} className={`block px-3 py-3 hover:bg-oa-accent ${FOCUS} ${tint}`}>
-                  <PositionCard position={position} kind={kind} today={today} money={anyMoney} />
+                  <PositionCard position={position} kind={kind} today={today} money={anyMoney} gainDomain={gainDomain} />
                 </Link>
               </li>
             );

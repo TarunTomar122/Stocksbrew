@@ -194,9 +194,42 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~08:00: Codex judge89 (agent feel 7.8); first look + judge89 sweeps started (local)
+
+- **Codex judge89** on ship-queue 89 captures (scratchpad/judge89/codex.md):
+
+  | Dimension | Score /10 |
+  |---|---|
+  | UI | 7 (owner-rubric cap) |
+  | UX | 7.2 |
+  | usability | 6.5 |
+  | wording | 6.5 (was 6) |
+  | agent feel | 7.8 (was 7.5) |
+  | volaren similarity | 7 |
+  | sell | 6.5 |
+  | overall | 7 |
+
+  - Breaks:
+    - the AMD "294 Reddit posts about AMD" vs 7 on Signals (data bug)
+    - "even with the S&P" vs −0.4/−0.3
+    - repeated "Try buying … in your practice account" across cards
+    - sectors and inbox lists cut off
+    - 22-word Signals headlines and long President-post summaries
+    - the theme "The idea" restating the title
+    - the basket replay's two sentences
+    - portfolio mobile with no bar
+    - the landing strip's $166.19 vs $166.04 with no bar
+    - FAQ paragraphs, calendar IPO prose, briefing buy-more cards with 2+ facts
+  - Bold ask: a portfolio-wide thesis monitor across holdings, with measurable company lines and filing-triggered reviews.
+- **Builders:**
+  - First look: the agent's first pass after signup, landing on /agent with findings and 2–3 tuned agents to switch on.
+  - Sweep A: data claims and proposal copy.
+  - Sweep B: layout and copy.
+  - Next after first look: the portfolio-wide thesis monitor.
+
 ### 2026-11-13 ~06:30: measurable reasons (new capability), data coherence, reading-load cut (ship-queue 89, local)
 
-- **ship-queue 6e7aa99 (89)** on 9a19749 (88): tsc and lint clean, 4054/4054 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
+- **ship-queue d5907e7 (89, rebuilt after QA and council)** on 9a19749 (88): tsc and lint clean, 4063/4063 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
 - **Measurable reasons (judge88's bold ask):**
   - A "Holds if…" picker on a holding's reason, with up to 2 lines from 7 stored figures: revenue growth, gross and operating margin (TTM), EPS vs estimate, dividend, price, P/E. The number is prefilled from the stock's own value, with a now-vs-line bar.
   - The server refuses figures we lack and absurd bounds.
@@ -218,7 +251,14 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   - Example portfolio lines are one fact.
   - Basket replay accounts for every day.
   - Landing "why stocks moved" shows prices.
-- **Running:** QA pass on 89; Codex council on 89's visible changes.
+- **QA on 89:** 1 high and 2 medium/low bugs in condition judging, all fixed with tests:
+  - an unknown night lost the last judged figure, so a re-stamped old figure could be judged as the new report's; it now keeps the judged figure, verdict and source
+  - a waiting line flipped the verdict back to holds, causing repeat proposals; a broken line now stays broken until the next report judges it, and price lines clear only 1% past
+  - an old stopped-dividend line blocked every save; only changed lines are validated now
+  - Also fixed: P/E on a loss, the doc comment, theme fragments, offline Ask routing.
+- **Codex council on 89:** BLOCK on 8.
+  - Fixed: condition bars on an honest 0-based labelled scale; zone badges dropped from theme rows (call chip only); the stock card's source moved into hover; market cards cut to the figure, the visual and the chip; dark Save contrast at 5.6:1.
+  - Overruled: gainers/losers as cards (the owner asked for tables), uneven calendar days (real data), 15-word theme lines wrapping on phones (within budget).
 
 ### 2026-11-13 ~04:30: Codex judge88 7/10 overall; next wave started (local)
 

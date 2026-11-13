@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { tickerPostCount } from "@/lib/reddit-cues-shared";
 import type {
   RedditSnapshot,
   RedditTicker,
@@ -17,6 +18,7 @@ export {
   getRedditTickerContext,
   hasRedditBrief,
   resolveRedditContextForSymbol,
+  tickerPostCount,
 } from "@/lib/reddit-cues-shared";
 
 function normalizeTicker(raw: unknown, fallbackTicker = ""): RedditTicker | null {
@@ -221,7 +223,9 @@ async function getRedditContextForTickerUncached(
   return {
     cue,
     generated_at: typeof data.generated_at === "string" ? data.generated_at : "",
-    post_count: typeof data.post_count === "number" ? data.post_count : 0,
+    // The stored doc's `post_count` is the whole scan's (backend/scripts/build_reddit_buzz.py), not this ticker's.
+    scan_post_count: typeof data.post_count === "number" ? data.post_count : 0,
+    ticker_post_count: tickerPostCount(cue),
     top_posts: Array.isArray(data.top_posts)
       ? data.top_posts
           .map((row) => normalizeTopPost(row))
@@ -235,6 +239,7 @@ async function getRedditContextForTickerUncached(
 
 export const getRedditContextForTicker = unstable_cache(
   getRedditContextForTickerUncached,
-  ["reddit-context-for-ticker"],
+  // v2: the cached shape split `post_count` into `scan_post_count` and `ticker_post_count`.
+  ["reddit-context-for-ticker-v2"],
   { revalidate: 300 },
 );

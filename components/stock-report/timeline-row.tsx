@@ -72,7 +72,8 @@ function ratingMonths(at: string): [string, string] {
 
 export function TimelineRow({ item, nowIso, dayed = false }: { item: StockTimelineItem; nowIso: string; dayed?: boolean }) {
   const tone = item.tone && item.tone !== "flat" ? item.tone : undefined;
-  // A headline's publisher is in the section head; the other rows say what they are. The day is said once: by the
+  // A headline's publisher is its row's hover and in its link's name, never a line in the section head (owner rule
+  // 4: no source lines); the other rows say what they are. The day is said once: by the
   // day heading over the rows when the list has them (`dayed`, owner rule 1), else on the row.
   const meta = [item.kind === "news" ? null : KIND_LABEL[item.kind], dayed ? null : timelineDate(item, nowIso)].filter(Boolean).join(" · ");
   // One line of at most 15 words under a row (owner rule 8), its main clause when the sentence runs longer. An analyst
@@ -82,6 +83,7 @@ export function TimelineRow({ item, nowIso, dayed = false }: { item: StockTimeli
   // it, through one link stretched over the row that names the headline and its publisher for screen readers.
   const href = item.href ?? item.sourceUrl ?? null;
   const label = item.kind === "news" && item.source ? `${item.title} (${item.source})` : item.title;
+  const from = item.kind === "news" && item.source ? `From ${item.source}` : undefined;
   const cover = "absolute inset-0 z-[1] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-oa-border";
   return (
     <li
@@ -91,9 +93,9 @@ export function TimelineRow({ item, nowIso, dayed = false }: { item: StockTimeli
     >
       {href ? (
         item.href ? (
-          <AppLink href={item.href} aria-label={label} className={cover} />
+          <AppLink href={item.href} aria-label={label} title={from} className={cover} />
         ) : (
-          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className={cover} />
+          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={from} className={cover} />
         )
       ) : null}
       <div className="min-w-0">

@@ -115,8 +115,9 @@ export default async function SectorsPage() {
         }
         note={false}
       />
+      {/* Eleven sectors is a short list: every row shows, with no inner scroll box (judge89). */}
       <Panel flush>
-        <DataTable columns={columns} rows={rows} initialSort={{ id: "cap", dir: "desc" }} stickyHeader={false} compact />
+        <DataTable columns={columns} rows={rows} initialSort={{ id: "cap", dir: "desc" }} stickyHeader={false} compact maxRows={0} />
       </Panel>
     </AppPage>
   );

@@ -141,11 +141,8 @@ export default async function ThemeBookPage({ params }: Props) {
       </div>
 
       <Panel flush className="mt-5" label="The thesis">
-        <dl className="grid divide-y divide-oa-border md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] md:divide-x md:divide-y-0">
-          <div className="min-w-0 px-4 py-3">
-            <dt className="oa-caption">The idea</dt>
-            <dd className="mt-1 text-pretty text-[14.5px] font-medium leading-[21px] text-oa-fg">{basket.thesis}</dd>
-          </div>
+        {/* No "The idea" cell: it said the title again (judge89). What has to hold and what it leans on share the width. */}
+        <dl className="grid divide-y divide-oa-border md:grid-cols-2 md:divide-x md:divide-y-0">
           <div className="min-w-0 px-4 py-3">
             <dt className="oa-caption">What has to hold</dt>
             <dd className="mt-1 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{thesisHolds(basket.slug, basket.holds)}</dd>

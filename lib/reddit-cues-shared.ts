@@ -54,7 +54,10 @@ export type RedditSnapshot = {
 export type RedditTickerContext = {
   cue: RedditTicker;
   generated_at: string;
-  post_count: number;
+  /** Every post the scan read, across all tickers. Not this ticker's count: that is `ticker_post_count`. */
+  scan_post_count: number;
+  /** Posts in this scan that mention this ticker (the cue's `mention_count`, the figure Signals shows). */
+  ticker_post_count: number;
   /** Threads in this scan that explicitly tag this ticker. */
   top_posts: RedditTopPost[];
   /** Cross-cutting themes called out by the scan (whole-market). */
@@ -79,6 +82,12 @@ export function hasRedditBrief(item: RedditTicker): boolean {
   return true;
 }
 
+/** How many posts in the scan mention this ticker: the cue's own count, never the scan's total. */
+export function tickerPostCount(cue: Pick<RedditTicker, "mention_count"> | null | undefined): number {
+  const count = cue?.mention_count;
+  return typeof count === "number" && Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+}
+
 export function getRedditTickerContext(
   snapshot: RedditSnapshot | null | undefined,
   ticker: string,
@@ -91,7 +100,8 @@ export function getRedditTickerContext(
   return {
     cue,
     generated_at: snapshot.generated_at,
-    post_count: snapshot.post_count,
+    scan_post_count: snapshot.post_count,
+    ticker_post_count: tickerPostCount(cue),
     top_posts,
     notable_discussions: snapshot.notable_discussions ?? [],
   };
@@ -122,7 +132,8 @@ export function resolveRedditContextForSymbol(
       catalysts: [],
     },
     generated_at: snapshot.generated_at,
-    post_count: snapshot.post_count,
+    scan_post_count: snapshot.post_count,
+    ticker_post_count: top_posts.length,
     top_posts,
     notable_discussions: [],
   };

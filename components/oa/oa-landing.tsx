@@ -30,11 +30,11 @@ import Link from "next/link";
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "What is stocksbrew?",
-    a: "Research on US stocks: why each one moved, and whether we would buy more, keep or sell some.",
+    a: "Why each US stock moved, and whether to buy more, keep or sell some.",
   },
   {
     q: "Does it trade for me or hold my money?",
-    a: "No. It never connects to a brokerage, so it cannot trade or move your money.",
+    a: "No. It never sees your account; you place any trade yourself.",
   },
   {
     q: "Where does the information come from, and who writes it?",

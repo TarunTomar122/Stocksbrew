@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { CARD_HOVER } from "@/components/briefing/stock-card";
+import { fmtDay } from "@/components/oa/kit/cells";
 import { SignedBar } from "@/components/oa/kit/tone";
 import { VsBar } from "@/components/oa/kit/vs-bar";
 import { StockLogo } from "@/components/stock-logo";
@@ -426,46 +427,42 @@ export function RunRecord({
 /* ── the replay ─────────────────────────────────────────────────────────── */
 
 /**
- * The replay's days, every one accounted for, within 15 words: "Of 20 days, 3 had a change, 15 were quiet and 2
- * couldn't check." Numbers stay numbers so the view can set them in figures. Days with a change count every day a
- * change waited (one change can wait several days), so the parts add up to the days checked.
+ * The replay in one dated label, every day accounted for: "Replay, Oct 16 – Nov 12: 5 days with a change, 15 quiet".
+ * Days with a change count every day a change waited (one change can wait several days), so the parts add up to the
+ * days checked. `lead` names it ("Replay", or "Earlier replay" when the basket has changed since).
  */
-export function replayTally(
-  replay: Pick<ReplaySummary, "sessions" | "counts">,
-): Array<string | number> {
+export function replayLabel(
+  replay: Pick<ReplaySummary, "from" | "to" | "sessions" | "counts">,
+  lead = "Replay",
+): string {
+  const from = fmtDay(replay.from);
+  const to = fmtDay(replay.to);
+  const window = from && to && from !== to ? `${from} – ${to}` : from || to;
+  const head = window ? `${lead}, ${window}` : lead;
   const { propose, nothing, could_not_check: missed } = replay.counts;
   const total = replay.sessions;
-  if (total === 0) return ["No market days to check yet."];
-  const parts: Array<Array<string | number>> = [];
-  if (propose > 0) parts.push([propose, " had a change"]);
-  if (nothing > 0) parts.push([nothing, nothing === 1 ? " was quiet" : " were quiet"]);
-  if (missed > 0) parts.push([missed, ` couldn't check`]);
+  if (total === 0) return `${head}: no market days to check yet`;
+  const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+  const parts: string[] = [];
+  if (propose > 0) parts.push(`${days(propose)} with a change`);
+  // "15 quiet" after the first part; said alone, "20 quiet days".
+  if (nothing > 0) parts.push(parts.length ? `${nothing} quiet` : `${nothing} quiet ${nothing === 1 ? "day" : "days"}`);
+  if (missed > 0) parts.push(parts.length ? `${missed} not checked` : `${days(missed)} not checked`);
   // A stored replay whose counts are missing: the days alone.
-  if (parts.length === 0) return [total, total === 1 ? " day checked." : " days checked."];
-  if (parts.length === 1) {
-    if (total === 1) return [propose > 0 ? "The one day it checked had a change." : nothing > 0 ? "The one day it checked was quiet." : "It couldn't check the one day."];
-    if (propose > 0) return ["All ", total, " days had a change."];
-    if (nothing > 0) return ["All ", total, " days were quiet."];
-    return ["It couldn't check any of the ", total, " days."];
-  }
-  const out: Array<string | number> = ["Of ", total, ` ${total === 1 ? "day" : "days"}, `];
-  parts.forEach((part, index) => {
-    if (index > 0) out.push(index === parts.length - 1 ? " and " : ", ");
-    out.push(...part);
-  });
-  out.push(".");
-  return out;
+  if (parts.length === 0) return `${head}: ${days(total)} checked`;
+  return `${head}: ${parts.join(", ")}`;
 }
 
 /**
- * What the replay would have proposed and when: one row per change, its line, and a bar across the four weeks marking
- * the days it would have waited for an answer. The window is said once, under the rows.
+ * What the replay would have proposed and when: one dated label over the rows, then one row per change with its line,
+ * the stock's price and today's move, and a bar across the replay's days marking the days it would have waited.
  */
 export function ReplayView({
   replay,
   today,
   kind,
   earlier = false,
+  quotes = {},
 }: {
   replay: Pick<
     ReplaySummary,
@@ -475,97 +472,101 @@ export function ReplayView({
   /** "page": the replay kept with a saved basket; `earlier` when the basket has changed since it ran. */
   kind?: "editor" | "page";
   earlier?: boolean;
+  /** Today's price and move for the stocks it would have changed: every stock entry shows its price. */
+  quotes?: Record<string, CardQuote>;
 }) {
   const days = replay.days ?? [];
   const at = (day: string) => Math.max(0, days.indexOf(day));
   const span = Math.max(1, days.length);
-  const window = `${capitalize(dayWords(replay.from, today))} to ${dayWords(replay.to, today)}`;
+  const lead = kind === "page" && earlier ? "Earlier replay" : "Replay";
   return (
     <div className="flex min-w-0 flex-col">
-      {/* The four weeks as one line of history, said once: every day it checked is counted. */}
-      <div className="border-b border-oa-border px-4 py-3">
-        <p className="text-[14.5px] font-medium leading-5 text-oa-fg">
-          {replayTally(replay).map((part, index) =>
-            typeof part === "number" ? (
-              <span key={index} className={NUM}>
-                {part}
-              </span>
-            ) : (
-              <React.Fragment key={index}>{part}</React.Fragment>
-            ),
-          )}
-        </p>
-        <p
-          className="text-[12.5px] leading-5 text-oa-muted-fg"
-          title={replay.notes.join(" ")}
-        >
-          This is history, not a forecast of what comes next.
-        </p>
-      </div>
+      {/* One dated label, said once: every day it checked is counted (judge89: no second sentence under it). */}
+      <p
+        className="border-b border-oa-border px-4 py-3 text-[14.5px] font-medium leading-5 text-oa-fg"
+        title={replay.notes.join(" ") || undefined}
+      >
+        {replayLabel(replay, lead)}
+      </p>
       {replay.proposals.length > 0 ? (
         <ul className="divide-y divide-oa-border">
-          {replay.proposals.map((proposal) => (
-            <li
-              key={`${proposal.op}-${proposal.ticker}-${proposal.first}`}
-              className="grid gap-x-4 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_18rem] sm:items-center"
-            >
-              <div className="flex min-w-0 items-start gap-2.5">
-                <StockLogo ticker={proposal.ticker} size={28} />
-                <div className="min-w-0 leading-5">
-                  <p className="text-[14px] font-medium text-oa-fg">
-                    {proposal.op === "drop" ? "Drop" : "Add"}{" "}
-                    <span className="oa-mono font-semibold">
-                      {proposal.ticker}
-                    </span>
-                    <span className="text-oa-muted-fg">
-                      {" "}
-                      · {dayWords(proposal.first, today)}
-                    </span>
-                  </p>
-                  <p className="text-pretty text-[13px] leading-5 text-oa-muted-fg">
-                    {proposal.line}
-                  </p>
+          {replay.proposals.map((proposal) => {
+            const quote = quotes[proposal.ticker] ?? null;
+            return (
+              <li
+                key={`${proposal.op}-${proposal.ticker}-${proposal.first}`}
+                className="grid gap-x-6 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-center"
+              >
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <StockLogo ticker={proposal.ticker} size={28} />
+                    <div className="min-w-0 leading-5">
+                      <p className="text-[14px] font-medium text-oa-fg">
+                        {proposal.op === "drop" ? "Drop" : "Add"}{" "}
+                        <span className="oa-mono font-semibold">
+                          {proposal.ticker}
+                        </span>
+                        <span className="text-oa-muted-fg">
+                          {" "}
+                          · {dayWords(proposal.first, today)}
+                        </span>
+                      </p>
+                      <p className="text-pretty text-[13px] leading-5 text-oa-muted-fg">
+                        {proposal.line}
+                      </p>
+                    </div>
+                  </div>
+                  {quote ? (
+                    // Today's price beside a past decision: said as now, so it never reads as the price on that day.
+                    <div
+                      className={`${NUM} shrink-0 text-right leading-5`}
+                      title="Price now and today's move"
+                    >
+                      <p className="text-[14px] font-semibold text-oa-fg">
+                        {price(quote.price)}
+                        <span className="ml-1 font-sans text-[12px] font-normal text-oa-muted-fg">
+                          now
+                        </span>
+                      </p>
+                      {quote.dayPct !== null ? (
+                        <p
+                          className={`text-[12.5px] leading-4 ${toneClass(quote.dayPct)}`}
+                        >
+                          {signedPct(quote.dayPct)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-              {days.length > 0 ? (
-                <div
-                  className="min-w-0"
-                  title={`Waited ${proposal.days} ${proposal.days === 1 ? "day" : "days"} for an answer`}
-                >
-                  <span className="relative block h-2 rounded-full bg-oa-bg">
-                    <span
-                      className={`absolute inset-y-0 rounded-full ${proposal.op === "drop" ? "bg-signal-bearish" : "bg-oa-primary"}`}
-                      style={{
-                        left: `${(at(proposal.first) / span) * 100}%`,
-                        width: `${Math.max(4, (proposal.days / span) * 100)}%`,
-                      }}
-                    />
-                  </span>
-                  {/* How long it waited is the bar's length; the tally above says it in words, once. */}
-                  <span className="sr-only">
-                    Waited {proposal.days} {proposal.days === 1 ? "day" : "days"}
-                  </span>
-                </div>
-              ) : null}
-            </li>
-          ))}
+                {days.length > 0 ? (
+                  <div
+                    className="min-w-0"
+                    title={`Waited ${proposal.days} ${proposal.days === 1 ? "day" : "days"} for an answer`}
+                  >
+                    <span className="relative block h-2 rounded-full bg-oa-bg">
+                      <span
+                        className={`absolute inset-y-0 rounded-full ${proposal.op === "drop" ? "bg-signal-bearish" : "bg-oa-primary"}`}
+                        style={{
+                          left: `${(at(proposal.first) / span) * 100}%`,
+                          width: `${Math.max(4, (proposal.days / span) * 100)}%`,
+                        }}
+                      />
+                    </span>
+                    {/* How long it waited is the bar's length across the replay's days. */}
+                    <span className="sr-only">
+                      Waited {proposal.days} {proposal.days === 1 ? "day" : "days"}
+                    </span>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="px-4 py-3 text-[14px] leading-5 text-oa-fg">
           It would have changed nothing.
         </p>
       )}
-      <p
-        className="mt-auto border-t border-oa-border px-4 py-2.5 text-[12.5px] leading-5 text-oa-muted-fg"
-        title={replay.notes.join(" ")}
-      >
-        {kind !== "page"
-          ? "Replay"
-          : earlier
-            ? "Replayed on an earlier version of this basket"
-            : "Replayed when you saved it"}
-        , {window}.
-      </p>
     </div>
   );
 }

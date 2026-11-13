@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { JobsWorkspace } from "@/components/agents-jobs/jobs-workspace";
 import { BasketList } from "@/components/basket-agent/basket-list";
 import { basketsOverPlan, listBasketRuns, listBaskets } from "@/lib/basket-agent/data";
+import { readStates as readThesisStates } from "@/lib/thesis-monitor/data";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { PlainAgentBox } from "@/components/agents-plain/plain-agent-box";
@@ -123,9 +124,17 @@ export default async function AgentJobsPage({
     // Their runs are read only when there are baskets (most people have none).
     session
       ? listBaskets(session.uid)
-          .then(async (list) => ({ list, runs: list.length > 0 ? await listBasketRuns(session.uid, null, 60).catch(() => []) : [] }))
-          .catch(() => ({ list: [], runs: [] }))
-      : { list: [], runs: [] },
+          .then(async (list) => {
+            // A basket with a thesis (lib/thesis-monitor) shows the thesis's status; read only when there is one.
+            const withThesis = list.filter((basket) => basket.thesis).map((basket) => basket.id);
+            const [runs, theses] = await Promise.all([
+              list.length > 0 ? listBasketRuns(session.uid, null, 60).catch(() => []) : [],
+              withThesis.length > 0 ? readThesisStates(session.uid, withThesis).catch(() => new Map()) : new Map(),
+            ]);
+            return { list, runs, theses: Object.fromEntries(theses) };
+          })
+          .catch(() => ({ list: [], runs: [], theses: {} }))
+      : { list: [], runs: [], theses: {} },
   ]);
   const baskets = ideaBaskets.list;
   const basketRuns = ideaBaskets.runs;
@@ -158,6 +167,7 @@ export default async function AgentJobsPage({
           <BasketList
             baskets={baskets}
             runs={basketRuns}
+            theses={ideaBaskets.theses}
             today={day}
             nextCheck={schedule.next}
             overPlan={

@@ -620,7 +620,7 @@ export function BasketEditor({
           label="What it would have done"
           right={replayFresh ? null : <span>Changed since the replay</span>}
         >
-          <ReplayView replay={replay.result} today={today} />
+          <ReplayView replay={replay.result} today={today} quotes={quotes} />
         </Panel>
       ) : null}
 

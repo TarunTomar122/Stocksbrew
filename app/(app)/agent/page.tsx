@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { FirstLookOffer, FirstLookSlot } from "@/components/first-look/panel";
+import { PREVIEW_PARAM } from "@/lib/first-look/state";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { ProposalsSection } from "@/components/proposals/proposals-section";
 import { ActivityRecord } from "@/components/thread/activity-record";
@@ -114,10 +116,24 @@ async function AgentBody() {
   return session ? <MemberThread uid={session.uid} /> : <ExampleThread />;
 }
 
-export default function AgentPage() {
+export default function AgentPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+  // `?first-look=1`: any signed-in person sees the agent's first look on their stocks; nothing is written until a tap.
+  const preview = searchParams?.[PREVIEW_PARAM] === "1";
   return (
     <AppPage className="!max-w-[68rem]">
-      <PageHead title="Your agent" />
+      <PageHead
+        title="Your agent"
+        inline
+        actions={
+          <Suspense fallback={null}>
+            <FirstLookOffer preview={preview} />
+          </Suspense>
+        }
+      />
+      {/* The first look streams on its own, above the thread, for a new person (lib/first-look/state.ts). */}
+      <Suspense fallback={null}>
+        <FirstLookSlot preview={preview} />
+      </Suspense>
       <Suspense fallback={<ThreadSkeleton />}>
         <AgentBody />
       </Suspense>

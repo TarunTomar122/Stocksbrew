@@ -104,6 +104,20 @@ describe("caseWireHeadlines", () => {
     expect(run(["Re/Max shares slide after Re/Max earnings miss"])[0]).toBe("Re/Max shares slide after Re/Max earnings miss");
   });
 
+  it("lowers the stock page's What changed strays and keeps the company, its ticker and AI (Nov 13)", () => {
+    const out = run(
+      [
+        "Why are Advanced Micro Devices (AMD) shares Drawing Fresh AI attention?",
+        "Nvidia, AMD, CoreWeave, Nebius, Tesla, and more stocks that Explain today's market",
+        "Fresh Del Monte reports results",
+      ],
+      { AMD: "Advanced Micro Devices, Inc." },
+    );
+    expect(out[0]).toBe("Why are Advanced Micro Devices (AMD) shares drawing fresh AI attention?");
+    expect(out[1]).toBe("Nvidia, AMD, CoreWeave, Nebius, Tesla, and more stocks that explain today's market");
+    expect(out[2]).toBe("Fresh Del Monte reports results");
+  });
+
   it("lowers the News cards' strays: a verb after a name, a move before a share, and keeps names (Nov 12)", () => {
     const out = run(
       [

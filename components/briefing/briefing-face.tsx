@@ -20,7 +20,7 @@ import type {
   Tone,
   WeekDay,
 } from "@/lib/briefing-face";
-import { dayLabel, gridColumns, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
+import { dayLabel, gapOf, gridColumns, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
 import type { TopStory } from "@/lib/briefing-top-news";
 import { capitalize, dayWords, etToday, onDayWords } from "@/lib/day-words";
 import { caseWireHeadlines } from "@/lib/wire-casing";
@@ -295,7 +295,9 @@ function PathChart({ points, you, live }: { points: PathPoint[]; you: string; li
   const gap = last.you - last.market;
   // Said over the chart's span, so it never reads as today's gap (that one is beside the figures).
   const sessions = points.length - 1;
-  const gapLabel = Math.abs(gap) < 0.05 ? `Even over ${sessions} days` : `${Math.abs(gap).toFixed(1)} pts ${gap > 0 ? "ahead" : "behind"} over ${sessions} days`;
+  // From the two end figures as printed, so "Even" and the points always match the labels beside the lines.
+  const shownGap = gapOf(last.you, last.market);
+  const gapLabel = !shownGap || shownGap.word === "Flat" ? `Even over ${sessions} days` : `${shownGap.pts.toFixed(1)} pts ${shownGap.word === "Ahead" ? "ahead" : "behind"} over ${sessions} days`;
   // The two names at the line ends, kept apart when the lines end close together.
   let youY = y(last.you);
   let marketY = y(last.market);
@@ -331,7 +333,7 @@ function PathChart({ points, you, live }: { points: PathPoint[]; you: string; li
         {/* A saved earlier day, or a weekend's last session, ends on its own day, never "Today". */}
         {live ? "Today" : pathDay(last.day, false)}
       </text>
-      <text x={(pad.left + end) / 2} y={H - 4} fontSize={10.5} fill={tone(gap >= 0)} textAnchor="middle" fontWeight={600}>
+      <text x={(pad.left + end) / 2} y={H - 4} fontSize={10.5} fill={!shownGap || shownGap.word === "Flat" ? LINE_MARKET : tone(shownGap.word === "Ahead")} textAnchor="middle" fontWeight={600}>
         {gapLabel}
       </text>
     </svg>
@@ -604,12 +606,21 @@ function factWord(fact: LevelFact): string {
   return { sales: "sales", eps: "EPS", dividend: "yield", valuation: "P/E" }[fact.kind];
 }
 
-/** The level line on a card or a list row: "Level $309.92 · 0.4% under". */
-function levelWords(row: LevelRow, mixed: boolean): string {
+/** Where the price sits against its level: "0.4% under", "right at it". */
+function whereWords(row: LevelRow): string {
   const away = Math.abs(row.level.gapPct);
-  const where = away < 0.05 ? "right at it" : `${away.toFixed(1)}% ${row.level.gapPct < 0 ? "under" : "over"}`;
+  return away < 0.05 ? "right at it" : `${away.toFixed(1)}% ${row.level.gapPct < 0 ? "under" : "over"}`;
+}
+
+/** The level line on a card: "Level $309.92 · 0.4% under". */
+function levelWords(row: LevelRow, mixed: boolean): string {
   const name = mixed ? (row.level.call === "Sell some" ? "Sell level" : "Buy level") : "Level";
-  return `${name} ${sharePrice(row.level.level)} · ${where}`;
+  return `${name} ${sharePrice(row.level.level)} · ${whereWords(row)}`;
+}
+
+/** A list row's level words, short: "0.4% under", or "Sell · 0.4% over" when buys and sells are mixed. */
+function levelGapWords(row: LevelRow, mixed: boolean): string {
+  return mixed ? `${row.level.call === "Sell some" ? "Sell" : "Buy"} · ${whereWords(row)}` : whereWords(row);
 }
 
 /**
@@ -663,14 +674,15 @@ function Levels({ rows }: { rows: LevelRow[] }) {
                   {row.pct != null ? <span className={`oa-mono text-[12.5px] tabular-nums ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
                 </span>
               </span>
-              {/* One measured fact: a big figure, what it is, and at most one line. */}
-              <span className="flex min-w-0 flex-col gap-0.5 border-t border-oa-border pt-2.5">
+              {/* One measured fact: a big figure and what it is. The card already says the level and the price, so the
+                  fact's own context line ("$5.38 expected, reported on Oct 29.") is the hover, not a third thing to
+                  read (owner rule 8, judge 89). */}
+              <span title={fact.line ?? undefined} className="flex min-w-0 flex-col gap-0.5 border-t border-oa-border pt-2.5">
                 {/* A narrow card puts the label under the figure rather than cut either. */}
                 <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                   <span className={`oa-mono whitespace-nowrap text-[22px] font-semibold leading-7 tabular-nums tracking-[-0.02em] ${toneText(fact.tone)}`}>{fact.figure}</span>
                   <span className="text-[12.5px] leading-4 text-oa-muted-fg">{fact.label}</span>
                 </span>
-                {fact.line ? <span className="text-pretty text-[13px] leading-[18px] text-oa-fg">{fact.line}</span> : null}
               </span>
             </Link>
           </li>
@@ -678,25 +690,26 @@ function Levels({ rows }: { rows: LevelRow[] }) {
       })}
       {listed.length > 0 ? (
         <li className="min-w-0">
-          <ul aria-label="Also at their level" className={`${CARD} flex h-full flex-col justify-center divide-y divide-oa-border px-3.5 py-1.5`}>
+          {/* One line a name: how far it is from its level, then its price and move. Its strongest fact and the level
+              itself are the hover, so the list stays no taller than the cards beside it and they need no padding
+              (owner rules 4 and 8). */}
+          <ul aria-label="Also at their level" className={`${CARD} flex h-full flex-col justify-center divide-y divide-oa-border px-3.5 py-1`}>
             {listed.map((row) => (
               <li key={row.ticker}>
-                <Link href={row.href} prefetch={false} className={`${FOCUS} -mx-1.5 flex items-center justify-between gap-2 rounded px-1.5 py-1.5 transition-colors hover:bg-oa-accent`}>
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      <StockLogo ticker={row.ticker} size={20} eager />
-                      <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
-                      {/* Its strongest fact as a short figure, even when a card already has that kind. */}
-                      <span className="oa-mono whitespace-nowrap text-[13px] tabular-nums">
-                        <span className={`font-semibold ${toneText((row.fact ?? row.best).tone)}`}>{(row.fact ?? row.best).figure}</span>{" "}
-                        <span className="text-oa-muted-fg">{factWord(row.fact ?? row.best)}</span>
-                      </span>
-                    </span>
-                    <span className="oa-mono whitespace-nowrap text-[12px] leading-4 tabular-nums text-oa-muted-fg">{levelWords(row, mixed)}</span>
+                <Link
+                  href={row.href}
+                  prefetch={false}
+                  title={`${levelWords(row, mixed)} · ${(row.fact ?? row.best).figure} ${factWord(row.fact ?? row.best)}`}
+                  className={`${FOCUS} -mx-1.5 flex items-center justify-between gap-2 rounded px-1.5 py-2 transition-colors hover:bg-oa-accent`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <StockLogo ticker={row.ticker} size={20} eager />
+                    <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
+                    <span className="oa-mono truncate text-[12px] tabular-nums text-oa-muted-fg">{levelGapWords(row, mixed)}</span>
                   </span>
-                  <span className="flex shrink-0 flex-col items-end leading-5">
-                    {sharePrice(row.price) ? <span className="oa-mono text-[13px] font-semibold tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}
-                    {row.pct != null ? <span className={`oa-mono text-[12.5px] tabular-nums ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
+                  <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums">
+                    {sharePrice(row.price) ? <span className="font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
+                    {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
                   </span>
                 </Link>
               </li>

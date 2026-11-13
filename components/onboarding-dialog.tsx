@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { OaButton } from "@/components/oa/button";
 import { uiFont } from "@/components/oa/font";
 import { StockLogo } from "@/components/stock-logo";
+import { startFirstLook } from "@/lib/first-look/client";
 import { captureEvent } from "@/lib/posthog";
 import { dispatchRadarTrackChanged } from "@/lib/radar-track-events";
 import type { SearchEntry } from "@/lib/search";
@@ -15,12 +16,15 @@ import { scoreSearchEntry } from "@/lib/ticker-search-utils";
 
 /**
  * The first-run dialog: three ways to get a few stocks in (search the ones you own, tap popular names, or import a
- * screenshot on /import), then My stocks with our call on each. Loaded only when it opens
+ * screenshot on /import), then the agent's first look at them on /agent. Loaded only when it opens
  * (components/post-signup-onboarding.tsx), so its code stays off every other page load.
  */
 
-/** Where the person lands once their stocks are in: My stocks, with a call on each. */
-const FINISH_HREF = "/portfolio";
+/**
+ * Where the person lands once their stocks are in: their agent, doing its first look at them (lib/first-look). The
+ * import path keeps its own landing (/import, then My stocks).
+ */
+const FINISH_HREF = "/agent";
 
 type OnboardingStep = "choose" | "own" | "popular";
 type Kind = "holding" | "watchlist";
@@ -72,7 +76,7 @@ export function OnboardingDialog({
   const [error, setError] = useState(() => (retry?.picks.length ? retry.message : ""));
   /** On the landing picks that could not be added, until the person goes Back to the other ways in. */
   const [retrying, setRetrying] = useState(() => Boolean(retry?.picks.length));
-  /** Stocks already saved by an add that partly failed: closing now still lands on My stocks. */
+  /** Stocks already saved by an add that partly failed: closing now still lands on the first look. */
   const [saved, setSaved] = useState(0);
   const dialogRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -90,20 +94,25 @@ export function OnboardingDialog({
     [onClosed],
   );
 
-  const goToMyStocks = useCallback(() => {
-    if (pathname === FINISH_HREF) router.refresh();
-    else router.push(FINISH_HREF);
+  // Opens the first look: stored (startFirstLook) it stays until they close it; if that save failed, the preview
+  // address shows it this once anyway.
+  const goToFirstLook = useCallback((started: boolean) => {
+    const href = started ? FINISH_HREF : `${FINISH_HREF}?first-look=1`;
+    if (pathname === FINISH_HREF && started) router.refresh();
+    else router.push(href);
   }, [pathname, router]);
 
-  /** Closing (X, Escape, Skip). After a partial save it is not a dismissal: the saved stocks are waiting on My stocks. */
+  /** Closing (X, Escape, Skip). After a partial save it is not a dismissal: the saved stocks are in the first look. */
   const leave = useCallback(() => {
     if (saved > 0) {
       close("completed", { path: step, action: "stocks_added", count: saved, partial: true });
-      goToMyStocks();
+      // Closing should not wait: the look is recorded in the background, and the preview shows it meanwhile.
+      void startFirstLook("onboarding");
+      goToFirstLook(false);
       return;
     }
     close("dismissed", { step });
-  }, [close, goToMyStocks, saved, step]);
+  }, [close, goToFirstLook, saved, step]);
 
   // The search index serves both the search and the popular tiles (their names and instrument ids).
   useEffect(() => {
@@ -249,10 +258,10 @@ export function OnboardingDialog({
       }
       setBusy({ done: added + failed.length, total: queue.length });
     }
-    setBusy(null);
     if (added > 0) dispatchRadarTrackChanged({ action: "add", count: added });
     const total = saved + added;
     if (failed.length > 0) {
+      setBusy(null);
       setSaved(total);
       setPicked(failed);
       const names = failed.map((entry) => entry.ticker).join(", ");
@@ -265,8 +274,12 @@ export function OnboardingDialog({
       );
       return;
     }
+    // The button stays busy while the first look is recorded (a moment), so the dialog never closes onto a page that
+    // then jumps away.
+    const started = await startFirstLook("onboarding");
+    setBusy(null);
     close("completed", { path: step, action: "stocks_added", count: total, position_type: positionType });
-    goToMyStocks();
+    goToFirstLook(started);
   }
 
   const popular = useMemo(() => {

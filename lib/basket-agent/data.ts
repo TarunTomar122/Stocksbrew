@@ -39,6 +39,7 @@ import { isThesisKind } from "@/lib/thesis";
 import { THRESHOLDS } from "@/lib/thesis-watch/rules";
 import { closesOnDays, loadStockFacts } from "@/lib/thesis-watch/data";
 import { addDays, type YearFigures } from "@/lib/thesis-watch/facts";
+import { readThesisSpec } from "@/lib/thesis-monitor/model";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 import { checkBasket, type CheckCandidate, type TickerFacts } from "./check";
@@ -153,6 +154,7 @@ export function basketFromDoc(
       typeof data.version === "number" && Number.isInteger(data.version)
         ? data.version
         : 1,
+    thesis: readThesisSpec(data.thesis),
   };
 }
 
@@ -222,9 +224,11 @@ export function basketsOverPlan(
 export async function createBasket(
   uid: string,
   draft: BasketDraft,
-  replay: ReplaySummary,
+  replay: ReplaySummary | null,
   plan: Plan,
   now = new Date(),
+  /** A thesis over holdings is saved with its lines in the same write (lib/thesis-monitor). */
+  thesis: BasketAgent["thesis"] = null,
 ): Promise<BasketAgent> {
   const existing = await listBaskets(uid);
   if (existing.length >= MAX_BASKETS_PER_USER)
@@ -246,6 +250,7 @@ export async function createBasket(
     replay,
     dropped: [],
     version: 1,
+    ...(thesis ? { thesis } : {}),
   };
   await baskets()
     .doc(basketDocId(uid, basket.id))
@@ -289,6 +294,12 @@ export async function updateBasket(
     const update: Record<string, unknown> = { updated_at: now.toISOString() };
     if (typeof patch.enabled === "boolean") update.enabled = patch.enabled;
     if (patch.draft) {
+      // A thesis over holdings takes its companies from its lines (lib/thesis-monitor), not from the basket editor.
+      if (basket.source.kind === "holdings")
+        throw new BasketAgentError(
+          "This is a thesis over your holdings. Edit its lines instead.",
+          409,
+        );
       if (patch.version !== basket.version)
         throw new BasketAgentError(VERSION_CONFLICT, 409);
       const kept = new Set(patch.draft.lines.map((line) => line.ticker));
@@ -739,7 +750,13 @@ export async function runAllBasketAgents(
         ? Number.POSITIVE_INFINITY
         : limitFor("agents", plan);
     const over = basketsOverPlan(owned, jobsRunning, limit);
-    runnable.push(...owned.filter((basket) => !over.has(basket.id)));
+    // A thesis over holdings takes its slot (it is one of the person's agents) but is checked by the thesis check alone
+    // (lib/thesis-monitor), not for companies to add or drop.
+    runnable.push(
+      ...owned.filter(
+        (basket) => !over.has(basket.id) && basket.source.kind !== "holdings",
+      ),
+    );
     summary.over_plan += over.size;
   }
   for (const basket of runnable) {

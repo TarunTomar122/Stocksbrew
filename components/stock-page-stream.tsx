@@ -646,7 +646,7 @@ export async function StockPageStream({ params }: Props) {
       reddit: cue
         ? {
             generatedAt: redditTickerContext?.generated_at ?? null,
-            postCount: redditTickerContext?.post_count ?? cue.mention_count ?? null,
+            postCount: redditTickerContext?.ticker_post_count ?? null,
             sentiment: cue.sentiment ?? null,
           }
         : null,
@@ -771,7 +771,7 @@ export async function StockPageStream({ params }: Props) {
     instrumentViewPromise,
   ]).then(([recentNews, redditTickerContext, ownership, technicals, sectorPeers, instrumentViewLoaded]) => {
     const cue = redditTickerContext?.cue;
-    const redditPosts = redditTickerContext?.post_count ?? cue?.mention_count ?? 0;
+    const redditPosts = redditTickerContext?.ticker_post_count ?? 0;
     return {
       timeline: buildTimeline(recentNews, shouldLoadAI ? instrumentViewLoaded : null, redditTickerContext),
       technicals,

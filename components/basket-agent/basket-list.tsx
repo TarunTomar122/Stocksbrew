@@ -3,6 +3,11 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 import type { BasketAgent, BasketRun } from "@/lib/basket-agent/model";
 import { capitalize, dayWords } from "@/lib/day-words";
+import {
+  STATUS_WORDS,
+  thesisHref,
+  type ThesisState,
+} from "@/lib/thesis-monitor/model";
 
 import { NUM } from "./parts";
 
@@ -34,15 +39,32 @@ function figureOf(
  * The person's idea baskets on /agents: one row per basket (its first logos, the name, how many companies, what the
  * latest check found, when it ran), the row itself the link. One "Watch an idea" in the header.
  */
+/** A thesis's latest check as the row's figure: "Under strain", "Holds". */
+function thesisFigure(state: ThesisState): { text: string; tone: string } {
+  const tone =
+    state.status === "broken"
+      ? "text-signal-bearish"
+      : state.status === "strain"
+        ? "text-oa-primary"
+        : "text-oa-muted-fg";
+  return {
+    text: `thesis ${STATUS_WORDS[state.status].toLowerCase()}`,
+    tone,
+  };
+}
+
 export function BasketList({
   baskets,
   runs,
+  theses = {},
   today,
   overPlan = new Set<string>(),
   nextCheck = null,
 }: {
   baskets: BasketAgent[];
   runs: BasketRun[];
+  /** The latest thesis check of each basket that has one (lib/thesis-monitor), by basket id. */
+  theses?: Readonly<Record<string, ThesisState | undefined>>;
   today: string;
   /** Switched on, but past the plan's room: the nightly run leaves them out. */
   overPlan?: ReadonlySet<string>;
@@ -80,8 +102,12 @@ export function BasketList({
       ) : (
         <ul className="divide-y divide-oa-border">
           {baskets.map((basket) => {
-            const run = latest.get(basket.id) ?? null;
-            const figure = figureOf(run);
+            // A thesis over holdings has no basket runs: its own check is its record.
+            const holdings = basket.source.kind === "holdings";
+            const thesis = theses[basket.id] ?? null;
+            const run = holdings ? null : (latest.get(basket.id) ?? null);
+            const figure = thesis ? thesisFigure(thesis) : figureOf(run);
+            const checked = thesis?.day ?? run?.day ?? null;
             return (
               <li
                 key={basket.id}
@@ -99,7 +125,11 @@ export function BasketList({
                 <span className="min-w-0 flex-1 leading-5">
                   <Link
                     prefetch={false}
-                    href={`/agents/baskets/${encodeURIComponent(basket.id)}`}
+                    href={
+                      holdings
+                        ? thesisHref(basket.id)
+                        : `/agents/baskets/${encodeURIComponent(basket.id)}`
+                    }
                     className="block truncate text-[14.5px] font-medium text-oa-fg after:absolute after:inset-0"
                   >
                     {basket.name}
@@ -122,8 +152,8 @@ export function BasketList({
                     ? "Paused"
                     : overPlan.has(basket.id)
                       ? "Paused by your plan"
-                      : run
-                        ? capitalize(dayWords(run.day, today))
+                      : checked
+                        ? capitalize(dayWords(checked, today))
                         : nextCheck
                           ? `Checks ${nextCheck}`
                           : null}

@@ -178,11 +178,26 @@ describe("the strip", () => {
     { name: "Nasdaq 100", price: 25000, change_pct: -1.8 },
   ];
 
-  it("puts you against the S&P 500 in points, with a flat band", () => {
+  it("puts you against the S&P 500 in points, flat only at the same shown figure", () => {
     expect(gapWords(gapOf(2.7, -1.31)!)).toBe("Ahead 4.0 pts");
     expect(gapWords(gapOf(-2.5, -1.31)!)).toBe("Behind 1.2 pts");
-    expect(gapWords(gapOf(0.5, 0.4)!)).toBe("Flat");
+    expect(gapWords(gapOf(0.5, 0.5)!)).toBe("Flat");
     expect(gapOf(null, 1)).toBeNull();
+  });
+
+  // Judge 89: "Even with the S&P 500" sat beside −0.4% against −0.3%.
+  it("calls it flat only when the two shown figures match, and names the smallest gap", () => {
+    expect(gapOf(-0.4, -0.3)).toEqual({ word: "Behind", pts: 0.1 });
+    expect(gapOf(0.5, 0.4)).toEqual({ word: "Ahead", pts: 0.1 });
+    // Raw moves 0.08 apart that print as −0.4% and −0.3% still differ by the shown 0.1.
+    expect(gapOf(-0.36, -0.34)).toEqual({ word: "Behind", pts: 0.1 });
+    // Raw moves 0.08 apart that print the same are even.
+    expect(gapOf(-0.31, -0.34)).toEqual({ word: "Flat", pts: 0 });
+    // A move that prints as 0.0% is zero, never −0.0.
+    expect(gapOf(-0.04, 0.04)).toEqual({ word: "Flat", pts: 0 });
+    expect(gapOf(-0.04, 0.1)).toEqual({ word: "Behind", pts: 0.1 });
+    // Across zero, the gap is the distance between the two shown figures.
+    expect(gapOf(0.2, -0.2)).toEqual({ word: "Ahead", pts: 0.4 });
   });
 
   it("weights by money when every holding has a value, else averages and says so", () => {

@@ -11,6 +11,7 @@
  */
 
 import { isThesisKind, THESIS_KINDS, type ThesisKind } from "@/lib/thesis";
+import type { ThesisSpec } from "@/lib/thesis-monitor/model";
 import type { Verdict } from "@/lib/thesis-watch/rules";
 
 export const BASKETS_COLLECTION = "tm_agent_baskets";
@@ -35,7 +36,9 @@ const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
 export type BasketSource =
   | { kind: "theme"; slug: string }
   | { kind: "ask" }
-  | { kind: "own" };
+  | { kind: "own" }
+  /** A thesis over the person's holdings (lib/thesis-monitor): only made by the thesis route, never by the editor. */
+  | { kind: "holdings" };
 
 export type BasketLineDraft = {
   ticker: string;
@@ -98,6 +101,8 @@ export type BasketAgent = Omit<BasketDraft, "lines"> & {
    * it opened, so a save never undoes a change made since in another tab.
    */
   version: number;
+  /** The thesis and its measurable lines per company, when the person added them (lib/thesis-monitor). */
+  thesis?: ThesisSpec | null;
 };
 
 export type StatusVerdict = Verdict | "unknown";

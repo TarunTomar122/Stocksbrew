@@ -41,7 +41,9 @@ const WIRE_ORDINARY = new Set(
     "crash crashes crashed rattle rattles rattled edge edges edged tie ties earn earns earned commit commits committed " +
     "durable implies imply implied parts linger lingers lingering remark remarks trim trims trimmed overdone selloff " +
     "structural reality prompting prompts me weakness strength spending plans plan warns warned rebound rebounds " +
-    "upgrade upgrades upgraded downgrade downgrades downgraded alive revamp revamps revamped potential fallout"
+    "upgrade upgrades upgraded downgrade downgrades downgraded alive revamp revamps revamped potential fallout " +
+    // Nov 13, the stock page's What changed: "shares Drawing Fresh AI attention?", "stocks that Explain today's market".
+    "drawing draws drew fresh attention explain explains explained"
   ).split(" "),
 );
 

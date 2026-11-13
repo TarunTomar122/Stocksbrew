@@ -17,9 +17,12 @@ const ITEM =
 export function BasketAgentActions({
   id,
   enabled,
+  lines = null,
 }: {
   id: string;
   enabled: boolean;
+  /** "Add lines" (a thesis with measurable lines on the basket's companies, lib/thesis-monitor), or open the thesis it has. */
+  lines?: { href: string; label: string } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
@@ -92,6 +95,16 @@ export function BasketAgentActions({
               >
                 {enabled ? "Pause it" : "Switch it on"}
               </button>
+              {lines ? (
+                <Link
+                  prefetch={false}
+                  href={lines.href}
+                  className={ITEM}
+                  onClick={() => close()}
+                >
+                  {lines.label}
+                </Link>
+              ) : null}
               <button
                 type="button"
                 className={`${ITEM} text-signal-bearish`}

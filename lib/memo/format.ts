@@ -34,16 +34,15 @@ export function signedPoints(value: number): string {
   return `${value > 0 ? "+" : "−"}${body}`;
 }
 
-/** Below this gap, in points, the week reads as in step with the S&P 500 (the same band the top line uses). */
-export const IN_STEP_POINTS = 0.25;
-
 /**
- * The gap between the portfolio and the S&P 500, rounded once so the headline, the chart's end label and the
- * list of weeks always agree: `points` is the gap to two decimals, `side` which way it went.
+ * The gap between the portfolio and the S&P 500, worked out from the two figures as printed (one decimal), so the
+ * headline, the chart's end label and the list of weeks always agree with the numbers beside them: "in step" only
+ * when the printed figures match (the briefing's gapOf rule, lib/briefing-face.ts). `points` is that printed gap.
  */
 export function weekGap(portfolioPct: number, marketPct: number): { points: number; side: "ahead" | "behind" | "in step" } {
-  const gap = round(portfolioPct - marketPct);
-  return { points: gap, side: Math.abs(gap) < IN_STEP_POINTS ? "in step" : gap > 0 ? "ahead" : "behind" };
+  const shown = (value: number) => Number(value.toFixed(1)) || 0;
+  const gap = round(shown(portfolioPct) - shown(marketPct), 1);
+  return { points: gap, side: gap === 0 ? "in step" : gap > 0 ? "ahead" : "behind" };
 }
 
 /**

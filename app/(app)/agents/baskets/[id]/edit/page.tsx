@@ -24,6 +24,9 @@ export default async function EditBasketPage({
   if (!session) redirect(`/agents/baskets/${encodeURIComponent(params.id)}`);
   const basket = await getBasket(session.uid, params.id);
   if (!basket) notFound();
+  // A thesis over holdings is edited as a thesis: its companies follow its lines.
+  if (basket.source.kind === "holdings")
+    redirect(`/agents/theses/${encodeURIComponent(basket.id)}/edit`);
   const tickers = basket.lines.map((line) => line.ticker);
   // No screens here (no slow read): the theme and theme matches are enough to suggest from. Prices for both.
   const candidates = await candidatesFor(basket, { screens: false }).catch(

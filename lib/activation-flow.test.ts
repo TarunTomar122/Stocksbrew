@@ -64,7 +64,7 @@ describe("first Watchlist activation flow", () => {
     expect(gate).toContain('<OaButton size="sm" loading={busy} onClick={act} className="max-sm:min-h-11');
   });
 
-  it("starts new users by adding their stocks and lands them on My stocks, never on the plans", () => {
+  it("starts new users by adding their stocks and lands them on their agent's first look, never on the plans", () => {
     const button = source("components/oa/start-free-button.tsx");
     expect(button).not.toContain('"/subscribe"');
     expect(button).toContain('"/portfolio"');
@@ -73,7 +73,9 @@ describe("first Watchlist activation flow", () => {
     expect(gate).toContain('import("@/components/onboarding-dialog")');
     const dialog = source("components/onboarding-dialog.tsx");
     for (const id of ['id: "own"', 'id: "popular"', 'id: "import"']) expect(dialog).toContain(id);
-    expect(dialog).toContain('const FINISH_HREF = "/portfolio"');
+    // The dialog's finish opens the agent's first look on their stocks (lib/first-look), recorded on their own doc.
+    expect(dialog).toContain('const FINISH_HREF = "/agent"');
+    expect(dialog).toContain('startFirstLook("onboarding")');
     expect(dialog).toContain('fetch("/api/track"');
     expect(dialog).toContain('captureEvent("onboarding_path_selected"');
     expect(dialog).toContain('captureEvent("onboarding_stock_added"');

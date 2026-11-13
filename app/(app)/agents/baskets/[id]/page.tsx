@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { BasketAgentActions } from "@/components/basket-agent/agent-actions";
 import { Folded } from "@/components/basket-agent/fold";
@@ -49,6 +49,9 @@ import {
 import { dayWords } from "@/lib/day-words";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
+import { ThesisRow } from "@/components/thesis-monitor/thesis-row";
+import { readState } from "@/lib/thesis-monitor/data";
+import { thesisEditHref, thesisHref } from "@/lib/thesis-monitor/model";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +76,17 @@ export default async function BasketAgentPage({ params }: Props) {
   }
   const basket = await getBasket(session.uid, params.id);
   if (!basket) notFound();
+  // A thesis over holdings has no idea-basket check of its own: its page is the thesis page.
+  if (basket.source.kind === "holdings") redirect(thesisHref(basket.id));
   const today = agentMarketDay();
   const tickers = basket.lines.map((line) => line.ticker);
+  // The replay's stocks are known now, so their prices come in the same read as the basket's.
+  const replayOnly = [...new Set((basket.replay?.proposals ?? []).map((proposal) => proposal.ticker))].filter((ticker) => !tickers.includes(ticker));
   const now = new Date();
-  const [runs, quotes, viewer, running, proposals, all, jobs] =
+  const [runs, quotes, viewer, running, proposals, all, jobs, thesisState] =
     await Promise.all([
       listBasketRuns(session.uid, basket.id, 60).catch(() => []),
-      quotesFor(tickers),
+      quotesFor([...tickers, ...replayOnly]),
       getViewer(),
       basket.enabled
         ? Promise.resolve(0)
@@ -91,6 +98,9 @@ export default async function BasketAgentPage({ params }: Props) {
       basket.enabled
         ? listJobs(session.uid).catch(() => [])
         : Promise.resolve([]),
+      basket.thesis
+        ? readState(session.uid, basket.id).catch(() => null)
+        : Promise.resolve(null),
     ]);
   const limit = limitFor("agents", viewer.plan);
   // On, but past the plan's room (a plan that changed): the nightly run leaves it out, as the runner decides it.
@@ -179,7 +189,21 @@ export default async function BasketAgentPage({ params }: Props) {
         title={basket.name}
         meta={<span>{when}</span>}
         note={false}
-        actions={<BasketAgentActions id={basket.id} enabled={basket.enabled} />}
+        actions={
+          <BasketAgentActions
+            id={basket.id}
+            enabled={basket.enabled}
+            // With a thesis, its row on the page is the way there; one way, not two.
+            lines={
+              basket.thesis
+                ? null
+                : {
+                    href: thesisEditHref({ basket: basket.id }),
+                    label: "Add lines",
+                  }
+            }
+          />
+        }
       />
 
       {atLimit ? (
@@ -188,6 +212,18 @@ export default async function BasketAgentPage({ params }: Props) {
           plan={viewer.plan}
           trialEligible={viewer.trialEligible}
           className="mb-4"
+        />
+      ) : null}
+
+      {basket.thesis ? (
+        <ThesisRow
+          href={thesisHref(basket.id)}
+          state={thesisState}
+          enabled={basket.enabled}
+          lines={basket.thesis.lines.reduce(
+            (sum, line) => sum + line.conditions.length,
+            0,
+          )}
         />
       ) : null}
 
@@ -281,6 +317,7 @@ export default async function BasketAgentPage({ params }: Props) {
             today={today}
             kind="page"
             earlier={earlier}
+            quotes={changeQuotes}
           />
         </Panel>
       ) : null}

@@ -5,6 +5,7 @@ import { NavIcon } from "@/components/oa/nav-icon";
 import type { NavIcon as NavIconName } from "@/components/oa/nav-items";
 import { StockLogo } from "@/components/stock-logo";
 import { dayLabel, type InboxGroup } from "@/lib/inbox/merge";
+import type { RowPrice } from "@/lib/inbox/prices";
 import type { InboxItem, InboxKind } from "@/lib/inbox/types";
 
 /**
@@ -45,6 +46,24 @@ export function whenWords(item: Pick<InboxItem, "at" | "day" | "exact">, today: 
   return time ? `${day}, ${time}` : day;
 }
 
+/** "$1,427.28". */
+function money(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * The stock's price now, at the row's right beside the move its sentence reports (owner rule 4); an earlier session's
+ * quote says its day under it.
+ */
+function PriceNow({ price, compact }: { price: RowPrice; compact: boolean }) {
+  return (
+    <span className="oa-mono shrink-0 pt-px text-right tabular-nums leading-5" title={price.day ? `Last price, ${price.day}` : "Price now"}>
+      <span className={`block text-oa-fg ${compact ? "text-[13px]" : "text-[14px]"}`}>{money(price.price)}</span>
+      {price.day ? <span className="block text-[12px] text-oa-muted-fg">{price.day}</span> : null}
+    </span>
+  );
+}
+
 export function InboxRow({
   item,
   unread,
@@ -54,9 +73,12 @@ export function InboxRow({
   lockMark = null,
   showDetail = true,
   showMeta = true,
+  price = null,
   onOpen,
 }: {
   item: InboxItem;
+  /** The stock's price now, when the row reports its move. */
+  price?: RowPrice | null;
   unread: boolean;
   today: string;
   /** Say the day as well as the time (the popover has no day headings). */
@@ -123,6 +145,7 @@ export function InboxRow({
           </p>
         ) : null}
       </div>
+      {price ? <PriceNow price={price} compact={compact} /> : null}
     </li>
   );
 }
@@ -174,9 +197,12 @@ export function InboxGroupRow({
   withDay = false,
   compact = false,
   showDetail = true,
+  price = null,
   onOpen,
 }: {
   group: InboxGroup;
+  /** The stock's price now, when the row reports its move. */
+  price?: RowPrice | null;
   /** Which of the group's items are new. */
   unread: (item: InboxItem) => boolean;
   today: string;
@@ -192,7 +218,7 @@ export function InboxGroupRow({
   const [first, ...more] = group.items;
   if (!first) return null;
   if (more.length === 0) {
-    return <InboxRow item={first} unread={unread(first)} today={today} lockMark={lockMark} showMeta={showMeta} withDay={withDay} compact={compact} showDetail={showDetail} onOpen={onOpen} />;
+    return <InboxRow item={first} unread={unread(first)} today={today} lockMark={lockMark} showMeta={showMeta} withDay={withDay} compact={compact} showDetail={showDetail} price={price} onOpen={onOpen} />;
   }
   const anyUnread = group.items.some(unread);
   const { href, external } = groupHref(group);
@@ -245,6 +271,7 @@ export function InboxGroupRow({
           </p>
         ) : null}
       </div>
+      {price ? <PriceNow price={price} compact={compact} /> : null}
     </li>
   );
 }

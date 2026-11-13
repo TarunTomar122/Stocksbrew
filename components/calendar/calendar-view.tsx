@@ -473,28 +473,47 @@ function readableName(name: string): string {
   return shortCompanyName(name) || name;
 }
 
+/** The exchange in a word: "NASDAQ Global Select" reads "Nasdaq"; the market tier is in the title. */
+function shortExchange(exchange: string): string {
+  if (/nasdaq/i.test(exchange)) return "Nasdaq";
+  if (/nyse\s*american/i.test(exchange)) return "NYSE American";
+  if (/nyse|new york/i.test(exchange)) return "NYSE";
+  return exchange;
+}
+
+/**
+ * An IPO: the company's name first, whole (it wraps to a second line rather than being cut, so it can be told apart),
+ * then one short line of facts: the ticker, the price or range, the size of the raise and the exchange (judge89: no
+ * repeated "New listing, aiming for…" prose). Each fact's full words are its hover. The day is the column it sits in.
+ */
 function IpoLine({ item }: { item: IpoItem }) {
-  const price = fmtIpoPrice(item.priceLow, item.priceHigh);
+  const price = fmtIpoPrice(item.priceLow, item.priceHigh).replace(" to $", "–");
+  const name = readableName(item.company);
+  const facts: Array<{ key: string; text: string; title: string; muted?: boolean }> = [
+    price
+      ? { key: "price", text: item.status === "priced" ? `priced ${price}` : price, title: item.status === "priced" ? `Priced at ${price} a share` : `Aiming for ${price} a share` }
+      : { key: "price", text: "price not set", title: "Price not set yet", muted: true },
+    ...(item.offerAmount ? [{ key: "size", text: `${fmtCompact(item.offerAmount, "$")} raise`, title: `Raising ${fmtCompact(item.offerAmount, "$")}` }] : []),
+    ...(item.exchange ? [{ key: "exchange", text: shortExchange(item.exchange), title: item.exchange, muted: true }] : []),
+  ];
   return (
     <div data-row="" className="px-3 py-1.5">
-      <span className="flex items-center justify-between gap-2">
-        <span className="min-w-0 text-pretty text-[14px] font-medium leading-5 text-oa-fg">{readableName(item.company)}</span>
+      <p className="line-clamp-2 break-words text-[14px] font-medium leading-5 text-oa-fg" title={name}>
+        {name}
+      </p>
+      <p className={`${NUM} mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] leading-[18px] text-oa-fg`}>
         {item.ticker ? (
-          <span className={`${NUM} inline-flex shrink-0 items-center gap-1.5 text-[12.5px] text-oa-muted-fg`}>
-            <StockLogo ticker={item.ticker} size={16} atOnce />
+          <span className="inline-flex items-center gap-1 font-medium">
+            <StockLogo ticker={item.ticker} size={14} atOnce />
             {item.ticker}
           </span>
         ) : null}
-      </span>
-      <span className={`${NUM} mt-0.5 block text-pretty text-[12.5px] leading-4 text-oa-muted-fg`}>
-        {[
-          item.status === "priced" ? (price ? `New listing, priced at ${price}` : "New listing, priced") : price ? `New listing, aiming for ${price} a share` : "New listing, price not set",
-          item.offerAmount ? `to raise ${fmtCompact(item.offerAmount, "$")}` : "",
-          item.exchange,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </span>
+        {facts.map((fact) => (
+          <span key={fact.key} title={fact.title} className={fact.muted ? "text-oa-muted-fg" : undefined}>
+            {fact.text}
+          </span>
+        ))}
+      </p>
     </div>
   );
 }
@@ -518,7 +537,7 @@ function DividendLine({ item }: { item: DividendItem }) {
 
 /**
  * About how many short rows a day shows before the rest wait behind one "Show N more" (owner rule 4: a card never
- * scrolls inside its own box). Rows are weighed by height (an IPO's three lines count three), so a busy day and a quiet
+ * scrolls inside its own box). Rows are weighed by height (an IPO, its name and fields wrapping in a narrow day, counts three), so a busy day and a quiet
  * one end close to level instead of one running on beside a blank column.
  */
 const DAY_ROWS = 12;

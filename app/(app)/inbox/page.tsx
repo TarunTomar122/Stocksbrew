@@ -14,9 +14,11 @@ import { getViewer } from "@/lib/entitlements-server";
 import { exampleReports, type ExampleReportStock } from "@/lib/inbox/example-reports";
 import { forClient } from "@/lib/inbox/merge";
 import { rowsAfterRead, type InboxTold } from "@/lib/inbox/read";
-import { loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
+import { rowPrices } from "@/lib/inbox/prices";
+import { inboxStocks, loadExampleInbox, loadUserInbox, readState } from "@/lib/inbox/server";
 import { INBOX_KINDS, type InboxKind } from "@/lib/inbox/types";
-import { loadExamplePortfolio } from "@/lib/portfolio-data";
+import { EXAMPLE_STOCK_TICKERS, loadExamplePortfolio } from "@/lib/portfolio-data";
+import { loadLivePrices } from "@/lib/wire-prices-server";
 import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { getUserDoc } from "@/lib/watchlist";
 
@@ -87,7 +89,9 @@ function cardQuotes(portfolio: Awaited<ReturnType<typeof loadExamplePortfolio>> 
 async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
   // The portfolio is the example's shared cached copy (the same one My stocks and the briefing read); a failed read
   // only leaves out the report cards under the list.
-  const [inbox, portfolio] = await Promise.all([loadExampleInbox(), loadExamplePortfolio().catch(() => null)]);
+  // Each stock's price beside its move comes from the quote the stock page reads, in one bounded batch beside the
+  // inbox's own read (lib/wire-prices-server.ts: past 1.5 s it gives up and the rows show their moves alone).
+  const [inbox, portfolio, live] = await Promise.all([loadExampleInbox(), loadExamplePortfolio().catch(() => null), loadLivePrices(EXAMPLE_STOCK_TICKERS)]);
   const exampleRows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today, { example: true });
   // The stocks the rows already talk about: no card says them again (owner rule 1).
   const said = [
@@ -106,7 +110,15 @@ async function ExampleInbox({ kind }: { kind: InboxKind | null }) {
         <EmptyInbox example unavailable={readFailed(inbox.missing)} />
       ) : (
         <>
-          <InboxList items={exampleRows.items.map(forClient)} upcoming={exampleRows.upcoming} seenAt={null} today={inbox.today} example initialKind={kind} />
+          <InboxList
+            items={exampleRows.items.map(forClient)}
+            upcoming={exampleRows.upcoming}
+            prices={rowPrices(exampleRows.items, live)}
+            seenAt={null}
+            today={inbox.today}
+            example
+            initialKind={kind}
+          />
           {/* No Ask box on the page: the shell's Ask opens on the example's stocks (owner rule 1). */}
           <AskPageHint context="ex.portfolio" />
         </>
@@ -120,7 +132,8 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
   // Without the user doc there are no stocks, follows or read mark to go on: say the inbox could not be read.
   const [doc, viewer] = await Promise.all([getUserDoc(uid).catch(() => undefined), getViewer()]);
   if (doc === undefined) return <EmptyInbox unavailable />;
-  const inbox = await loadUserInbox(viewer, doc);
+  // The prices of the person's stocks read beside the inbox, not after it (one bounded batch; see ExampleInbox).
+  const [inbox, live] = await Promise.all([loadUserInbox(viewer, doc), loadLivePrices(inboxStocks(doc, viewer).map((stock) => stock.ticker))]);
   if (inbox.items.length === 0 && inbox.upcoming.length === 0) return <EmptyInbox unavailable={readFailed(inbox.missing)} />;
   const { seenAt } = readState(inbox.items, doc, inbox.today);
   const rows = rowsAfterRead(inbox.items, inbox.upcoming, NOTHING_TOLD, inbox.today);
@@ -130,6 +143,7 @@ async function UserInbox({ uid, kind }: { uid: string; kind: InboxKind | null })
       <InboxList
         items={rows.items.map(forClient)}
         upcoming={rows.upcoming}
+        prices={rowPrices(rows.items, live)}
         seenAt={seenAt}
         today={inbox.today}
         example={false}

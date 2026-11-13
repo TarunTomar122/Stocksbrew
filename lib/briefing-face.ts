@@ -43,8 +43,6 @@ const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 /** A card's one line is at most this many words (owner rule 8). */
 export const LINE_WORDS = 15;
-/** Gaps smaller than this, in points, read as "Flat" against the S&P 500. */
-export const GAP_FLAT_PTS = 0.15;
 /** Do today holds at most this many cards. */
 export const DO_TODAY_MAX = 3;
 /** Earnings this close on a holding are a decision. */
@@ -131,13 +129,16 @@ export function levelLine(level: OwnLevel): string {
 export type Gap = { word: "Ahead" | "Behind" | "Flat"; pts: number };
 
 /**
- * "Ahead 4.0 pts", "Behind 1.2 pts" or "Flat" (under GAP_FLAT_PTS), from the two moves as the strip shows them (one
- * decimal), so the gap always agrees with the two figures beside it.
+ * "Ahead 4.0 pts", "Behind 1.2 pts" or "Flat", from the two moves as the strip shows them (one decimal), so the gap
+ * always agrees with the two figures beside it: "Flat" only when they print the same, and −0.4% against −0.3% is
+ * "Behind 0.1 pts", never "Flat" (judge 89).
  */
 export function gapOf(you: number | null | undefined, market: number | null | undefined): Gap | null {
   if (!fin(you) || !fin(market)) return null;
-  const pts = Number((Number(you.toFixed(1)) - Number(market.toFixed(1))).toFixed(1));
-  if (Math.abs(pts) < GAP_FLAT_PTS) return { word: "Flat", pts: 0 };
+  // Rounded as signedPct prints them; -0.04 prints as 0.0%, so it rounds to 0 here too (no "-0").
+  const shown = (pct: number) => Number(pct.toFixed(1)) || 0;
+  const pts = Number((shown(you) - shown(market)).toFixed(1));
+  if (pts === 0) return { word: "Flat", pts: 0 };
   return { word: pts > 0 ? "Ahead" : "Behind", pts: Math.abs(pts) };
 }
 
@@ -545,8 +546,9 @@ export function heatCells(
 export type LevelFactKind = "sales" | "eps" | "dividend" | "valuation" | "move";
 
 /**
- * One measured fact behind a call at its level, as a card shows it: a big figure ("+16%"), a few words saying what it
- * is ("sales growth"), and at most one line (≤15 words). `weight` is how strongly it backs the call, for picking.
+ * One measured fact behind a call at its level, as a card shows it: a big figure ("+16%") and a few words saying what it
+ * is ("sales growth"). `line` (≤15 words) is its context, the card's hover: the card itself keeps to one fact beside
+ * its level and price (owner rule 8). `weight` is how strongly it backs the call, for picking.
  */
 export type LevelFact = { kind: LevelFactKind; figure: string; label: string; line: string | null; tone: Tone; weight: number };
 

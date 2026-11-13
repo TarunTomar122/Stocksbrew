@@ -16,21 +16,6 @@ import type { StockSignals } from "@/lib/stock-signals";
 /** At most this many entries go to the browser, all in the list's inner scroll (changed-timeline.tsx). */
 const TIMELINE_MAX = 40;
 
-/** "From Yahoo Finance, Benzinga and Finviz": the headlines' publishers, most used first, three named at most. */
-export function publishers(items: Array<{ kind: string; source?: string | null }>): string | null {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const source = item.kind === "news" ? (item.source ?? "").trim() : "";
-    if (source) counts.set(source, (counts.get(source) ?? 0) + 1);
-  }
-  const names = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
-  if (names.length === 0) return null;
-  const shown = names.slice(0, 3);
-  const more = names.length - shown.length;
-  const list = more > 0 ? `${shown.join(", ")} and ${more} more` : shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : shown[0];
-  return `From ${list}`;
-}
-
 /**
  * The lower half of the stock report: what changed, then the deeper report
  * as tabs. It streams in under the call, the price and the read, once the
@@ -63,8 +48,6 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
   // The brief above already leads with the development, so the list does not say it again (owner rules 1 and 7).
   const briefLead = data.readState === "ready" ? briefLeadOf(data.read).lead : "";
   const changeLine = saysSameDevelopment(weekLine, briefLead, { ticker: stock.ticker, companyName: stock.name }) ? null : weekLine;
-  // Each headline's publisher, named once in the section head instead of on every row (owner rule 1), most used first.
-  const sources = publishers(extras.timeline.items.slice(0, TIMELINE_MAX));
   // Headlines and move titles in sentence case, through the wire's shared casing (owner rule 8: no Scraped Title Case).
   const timelineItems = caseTimeline(
     extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item)),
@@ -85,7 +68,6 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
             </span>
           }
           className="scroll-mt-16 lg:scroll-mt-4"
-          meta={sources ? <span className="font-sans text-[12px]">{sources}</span> : undefined}
         >
           {changeLine ? <p className="text-pretty border-b border-oa-border px-3.5 py-2.5 text-[15px] font-medium leading-[22px] text-oa-fg sm:px-4">{changeLine}</p> : null}
           {extras.timeline.upcoming.length ? (

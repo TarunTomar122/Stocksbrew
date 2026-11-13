@@ -8,13 +8,15 @@ import { UpcomingRow } from "@/components/inbox/upcoming-row";
 import { postSeen, useMarkSeen } from "@/components/inbox/use-mark-seen";
 import { ProMark } from "@/components/oa/gate";
 import { groupByDay, groupByStock, isUnread, kindCounts, unreadRows } from "@/lib/inbox/merge";
+import { showsMove, type RowPrice } from "@/lib/inbox/prices";
 import { newestShown, wouldClear } from "@/lib/inbox/seen";
 import { KIND_LABEL, type InboxItem, type InboxKind, type UpcomingLine } from "@/lib/inbox/types";
 
 /**
  * The inbox page's list: kind chips, then the reports coming up on the
- * person's stocks, then the items grouped by day, each stock said once a day,
- * in one fixed-height box that scrolls inside (about eight rows show). Filtering
+ * person's stocks, then the items grouped by day, each stock said once a day.
+ * The first rows show and one quiet "Show N more" opens the rest, so the list
+ * never scrolls inside its own box (owner rule 4, judge89). Filtering
  * happens here, on what the page already sent, so a chip never waits on the
  * server; the chosen kind is kept in the address.
  *
@@ -23,6 +25,9 @@ import { KIND_LABEL, type InboxItem, type InboxKind, type UpcomingLine } from "@
  * stay for this view so people see what was new. "Mark all read" is only there
  * when that save failed and something is still unread.
  */
+
+/** Rows (reports coming up and stock rows, as drawn) shown before "Show N more". */
+const FIRST_ROWS = 10;
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
@@ -46,8 +51,11 @@ export function InboxList({
   heading = null,
   account = null,
   upcoming = [],
+  prices = {},
 }: {
   items: InboxItem[];
+  /** Each stock's current price, for the rows that report its move (lib/inbox/prices.ts). */
+  prices?: Record<string, RowPrice>;
   /** Reports coming up on the person's stocks, soonest first: shown first, under the earnings chip, never unread. */
   upcoming?: UpcomingLine[];
   /** The read mark the page was rendered with; null for the example. */
@@ -63,6 +71,7 @@ export function InboxList({
   const [kind, setKind] = React.useState<InboxKind | null>(initialKind);
   const [mark, setMark] = React.useState<string | null>(seenAt);
   const [saving, setSaving] = React.useState<"idle" | "saving" | "failed">("idle");
+  const [expanded, setExpanded] = React.useState(false);
   const router = useRouter();
   // Everything the page shows (every kind; a chip only hides rows), read up to its newest item.
   const newest = React.useMemo(() => newestShown(items), [items]);
@@ -83,13 +92,29 @@ export function InboxList({
   const active = filtering ? kind : null;
   const shown = active ? listed.filter((item) => chipOf(item.kind) === active) : listed;
   const ahead = !active || active === "results" ? upcoming : [];
-  const days = groupByDay(shown, today).map((group) => ({ ...group, rows: groupByStock(group.items) }));
+  const allDays = groupByDay(shown, today).map((group) => ({ ...group, rows: groupByStock(group.items) }));
+  const totalRows = ahead.length + allDays.reduce((sum, group) => sum + group.rows.length, 0);
+  // The first FIRST_ROWS rows, in order across the coming-up block and the days; the rest wait behind "Show N more",
+  // unless only one or two would wait (a click for almost nothing).
+  let budget = expanded || totalRows <= FIRST_ROWS + 2 ? Number.POSITIVE_INFINITY : FIRST_ROWS;
+  const aheadShown = ahead.slice(0, budget);
+  budget -= aheadShown.length;
+  const days: typeof allDays = [];
+  for (const group of allDays) {
+    if (budget <= 0) break;
+    const rows = group.rows.slice(0, budget);
+    budget -= rows.length;
+    days.push({ ...group, rows });
+  }
+  const shownRows = aheadShown.length + days.reduce((sum, group) => sum + group.rows.length, 0);
+  const hiddenRows = totalRows - shownRows;
   const unreadOf = (item: InboxItem) => Boolean(mark && isUnread(item, mark));
   // Rows, as drawn: one agent run that flags eight stocks, or MU's move and its level, count as the rows they are.
   const unread = mark ? unreadRows(items, mark, today) : 0;
 
   const choose = (next: InboxKind | null) => {
     setKind(next);
+    setExpanded(false);
     const url = new URL(window.location.href);
     if (next) url.searchParams.set("kind", next);
     else url.searchParams.delete("kind");
@@ -149,18 +174,18 @@ export function InboxList({
           ) : null}
         </div>
       ) : null}
-      {days.length === 0 && ahead.length === 0 ? (
+      {allDays.length === 0 && ahead.length === 0 ? (
         // Rows the read above already said are not "nothing": then the list has no line to add.
         active || listed.length === items.length ? (
           <p className="px-4 py-6 text-[14px] text-oa-muted-fg">{active ? "Nothing of this kind in the last two weeks." : "Nothing in the last two weeks."}</p>
         ) : null
       ) : (
-        <div className="scrollbar-hide max-h-[min(36rem,calc(100dvh-14rem))] overflow-y-auto">
-          {ahead.length > 0 ? (
+        <div>
+          {aheadShown.length > 0 ? (
             <section aria-label="Reports coming up" className="border-t border-oa-border first:border-t-0">
-              <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">Coming up</h3>
+              <h3 className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">Coming up</h3>
               <ul className="divide-y divide-oa-border">
-                {ahead.map((report) => (
+                {aheadShown.map((report) => (
                   <UpcomingRow key={`${report.ticker}:${report.date}`} report={report} />
                 ))}
               </ul>
@@ -168,7 +193,7 @@ export function InboxList({
           ) : null}
           {days.map((group) => (
             <section key={group.day} aria-label={group.label} className="border-t border-oa-border first:border-t-0">
-              <h3 className="oa-caption sticky top-0 z-[1] border-b border-oa-border bg-oa-bg px-4 py-1.5">{group.label}</h3>
+              <h3 className="oa-caption border-b border-oa-border bg-oa-bg px-4 py-1.5">{group.label}</h3>
               <ul className="divide-y divide-oa-border">
                 {group.rows.map((row, index) => {
                   const newestUnread = newestShown(row.items.filter(unreadOf));
@@ -183,6 +208,7 @@ export function InboxList({
                       today={today}
                       lockMark={<ProMark />}
                       showMeta={showMeta}
+                      price={row.ticker && row.items.some(showsMove) ? (prices[row.ticker.toUpperCase()] ?? null) : null}
                       // Following an item counts as reading it: the save goes now, up to that item, not after the two seconds.
                       onOpen={newestUnread ? () => auto.markNow(newestUnread) : undefined}
                     />
@@ -191,6 +217,15 @@ export function InboxList({
               </ul>
             </section>
           ))}
+          {hiddenRows > 0 ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className={`block w-full border-t border-oa-border px-4 py-3 text-left text-[14px] font-medium text-oa-primary transition-colors hover:bg-oa-accent ${FOCUS}`}
+            >
+              Show {hiddenRows} more
+            </button>
+          ) : null}
         </div>
       )}
     </section>

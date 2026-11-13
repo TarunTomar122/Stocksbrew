@@ -140,7 +140,8 @@ describe("memoHeadline", () => {
   it("says the way the week went and the gap, one number in twelve words or fewer", () => {
     expect(memoHeadline({ portfolioPct: 1.23, marketPct: 2.01 }, false)).toBe("Up so far, 0.8 points behind the S&P 500");
     expect(memoHeadline({ portfolioPct: -0.4, marketPct: -1.5 }, true)).toBe("Down this week, 1.1 points ahead of the S&P 500");
-    expect(memoHeadline({ portfolioPct: 2.1, marketPct: 2.0 }, true)).toBe("Up this week, in step with the S&P 500");
+    expect(memoHeadline({ portfolioPct: 2.1, marketPct: 2.0 }, true)).toBe("Up this week, 0.1 points ahead of the S&P 500");
+    expect(memoHeadline({ portfolioPct: 2.04, marketPct: 2.0 }, true)).toBe("Up this week, in step with the S&P 500");
     expect(memoHeadline({ portfolioPct: 0.01, marketPct: 1 }, true)).toBe("Flat this week, 1.0 point behind the S&P 500");
     expect(memoHeadline({ portfolioPct: 3, marketPct: null }, true)).toBe("Up 3.0% this week");
     expect(memoHeadline({ portfolioPct: 0.02, marketPct: null }, false)).toBe("Flat so far");
@@ -156,11 +157,14 @@ describe("memoHeadline", () => {
 
   it("rounds the gap once, so the headline, the chart and the weeks agree", () => {
     expect(gapWords(-3.3, -2.7)).toBe("0.6 points behind the S&P 500");
-    expect(gapWords(0.1, 0)).toBe("in step with the S&P 500");
-    // 0.2549 rounds to 0.25: ahead, everywhere.
-    expect(weekGap(1.2549, 1)).toEqual({ points: 0.25, side: "ahead" });
+    // From the printed figures: 0.1% against 0.0% is a gap; 1.04% against 1.0% prints the same, so in step.
+    expect(gapWords(0.1, 0)).toBe("0.1 points ahead of the S&P 500");
+    expect(gapWords(1.04, 1)).toBe("in step with the S&P 500");
+    // 1.2549 prints as 1.3%: ahead by the printed 0.3, everywhere.
+    expect(weekGap(1.2549, 1)).toEqual({ points: 0.3, side: "ahead" });
     expect(gapWords(1.2549, 1)).toBe("0.3 points ahead of the S&P 500");
-    expect(weekGap(1, 1.2449)).toEqual({ points: -0.24, side: "in step" });
+    // 1.2449 prints as 1.2%: behind by 0.2, never "in step" beside two different numbers.
+    expect(weekGap(1, 1.2449)).toEqual({ points: -0.2, side: "behind" });
   });
 });
 

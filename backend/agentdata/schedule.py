@@ -17,7 +17,7 @@ Groups and what they keep fresh:
 * ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
-                   the reason checks and the filing changes (TypeScript, see "Node jobs" below)
+                   the reason checks, the filing changes and the thesis checks (TypeScript, see "Node jobs" below)
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
@@ -95,6 +95,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # stock on a quiet night, 400ms apart so it and the hourly SEC filings step (:20, ~7 a second) stay under SEC's
         # 10 a second together; documents only for new filings.
         ("filing changes", ["node:scripts/run-filing-changes.ts", "--quiet", "--budget-minutes=20"]),
+        # Each thesis's measurable lines judged per report and its companies' new 10-K/10-Q risk changes recorded,
+        # stored in tm_agent_thesis_checks (rules only, no model). After the filing changes, so tonight's are seen.
+        ("thesis checks", ["node:scripts/run-thesis-checks.ts"]),
     ],
     "weekly": [
         ("13F funds", ["backend.agentdata.funds_13f"]),
@@ -158,6 +161,8 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     # [first full fill from a laptop, Nov 13: 585 stocks in 6.6 min at 150ms; a quiet night is ~600 SEC list requests,
     # ~4 min at 400ms]
     ("after_close", "filing changes"): 25 * 60,
+    # [new; a few figure reads per thesis, well under a minute for a handful of theses]
+    ("after_close", "thesis checks"): 15 * 60,
     # [~50 funds, two or three Yahoo requests each, ~1 min]
     ("weekly", "fund facts"): 15 * 60,
     ("weekly", "fund instruments"): 10 * 60,

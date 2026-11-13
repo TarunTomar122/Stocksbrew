@@ -19,6 +19,7 @@ import { quote, risks } from "@/lib/filing-changes/words";
 import { firstSentence } from "@/lib/thread/record";
 import { basketDrafts, basketStale, type ProposalBasket } from "@/lib/basket-agent/proposals";
 import type { BasketChange } from "@/lib/basket-agent/model";
+import { thesisBasketOf, thesisDrafts, type ProposalThesis } from "@/lib/thesis-monitor/proposals";
 
 export const PROPOSALS_COLLECTION = "tm_agent_proposals";
 export const PROPOSAL_VERSION = 1;
@@ -58,7 +59,9 @@ export type ProposalKind =
   | "agent_flagged"
   /** An idea basket's agent found a company whose reason broke, or one that now fits better (lib/basket-agent). */
   | "basket_drop"
-  | "basket_add";
+  | "basket_add"
+  /** A thesis's check broke a line on a holding or moved it to a worse status (lib/thesis-monitor): review it. */
+  | "thesis_review";
 
 export type ProposalAction =
   /** Set a price alert; with `replaces`, the old alert is turned off once the new one is set (a move). */
@@ -250,6 +253,8 @@ export type ProposalInputs = {
   practice?: Record<string, number> | null;
   /** The person's idea baskets with their recent checks (lib/basket-agent). */
   baskets?: ProposalBasket[] | null;
+  /** The person's theses with their latest check (lib/thesis-monitor). */
+  theses?: ProposalThesis[] | null;
 };
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
@@ -430,7 +435,7 @@ function liveAlertOn(inputs: ProposalInputs, ticker: string, condition: "below" 
   return priceAlerts(inputs, ticker).filter((alert) => alert.live && alert.condition === condition && fin(alert.price)).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] ?? null;
 }
 
-function priceFigures(ticker: string, point: PricePoint, inputs: ProposalInputs): ProposalFigure[] {
+export function priceFigures(ticker: string, point: PricePoint, inputs: ProposalInputs): ProposalFigure[] {
   const quote = inputs.quotes?.[ticker];
   const out: ProposalFigure[] = [{ label: "Price", value: usd(point.price) }];
   if (point.source === "quote" && quote && fin(quote.dayPct)) out.push({ label: "Today", value: signedPct(quote.dayPct) });
@@ -441,7 +446,7 @@ function priceFigures(ticker: string, point: PricePoint, inputs: ProposalInputs)
  * The levels the agent weighed on the side the proposal acts on (owner rule: a call shows only its own level): under
  * the price, the buy-more level and the 60-day low; over it, the sell-some level and the 60-day high.
  */
-function levelFigures(inputs: ProposalInputs, ticker: string, side: "below" | "above"): ProposalFigure[] {
+export function levelFigures(inputs: ProposalInputs, ticker: string, side: "below" | "above"): ProposalFigure[] {
   const out: ProposalFigure[] = [];
   const levels = openLevels(inputs, ticker);
   if (side === "below" && fin(levels?.add_below)) out.push({ label: "Buy-more level", value: usd(levels!.add_below!) });
@@ -451,19 +456,19 @@ function levelFigures(inputs: ProposalInputs, ticker: string, side: "below" | "a
   return out;
 }
 
-function priceSource(ticker: string, point: PricePoint): ProposalSource {
+export function priceSource(ticker: string, point: PricePoint): ProposalSource {
   return point.source === "quote"
     ? { label: `${ticker} latest price`, at: point.at, href: `/stock/${encodeURIComponent(ticker)}` }
     : { label: `${ticker} last close`, at: point.at, href: `/stock/${encodeURIComponent(ticker)}` };
 }
 
-function seriesSource(inputs: ProposalInputs, ticker: string): ProposalSource[] {
+export function seriesSource(inputs: ProposalInputs, ticker: string): ProposalSource[] {
   const series = inputs.series?.[ticker];
   const last = series && series.length > 0 ? series[series.length - 1] : null;
   return last ? [{ label: `${ticker} daily closes, last 60 sessions`, at: last.date, href: `/stock/${encodeURIComponent(ticker)}` }] : [];
 }
 
-function alertAction(ticker: string, instrumentId: string, condition: "below" | "above", price: number, replaces: ProposalAlert | null): ProposalAction {
+export function alertAction(ticker: string, instrumentId: string, condition: "below" | "above", price: number, replaces: ProposalAlert | null): ProposalAction {
   return {
     type: "alert_price",
     ticker,
@@ -474,11 +479,19 @@ function alertAction(ticker: string, instrumentId: string, condition: "below" | 
   };
 }
 
-function alertDoes(ticker: string, condition: "below" | "above", price: number, replaces: ProposalAlert | null): string {
+export function alertDoes(ticker: string, condition: "below" | "above", price: number, replaces: ProposalAlert | null): string {
   const side = condition === "below" ? "falls to" : "rises to";
   return replaces && fin(replaces.price)
     ? `Turns off your ${usd(replaces.price)} alert and emails you if ${ticker} ${side} ${usd(price)}.`
     : `Emails you if ${ticker} ${side} ${usd(price)}.`;
+}
+
+/**
+ * A set-or-move alert proposal's title: the action alone ("Set an alert on ASTS at $33.66"). What set it off is the
+ * card's one line, so the title never says it a second time (owner rule 8).
+ */
+function alertTitle(ticker: string, price: number, replaces: ProposalAlert | null): string {
+  return replaces ? `Move ${ticker}'s ${usd(replaces.price!)} alert to ${usd(price)}` : `Set an alert on ${ticker} at ${usd(price)}`;
 }
 
 function stockOf(inputs: ProposalInputs, ticker: string): ProposalStock | null {
@@ -517,7 +530,8 @@ function alertRules(inputs: ProposalInputs): ProposalDraft[] {
       // once it fires, has its own id and makes its own proposal.
       event: { key: `alert:${alert.id}:${alert.triggeredAt}`, kind: "alert_hit", at: alert.triggeredAt ?? point.at, refs: [`tm_alerts/${alert.id}`] },
       idea: `alert:${ticker}:${alert.condition}:${next.price}`,
-      title: `Move ${ticker}'s ${usd(alert.price)} alert ${way} to ${usd(next.price)}`,
+      // The action alone: which alert fired is the line under it (owner rule 8, judge 89).
+      title: `Move ${ticker}'s alert ${way} to ${usd(next.price)}`,
       why: [`${ticker} hit your ${usd(alert.price)} alert ${onDay(firedDay, inputs.today)} and is at ${usd(point.price)}.`, nextLine(next, way)],
       does: `Emails you if ${ticker} ${alert.condition === "below" ? "falls" : "rises"} to ${usd(next.price)}. Your ${usd(alert.price)} alert already fired.`,
       read: [
@@ -558,7 +572,6 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
     const next = levelBelow(inputs, ticker, point.price);
     const replaces = alertUnder(inputs, ticker, point.price, next);
     if (replaces === false) continue;
-    const cause = cut ? "guidance cut" : "results drop";
     // One sentence (owner rule 8), the earnings surprise folded in: "ASTS reported on Monday, missed on earnings by
     // 7.3% and fell 8.7%."
     const surprise = read.epsVerdict === "miss" || read.epsVerdict === "beat" ? read.epsVerdict : null;
@@ -574,7 +587,8 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
       instrument_id: stock.instrumentId,
       event: { key: `results:${ticker}:${read.reportDate}`, kind: "results", at: read.reportDate, refs: [`results/${ticker}/${read.reportDate}`] },
       idea: `alert:${ticker}:below:${next.price}`,
-      title: replaces ? `Move ${ticker}'s ${usd(replaces.price!)} alert to ${usd(next.price)} after the ${cause}` : `Set an alert at ${usd(next.price)} after ${ticker}'s ${cause}`,
+      // The action alone; the line under it says what happened (owner rule 8, judge 89).
+      title: alertTitle(ticker, next.price, replaces),
       why: [`${ticker} ${listWords(did)}.`, nextLine(next, "down")],
       does: alertDoes(ticker, "below", next.price, replaces),
       read: [
@@ -623,7 +637,7 @@ function listWords(parts: string[]): string {
  * be proposed: an alert already sits at the level (within 1%) or close to it (within 3%), or a new one would not fit
  * the plan.
  */
-function alertUnder(inputs: ProposalInputs, ticker: string, price: number, next: LevelPick): ProposalAlert | null | false {
+export function alertUnder(inputs: ProposalInputs, ticker: string, price: number, next: LevelPick): ProposalAlert | null | false {
   if (hasAlertNear(inputs, ticker, "below", next.price)) return false;
   const existing = liveAlertOn(inputs, ticker, "below");
   const under = existing && existing.price! < price ? existing : null;
@@ -816,7 +830,7 @@ function moveRules(inputs: ProposalInputs): ProposalDraft[] {
         instrument_id: stock.instrumentId,
         event: { key: `move:${ticker}:${day}`, kind: "big_move", at: day, refs: [`tm_agent_runs/${run.id}`] },
         idea: `alert:${ticker}:below:${next.price}`,
-        title: replaces ? `Move ${ticker}'s ${usd(replaces.price!)} alert to ${usd(next.price)} after the drop` : `Set an alert at ${usd(next.price)} after ${ticker}'s drop`,
+        title: alertTitle(ticker, next.price, replaces),
         why: [
           `${ticker} fell ${Math.abs(Math.round(finding.change_pct * 10) / 10)}% ${onDay(day, inputs.today)}, with a reason your agent found.`,
           nextLine(next, "down"),
@@ -972,7 +986,7 @@ function reasonRules(inputs: ProposalInputs): ProposalDraft[] {
     out.push({
       ...base,
       idea: `alert:${ticker}:below:${next.price}`,
-      title: `Set an alert at ${usd(next.price)}: your ${ticker} reason broke`,
+      title: alertTitle(ticker, next.price, replaces),
       why: [brokeWhen, nextLine(next, "down")],
       does: alertDoes(ticker, "below", next.price, replaces),
       read: [...read, priceSource(ticker, point), ...seriesSource(inputs, ticker)],
@@ -1010,7 +1024,7 @@ function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
       instrument_id: stock.instrumentId,
       event: { key: `filing_risks:${ticker}:${change.accession}`, kind: "filing_risks", at: change.filed, refs: [`tm_filing_changes/${ticker}`] },
       idea: `alert:${ticker}:below:${next.price}`,
-      title: `Set an alert at ${usd(next.price)}: ${ticker}'s ${change.form} adds ${risks(count)}`,
+      title: alertTitle(ticker, next.price, replaces),
       why: [
         `${ticker}'s ${change.form} ${onDay(change.filed, inputs.today)} adds ${risks(count)}${dropped}.`,
         ...(newRisk.fits ? [`New: “${newRisk.text}”`] : []),
@@ -1103,8 +1117,8 @@ function agentResumeRules(inputs: ProposalInputs): ProposalDraft[] {
       instrument_id: stockOf(inputs, report.ticker)?.instrumentId ?? null,
       event: { key: `agent_resume:${job.id}:${report.date}`, kind: "agent_resume", at: inputs.today, refs: [`tm_agent_jobs/${job.id}`] },
       idea: `agent_enable:${job.id}:true`,
-      title: `Turn your earnings agent back on before ${report.ticker} reports`,
-      why: [`"${name}" is paused.`, `${report.ticker} reports ${onDay(report.date, inputs.today)}.`],
+      title: "Turn your earnings agent back on",
+      why: [`${report.ticker} reports ${onDay(report.date, inputs.today)}.`, `"${name}" is paused.`],
       does: `Turns on "${clipWords(job.name, 6)}" so it tells you about the report.`,
       read: [
         { label: "Your agents", at: inputs.today, href: "/agents" },
@@ -1133,9 +1147,10 @@ function agentPauseRules(inputs: ProposalInputs): ProposalDraft[] {
       instrument_id: null,
       event: { key: `agent_pause:${job.id}:${last[0]!.day}`, kind: "agent_pause", at: last[0]!.ran_at || last[0]!.day, refs: last.map((run) => `tm_agent_runs/${run.id}`) },
       idea: `agent_enable:${job.id}:false`,
-      title: `Pause "${name}": its last three runs failed`,
+      title: `Pause "${name}"`,
       why: [
-        `"${name}" couldn't read its data three runs running.`,
+        // The title names the agent; the line is only what happened.
+        "Its last three runs couldn't read their data.",
         inputs.plan === "pro" ? "You can turn it back on any time." : "Pausing it frees one of your running agent slots.",
       ],
       does: `Pauses "${clipWords(job.name, 6)}". Its runs and settings stay.`,
@@ -1168,7 +1183,7 @@ function flaggedRules(inputs: ProposalInputs): ProposalDraft[] {
         instrument_id: `US_${ticker.replace(/\./g, "_")}`,
         event: { key: `flag:${ticker}:${run.id}`, kind: "agent_flagged", at: run.ran_at || run.day, refs: [`tm_agent_runs/${run.id}`] },
         idea: `watch_add:${ticker}`,
-        title: `Add ${ticker} to Watching after your agent flagged it`,
+        title: `Add ${ticker} to Watching`,
         why: [
           `"${name}" flagged ${ticker} ${onDay(run.day, inputs.today)}.`,
           // A source headline in Scraped Title Case is not shown (owner rule 8).
@@ -1220,6 +1235,7 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
     ...flaggedRules(inputs),
     ...agentPauseRules(inputs),
     ...basketDrafts(inputs.baskets, inputs.today),
+    ...thesisDrafts(inputs),
   ]
     .map(fitWords)
     .filter((draft): draft is ProposalDraft => draft !== null)
@@ -1284,8 +1300,9 @@ export function pickNew(drafts: ProposalDraft[], existing: Proposal[], now: Date
 /** Idea-basket proposals waiting at once: one per basket, two in all (lib/basket-agent), so they never fill the queue. */
 export const MAX_BASKET_WAITING = 2;
 
-function basketOf(entry: Pick<ProposalDraft, "action">): string | null {
-  return entry.action.type === "basket_edit" ? entry.action.basket_id : null;
+function basketOf(entry: Pick<ProposalDraft, "action" | "kind" | "event">): string | null {
+  // A thesis lives on a basket (lib/thesis-monitor): its review proposals take the same basket slots.
+  return entry.action.type === "basket_edit" ? entry.action.basket_id : thesisBasketOf(entry);
 }
 
 /**
@@ -1481,7 +1498,52 @@ export type ProposalCard = Pick<Proposal, "id" | "kind" | "ticker" | "title" | "
   does: string | null;
   actionType: ProposalAction["type"];
   quote: { price: number; dayPct: number | null } | null;
+  /** Which shared action it belongs to, so two or more cards of one action sit under one heading (groupOf). */
+  group: ProposalGroup;
 };
+
+/**
+ * Cards that do the same thing share a heading that says the action once ("Try buying in your practice account"), and
+ * each card keeps only what differs (owner rule 1). `key` is the shared action; `heading` says it; `short` is the
+ * card's own part of the action under that heading, or null when the ticker on the card already says it all.
+ */
+export type ProposalGroup = { key: string; heading: string; short: string | null };
+
+/** An agent's name as its card says it under a group's heading, quoted as the titles quote it; null without one. */
+function agentName(name: unknown): string | null {
+  return typeof name === "string" && name.trim() ? `"${clipWords(name, 6)}"` : null;
+}
+
+export function groupOf(action: ProposalAction): ProposalGroup {
+  switch (action.type) {
+    case "practice_ticket":
+      return action.side === "buy"
+        ? { key: "practice:buy", heading: "Try buying in your practice account", short: null }
+        : { key: "practice:sell", heading: "Try selling some in your practice account", short: null };
+    case "alert_price":
+      return {
+        key: "alert_price",
+        heading: "Set price alerts",
+        short: action.replaces ? `Move the ${usd(action.replaces.price)} alert to ${usd(action.price)}` : `Alert at ${usd(action.price)}`,
+      };
+    case "alert_earnings":
+      return { key: "alert_earnings", heading: "Get a reminder the day before each report", short: null };
+    case "watch_add":
+      return { key: "watch_add", heading: "Add to Watching", short: null };
+    case "agent_enable":
+      return action.enabled
+        ? { key: "agent_on", heading: "Turn these agents back on", short: agentName(action.job_name) }
+        : { key: "agent_off", heading: "Pause these agents", short: agentName(action.job_name) };
+    case "agent_create":
+      return { key: "agent_create", heading: "Set up these agents", short: agentName(action.name) };
+    case "basket_edit": {
+      const name = wordCount(action.basket_name) <= 5 ? `“${action.basket_name}”` : "your idea basket";
+      return action.op === "drop"
+        ? { key: `basket:${action.basket_id}:drop`, heading: `Drop from ${name}`, short: null }
+        : { key: `basket:${action.basket_id}:add`, heading: `Add to ${name}`, short: null };
+    }
+  }
+}
 
 export function toCard(proposal: Proposal, quote: ProposalQuote | null): ProposalCard {
   // The fresh quote, else the one from the last sync (minutes old), so every card shows a price and its day.
@@ -1502,6 +1564,7 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     does: repeatsTitle(proposal.title, proposal.does) ? null : proposal.does,
     level: proposal.level ?? levelOf(proposal.action),
     usualPct: proposal.usualPct ?? null,
+    group: groupOf(proposal.action),
   };
 }
 

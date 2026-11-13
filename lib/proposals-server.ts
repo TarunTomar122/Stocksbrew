@@ -59,6 +59,7 @@ import { CHECKS_COLLECTION, checkDocId, lastChange, readStoredCheck } from "@/li
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
 import { listBasketRuns, listBaskets } from "@/lib/basket-agent/data";
 import type { ProposalBasket } from "@/lib/basket-agent/proposals";
+import { readProposalTheses } from "@/lib/thesis-monitor/data";
 
 /** How long any one read may take before the rules go on without it. */
 const READ_MS = 2500;
@@ -338,7 +339,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
       if (value === null) complete = false;
       return value ?? undefined;
     });
-  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice, baskets] = await Promise.all([
+  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice, baskets, theses] = await Promise.all([
     guard(resolveScope(uid, { kind: "watchlist" }, { calls: true })),
     guard(readSeries(tickers)),
     guard(readQuotes(stocks)),
@@ -352,6 +353,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     guard(reportsSource(inboxStocks(doc, viewer), today)),
     guard(readPractice(uid)),
     guard(readBaskets(uid)),
+    guard(readProposalTheses(uid, new Set(tickers))),
   ]);
   const inputs: ProposalInputs = {
     now,
@@ -390,6 +392,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     practice,
     // A failed read is null, not "none": the agent-room check then says there is no room (lib/proposals.ts roomForAgent).
     baskets: baskets === undefined ? null : baskets,
+    theses,
   };
   return { inputs, complete };
 }

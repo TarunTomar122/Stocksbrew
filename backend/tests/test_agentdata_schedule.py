@@ -76,8 +76,13 @@ class ScheduleTest(unittest.TestCase):
         labels = [label for label, _ in schedule.GROUPS["after_close"]]
         self.assertIn("reason checks", labels)
         self.assertEqual(labels.index("reason checks"), labels.index("standing agents") + 1)
-        # The filing check is last: it only reads SEC and writes tm_filing_changes, so nothing after the close waits on it.
-        self.assertEqual(labels[-2:], ["reason checks", "filing changes"])
+        # The filing check only reads SEC and writes tm_filing_changes; the thesis check after it reads what it wrote.
+        self.assertEqual(labels[-3:], ["reason checks", "filing changes", "thesis checks"])
+
+    def test_thesis_checks_run_after_the_filing_changes_with_their_own_limit(self):
+        argv = dict(schedule.GROUPS["after_close"])["thesis checks"]
+        self.assertEqual(argv, ["node:scripts/run-thesis-checks.ts"])
+        self.assertEqual(schedule.timeout_for("after_close", "thesis checks"), 15 * 60)
 
     def test_filing_changes_is_a_node_job_with_its_own_limit(self):
         argv = dict(schedule.GROUPS["after_close"])["filing changes"]
