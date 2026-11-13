@@ -6,6 +6,8 @@
 import { fmtEps, type Session } from "@/lib/calendar-shared";
 import { earningsDayHref } from "@/lib/earnings-day-shared";
 import { moveStats, type PastReport } from "@/lib/earnings-season";
+import { etDayOf } from "@/lib/day-words";
+import { isExtendedLive, type ExtendedQuote } from "@/lib/extended-quotes";
 import { etWallTimeToUtcMs, isNyseHoliday } from "@/lib/market-session";
 
 import type { ResultCall, ResultCallWord, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultRevenue, ResultSource } from "./types";
@@ -171,7 +173,10 @@ export type PremarketQuote = { pct: number; date: string; at: string | null };
  * How the stock took the results:
  * 1. the measured close-to-close move (lib/earnings-season.ts) once the reaction session's close is final;
  * 2. else the live quote, when it is from the reaction session (its day change is from the close before it);
- * 3. else, before the open on the reaction day, the pre-market quote.
+ * 3. else, before the open on the reaction day, the pre-market quote (the newer of the movers snapshot and the stored
+ *    extended quote);
+ * 4. else, after an after-close report and before the next open, the after-hours print against the report day's
+ *    close. It is said as "after hours", never as the session's move.
  */
 export function pickMove(input: {
   date: string;
@@ -182,6 +187,8 @@ export function pickMove(input: {
   priceMeta: PriceMeta | null;
   quote: LiveQuote | null;
   premarket: PremarketQuote | null;
+  /** The stored after-hours or pre-market quote (lib/extended-quotes.ts), when there is one. */
+  extended?: ExtendedQuote | null;
 }): Omit<ResultMove, "usualPct" | "usualCount"> | null {
   const { date, session, today, now } = input;
   const endDay = reactionDay(date, session);
@@ -215,8 +222,22 @@ export function pickMove(input: {
     }
   }
   const premarket = input.premarket;
-  if (endDay === today && now.getTime() < etMs(today, 9, 30) && premarket && premarket.date === today && Number.isFinite(premarket.pct)) {
-    return { pct: premarket.pct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: premarket.at };
+  const beforeOpen = endDay === today && now.getTime() < etMs(today, 9, 30);
+  const movers = beforeOpen && premarket && premarket.date === today && Number.isFinite(premarket.pct) ? premarket : null;
+  const extended = input.extended && isExtendedLive(input.extended, now) ? input.extended : null;
+  // A pre-market print counts only when it moved from the close the report came after (amc) or before (bmo).
+  const reportClose = session === "amc" ? date : previousTradingDay(endDay);
+  const pre = beforeOpen && extended?.session === "pre" && etDayOf(extended.asOf) === today && etDayOf(extended.regularCloseAt) === reportClose ? extended : null;
+  if (movers || pre) {
+    // The newer of the two pre-market snapshots.
+    const useStored = pre && (!movers || !movers.at || Date.parse(pre.asOf) > Date.parse(movers.at));
+    if (useStored) return { pct: pre.changePct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: pre.asOf };
+    return { pct: movers!.pct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: movers!.at };
+  }
+  // After an after-close report, before the reaction session opens: the after-hours print on the report evening.
+  const post = session === "amc" ? (extended?.session === "post" ? extended : extended?.lastPost ?? null) : null;
+  if (post && etDayOf(post.regularCloseAt) === date && etDayOf(post.asOf) === date && now.getTime() < etMs(endDay, 9, 30)) {
+    return { pct: post.changePct, kind: "after_hours", day: date, nextDay: true, source: "after-hours price", asOf: post.asOf };
   }
   return null;
 }
@@ -384,6 +405,8 @@ export type ResultInput = {
   priceMeta: PriceMeta | null;
   quote: LiveQuote | null;
   premarket: PremarketQuote | null;
+  /** `tm_extended_quotes/{TICKER}`, parsed: the after-hours or pre-market move before the reaction session opens. */
+  extended?: ExtendedQuote | null;
   stability: Record<string, unknown> | null;
   /** `tm_earnings_day/{TICKER}__{date}`, when the earnings day job read the release. */
   release: Record<string, unknown> | null;
@@ -400,7 +423,7 @@ export function buildResult(input: ResultInput): ResultRead | null {
   if (!event.eps && !revenue && !guidance) return null;
 
   const picked =
-    pickMove({ date: event.date, session, today, now: input.now, past: own, priceMeta: input.priceMeta, quote: input.quote, premarket: input.premarket }) ??
+    pickMove({ date: event.date, session, today, now: input.now, past: own, priceMeta: input.priceMeta, quote: input.quote, premarket: input.premarket, extended: input.extended ?? null }) ??
     releaseMove(input.release, session);
   const earlier = past.filter((report) => report.date !== event.date && report.date < event.date);
   const stats = moveStats(earlier, input.history?.typicalDayPct ?? null);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run one group of the agent data jobs (backend/agentdata/schedule.py).
-# Usage: run-agentdata.sh frequent|hourly|after_close|weekly
+# Usage: run-agentdata.sh frequent|hourly|after_close|weekly|earnings_day|extended_hours
 # Sources the VPS env file the same way run-power-trades.sh does. The Python
 # jobs use LOCALDB_PATH when it is set (straight to the SQLite store); the
 # "standing agents" and "reason checks" steps are TypeScript and go over HTTP:
@@ -13,7 +13,7 @@
 # rate-limits by address, so a second group waits for the first to finish.
 set -euo pipefail
 
-GROUP="${1:?group: frequent, hourly, after_close or weekly}"
+GROUP="${1:?group: frequent, hourly, after_close, weekly, earnings_day or extended_hours}"
 
 ENV_FILE="${TIKRR_ENV_FILE:-/etc/tikrr/backend.env}"
 if [[ -f "${ENV_FILE}" ]]; then

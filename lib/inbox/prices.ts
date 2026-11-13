@@ -6,6 +6,8 @@ export type RowPrice = { price: number; day: string | null };
 
 /** Whether an item reports a price move (an agent's move or level, or a report's move): its row shows the price. */
 export function showsMove(item: Pick<InboxItem, "move" | "result">): boolean {
+  // An after-hours or pre-market move carries its own price in its sentence; the regular price beside it would not be its.
+  if (item.result?.moveSession) return false;
   return Boolean(item.move) || (item.result?.movePct !== null && item.result?.movePct !== undefined);
 }
 

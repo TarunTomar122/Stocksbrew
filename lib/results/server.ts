@@ -1,6 +1,7 @@
 import { todayET } from "@/lib/calendar-shared";
 import { loadTickerEarnings } from "@/lib/earnings-season-data";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { parseExtendedDoc } from "@/lib/extended-quotes";
 import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getPremarketMovers } from "@/lib/premarket";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -114,15 +115,16 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   const [earnings, snaps, premarket] = await Promise.all([
     loadTickerEarnings([ticker], today),
     readSelected(
-      [`tm_price_history_daily/${key}`, `tm_latest_prices/US_${key}`, `tm_call_stability/US_${key}`, `tm_earnings_day/${key}__${date}`],
-      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read", "reaction"],
+      [`tm_price_history_daily/${key}`, `tm_latest_prices/US_${key}`, `tm_call_stability/US_${key}`, `tm_earnings_day/${key}__${date}`, `tm_extended_quotes/${key}`],
+      // The last eight are the extended quote's (tm_extended_quotes): the after-hours or pre-market move before the open.
+      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read", "reaction", "price", "change_pct", "regular_close", "regular_close_at", "as_of", "post", "pre", "earnings"],
     ),
     getPremarketMovers("US").catch((error: unknown) => ({ failed: error }) as const),
   ]);
   const history = earnings.get(ticker);
   // A failed history read throws, so a read without its usual move is never what everyone gets for two minutes.
   if (!history) throw new Error(`results: no earnings history read for ${ticker}`);
-  const [priceSnap, quoteSnap, stabilitySnap, releaseSnap] = snaps;
+  const [priceSnap, quoteSnap, stabilitySnap, releaseSnap, extendedSnap] = snaps;
   const priceDoc = priceSnap?.exists ? (priceSnap.data() as Record<string, unknown>) : null;
   const priceMeta: PriceMeta | null = priceDoc
     ? { lastDate: typeof priceDoc.last_date === "string" ? priceDoc.last_date : null, fetchedAt: typeof priceDoc.fetched_at === "string" ? priceDoc.fetched_at : null }
@@ -149,6 +151,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
     priceMeta,
     quote,
     premarket: premarketQuote,
+    extended: extendedSnap?.exists ? parseExtendedDoc(extendedSnap.data()) : null,
     stability: stabilitySnap?.exists ? (stabilitySnap.data() as Record<string, unknown>) : null,
     release: releaseSnap?.exists ? (releaseSnap.data() as Record<string, unknown>) : null,
   });

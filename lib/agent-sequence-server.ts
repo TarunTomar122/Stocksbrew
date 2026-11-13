@@ -75,6 +75,7 @@ async function readResults(tickers: string[], today: string): Promise<NonNullabl
     ticker: read.ticker.toUpperCase(),
     reportDate: read.reportDate,
     movePct: read.move?.pct ?? null,
+    moveSession: read.move?.kind === "after_hours" ? "after_hours" : read.move?.kind === "before_open" ? "pre_market" : null,
     guidance: read.guidance?.change ?? null,
     epsVerdict: read.eps?.verdict ?? null,
     epsSurprisePct: typeof read.eps?.surprisePct === "number" && Number.isFinite(read.eps.surprisePct) ? read.eps.surprisePct : null,

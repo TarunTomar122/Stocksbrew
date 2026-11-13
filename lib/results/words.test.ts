@@ -52,6 +52,8 @@ describe("the move", () => {
     expect(moveShort(move({ kind: "day", day: "2026-11-10", pct: -13.51 }), TODAY)).toBe("down 14% yesterday");
     expect(moveShort(move({ kind: "day", day: "2026-11-09", nextDay: false, pct: 10.46 }), TODAY)).toBe("up 10% on Monday");
     expect(moveShort(move({ kind: "before_open", pct: 4.2 }), TODAY)).toBe("up 4.2% before the open");
+    expect(moveShort(move({ kind: "after_hours", day: TODAY, pct: 18.34 }), TODAY)).toBe("up 18% after hours");
+    expect(moveShort(move({ kind: "after_hours", day: "2026-11-10", pct: -7.6 }), TODAY)).toBe("down 7.6% after hours yesterday");
     expect(moveShort(move({ pct: 0.01 }), TODAY)).toBe("flat today");
   });
 

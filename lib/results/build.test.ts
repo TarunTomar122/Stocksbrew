@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PastReport } from "@/lib/earnings-season";
+import { parseExtendedDoc } from "@/lib/extended-quotes";
 
 import { basisClash, buildResult, callAfter, eventFromDoc, leadGuidanceItem, nextTradingDay, pickMove, previousTradingDay, reactionDay, releaseMove, releaseParts, revenueResult } from "./build";
 
@@ -101,6 +102,39 @@ describe("the move", () => {
     const own = past({ date: "2026-11-05", session: "unknown", move: 6, basis: "2d" });
     expect(pickMove({ ...base, date: "2026-11-05", session: "unknown", past: own })).toMatchObject({ kind: "two_days" });
     expect(pickMove({ ...base, session: "unknown", quote: { pct: 25.45, capturedAt: "2026-11-11T19:03:00+00:00" } })).toBeNull();
+  });
+
+  // A report after Wednesday's close (TODAY); the reaction session is Thursday.
+  const extended = (patch: Record<string, unknown> = {}) =>
+    parseExtendedDoc({
+      ticker: "CBRS",
+      session: "post",
+      price: 115.68,
+      change_pct: 18.34,
+      regular_close: 97.75,
+      regular_close_at: "2026-11-11T16:00:01-05:00",
+      as_of: "2026-11-11T19:59:56-05:00",
+      ...patch,
+    });
+  const evening = { ...base, date: TODAY, now: new Date("2026-11-12T01:30:00Z") };
+
+  it("uses the after-hours print after an after-close report, until the next open", () => {
+    expect(pickMove({ ...evening, extended: extended() })).toMatchObject({ pct: 18.34, kind: "after_hours", day: TODAY, nextDay: true, source: "after-hours price" });
+    // The morning after, before the open, last evening's print still stands in.
+    expect(pickMove({ ...evening, today: "2026-11-12", now: new Date("2026-11-12T11:00:00Z"), extended: extended() })).toMatchObject({ kind: "after_hours", day: TODAY });
+    // Once the reaction session opens, it is not the move.
+    expect(pickMove({ ...evening, today: "2026-11-12", now: new Date("2026-11-12T14:45:00Z"), extended: extended() })).toBeNull();
+    // A before-open report, or a print from another close, is not this report's after-hours move.
+    expect(pickMove({ ...evening, session: "bmo", extended: extended() })).toBeNull();
+    expect(pickMove({ ...evening, extended: extended({ regular_close_at: "2026-11-10T16:00:01-05:00", as_of: "2026-11-10T19:59:00-05:00" }) })).toBeNull();
+  });
+
+  it("takes the newer pre-market print before the open", () => {
+    const morning = { ...evening, today: "2026-11-12", now: new Date("2026-11-12T13:45:00Z") };
+    const pre = extended({ session: "pre", price: 112, change_pct: 14.58, as_of: "2026-11-12T08:41:00-05:00" });
+    expect(pickMove({ ...morning, extended: pre })).toMatchObject({ pct: 14.58, kind: "before_open", day: "2026-11-12" });
+    // The movers snapshot wins when it is the newer of the two.
+    expect(pickMove({ ...morning, extended: pre, premarket: { pct: 13, date: "2026-11-12", at: "2026-11-12T13:44:00Z" } })).toMatchObject({ pct: 13, kind: "before_open" });
   });
 });
 

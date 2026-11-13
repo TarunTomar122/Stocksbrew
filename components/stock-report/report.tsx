@@ -7,7 +7,6 @@ import { CALL_PLAIN, countWord, plainAction, wholeSentences } from "@/lib/plain-
 import { CoverButton, LockCard } from "@/components/oa/gate";
 import { ProCheckoutButton } from "@/components/oa/pro-checkout-button";
 import { StockLogo } from "@/components/stock-logo";
-import { StockPremarketQuote } from "@/components/stock-premarket-quote";
 import { TrackButton } from "@/components/track-button";
 import { TrackView } from "@/components/track-view";
 import { AskPageHint } from "@/components/ask/ask-page-hint";
@@ -18,6 +17,7 @@ import { packChartRanges, type CallWord, type ChartRange, type PackedChartRanges
 import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
 import { briefFacts, briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, shortFact, signedPct } from "./format";import { ChangeChecks } from "./change-checks";
+import { ExtendedHoursLine } from "./extended-hours-line";
 import { FactCards } from "./fact-cards";
 import { FilingChanges } from "./filing-changes";
 import { PricePanel, type PanelZone } from "./price-panel";
@@ -488,11 +488,14 @@ export function StockReport({
                         </span>
                       ) : null}
                     </p>
+                    {/* After hours or pre-market, one line under the regular price, never mixed into it (its own read). */}
+                    <Suspense fallback={null}>
+                      <ExtendedHoursLine ticker={stock.ticker} market={market} regularAt={stock.captured_at ?? null} premarket={data.premarketQuote} nowIso={nowIso} />
+                    </Suspense>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                       {/* Two clocks on one card read as a contradiction; each says what it is the time of. */}
                       {stock.captured_at ? <p className="text-[12px] leading-4 text-oa-muted-fg">{priceStamp(stock.captured_at)}</p> : null}
                       <MarketStatusInline nowIso={nowIso} surface="stock" />
-                      {data.premarketQuote ? <StockPremarketQuote currency={currency} market={market} quote={data.premarketQuote} /> : null}
                       {priceNote}
                     </div>
                   </div>

@@ -339,7 +339,7 @@ async function runFirstLook(uid: string, now: Date): Promise<FirstLookRun> {
     weekMoves: movesRead?.moves ?? {},
     filings: note("filings", filingRows) ?? [],
     insiders: trades ? insiderRows({ buys: trades[0], all: trades[1] }, new Set(tickers), today) : [],
-    results: (inputs?.results ?? []).map((read) => ({ ticker: read.ticker, reportDate: read.reportDate, movePct: read.movePct, epsVerdict: read.epsVerdict, epsSurprisePct: read.epsSurprisePct })),
+    results: (inputs?.results ?? []).map((read) => ({ ticker: read.ticker, reportDate: read.reportDate, movePct: read.movePct, moveSession: read.moveSession ?? null, epsVerdict: read.epsVerdict, epsSurprisePct: read.epsSurprisePct })),
     needsYou,
     proposals: inputs
       ? drafts.map((draft) => ({

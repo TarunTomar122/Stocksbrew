@@ -371,3 +371,37 @@ describe("filing notes on stocks in an idea basket", () => {
     expect(day?.notes.map((note) => note.text)).toEqual(["MU's new 10-K adds 2 risks and drops 1. It's in your “AI capex” basket."]);
   });
 });
+
+describe("moves outside the session", () => {
+  const results: InboxItem = {
+    id: "results:CBRS:2026-11-12",
+    kind: "results",
+    at: "2026-11-12T21:03:59.000Z",
+    day: "2026-11-12",
+    exact: false,
+    tickers: ["CBRS"],
+    text: "CBRS reported revenue of $211M, up 55% from a year ago, and rose 18% after hours yesterday.",
+    detail: null,
+    href: "/stock/CBRS",
+    external: false,
+    source: "Results",
+    tone: "up",
+    quiet: false,
+    locked: false,
+    dedupeKey: "results:CBRS:2026-11-12",
+    weight: 1,
+    thread: "results:CBRS",
+    result: { headline: "", figures: "", movePct: 18.34, moveSession: "after_hours", moveWords: "up 18% after hours yesterday", call: null },
+  };
+
+  it("shows a report's after-hours move as its figure, never the revenue growth", () => {
+    expect(eventNote(results, { levels: () => true, today: "2026-11-13" }, new Map())!.figure).toEqual({ value: "+18.3%", tone: "up", label: "after hours" });
+    const noMove = { ...results, result: { ...results.result!, movePct: null, moveSession: null } };
+    expect(eventNote(noMove, { levels: () => true, today: "2026-11-13" }, new Map())!.figure).toBeNull();
+  });
+
+  it("labels an agent's after-hours note", () => {
+    const item: InboxItem = { ...results, id: "extended:MOD:post:2026-11-12", kind: "agent", tickers: ["MOD"], text: "MOD rose 27.4% after hours, to $135.20 at 7:59 PM ET yesterday.", source: "Your agent", result: null, extended: { pct: 27.43, session: "post", price: 135.2, at: "2026-11-12T19:59:21-05:00", holding: false } };
+    expect(eventNote(item, { levels: () => true, today: "2026-11-13" }, new Map())!.figure).toEqual({ value: "+27.4%", tone: "up", label: "after hours" });
+  });
+});

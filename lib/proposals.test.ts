@@ -192,6 +192,13 @@ describe("event → proposal", () => {
     expect(candidates(inputs({ results: [read], alerts: undefined, quotes: { NVDA: { price: 160, dayPct: -1, at: null } } }))).toEqual([]);
   });
 
+  it("uses an after-hours drop after a report as its trigger, and says it was after hours", () => {
+    const read = { ticker: "NVDA", reportDate: "2026-11-11", movePct: -7.6, moveSession: "after_hours" as const, guidance: null, epsVerdict: null, epsSurprisePct: null, revenueVerdict: null, sources: [] };
+    const draft = only(candidates(inputs({ results: [read], quotes: { NVDA: { price: 160, dayPct: -1, at: null } } })), "results");
+    expect(draft.why[0]).toBe("NVDA reported yesterday and fell 7.6% after hours.");
+    expect(draft.figures).toContainEqual({ label: "Move after hours", value: "−7.6%" });
+  });
+
   it("after results moves an existing alert that sits too far from the new level", () => {
     const list = candidates(
       inputs({

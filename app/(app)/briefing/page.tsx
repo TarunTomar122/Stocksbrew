@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 
 import { AskPageHint } from "@/components/ask/ask-page-hint";
 import { BriefingFace } from "@/components/briefing/briefing-face";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
+import { OvernightStrip } from "@/components/briefing/overnight-strip";
 import { SinceVisit } from "@/components/briefing/since-visit";
 import { VisitBeacon } from "@/components/briefing/since-visit-beacon";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
@@ -36,6 +38,8 @@ import {
   type MarketExtra,
 } from "@/lib/briefing-face";
 import { loadLevelFacts } from "@/lib/briefing-level-reasons";
+import { loadOvernightQuotes } from "@/lib/briefing-overnight-server";
+import { overnightStrip, type OvernightStrip as OvernightStripData } from "@/lib/briefing-overnight";
 import { briefingPremarket, within } from "@/lib/briefing-premarket-server";
 import type { TopStory } from "@/lib/briefing-top-news";
 import { loadTopNews } from "@/lib/briefing-top-news-server";
@@ -165,11 +169,18 @@ async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ da
   return set?.series ?? null;
 }
 
-/** The slot under the header: the agent's proposals line, then "Since you last looked"; nothing when neither shows. */
-function briefingTop(proposals: ProposalsBrief | null, since: React.ReactNode): React.ReactNode {
-  if (!proposals?.count) return since;
-  const line = <ProposalsLine brief={proposals} />;
-  return since ? <div className="flex min-w-0 flex-col gap-3">{line}{since}</div> : line;
+/**
+ * The slot under the header: the agent's proposals line, then the Overnight strip (before the open), then "Since you
+ * last looked"; nothing when none shows.
+ */
+function briefingTop(proposals: ProposalsBrief | null, since: React.ReactNode, overnight: OvernightStripData | null = null): React.ReactNode {
+  const parts = [
+    proposals?.count ? <ProposalsLine key="proposals" brief={proposals} /> : null,
+    overnight ? <OvernightStrip key="overnight" strip={overnight} /> : null,
+    since ? <Fragment key="since">{since}</Fragment> : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return parts.length === 1 ? parts[0] : <div className="flex min-w-0 flex-col gap-3">{parts}</div>;
 }
 
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
@@ -216,7 +227,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const holdingTickers = [...new Set(positions.filter((position) => position.relation === "holding").map((position) => position.ticker.toUpperCase()))];
 
   // All cached reads, side by side; each fails soft.
-  const [locked, results, premarket, extras, levelFacts, series, marketNews, sinceLoad] = await Promise.all([
+  const [locked, results, premarket, extras, levelFacts, series, marketNews, sinceLoad, overnightQuotes] = await Promise.all([
     lockedSlot(data),
     live && personal ? weekResults(tickers, today, data.since) : Promise.resolve([] as ResultRead[]),
     live ? briefingPremarket(personal ? tickers : ["SPY"], now).catch(() => null) : Promise.resolve(null),
@@ -227,6 +238,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
     // Started early under the market's day; a briefing dated another day reads its own.
     live ? within(topNewsEarly && today === earlyDay ? topNewsEarly : loadTopNews(today), SIDE_READ_MS).then((stories) => stories ?? []) : Promise.resolve([] as TopStory[]),
     sinceRead,
+    // Holdings and watched stocks that moved big after hours or pre-market, before the open (lib/briefing-overnight.ts).
+    live && personal ? within(loadOvernightQuotes(tickers, now), SIDE_READ_MS) : Promise.resolve(null),
   ]);
 
   const mode = live ? faceMode(session.kind, premarket != null) : "close";
@@ -248,6 +261,10 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const decided = personal ? doToday({ items, positions, degraded: data.archived ? [] : data.degraded, premarket: pre, premarketPrices: prePrices }) : null;
   const todo = data.archived && decided?.kind !== "cards" ? null : decided;
   const shown = new Set(todo?.kind === "cards" ? todo.cards.map((card) => card.ticker) : []);
+  // The Overnight strip comes next, under the header: its stocks are told there, not again further down. A stock Do
+  // today already decides on stays there.
+  const overnight = overnightQuotes ? overnightStrip(positions, overnightQuotes, now.getTime(), shown) : null;
+  for (const card of overnight?.cards ?? []) shown.add(card.ticker);
   // A stock whose story leads the market's top news is told there, not again under Why it moved.
   // A story on a stock the page already prices shows the page's own price and move, so one stock never shows two.
   // Before the open the story keeps the move its headline was matched to (the last session's): this morning's
@@ -314,7 +331,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         levels={levels}
         moved={moved}
         week={week}
-        top={briefingTop(proposals, sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null)}
+        top={briefingTop(proposals, sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null, overnight)}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
         locked={locked}
         sessionOpened={!live || sessionOpened(today, now.getTime())}

@@ -890,6 +890,7 @@ export function resultsItem(read: ResultRead, position: Position, mode: Mode, to
       headline,
       figures: resultSentence({ ...read, move: null }, who, today) || text,
       movePct: read.move?.pct ?? null,
+      moveSession: read.move?.kind === "after_hours" ? "after_hours" : read.move?.kind === "before_open" ? "pre_market" : null,
       moveWords: read.move ? moveShort(read.move, today) : null,
       call,
     },

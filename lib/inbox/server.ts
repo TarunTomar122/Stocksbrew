@@ -12,7 +12,7 @@ import { readTrackedStrategies } from "@/lib/strategies";
 import type { UserDoc } from "@/lib/watchlist";
 
 import { effectiveSeenAt, mergeInbox, unreadRows } from "./merge";
-import { agentSource, alertSource, callSource, followSource, insiderSource, memoSource, reasonSource, reportsSource, resultsSource, strategySource, type InboxStock } from "./sources";
+import { agentSource, alertSource, callSource, extendedSource, followSource, insiderSource, memoSource, reasonSource, reportsSource, resultsSource, strategySource, type InboxStock } from "./sources";
 import { INBOX_DAYS, type InboxItem, type UpcomingReport } from "./types";
 
 /**
@@ -155,6 +155,7 @@ export async function loadUserInbox(viewer: Viewer, doc: UserDoc | null, now: Da
       { name: "agents", run: () => agentSource(uid, "mine", sinceDay, today) },
       { name: "calls", run: () => callSource({ stocks, uid, mode: "mine", since, sinceDay, today }) },
       { name: "results", run: () => resultsSource(stocks, "mine", sinceDay, today) },
+      { name: "extended", run: () => extendedSource(stocks, "mine", sinceDay, now) },
       { name: "alerts", run: () => alertSource(uid, sinceDay) },
       { name: "reasons", run: () => (can("reason_watch", viewer.plan) ? reasonSource(uid, stocks, sinceDay) : Promise.resolve([])) },
       { name: "follow", run: () => followSource(followed, stocks, sinceDay) },
@@ -185,6 +186,7 @@ async function buildExampleInbox(today: string): Promise<InboxResult> {
       { name: "agents", run: () => agentSource(EXAMPLE_AGENTS_UID, "example", sinceDay, today) },
       { name: "calls", run: () => callSource({ stocks: exampleStocks(), uid: null, mode: "example", since, sinceDay, today }) },
       { name: "results", run: () => resultsSource(exampleStocks(), "example", sinceDay, today) },
+      { name: "extended", run: () => extendedSource(exampleStocks(), "example", sinceDay, now) },
     ]),
     settleReports(() => reportsSource(exampleStocks(), today), reportsMissing),
   ]);

@@ -73,9 +73,11 @@ export type ResultGuidance = {
  * - `before_open`: the pre-market quote on the reaction day;
  * - `today`: the live quote on the reaction day, while the session runs;
  * - `day`: the whole reaction session (closed);
- * - `two_days`: the report time is unknown, so the close before to the close after.
+ * - `two_days`: the report time is unknown, so the close before to the close after;
+ * - `after_hours`: after an after-close report, the after-hours print against that day's close, until the reaction
+ *   session opens (`day` is the report day). Thin trading: always said as "after hours".
  */
-export type ResultMoveKind = "before_open" | "today" | "day" | "two_days";
+export type ResultMoveKind = "before_open" | "today" | "day" | "two_days" | "after_hours";
 
 export type ResultMove = {
   pct: number;

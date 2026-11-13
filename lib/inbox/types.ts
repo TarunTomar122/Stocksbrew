@@ -61,6 +61,11 @@ export type InboxItem = {
    * moves against that baseline.
    */
   move?: InboxMove | null;
+  /**
+   * A move outside the regular session (lib/inbox/extended.ts): the percent from the regular close, after hours ("post")
+   * or pre-market ("pre"), the print's price and time. Never a session's move, so it is not `move`.
+   */
+  extended?: { pct: number; session: "post" | "pre"; price: number; at: string; holding: boolean } | null;
   /** A results row's words for the read above the list (lib/inbox/words.ts resultsItem); absent on every other item. */
   result?: InboxResult | null;
   /**
@@ -78,6 +83,8 @@ export type InboxResult = {
   headline: string;
   figures: string;
   movePct: number | null;
+  /** The move is an after-hours or pre-market print before the reaction session (lib/results pickMove), not a session's. */
+  moveSession?: "after_hours" | "pre_market" | null;
   moveWords: string | null;
   call: { status: "changed" | "held"; call: string } | null;
 };

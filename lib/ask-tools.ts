@@ -204,6 +204,7 @@ async function quoteCard(ticker: string, uid: string | null, levels: boolean): P
     currency: data.instrument.currency,
     price: roundOrNull(data.market_data.price),
     day_change_pct: roundOrNull(data.market_data.day_change_pct),
+    extended_hours: data.market_data.extended_hours ?? null,
     market_cap: num(data.fundamentals.market_cap),
     pe_ttm: roundOrNull(data.fundamentals.pe_ttm, 1),
     dividend_yield: roundOrNull(data.fundamentals.dividend_yield),

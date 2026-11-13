@@ -1,0 +1,21 @@
+[Unit]
+Description=Run Tikrr extended-hours quotes every 15 minutes after the close (16:05 to 19:50), at 20:05 and before the open, weekdays New York
+
+[Timer]
+# After hours runs 16:00 to 20:00 New York: a run every 15 minutes, then one last snapshot once it ends.
+OnCalendar=Mon..Fri *-*-* 16..19:05/15:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 20:05:00 America/New_York
+# Before the open: after the 07:30 premarket pipeline, then twice more before the 9:30 bell.
+OnCalendar=Mon..Fri *-*-* 07:35:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 08:35:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 09:20:00 America/New_York
+Persistent=false
+AccuracySec=1min
+Unit=tikrr-agentdata-extended-hours.service
+
+[Install]
+WantedBy=timers.target
+# Not installed by default. To enable on the VPS (after the owner approves):
+#   sudo cp backend/vps/units/tikrr-agentdata-extended-hours.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tikrr-agentdata-extended-hours.timer
+# The job skips itself on NYSE holidays.

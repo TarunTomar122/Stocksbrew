@@ -15,9 +15,11 @@ import { moveLine } from "@/lib/move-line";
 import { getRebalancesSince } from "@/lib/strategies-rebalances";
 import { lastChange, readStoredCheck, CHECKS_COLLECTION } from "@/lib/thesis-watch/store";
 import { MEMO_COLLECTION } from "@/lib/memo/store";
+import { getExtendedQuotes } from "@/lib/extended-quotes-server";
 import { resultsForChecked } from "@/lib/results/server";
 import { RESULTS_DAYS } from "@/lib/results/types";
 
+import { extendedItems } from "./extended";
 import { nyDay } from "./merge";
 import { UPCOMING_DAYS, type InboxItem, type UpcomingReport } from "./types";
 import {
@@ -499,6 +501,23 @@ export async function resultsSource(stocks: InboxStock[], mode: Mode, sinceDay: 
   const { reads, failed } = await resultsForChecked([...positions.keys()], { since: sinceDay > floor ? sinceDay : floor, today });
   const items = reads.map((read) => resultsItem(read, positions.get(read.ticker) ?? null, mode, today)).filter((item): item is InboxItem => item !== null);
   if (failed.length > 0) throw Object.assign(new Error(`results read failed for ${failed.join(", ")}`), { partial: items });
+  return items;
+}
+
+/* ── after hours and pre-market ─────────────────────────────────────────── */
+
+/**
+ * Holdings and watched stocks that moved big outside the regular session (lib/inbox/extended.ts), from the stored
+ * extended quotes. One cached read for all of them; a failed read throws, so the inbox is not kept without it.
+ */
+export async function extendedSource(stocks: InboxStock[], mode: Mode, sinceDay: string, now: Date = new Date()): Promise<InboxItem[]> {
+  if (stocks.length === 0) return [];
+  const positions = new Map(stocks.map((stock) => [stock.ticker, stock.position]));
+  const quotes = await getExtendedQuotes([...positions.keys()], { strict: true });
+  const items: InboxItem[] = [];
+  for (const [ticker, quote] of quotes) {
+    for (const item of extendedItems(quote, positions.get(ticker) ?? null, mode, now)) if (item.day >= sinceDay) items.push(item);
+  }
   return items;
 }
 

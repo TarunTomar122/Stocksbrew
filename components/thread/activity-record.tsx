@@ -57,7 +57,9 @@ function Row({ item, price = null }: { item: RecordItem; price?: number | null }
   const quiet = item.kind === "quiet";
   // A stock's move gets the stock's price now beside it (owner rule 4); a line that already shows the price does not,
   // and neither does a figure that is not the share price's move ("revenue of $211M, up 55%").
-  const priceNow = item.ticker && item.figure && item.figure.label !== "price now" && price !== null && isPriceMove(item.text) ? price : null;
+  // An after-hours or pre-market line carries its own price: the regular price beside it would read as that print's.
+  const outside = item.figure?.label === "after hours" || item.figure?.label === "pre-market";
+  const priceNow = item.ticker && item.figure && item.figure.label !== "price now" && !outside && price !== null && isPriceMove(item.text) ? price : null;
   const body = (
     <>
       <Lead item={item} />

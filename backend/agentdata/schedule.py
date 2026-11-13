@@ -26,6 +26,9 @@ Groups and what they keep fresh:
 * ``earnings_day`` the report on each covered stock that filed earnings today
                    (every 10 minutes on weekdays; the job itself stays off until
                    ``EARNINGS_DAY_ENABLED=1``)
+* ``extended_hours`` after-hours and pre-market quotes for today's reporters, tracked
+                   and covered stocks (every 15 minutes from 16:05 to 19:50 New York,
+                   a last snapshot at 20:05, and three runs before the open)
 
 Node jobs: an entry starting with ``node:`` runs a TypeScript script under
 vite-node with ``scripts/jobs.config.ts`` (not the test config: that one has no
@@ -138,10 +141,16 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
     "earnings_day": [
         ("earnings day reports", ["backend.agentdata.earnings_day", "--days", "1"]),
     ],
+    # Each stock's newest print outside the regular session against the close it moved from, into
+    # tm_extended_quotes: Yahoo's batch quote, 50 symbols a request (~20 requests, ~15 s for ~850 stocks).
+    # Yahoo and the store only, no SEC, so its unit takes its own lock and never waits behind after_close.
+    "extended_hours": [
+        ("extended quotes", ["backend.agentdata.extended_hours"]),
+    ],
 }
 
 # A job that hangs must not hold the group, and the next timer run, forever.
-TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60, "earnings_day": 9 * 60}
+TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 60, "weekly": 4 * 60 * 60, "earnings_day": 9 * 60, "extended_hours": 9 * 60}
 
 # Per-step limits where the group's default is far too generous. A step that hits its limit
 # fails on its own and the group moves on, instead of one stuck step eating the group's time

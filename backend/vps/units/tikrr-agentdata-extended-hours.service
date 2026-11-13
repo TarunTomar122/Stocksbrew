@@ -1,0 +1,15 @@
+[Unit]
+Description=Tikrr agent data: after-hours and pre-market quotes (tm_extended_quotes)
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+# Yahoo and the store only, no SEC EDGAR: its own lock, so a 17:35 run never queues behind the
+# 17:30 after-close group (up to 90 minutes) and loses the evening's prints.
+Environment=TIKRR_AGENTDATA_LOCK=/tmp/tikrr-extended-hours.lock
+TimeoutStartSec=12min
+MemoryMax=512M
+ExecStart=/opt/tikrr/backend/vps/run-agentdata.sh extended_hours

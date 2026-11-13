@@ -1055,7 +1055,8 @@ export function earningsWeek(input: {
   const resultOf = (ticker: string, day: string): WeekStock["result"] => {
     const read = results.get(ticker);
     if (!read || read.reportDate !== day) return null;
-    return { verdict: read.eps ? VERDICT[read.eps.verdict] ?? null : null, pct: read.move?.pct ?? null };
+    // An after-hours print has no session word on this row: it waits for the session's move.
+    return { verdict: read.eps ? VERDICT[read.eps.verdict] ?? null : null, pct: read.move && read.move.kind !== "after_hours" ? read.move.pct : null };
   };
   const timeWords = (time: BriefingPosition["earnings_time"] | string | null | undefined): WeekStock["when"] =>
     time === "bmo" || time === "before_open" ? "before the open" : time === "amc" || time === "after_close" ? "after the close" : null;

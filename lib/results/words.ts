@@ -115,6 +115,7 @@ function dayWords(day: string, today: string): string {
  */
 export function moveWhen(move: ResultMove, today: string): string {
   if (move.kind === "before_open") return "before the open";
+  if (move.kind === "after_hours") return move.day === today ? "after hours" : `after hours ${dayWords(move.day, today)}`;
   if (move.kind === "two_days") return "over two days";
   return dayWords(move.day, today);
 }
@@ -129,11 +130,12 @@ export function moveShort(move: ResultMove, today: string): string {
 function movePart(move: ResultMove, today: string): string {
   const size = pctWords(move.pct);
   if (move.kind === "before_open") return flat(move.pct) ? "the stock is flat before the open" : `the stock is ${upDown(move.pct)} ${size} before the open`;
+  if (move.kind === "after_hours" && move.day === today) return flat(move.pct) ? "the stock is flat after hours" : `the stock is ${upDown(move.pct)} ${size} after hours`;
   if (move.kind === "today") return flat(move.pct) ? "the stock is flat today" : `the stock is ${upDown(move.pct)} ${size} today`;
   if (move.kind === "day" && move.day === today) return flat(move.pct) ? "the stock closed flat today" : `the stock closed ${upDown(move.pct)} ${size} today`;
   const verb = flat(move.pct) ? "barely moved" : `${move.pct > 0 ? "rose" : "fell"} ${size}`;
   if (move.kind === "two_days") return `the stock ${verb} over the two sessions around it`;
-  return `the stock ${verb} ${dayWords(move.day, today)}`;
+  return `the stock ${verb} ${move.kind === "after_hours" ? moveWhen(move, today) : dayWords(move.day, today)}`;
 }
 
 /** The move against the usual report move, from the rounded numbers the page shows; null without enough history. */
@@ -231,9 +233,10 @@ function usualShort(move: ResultMove): string {
 
 /** "is up 25% today", "rose 10% on Nov 9", "fell 14% yesterday", "is up 4.2% before the open". */
 function movePhrase(move: ResultMove, today: string): string {
-  if (flat(move.pct)) return move.kind === "before_open" ? "is flat before the open" : move.kind === "today" ? "is flat today" : `barely moved ${moveWhen(move, today)}`;
+  if (flat(move.pct)) return move.kind === "before_open" ? "is flat before the open" : move.kind === "after_hours" && move.day === today ? "is flat after hours" : move.kind === "today" ? "is flat today" : `barely moved ${moveWhen(move, today)}`;
   const size = pctWords(move.pct);
   if (move.kind === "before_open") return `is ${upDown(move.pct)} ${size} before the open`;
+  if (move.kind === "after_hours" && move.day === today) return `is ${upDown(move.pct)} ${size} after hours`;
   if (move.kind === "today") return `is ${upDown(move.pct)} ${size} today`;
   if (move.kind === "day" && move.day === today) return `closed ${upDown(move.pct)} ${size} today`;
   return `${move.pct > 0 ? "rose" : "fell"} ${size} ${moveWhen(move, today)}`;

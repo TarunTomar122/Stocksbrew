@@ -9,6 +9,7 @@
 
 import type { UIMessage } from "ai";
 import type { AgentJobDraft } from "@/lib/agent-jobs";
+import type { ExtendedForModel } from "@/lib/extended-quotes";
 
 /* ── cards ──────────────────────────────────────────────────────────────── */
 
@@ -29,6 +30,12 @@ export type QuoteCard = CardBase & {
   currency: string;
   price: number | null;
   day_change_pct: number | null;
+  /**
+   * After the close or before the open, the latest after-hours or pre-market print (lib/extended-quotes.ts
+   * extendedForModel): its price, its change from the regular close, its New York time and the report it reacts to.
+   * Thin trading: say "after hours" or "pre-market" with the time; never the close, never part of day_change_pct.
+   */
+  extended_hours?: ExtendedForModel | null;
   market_cap: number | null;
   pe_ttm: number | null;
   dividend_yield: number | null;

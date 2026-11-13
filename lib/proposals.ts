@@ -170,6 +170,11 @@ export type ProposalResultRead = {
   ticker: string;
   reportDate: string;
   movePct: number | null;
+  /**
+   * The move is not a session's yet: the after-hours print after an after-close report, or the pre-market print before
+   * the reaction session (lib/results pickMove). Absent or null: a regular-session move.
+   */
+  moveSession?: "after_hours" | "pre_market" | null;
   guidance: "raised" | "lowered" | "mixed" | "narrowed" | "reaffirmed" | "issued" | null;
   epsVerdict: string | null;
   epsSurprisePct: number | null;
@@ -579,7 +584,7 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
       `reported ${onDay(read.reportDate, inputs.today)}`,
       ...(cut ? ["lowered its guidance"] : []),
       ...(surprise ? [`${surprise === "miss" ? "missed" : "beat"} on earnings${fin(read.epsSurprisePct) ? ` by ${Math.abs(Math.round(read.epsSurprisePct * 10) / 10)}%` : ""}`] : []),
-      ...(fin(read.movePct) ? [`${read.movePct < 0 ? "fell" : "rose"} ${Math.abs(Math.round(read.movePct * 10) / 10)}%`] : []),
+      ...(fin(read.movePct) ? [`${read.movePct < 0 ? "fell" : "rose"} ${Math.abs(Math.round(read.movePct * 10) / 10)}%${moveWords(read.moveSession)}`] : []),
     ];
     out.push({
       kind: "results",
@@ -598,7 +603,7 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
       ],
       figures: [
         ...priceFigures(ticker, point, inputs),
-        ...(fin(read.movePct) ? [{ label: "Move on the report", value: signedPct(read.movePct) }] : []),
+        ...(fin(read.movePct) ? [{ label: read.moveSession === "after_hours" ? "Move after hours" : read.moveSession === "pre_market" ? "Move pre-market" : "Move on the report", value: signedPct(read.movePct) }] : []),
         ...(read.guidance ? [{ label: "Guidance", value: capital(read.guidance) }] : []),
         ...(read.epsVerdict ? [{ label: "Earnings per share", value: `${capital(read.epsVerdict)}${fin(read.epsSurprisePct) ? ` (${signedPct(read.epsSurprisePct)})` : ""}` }] : []),
         ...(read.revenueVerdict ? [{ label: "Revenue", value: capital(read.revenueVerdict) }] : []),
@@ -611,6 +616,11 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
     });
   }
   return out;
+}
+
+/** " after hours", " pre-market", or nothing for a regular-session move: a thin print is never said as the day's move. */
+function moveWords(session: ProposalResultRead["moveSession"]): string {
+  return session === "after_hours" ? " after hours" : session === "pre_market" ? " pre-market" : "";
 }
 
 /** A results source in words: "NVDA earnings against the estimate (Yahoo Finance)", "Our call on NVDA, reviewed". */

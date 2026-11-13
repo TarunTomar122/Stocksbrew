@@ -35,6 +35,7 @@ names, not product concepts.
 | **Earnings intel** | `build_earnings_intel` | same as AI | same | Daily | `tm_earnings_intel` |
 | **Pre-earnings intel** | `build_pre_earnings_intel` | full supported US market catalog + calendar (7d ahead); **one report per event** (skips if doc exists); `TAVILY_API_KEY` via deploy secret (≤2 searches/new build) | US only | Daily | `tm_pre_earnings_intel` |
 | **User radar views** | `build_watchlist_views` | per-user tracked only | per-user tracked only | Weekdays after the open briefs (~10:00–10:20 ET) and after the close; the web rebuilds a person's view after every edit to their stocks (`lib/watchlist-view-rebuild.ts`); the job never overwrites a newer view (`save_watchlist_view_if_current`) | `tm_watchlist_views` |
+| **Extended-hours quotes** | `backend.agentdata.extended_hours` (schedule group `extended_hours`, timer `tikrr-agentdata-extended-hours`) | today's reporters, then tracked, then covered (~850, Yahoo batch quote 50 a request) | weekdays every 15 min 16:05–19:50 ET, 20:05, and 07:35 / 08:35 / 09:20 ET; skips NYSE holidays | `tm_extended_quotes` (one per stock; shown only until the next open, never as the close or the day's change) |
 | **On-demand news** | `process_on_demand_news_jobs` | any newly tracked stock | any | Queued by tracking flows; currently processed by scheduled polling | `tm_on_demand_news_jobs` |
 
 Radar extras are the unique union of tracked stocks for users with a current

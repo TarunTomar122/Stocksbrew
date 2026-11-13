@@ -214,6 +214,8 @@ async function readResults(tickers: string[], today: string): Promise<NonNullabl
     ticker: read.ticker.toUpperCase(),
     reportDate: read.reportDate,
     movePct: read.move?.pct ?? null,
+    // Before the reaction session opens the move is an after-hours or pre-market print, and the proposal says so.
+    moveSession: read.move?.kind === "after_hours" ? "after_hours" : read.move?.kind === "before_open" ? "pre_market" : null,
     guidance: read.guidance?.change ?? null,
     epsVerdict: read.eps?.verdict ?? null,
     epsSurprisePct: num(read.eps?.surprisePct),

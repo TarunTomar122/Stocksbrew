@@ -36,6 +36,8 @@ import { getNextEarningsCalendarEvent } from "@/lib/earnings";
 import { getPreEarningsIntelDoc } from "@/lib/pre-earnings-intel";
 import { getDailyAnomalyForTicker } from "@/lib/daily-anomalies";
 import { getPremarketMovers } from "@/lib/premarket";
+import { extendedForModel } from "@/lib/extended-quotes";
+import { getExtendedQuote } from "@/lib/extended-quotes-server";
 import { FollowLimitError, addRadarStock, removeRadarStock } from "@/lib/radar-mutations";
 import {
   createStockAlert,
@@ -158,7 +160,7 @@ export async function getStockAgentIntelligence(input: {
   const resolved = await resolveInstrumentByTicker(ticker, market).catch(() => null);
   if (!resolved) throw new AgentDataError(`${ticker} was not found in the ${market} catalog.`, "stock_not_found", 404);
 
-  const [summary, view, intelligence, intelPro, facts, user, researchJob] = await Promise.all([
+  const [summary, view, intelligence, intelPro, facts, user, researchJob, extended] = await Promise.all([
     getStockSummary(resolved.ticker, market).catch(() => null),
     getInstrumentViewDoc(resolved.instrument_id, market).catch(() => null),
     getStockIntelligenceDoc(resolved.instrument_id, market).catch(() => null),
@@ -166,6 +168,8 @@ export async function getStockAgentIntelligence(input: {
     getStockFacts(resolved.instrument_id).catch(() => null),
     input.uid ? getUserDoc(input.uid).catch(() => null) : null,
     getOnDemandNewsStatus(resolved.instrument_id).catch(() => null),
+    // After hours or pre-market, US only (tm_extended_quotes); never mixed into the price or the day's change above.
+    market === "US" ? getExtendedQuote(resolved.ticker).catch(() => null) : Promise.resolve(null),
   ]);
   const tracked = Boolean(user?.tracked_stocks?.includes(resolved.instrument_id));
   const hasDetailedCall = Boolean(intelligence?.directive_v2);
@@ -214,6 +218,9 @@ export async function getStockAgentIntelligence(input: {
       day_change_pct: nullableNumber(summary?.day_change_pct),
       previous_close: nullableNumber(summary?.previous_close),
       indicative_only: true,
+      // Outside the regular session: the latest after-hours or pre-market print against the regular close, with its
+      // time, until the next open. Null otherwise. Not the close and not part of day_change_pct.
+      extended_hours: extendedForModel(extended, Date.now(), summary?.captured_at ?? null),
     },
     stocksbrew_intelligence: {
       headline: intelligence?.headline ?? null,

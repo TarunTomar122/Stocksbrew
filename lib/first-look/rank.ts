@@ -35,7 +35,7 @@ export type LookFacts = {
   /** Insider clusters (three or more people) and big single buys in the last 30 days. Planned (10b5-1) trades never count. */
   insiders: Array<{ ticker: string; side: "buy" | "sell"; people: number; value: number | null; day: string; who: string | null }>;
   /** Results in the last week. */
-  results: Array<{ ticker: string; reportDate: string; movePct: number | null; epsVerdict: string | null; epsSurprisePct: number | null }>;
+  results: Array<{ ticker: string; reportDate: string; movePct: number | null; moveSession?: "after_hours" | "pre_market" | null; epsVerdict: string | null; epsSurprisePct: number | null }>;
   /** The proposals the agent's sync would draft now (lib/proposals.ts candidates). */
   proposals: Array<{ kind: string; ticker: string | null; priority: number; why: string | null; figure: string | null; at: string | null; href: string | null }>;
   /**
@@ -349,7 +349,8 @@ function resultsFindings(facts: LookFacts, held: Map<string, boolean>): Finding[
       kind: "results",
       ticker: read.ticker,
       figure: fin(read.movePct) ? signedPct(read.movePct) : verdict === "beat" ? "Beat" : verdict === "missed" ? "Missed" : "In line",
-      figureLabel: fin(read.movePct) ? "On results" : "Profit vs forecast",
+      // A thin print before the session says which one it is.
+      figureLabel: fin(read.movePct) ? (read.moveSession === "after_hours" ? "After hours" : read.moveSession === "pre_market" ? "Pre-market" : "On results") : "Profit vs forecast",
       tone: fin(read.movePct) ? toneOf(read.movePct) : verdict === "beat" ? "up" : verdict === "missed" ? "down" : "flat",
       text,
       lead: `it reported ${when}`,

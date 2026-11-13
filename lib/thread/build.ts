@@ -274,12 +274,24 @@ function money(value: number): string {
  */
 function eventFigure(item: InboxItem, text: string, prices?: Readonly<Record<string, number>>): ThreadFigure | null {
   if (item.move && Number.isFinite(item.move.pct)) return { value: signedPct(item.move.pct), tone: toneOf(item.move.pct) };
+  // A results note's figure is how the stock took the report, never the first percent in its sentence (revenue "up
+  // 55% from a year ago" is not a share price move); after hours or pre-market says so under it.
+  if (item.kind === "results") {
+    const pct = item.result?.movePct;
+    if (typeof pct !== "number" || !Number.isFinite(pct)) return null;
+    const session = item.result?.moveSession;
+    return { value: signedPct(pct), tone: toneOf(pct), ...(session ? { label: session === "after_hours" ? "after hours" : "pre-market" } : {}) };
+  }
+  // A move outside the session says which one under its figure, so it is never read as the day's move.
+  if (item.extended && Number.isFinite(item.extended.pct)) {
+    return { value: signedPct(item.extended.pct), tone: toneOf(item.extended.pct), label: item.extended.session === "post" ? "after hours" : "pre-market" };
+  }
   if (isCallChange(item)) {
     const price = prices?.[item.tickers[0]!];
     return typeof price === "number" && Number.isFinite(price) && price > 0 ? { value: money(price), tone: "flat", label: "price now" } : null;
   }
   // Only kinds whose sentence is about a price: a fund's "raised its stake 25%" is not a move.
-  if (item.kind !== "agent" && item.kind !== "alert" && item.kind !== "results") return null;
+  if (item.kind !== "agent" && item.kind !== "alert") return null;
   const move = signedMove(text);
   return move ? { value: move.value, tone: move.tone } : null;
 }

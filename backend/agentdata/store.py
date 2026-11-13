@@ -70,6 +70,8 @@ WRITABLE_PREFIXES = (
     "tm_filing_changes",
     # First-party analytics (lib/analytics/db.ts writes it from the web app): event chunks, daily rollups, the day's salt.
     "tm_analytics_",
+    # After-hours and pre-market quotes (extended_hours.py): one per stock, the newest session's print.
+    "tm_extended_quotes",
 )
 
 
