@@ -36,7 +36,8 @@ export function StockCardGrid({ children, wide = false, dense = false, className
   );
 }
 
-export const CARD_HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_25%,transparent)] hover:bg-oa-accent";
+// A light hover (owner, Nov 13: the full accent fill read too heavy): a faint tint and a slightly firmer edge.
+export const CARD_HOVER = "transition-colors hover:border-[color-mix(in_srgb,var(--oa-fg)_16%,transparent)] hover:bg-[color-mix(in_srgb,var(--oa-accent)_45%,var(--oa-card))]";
 
 /** The one fact worth highlighting on a card: "Reports tomorrow after the close", "You hold it". */
 export function FactChip({ children }: { children: React.ReactNode }) {

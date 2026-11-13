@@ -153,7 +153,8 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
             ) : (
               <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{thesisSentence(thesis)}</p>
             )}
-            {check?.quote ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{check.quote}</p> : null}
+            {/* The person's own words fold behind one quiet toggle (owner, Nov 13: "too much text"): the check above is the news. */}
+            {check?.quote ? <OwnWords quote={check.quote} /> : null}
             <ConditionLines thesis={thesis} views={check?.conditions ?? []} />
             {pending && !check ? <p className="mt-1 text-[13px] text-oa-muted-fg">Checking it against today&apos;s numbers.</p> : null}
             {locked ? (
@@ -184,6 +185,27 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
         ) : null}
       </section>
       {sheet}
+    </div>
+  );
+}
+
+/** "Your words": the reason as the person wrote it, folded until asked for. */
+function OwnWords({ quote }: { quote: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className={`inline-flex items-center gap-1 rounded text-[13px] leading-5 text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}
+      >
+        Your words
+        <svg aria-hidden viewBox="0 0 12 12" className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M3 4.5 6 7.5 9 4.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open ? <p className="mt-0.5 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{quote}</p> : null}
     </div>
   );
 }

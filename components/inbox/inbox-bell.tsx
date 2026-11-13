@@ -4,7 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { InboxGroupRow, metaWords } from "@/components/inbox/inbox-row";
-import { useMarkSeen } from "@/components/inbox/use-mark-seen";
+import { postSeen, useMarkSeen } from "@/components/inbox/use-mark-seen";
 import { useUser } from "@/lib/auth-context";
 import { badgeText, inboxRows, isUnread, nyDay, unreadRows } from "@/lib/inbox/merge";
 import { newestShown, wouldClear } from "@/lib/inbox/seen";
@@ -218,9 +218,36 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
     signedIn: Boolean(summary?.signedIn),
     account: user?.uid ?? null,
   });
-  // The badge also counts the agent's proposals waiting for an answer (lib/proposals.ts).
+  // The badge also counts the agent's proposals waiting for an answer (lib/proposals.ts), but only the ones that arrived
+  // since the bell or /inbox was last opened (owner, Nov 13: "the count should go away once I click this"). The waiting
+  // ones stay listed on /agent; the badge only says something new came in.
   const proposals = summary?.signedIn ? summary.proposals ?? 0 : 0;
-  const badge = unread + proposals;
+  const [proposalsSeen, setProposalsSeen] = React.useState<number>(0);
+  const seenKey = user?.uid ? `stocksbrew:bell:proposals-seen:${user.uid}` : null;
+  React.useEffect(() => {
+    if (!seenKey) return;
+    try {
+      setProposalsSeen(Number(window.localStorage.getItem(seenKey) ?? 0) || 0);
+    } catch {
+      setProposalsSeen(0);
+    }
+  }, [seenKey]);
+  const acknowledge = React.useCallback(() => {
+    if (!seenKey) return;
+    setProposalsSeen(proposals);
+    try {
+      window.localStorage.setItem(seenKey, String(proposals));
+    } catch {
+      // Private mode: the badge clears for this tab only.
+    }
+  }, [seenKey, proposals]);
+  // An answered proposal lowers the waiting count: what was seen can never count above what still waits.
+  const newProposals = Math.max(0, proposals - Math.min(proposalsSeen, proposals));
+  // Opening /inbox (the phone's bell goes there) counts as looking.
+  React.useEffect(() => {
+    if (pathname === "/inbox" && summary?.signedIn) acknowledge();
+  }, [pathname, summary?.signedIn, acknowledge]);
+  const badge = unread + newProposals;
   const label = badge > 0 ? `Inbox, ${badge} new` : "Inbox";
   const onInbox = pathname === "/inbox";
 
@@ -242,6 +269,12 @@ export function InboxBell({ variant }: { variant: "sidebar" | "topbar" }) {
   const toggle = () => {
     const next = !open;
     setOpen(next);
+    // Opening the bell clears its count at once: everything up to now is marked read (the popover still shows this
+    // view's new dots), and the waiting proposals count as seen.
+    if (next && summary?.signedIn) {
+      void postSeen(null, { account: user?.uid ?? null });
+      acknowledge();
+    }
     // Signed out, or the count is old: read when the popover opens.
     if (next && (!summary || Date.now() - shared.at > REFRESH_AFTER_MS)) void load(Boolean(summary));
   };
