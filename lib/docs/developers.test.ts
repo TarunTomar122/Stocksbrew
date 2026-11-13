@@ -53,7 +53,7 @@ describe("developer docs", () => {
 
   it("points every tool at a REST route that exists", () => {
     for (const [tool, route] of Object.entries(TOOL_REST)) {
-      const file = `app/api/v1${route.path.replace("{symbol}", "[symbol]")}/route.ts`;
+      const file = `app/api/v1${route.path.replace("{symbol}", "[symbol]").replace("{id}", "[id]")}/route.ts`;
       const code = source(file);
       expect(code, `${tool} in ${file}`).toContain(`"${tool}"`);
       expect(code, `${tool} ${route.method}`).toContain(`export async function ${route.method}(`);

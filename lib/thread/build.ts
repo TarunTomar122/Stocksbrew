@@ -51,6 +51,8 @@ export type ThreadInput = {
   levels: (ticker: string) => boolean;
   /** Each stock's latest price, for a note that reports no move of its own (a call change). */
   prices?: Readonly<Record<string, number>>;
+  /** The person's idea baskets that hold each stock, by name: a filing note on one says which basket it touches. */
+  baskets?: Readonly<Record<string, readonly string[]>>;
   stocks: number;
   /** Most days shown, today included. */
   maxDays?: number;
@@ -297,12 +299,39 @@ export function withoutLevels(text: string): string {
     .trim();
 }
 
+/** The person's idea baskets that hold each stock, by name (archived ones are already left out by the store read). */
+export function basketsByTicker(baskets: ReadonlyArray<{ name: string; lines: ReadonlyArray<{ ticker: string }> }>): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const basket of baskets) {
+    for (const line of basket.lines) {
+      const names = (out[line.ticker] ??= []);
+      if (!names.includes(basket.name)) names.push(basket.name);
+    }
+  }
+  return out;
+}
+
+/**
+ * The line a filing note adds when the stock sits in the person's idea baskets: "It's in your “AI capex” basket.",
+ * "It's in your “AI capex” and “Grid” baskets.", "It's in 3 of your idea baskets.". Null when it is in none.
+ */
+export function basketLine(names: readonly string[] | undefined): string | null {
+  const unique = [...new Set((names ?? []).map((name) => name.trim()).filter(Boolean))];
+  if (unique.length === 0) return null;
+  if (unique.length === 1) return `It's in your “${unique[0]}” basket.`;
+  if (unique.length === 2) return `It's in your “${unique[0]}” and “${unique[1]}” baskets.`;
+  return `It's in ${unique.length} of your idea baskets.`;
+}
+
 /** An event as a note, with the levels taken out of anything the viewer's plan does not show. Null when nothing is left. */
-export function eventNote(item: InboxItem, input: Pick<ThreadInput, "levels" | "today" | "prices">, reportsAhead: ReadonlyMap<string, string>): ThreadNote | null {
+export function eventNote(item: InboxItem, input: Pick<ThreadInput, "levels" | "today" | "prices" | "baskets">, reportsAhead: ReadonlyMap<string, string>): ThreadNote | null {
   // A note about no stock in particular (a memo, a rebalance) is treated as gated: its levels are taken out too.
   const visible = item.tickers.length > 0 && item.tickers.every((ticker) => input.levels(ticker));
-  const text = (visible ? item.text : withoutLevels(item.text)).trim();
-  if (!text) return null;
+  const said = (visible ? item.text : withoutLevels(item.text)).trim();
+  if (!said) return null;
+  // A filing on a stock in one of the person's idea baskets says which basket it touches.
+  const inBaskets = item.kind === "filing" && item.tickers.length === 1 ? basketLine(input.baskets?.[item.tickers[0]!]) : null;
+  const text = inBaskets ? `${said} ${inBaskets}` : said;
   // A level finding's second line is each close against our level ("AMD at $140.10 against $142.07"): all plan.
   const levelDetail = item.id.startsWith("level:");
   const detail = item.detail && (visible || !levelDetail) ? (visible ? item.detail : withoutLevels(item.detail)).trim() : "";

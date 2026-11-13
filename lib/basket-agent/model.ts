@@ -225,7 +225,8 @@ export function datedReason(text: string, dayLabel: string): string {
       /\bIt passes the ("[^"]+") screen today\b/,
       `It passed the $1 screen on ${dayLabel}`,
     )
-    .replace(/\btoday\b/gi, `on ${dayLabel}`);
+    // "today's AI data centers" means the ones of our time, not a day: only a bare "today" is dated.
+    .replace(/\btoday\b(?!['’]s\b)/gi, `on ${dayLabel}`);
 }
 
 export function cleanTicker(value: unknown): string | null {
@@ -402,4 +403,16 @@ export function basketRunDocId(uid: string, id: string, day: string): string {
 
 export function basketHref(id: string): string {
   return `/agents/baskets/${encodeURIComponent(id)}`;
+}
+
+/**
+ * The basket editor, opened on a theme's book (`?theme=`) or on an idea and its companies (`?idea=&tickers=`, the way
+ * an Ask answer hands one over). Nothing is saved until the person saves it there.
+ */
+export function watchIdeaHref(
+  from: { theme: string } | { idea: string; tickers: readonly string[] },
+): string {
+  if ("theme" in from)
+    return `/agents/baskets/new?theme=${encodeURIComponent(from.theme)}`;
+  return `/agents/baskets/new?idea=${encodeURIComponent(from.idea)}&tickers=${encodeURIComponent(from.tickers.join(","))}`;
 }

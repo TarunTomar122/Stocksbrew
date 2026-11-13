@@ -123,6 +123,12 @@ export function planOffline(question: string): PlannedCall[] {
   }
   if (/\bmy (agents?|watchers?|watches)\b/.test(lower)) return [{ tool: "get_my_agents", input: {} }];
   if (/\bmy\b.*\bresearch\b|\bresearch reports?\b/.test(lower)) return [{ tool: "get_my_research", input: tickers[0] ? { ticker: tickers[0] } : {} }];
+  if (/\bmy (?:idea )?baskets?\b/.test(lower)) return [{ tool: "get_my_baskets", input: {} }];
+  // "What did AMD add to its risks?", "What changed in NVDA's 10-K?": the risk factors against the filing before.
+  // Only questions about its risks: a filing's figures ("revenue in its latest 10-K") are a stock question.
+  if (tickers[0] && /\brisk factors?\b|\b10-?[kq]s?\b.*\brisks?\b|\brisks?\b.*\b10-?[kq]s?\b|\b(?:add|adds|added|new|drop|drops|dropped)\s+(?:[\w'’]+\s+){0,3}risks?\b|\bchang\w*\s+(?:in|to)\s+(?:its|their|the)\s+risks?\b/.test(lower)) {
+    return [{ tool: "get_filing_changes", input: { ticker: tickers[0] } }];
+  }
   if (/\bmemo\b/.test(lower) || (mine && /\b(this|the|last) week\b|\bweekly\b/.test(lower))) return [{ tool: "get_my_week", input: {} }];
   // "When should I sell NVDA?": our call, its level and the distance, with the watch one tap away.
   const when = /\bwhen\b.*\b(?:should|do|would|could)\s+(?:i|we)\b.*\b(sell|trim|take profits?|buy|add)\b|\bwhen(?:'s| is)?\s+(?:a\s+|the\s+)?(?:good|right|best)\s+(?:time\s+)?to\s+(sell|trim|buy|add)\b/.exec(lower);
@@ -335,6 +341,28 @@ export function describeCard(card: AskCard): string {
       return card.status === "already"
         ? `You already have an agent for this: ${list(card.existing.map((job) => job.name))}.`
         : `${card.zone ? `${card.zone.answer} ` : ""}${card.preview} Nothing is set up yet: tap Save this watch on the card to start it.`;
+    case "filing_changes": {
+      const lead = card.added[0] ?? card.dropped[0] ?? null;
+      const quoted = lead ? ` ${card.added[0] ? "The first new one" : "The first one dropped"}, in its own words: “${lead}”` : "";
+      const since = card.since ? ` ${card.since.line}` : "";
+      const unread = card.unread ? ` We couldn't read the risk section of its ${card.unread.form} filed ${day(card.unread.filed)}.` : "";
+      return `${card.headline}${quoted}${since}${unread}`;
+    }
+    case "idea_baskets": {
+      if (card.rows.length === 0) return "You have no idea baskets yet. Turn an idea into one from a basket answer, or from a theme.";
+      const look = card.rows.flatMap((row) => row.needs_look.map((entry) => `${entry.ticker} in “${row.name}” (${entry.verdict_words.toLowerCase()})`));
+      return `You have ${card.total} idea ${card.total === 1 ? "basket" : "baskets"}: ${list(card.rows.map((row) => `“${row.name}”`))}. ${look.length > 0 ? `Needs a look: ${list(look.slice(0, 4))}.` : "Every checked reason still holds."}`;
+    }
+    case "idea_basket": {
+      const checked = card.companies.length - card.counts.unknown;
+      const hold = `${card.counts.holds} of ${checked} reasons hold`;
+      const latest = card.latest ? ` The check on ${day(card.latest.day)}: ${card.latest.summary}` : " It has not been checked yet.";
+      return `“${card.name}”: ${checked > 0 ? hold : "no reasons checked yet"}.${latest}`;
+    }
+    case "watch_idea":
+      return card.status === "already" && card.existing
+        ? `You already watch these companies in “${card.existing.name}”.`
+        : `Here is “${card.name}” as a basket of ${card.lines.length} companies. Nothing is saved yet: open the editor to replay it and switch it on.`;
     case "matches":
       return card.matches.length === 0 ? `Nothing in our catalog matches "${card.query}".` : `Closest matches: ${list(card.matches.slice(0, 4).map((match) => `${match.ticker} (${match.name})`))}.`;
     case "sign_in":

@@ -67,10 +67,10 @@ function earlierOutputs(messages: UIMessage[]): unknown[] {
 
 /* ── "Watch this" for every answer that names a stock ───────────────────── */
 
-export type WatchInput = { kind: "earnings_before" | "daily_move" | "insider_trade" | "congress_trade"; ticker: string; days?: number; pct?: number };
+export type WatchInput = { kind: "earnings_before" | "daily_move" | "insider_trade" | "congress_trade" | "sec_filing"; ticker: string; days?: number; pct?: number; filing?: "big" };
 
 /** Kinds of card that are about one stock, in the order they count as "the stock the answer is about". */
-const ONE_STOCK_CARDS = new Set(["quote", "research", "briefing_item", "returns"]);
+const ONE_STOCK_CARDS = new Set(["quote", "research", "briefing_item", "returns", "filing_changes"]);
 
 /** Whole days from one day (YYYY-MM-DD) to another. */
 function daysBetween(from: string, to: string): number | null {
@@ -140,8 +140,8 @@ function stockOf(answer: string, cards: AskCard[]): string | null {
 
 /**
  * The agent an answer leads to when the model offered none, read from what the answer concluded: insider or Congress
- * trades when that is what it talked about, the next report when it is close (or the answer is about it), and
- * otherwise a big daily move. Null when the answer names no stock its cards hold, or only the index fund it was
+ * trades when that is what it talked about, its next big filing after an answer about what its filings changed, the
+ * next report when it is close (or the answer is about it), and otherwise a big daily move. Null when the answer names no stock its cards hold, or only the index fund it was
  * measured against. Pure.
  */
 export function fallbackWatch(answer: string, cards: AskCard[], now: Date): WatchInput | null {
@@ -150,6 +150,8 @@ export function fallbackWatch(answer: string, cards: AskCard[], now: Date): Watc
   const text = answer.toLowerCase();
   if (/\binsiders?\b|\bform 4\b/.test(text)) return { kind: "insider_trade", ticker };
   if (/\bcongress(?:ional)?\b|\bsenators?\b/.test(text)) return { kind: "congress_trade", ticker };
+  // An answer about what a company changed in its filings leads to its next big filing (an annual report among them).
+  if (cards.some((card) => card.card === "filing_changes" && card.ticker.toUpperCase() === ticker)) return { kind: "sec_filing", ticker, filing: "big" };
   const quote = cards.find((card) => card.card === "quote" && card.ticker.toUpperCase() === ticker);
   const report = quote?.card === "quote" ? quote.next_earnings?.date ?? null : null;
   // Counted in New York days, the market's calendar.

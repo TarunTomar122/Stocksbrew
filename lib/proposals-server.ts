@@ -54,6 +54,7 @@ import {
 import { resultsFor } from "@/lib/results/server";
 import { getDailySeries } from "@/lib/screener-series";
 import { filingLine } from "@/lib/since-visit-server";
+import { figureText, isConditionMetric, METRICS, type ConditionRecord } from "@/lib/thesis-watch/conditions";
 import { CHECKS_COLLECTION, checkDocId, lastChange, readStoredCheck } from "@/lib/thesis-watch/store";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
 import { listBasketRuns, listBaskets } from "@/lib/basket-agent/data";
@@ -293,9 +294,21 @@ async function readReasons(uid: string, stocks: ProposalStock[]): Promise<Record
       verdict: stored.verdict,
       since: change?.day ?? stored.history[0]?.day ?? stored.day ?? null,
       signals: stored.signals.map((signal) => ({ text: signal.text, asOf: signal.asOf, level: signal.level })),
+      condition: brokenCondition(stored.conditions),
     };
   });
   return out;
+}
+
+/** The first of the reason's measurable lines that broke, as the proposal words it (lib/thesis-watch/conditions.ts). */
+function brokenCondition(records: readonly ConditionRecord[]): ProposalReason["condition"] {
+  const record = records.find((row) => row.status === "broken");
+  if (!record) return null;
+  const [metric, , line] = record.key.split(":");
+  const label = isConditionMetric(metric) ? METRICS[metric].label : "Your line";
+  // Never reads the same as the line it broke (19.6% against 20% is not "20%").
+  const now = isConditionMetric(metric) && record.now !== null ? figureText(metric, record.now, Number(line)) : null;
+  return { line: record.line, source: record.source, asOf: record.as_of, href: record.href, label, now };
 }
 
 /** The person's idea baskets with their last few checks, newest first (lib/basket-agent). */

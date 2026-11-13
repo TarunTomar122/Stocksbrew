@@ -250,10 +250,12 @@ function scaleEnd(value: number): string {
  */
 function ScaleHead({ domain }: { domain: [number, number] }) {
   const [low, high] = domain;
-  if (!(high > low)) return null;
+  // Nothing to say when both ends round to the same figure ("0 … 0" over a flat test).
+  if (!(high > low) || scaleEnd(low) === scaleEnd(high)) return null;
   const zero = barGeometry([low, high]).zero;
   // The zero label only where it does not sit on top of an end's own label.
-  const showZero = low < 0 && high > 0 && zero > 22 && zero < 78;
+  // The bar column is narrow in the rail and on a phone (about 90-110px), where an end label takes over a third of it.
+  const showZero = low < 0 && high > 0 && zero > 38 && zero < 62;
   return (
     <span aria-hidden="true" className="oa-mono relative block h-4 text-[10.5px] font-normal leading-4 tabular-nums text-oa-muted-fg">
       <span className="absolute left-0">{scaleEnd(low)}</span>
@@ -272,40 +274,47 @@ export function YearTable({
   benchmarkLabel,
   strategyLabel = "Strategy",
   gap = true,
+  fill = false,
 }: {
   years: YearRow[];
   benchmarkLabel: string;
   strategyLabel?: string;
   /** The gap column; a narrow rail leaves it out, since the bars beside each year show it. */
   gap?: boolean;
+  /**
+   * From `lg` up, take the height of the box it sits in: the rows spread out to fill it, or scroll inside it when they
+   * are more than fit (a rail beside a taller column, owner rule 4). Below `lg` it is about eight rows tall.
+   */
+  fill?: boolean;
 }) {
   // Both years' returns as two bars on one scale, one zero line down the column (owner VISUALS CHECK): copper for the
   // mix, teal for what it is held against, as on the chart. The dots on the column names say which is which.
   const rows = [...years].reverse();
   const domain = barDomain(rows.flatMap((row) => [row.strategy, row.benchmark]));
-  return (
-    <TableBox rowRem={2.5}>
-      <table className={`${SERIES_VARS} w-full min-w-[19rem] border-collapse text-[13px]`}>
+  const table = (
+      <table className={`${SERIES_VARS} w-full min-w-[19rem] border-collapse text-[13px] ${fill ? "lg:h-full" : ""}`}>
         <thead>
           <tr className="border-b border-oa-border text-left">
             <th className="oa-caption px-3.5 py-2">Year</th>
             <th className="oa-caption px-2 py-2 text-right">
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                 <span aria-hidden="true" className="size-2 rounded-full bg-[var(--series-a)]" />
                 {strategyLabel}
               </span>
             </th>
             <th className="oa-caption px-2 py-2 text-right">
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                 <span aria-hidden="true" className="size-2 rounded-full bg-[var(--series-b)]" />
                 {benchmarkLabel}
               </span>
             </th>
-            <th className="w-[34%] px-2 py-2">
+            {/* The same side padding as the bars' cells, so the scale's ends sit over the bars' ends. */}
+            <th className={`w-[34%] px-2 py-2 ${gap ? "max-sm:pr-3.5" : "pr-3.5"}`}>
               <span className="sr-only">Both on one scale</span>
               <ScaleHead domain={domain} />
             </th>
-            {gap ? <th className="oa-caption px-3.5 py-2 text-right">Gap</th> : null}
+            {/* No gap column on a phone: the bars say it, and the room goes to them so the scale's ends fit. */}
+            {gap ? <th className="oa-caption px-3.5 py-2 text-right max-sm:hidden">Gap</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -319,19 +328,24 @@ export function YearTable({
                 </td>
                 <td className={`oa-mono px-2 text-right tabular-nums ${toneOf(row.strategy)}`}>{signedPct(row.strategy)}</td>
                 <td className="oa-mono px-2 text-right tabular-nums text-oa-muted-fg">{signedPct(row.benchmark)}</td>
-                <td className={`px-2 ${gap ? "" : "pr-3.5"}`}>
+                <td className={`px-2 ${gap ? "max-sm:pr-3.5" : "pr-3.5"}`}>
                   <span className="flex flex-col gap-1">
                     <SignedBar value={row.strategy} domain={domain} color="var(--series-a)" className="h-1.5" />
                     <SignedBar value={row.benchmark} domain={domain} color="var(--series-b)" className="h-1.5" />
                   </span>
                 </td>
-                {gap ? <td className={`oa-mono px-3.5 text-right tabular-nums ${toneOf(diff)}`}>{signedPct(diff)}</td> : null}
+                {gap ? <td className={`oa-mono px-3.5 text-right tabular-nums max-sm:hidden ${toneOf(diff)}`}>{signedPct(diff)}</td> : null}
               </tr>
             );
           })}
         </tbody>
       </table>
-    </TableBox>
+  );
+  if (!fill) return <TableBox rowRem={2.5}>{table}</TableBox>;
+  return (
+    <div className="isolate min-h-0 flex-1 overflow-auto scrollbar-hide max-lg:max-h-[22.5rem] [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-20 [&_thead_th]:bg-oa-card">
+      {table}
+    </div>
   );
 }
 
@@ -361,6 +375,7 @@ export function Panel({
   className = "",
   bodyClassName = "",
   id,
+  style,
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
@@ -368,9 +383,10 @@ export function Panel({
   className?: string;
   bodyClassName?: string;
   id?: string;
+  style?: React.CSSProperties;
 }) {
   return (
-    <section id={id} className={`oa-surface min-w-0 scroll-mt-20 overflow-hidden border border-oa-border bg-oa-card ${className}`}>
+    <section id={id} style={style} className={`oa-surface min-w-0 scroll-mt-20 overflow-hidden border border-oa-border bg-oa-card ${className}`}>
       <header className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-oa-border px-3.5 py-2">
         <h2 className="oa-label">{title}</h2>
         {aside ? <div className="text-[12.5px] tabular-nums text-oa-muted-fg">{aside}</div> : null}

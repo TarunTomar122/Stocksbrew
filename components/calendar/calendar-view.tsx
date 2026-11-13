@@ -43,7 +43,8 @@ import {
 } from "@/lib/calendar-shared";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
-import { WholeRows } from "@/components/wire/whole-rows";
+import { DayFold } from "@/components/calendar/day-fold";
+import { foldDay, type DayBlock } from "@/components/calendar/fold-day";
 
 const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors lg:h-8 " + FOCUS;
@@ -516,13 +517,11 @@ function DividendLine({ item }: { item: DividendItem }) {
 /* ── Week ──────────────────────────────────────────────────────────────── */
 
 /**
- * A day's column scrolls inside a box of about this height, ending on a whole row, with every event in it (owner
- * rule 5: all of them, not the first few and a "+ 8 more" link under each group). Short enough that a busy day and a
- * quiet one end close to level instead of one running on beside a blank column (owner rule 4).
+ * About how many short rows a day shows before the rest wait behind one "Show N more" (owner rule 4: a card never
+ * scrolls inside its own box). Rows are weighed by height (an IPO's three lines count three), so a busy day and a quiet
+ * one end close to level instead of one running on beside a blank column.
  */
-const DAY_REM = 30;
-/** A phone day shows about 12 reports, then scrolls inside and hands the scroll back to the page at its end. */
-const PHONE_DAY_REM = 36;
+const DAY_ROWS = 12;
 
 /** A day's session heading: the full words, or a short form for a narrow desktop week column. */
 const SESSION_SHORT: Record<Session, string> = { bmo: "Before the open", amc: "After the close", unknown: "Time not set" };
@@ -605,19 +604,16 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
         </span>
       </AppLink>
 
-      <DayBody>
-        {bucket.total === 0 ? <p className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p> : null}
-
-        {bucket.economic.length ? (
-          <div>
-            <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>
-            {bucket.economic.map((item) => (
-              <EconomicLine key={item.id} item={item} />
-            ))}
-          </div>
-        ) : null}
-
-        {sessions.map((session, sessionIndex) => {
+      {(() => {
+        // Every block of the day in order (group headings and rows), each row with its rough height in short rows, so
+        // the fold can cut after about DAY_ROWS of them whatever mix of reports, IPOs and dividends the day has.
+        const blocks: DayBlock[] = [];
+        if (bucket.total === 0) blocks.push({ node: <p key="none" className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p>, weight: 0 });
+        if (bucket.economic.length) {
+          blocks.push({ node: <h3 key="eco-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>, weight: 0 });
+          for (const item of bucket.economic) blocks.push({ node: <EconomicLine key={item.id} item={item} />, weight: 1.5 });
+        }
+        sessions.forEach((session, sessionIndex) => {
           const rows = bucket.earnings[session];
           // "Expected profit a share" once per day, over the first group whose numbers are estimates (owner rule 1).
           const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
@@ -632,9 +628,9 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
           // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
           const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
           const keyClass = `${isToday ? "" : "lg:hidden"} ${keyAlways ? "" : "max-[420px]:hidden"}`;
-          return (
-            <div key={session}>
-              <h3 className={`${SECTION} flex items-baseline justify-between gap-2`}>
+          blocks.push({
+            node: (
+              <h3 key={`${session}-h`} className={`${SECTION} flex items-baseline justify-between gap-2`}>
                 <span>
                   {/* A narrow desktop column says the session in a few words, on one line ("Time not announced yet"
                       wrapped into the ticker under it); a phone and today's wide column keep the full words. */}
@@ -652,53 +648,44 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
                 </span>
                 <span className={`${NUM} shrink-0`}>{rows.length}</span>
               </h3>
-              {rows.map((item) => (
-                <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />
-              ))}
-            </div>
-          );
-        })}
-
-        {bucket.ipos.length ? (
-          <div>
-            <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>
-            {bucket.ipos.map((item) => (
-              <IpoLine key={item.id} item={item} />
-            ))}
+            ),
+            weight: 0,
+          });
+          for (const item of rows) {
+            blocks.push({
+              node: <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />,
+              // Today's wide rows carry a second line (the result bars) more often than not.
+              weight: isToday ? 1.4 : 1,
+            });
+          }
+        });
+        if (bucket.ipos.length) {
+          blocks.push({ node: <h3 key="ipo-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>, weight: 0 });
+          for (const item of bucket.ipos) blocks.push({ node: <IpoLine key={item.id} item={item} />, weight: 3 });
+        }
+        if (bucket.dividends.length) {
+          blocks.push({
+            node: (
+              <h3 key="div-h" className={`${SECTION} flex items-center justify-between`}>
+                <span className="flex items-center gap-1.5">
+                  <KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />
+                  Buy before this day to get the dividend
+                </span>
+                <span className={NUM}>{bucket.dividends.length}</span>
+              </h3>
+            ),
+            weight: 0,
+          });
+          for (const item of bucket.dividends) blocks.push({ node: <DividendLine key={item.id} item={item} />, weight: 1 });
+        }
+        const { shown, rest, hidden } = foldDay(blocks, DAY_ROWS);
+        return (
+          <div className={hidden ? "" : "pb-2"}>
+            <DayFold shown={shown.map((block) => block.node)} rest={rest.map((block) => block.node)} count={hidden} />
           </div>
-        ) : null}
-
-        {bucket.dividends.length ? (
-          <div>
-            <h3 className={`${SECTION} flex items-center justify-between`}>
-              <span className="flex items-center gap-1.5">
-                <KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />
-                Buy before this day to get the dividend
-              </span>
-              <span className={NUM}>{bucket.dividends.length}</span>
-            </h3>
-            {bucket.dividends.map((item) => (
-              <DividendLine key={item.id} item={item} />
-            ))}
-          </div>
-        ) : null}
-        <div className="h-2" />
-      </DayBody>
+        );
+      })()}
     </section>
-  );
-}
-
-/**
- * A day's events, every one, in a box that ends on a whole row and scrolls inside (owner rule 5): a desktop column, or
- * about 12 reports on a phone, so a busy Thursday does not run the page. No overscroll-contain, so the page moves on
- * once the list ends. A day that has passed shows its reports too, on a phone as well (owner rule 2: no tapping a day
- * open to read it).
- */
-function DayBody({ children }: { children: React.ReactNode }) {
-  return (
-    <WholeRows rem={PHONE_DAY_REM} wideRem={DAY_REM} wideFrom={1024} cue className="scrollbar-hide max-h-[36rem] overflow-y-auto lg:max-h-[30rem]">
-      {children}
-    </WholeRows>
   );
 }
 

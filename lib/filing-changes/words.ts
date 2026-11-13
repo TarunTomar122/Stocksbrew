@@ -1,6 +1,6 @@
 /**
  * The words around a filing comparison. The risks themselves are always the company's own headings, never reworded:
- * a long one is only cut at a word boundary (with the whole heading kept for a hover title). Pure: safe on the client.
+ * a long one is only cut to its opening clause, never mid-clause and never with an ellipsis. Pure: safe on the client.
  */
 
 import { absoluteDay, daysFromToday, weekdayName } from "@/lib/day-words";
@@ -10,27 +10,59 @@ import type { Comparison } from "./diff";
 /** Most words of a heading shown inline. */
 export const QUOTE_WORDS = 15;
 
-// A cut never ends on a word that leads into the next one ("…export controls and").
+/** The shortest clause a heading is cut to: anything shorter says too little to stand for the risk. */
+const MIN_CLAUSE_WORDS = 5;
+
+// A clause never ends on a word that leads into the next one ("…export controls and.").
 const DANGLING = /^(?:a|an|the|and|or|but|nor|of|to|in|on|at|for|by|with|from|as|into|than|that|which|who|whose|its|our|their|is|are|be|been|may|could|can|will|would|including|such|other|if|when|while|because)$/i;
 
+// A heading that opens on one of these is a condition first ("If we fail to retain staff, …"): a comma never ends it.
+const SUBORDINATE = /^(?:if|when|whenever|while|although|though|because|since|unless|until|as|after|before|despite|due|following|in|through|to|with|without|whether)$/i;
+
+// After a comma, only these start something the sentence can do without: a trailing modifier ("…, including …").
+const TRAILING = /^(?:including|which|such|particularly|especially|among|notably|whether)$/i;
+// …or a second clause, when the comma is the heading's first (so it is not the end of a list: "attract, retain, and").
+const JOINING = /^(?:and|but|while|whereas|or)$/i;
+
+// A clause has a verb: a cut that leaves only a subject ("Our operations outside the U.S.") is no sentence.
+const VERB = /\b(?:is|are|was|were|be|been|being|may|might|could|can|will|would|must|should|has|have|had|does|do|did|(?:depend|rel(?:y|ies)|face|compete|require|involve|expose|subject|affect|harm|hurt|operate|sell|generate|derive|make|use|need|expect|plan|intend|continue|remain|fail|rely|limit|increase|decrease|reduce|impact)(?:s|es|ed|d)?)\b/i;
+
 /**
- * A heading as shown: whole when it has at most `max` words, else cut with "…" at the last clause boundary (a comma,
- * semicolon or colon) within `max` words when that keeps at least half of them, otherwise at a word boundary that is
- * not a joining word. Returns the shown text and whether it was cut.
+ * A heading as shown, never ending in an ellipsis: whole when it has at most `max` words; else its longest opening
+ * clause within `max` words that stands as a sentence of its own, closed with a full stop. A clause ends at a
+ * semicolon, colon or dash, or at a comma before a trailing modifier ("…, including …", "…, which …") or, for the
+ * heading's first comma, before a second clause ("…, and any failure …"). It is at least MIN_CLAUSE_WORDS words with a
+ * verb, never a lone opening condition ("If …"), never ends on a joining word, and never leaves a bracket open. When no
+ * clause fits it is shown whole. `cut` says it was shortened (callers link the full text); `fits` that it is within
+ * `max` words.
  */
-export function quote(heading: string, max = QUOTE_WORDS): { text: string; cut: boolean } {
-  const words = heading.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  if (words.length <= max) return { text: words.join(" "), cut: false };
-  let end = max;
-  let clause = -1;
-  for (let index = max - 1; index + 1 >= Math.ceil(max / 2) && clause < 0; index -= 1) if (/[,;:]$/.test(words[index]!)) clause = index;
-  if (clause >= 0) end = clause + 1;
-  else while (end > Math.ceil(max / 2) && DANGLING.test(words[end - 1]!.replace(/[^A-Za-z']/g, ""))) end -= 1;
+export function quote(heading: string, max = QUOTE_WORDS): { text: string; cut: boolean; fits: boolean } {
+  const whole = heading.replace(/\s+/g, " ").trim();
+  const words = whole.split(" ").filter(Boolean);
+  if (words.length <= max) return { text: whole, cut: false, fits: true };
+  const subordinate = SUBORDINATE.test(words[0]!.replace(/[^A-Za-z]/g, ""));
+  let commas = 0;
+  let best = -1;
+  for (let index = 0; index < Math.min(max, words.length - 1); index += 1) {
+    const word = words[index]!;
+    const next = words[index + 1]!.replace(/[^A-Za-z]/g, "");
+    const comma = /,$/.test(word);
+    if (comma) commas += 1;
+    const hard = /[;:]$/.test(word) || /^[—–]$/.test(words[index + 1]!) || /[—–]$/.test(word);
+    const soft = comma && !subordinate && (TRAILING.test(next) || (commas === 1 && JOINING.test(next)));
+    if (!hard && !soft) continue;
+    const bare = word.replace(/[^A-Za-z']/g, "");
+    const prefix = words.slice(0, index + 1).join(" ");
+    const open = (prefix.match(/\(/g)?.length ?? 0) > (prefix.match(/\)/g)?.length ?? 0);
+    if (index + 1 < MIN_CLAUSE_WORDS || DANGLING.test(bare) || open || !VERB.test(prefix)) continue;
+    best = index;
+  }
+  if (best < 0) return { text: whole, cut: false, fits: false };
   const text = words
-    .slice(0, end)
+    .slice(0, best + 1)
     .join(" ")
     .replace(/[\s,;:(\-–—]+$/, "");
-  return { text: `${text}…`, cut: true };
+  return { text: /[.!?]$/.test(text) ? text : `${text}.`, cut: true, fits: true };
 }
 
 /** Dropped risks up to this many words are shown whole; longer ones are cut (and link to the filing that had them). */

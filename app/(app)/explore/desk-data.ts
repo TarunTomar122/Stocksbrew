@@ -3,11 +3,10 @@ import type { MarketsData } from "@/lib/markets-shared";
 import { realReason } from "@/lib/reason-quality";
 import { moveReason } from "@/lib/briefing";
 import { moveLine } from "@/lib/move-line";
-import { etDayOfStamp, oldestStamp } from "@/lib/quote-time";
+import { capitalize, dayWords } from "@/lib/day-words";
+import { etClock, etDayOfStamp, oldestStamp } from "@/lib/quote-time";
 import { getMarketsData } from "@/lib/markets";
-import { FUND_TOPIC, SECTOR_IDS, sectorTakeaway } from "@/lib/markets-insights";
-import { moversHeadline } from "@/lib/signals-insights";
-import { classifyMover } from "@/lib/signals-shared";
+import { FUND_TOPIC, SECTOR_IDS } from "@/lib/markets-insights";
 import { sharedCache } from "@/lib/shared-cache";
 import { moveFacts, type CloseSeries } from "@/lib/briefing-move-facts";
 import { adminFirestore } from "@/lib/firebase-admin";
@@ -55,8 +54,6 @@ export type DeskData = {
     /** The New York day the moves were priced on (feed.date is a UTC date, a day ahead after 7 PM New York time). */
     day: string | null;
     thresholdPct: number | null;
-    /** What the whole list adds up to, in one line. */
-    takeaway?: string | null;
   };
 };
 
@@ -66,19 +63,17 @@ export function todayET(now: Date = new Date()): string {
 }
 
 /**
- * One panel's data, cached for a minute for everyone. Nothing here changes
- * faster than that, and some sources do live price joins that cost seconds.
- * The loader throws when its source fails, so only a real answer is cached;
- * the failure (or a source that takes too long) becomes `fallback` for this
- * request alone.
+ * One panel's data under the page's time limit. No cache of its own: the sources already cache (the movers 120 s in
+ * lib/daily-anomalies.ts, the markets 300 s in lib/markets.ts), and a second stale-while-revalidate layer on top let one
+ * panel serve an older snapshot than the panel beside it (Nov 13: Tech +3.23% on one load, -0.34% on the next). The
+ * failure (or a source that takes too long) becomes `fallback` for this request alone.
  */
 function section<T>(name: string, load: (today: string) => Promise<T>, fallback: T): (today: string) => Promise<T> {
-  const cached = sharedCache(load, [`explore-desk-${name}-v2`], { revalidate: 60 });
-  return (today) => soft(name, cached(today), fallback);
+  return (today) => soft(name, load(today), fallback);
 }
 
 export const loadDeskMovers = section<DeskData["movers"]>(
-  // Its own cache key since the list stopped at ten: an older cached copy has neither every move nor their times.
+  // Read through getDailyAnomalies' own 120s cache (with the price join), so the moves match the stock pages.
   "movers-all",
   async () => {
     const anomalies = await getDailyAnomalies("US");
@@ -101,10 +96,9 @@ export const loadDeskMovers = section<DeskData["movers"]>(
       asOf: anomalies?.enriched_at ?? anomalies?.generated_at ?? null,
       day: etDayOfStamp(priced) ?? etDayOfStamp(anomalies?.generated_at ?? null),
       thresholdPct: anomalies?.threshold_pct ?? null,
-      takeaway: moversHeadline(rows.map((row) => classifyMover(row))),
     };
   },
-  { up: [], down: [], asOf: null, day: null, thresholdPct: null, takeaway: null },
+  { up: [], down: [], asOf: null, day: null, thresholdPct: null },
 );
 
 /* ── Price facts for moves with no confirmed reason ─────────────────────── */
@@ -192,7 +186,7 @@ export async function loadMoveFacts(rows: DeskMover[], fallbackDay: string): Pro
 const NO_MARKETS: MarketsData = { as_of: null, assets: [], predictions: [], treasury: null, volCurve: null };
 
 /**
- * Every market Market today draws below its read. `getMarketsData` is cached and never throws, but a
+ * Every market Market today draws: the strip, the sector heatmap and the market cards, all from this one read. `getMarketsData` is cached and never throws, but a
  * store that hangs would keep those sections on their ghost, so it gets the same time limit as the rest.
  */
 export function loadDeskMarketsData(): Promise<MarketsData> {
@@ -202,27 +196,41 @@ export function loadDeskMarketsData(): Promise<MarketsData> {
 export type DeskSector = { id: string; name: string; slug: string; day: number; month: number | null };
 
 /**
- * The 11 sectors and how each did on the day, from the sector funds, best
- * first. Market today leads with this: the whole market before single stocks.
+ * The 11 sectors and how each did on the day, from the sector funds, best first, and the oldest of their quote times.
+ * Pure, over the same markets read the strip and the market cards draw, so the whole page shows one snapshot: the
+ * heatmap used to have its own cache over that read and could lag the strip above it by a whole refresh.
  */
-export const loadDeskSectors = section<{ rows: DeskSector[]; takeaway: string | null; asOf: string | null }>(
-  "sectors",
-  async () => {
-    const data = await getMarketsData();
-    const rows = SECTOR_IDS.map((id) => data.assets.find((asset) => asset.id === id))
-      .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset) && typeof asset!.change.d1 === "number" && Number.isFinite(asset!.change.d1))
-      .map((asset) => {
-        const name = FUND_TOPIC[asset.id] ?? asset.name;
-        const slug = SECTOR_SLUG[asset.id] ?? "";
-        const month = asset.change.m1;
-        return { id: asset.id, name, slug, day: asset.change.d1 as number, month: typeof month === "number" && Number.isFinite(month) ? month : null };
-      })
-      .sort((a, b) => b.day - a.day || a.name.localeCompare(b.name));
-    if (rows.length < 4) throw new Error("sectors_empty");
-    return { rows, takeaway: sectorTakeaway(data.assets), asOf: data.assets.find((asset) => asset.id === "xlk")?.as_of ?? null };
-  },
-  { rows: [], takeaway: null, asOf: null },
-);
+export function deskSectors(data: MarketsData): { rows: DeskSector[]; asOf: string | null } {
+  const funds = SECTOR_IDS.map((id) => data.assets.find((asset) => asset.id === id)).filter(
+    (asset): asset is NonNullable<typeof asset> => Boolean(asset) && typeof asset!.change.d1 === "number" && Number.isFinite(asset!.change.d1),
+  );
+  const rows = funds
+    .map((asset) => {
+      const month = asset.change.m1;
+      return {
+        id: asset.id,
+        name: FUND_TOPIC[asset.id] ?? asset.name,
+        slug: SECTOR_SLUG[asset.id] ?? "",
+        day: asset.change.d1 as number,
+        month: typeof month === "number" && Number.isFinite(month) ? month : null,
+      };
+    })
+    .sort((a, b) => b.day - a.day || a.name.localeCompare(b.name));
+  return { rows, asOf: oldestStamp(funds.map((asset) => asset.as_of)) };
+}
+
+/**
+ * The page's one as-of (owner: one clock per page): the oldest quote time among the stamps given (Market today passes
+ * today's moves and the sector funds, the figures the page compares), so none of those is older than it says. Its day
+ * in words when that is not today ("Yesterday, 4:00 PM ET"); null when no stamp parses.
+ */
+export function pageClock(stamps: ReadonlyArray<string | null | undefined>, today: string): string | null {
+  const oldest = oldestStamp(stamps);
+  const day = etDayOfStamp(oldest);
+  const clock = etClock(oldest);
+  if (!day || !clock) return null;
+  return day === today ? `As of ${clock}` : `${capitalize(dayWords(day, today))}, ${clock}`;
+}
 
 /** Sector fund -> our sector page. */
 const SECTOR_SLUG: Record<string, string> = {

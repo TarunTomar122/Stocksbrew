@@ -6,8 +6,8 @@ export async function GET() {
     openapi: "3.1.0",
     info: {
       title: "Stocksbrew Agent API",
-      version: "1.2.0",
-      description: "Stock research, full stock detail, Explore, Screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests and plain-English agent reading for Stocksbrew Pro members. No trading or brokerage access.",
+      version: "1.3.0",
+      description: "Stock research, full stock detail, risk factor changes in filings, Explore, Screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests, idea baskets and plain-English agent reading for Stocksbrew Pro members. No trading or brokerage access.",
     },
     servers: [{ url: `${base}/api/v1` }],
     security: [{ bearerAuth: [] }],
@@ -203,6 +203,32 @@ export async function GET() {
           responses: { "200": { description: "Agent preview", content: { "application/json": { schema: { type: "object" } } } } },
         },
       },
+      "/stocks/{symbol}/filing-changes": {
+        get: {
+          operationId: "getFilingChanges",
+          summary: "Get what a US company added to, dropped from or reworded in its newest 10-K or 10-Q risk factors",
+          parameters: [{ name: "symbol", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "Risk factor comparison", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/baskets": {
+        get: {
+          operationId: "listBaskets",
+          summary: "List the member's idea baskets with each company's verdict and the latest check (read only)",
+          responses: { "200": { description: "Idea baskets", content: { "application/json": { schema: { type: "object" } } } } },
+        },
+      },
+      "/baskets/{id}": {
+        get: {
+          operationId: "getBasket",
+          summary: "Get one of the member's idea baskets in full (read only)",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Idea basket", content: { "application/json": { schema: { type: "object" } } } },
+            "404": { description: "No basket with that id belongs to this account" },
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -216,7 +242,7 @@ export async function GET() {
               scopes: {
                 "stocks:read": "Read stock intelligence",
                 "market:read": "Read market intelligence",
-                "radar:read": "Read the member's private Watchlist",
+                "radar:read": "Read the member's private Watchlist and idea baskets",
                 "radar:write": "Add or remove Watchlist stocks after the member instructs the agent",
                 "alerts:read": "Read active alerts",
                 "alerts:write": "Create or deactivate alerts after the member instructs the agent",

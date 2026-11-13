@@ -94,6 +94,16 @@ const PROMPTS: { title: string; prompt: string; uses: string }[] = [
     uses: "watch_in_plain_words",
   },
   {
+    title: "What a filing changed",
+    prompt: "What did AMD add to or drop from its risk factors in its newest 10-K or 10-Q? Quote each risk as filed, with the filing date and the SEC link. If stocksbrew has no comparison, say so.",
+    uses: "get_filing_changes",
+  },
+  {
+    title: "My idea baskets",
+    prompt: "Go through my stocksbrew idea baskets. For each, tell me which companies' reasons are weaker or broken, the fact behind it, and what the last check proposed.",
+    uses: "list_baskets, get_basket",
+  },
+  {
     title: "What is moving",
     prompt: "From stocksbrew's Explore data, list today's names with a news spike and a confirmed reason. Leave out any mover without one.",
     uses: "get_explore, get_market_brief",

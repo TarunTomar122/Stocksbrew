@@ -246,18 +246,20 @@ describe("the past month", () => {
     expect(monthWords({ pct: -2.9, marketPct: -2.3 })).toBe("down 2.9% over the past month, 0.6 points behind the S&P 500");
   });
 
-  it("fills a quiet card with its weight and month, below the call's own reason", () => {
+  it("fills a quiet card with its month, below the call's own reason, in one line of at most 15 words", () => {
     const cards = stockCards(source({ month: { MSFT: { pct: -4.1, marketPct: -2.3 } } }), NONE);
     const msft = cards.find((card) => card.ticker === "MSFT")!;
     expect(msft.fact?.kind).toBe("month");
-    expect(msft.fact?.text).toMatch(/of your money, down 4\.1% over the past month, 1\.8 points behind the S&P 500\.$/);
+    // Its share of the money would make it two facts over 15 words, so the month stands alone.
+    expect(msft.fact?.text).toBe("Down 4.1% over the past month, 1.8 points behind the S&P 500.");
   });
 });
 
 describe("a bare next-report date", () => {
   it("takes the month with it when it is the card's top fact", () => {
     const cards = stockCards(source({ portfolio: portfolio({ earnings: { MSFT: "2026-12-10" } }), month: { MSFT: { pct: 2.1, marketPct: -1.3 } } }), NONE);
-    expect(cards.find((card) => card.ticker === "MSFT")!.fact?.text).toBe("Next report Dec 10; up 2.1% over the past month, 3.4 points ahead of the S&P 500.");
+    // With the gap to the S&P 500 it would run past 15 words, so the month keeps only its own move.
+    expect(cards.find((card) => card.ticker === "MSFT")!.fact?.text).toBe("Next report Dec 10; up 2.1% over the past month.");
   });
 });
 
@@ -270,8 +272,8 @@ describe("the month said once", () => {
     const out = sayMonthOnce(cards, month);
     expect(out.line).toBe("Over the past month the S&P 500 fell 2.3%.");
     const text = Object.fromEntries(out.cards.map((card) => [card.ticker, card.fact?.text]));
-    expect(text.AAPL).toMatch(/of your money, down 7\.2% this month, 4\.9 points behind\.$/);
-    expect(text.MSFT).toMatch(/of your money, down 2\.4% this month, in line\.$/);
+    expect(text.AAPL).toBe("Down 7.2% this month, 4.9 points behind.");
+    expect(text.MSFT).toBe("Down 2.4% this month, in line.");
     expect(Object.values(text).some((words) => /S&P 500/.test(words ?? ""))).toBe(false);
   });
 
@@ -280,5 +282,19 @@ describe("the month said once", () => {
     const month = { MSFT: { pct: -4.1, marketPct: -2.3 } };
     const cards = stockCards(source({ month }), NONE);
     expect(sayMonthOnce(cards, month)).toEqual({ line: null, cards });
+  });
+});
+
+describe("one fact per card", () => {
+  it("keeps the first of two joined facts, and never cuts a sentence mid-clause", async () => {
+    const { oneFact, FACT_WORDS } = await import("@/lib/portfolio-home/stocks");
+    expect(oneFact("Apple's sales grew 15% over the past year, and its report on Nov 2 beat profit forecasts by 3.5%.")).toBe("Apple's sales grew 15% over the past year.");
+    expect(oneFact("Microsoft's sales grew 18% over the past year, and it trades at 23 times its past year's earnings, close to its usual level.")).toBe(
+      "Microsoft's sales grew 18% over the past year.",
+    );
+    const unbroken = "Its reason for owning it has played out because the shares now trade well above the price that made them cheap.";
+    expect(oneFact(unbroken)).toBe(unbroken);
+    expect(oneFact("Reports Tuesday, after the close.")).toBe("Reports Tuesday, after the close.");
+    expect(FACT_WORDS).toBe(15);
   });
 });

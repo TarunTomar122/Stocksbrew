@@ -44,7 +44,6 @@ import { listProposals } from "@/lib/proposals-server";
 import {
   KIND_WORDS,
   mainKind,
-  wordCount,
   type LineStatus,
 } from "@/lib/basket-agent/model";
 import { dayWords } from "@/lib/day-words";
@@ -178,11 +177,6 @@ export default async function BasketAgentPage({ params }: Props) {
     <AppPage width="wide" className="max-w-[68rem]">
       <PageHead
         title={basket.name}
-        lede={
-          wordCount(basket.idea) <= 15 && basket.idea !== basket.name
-            ? basket.idea
-            : undefined
-        }
         meta={<span>{when}</span>}
         note={false}
         actions={<BasketAgentActions id={basket.id} enabled={basket.enabled} />}

@@ -1,5 +1,6 @@
 import type { ThesisKind } from "@/lib/thesis";
 
+import { readConditionRecords, type ConditionRecord } from "./conditions";
 import type { ReasonCheck, Signal, SignalLevel, Verdict } from "./rules";
 
 /**
@@ -48,6 +49,8 @@ export type StoredCheck = {
   day: string;
   checkedAt: string;
   history: CheckHistoryRow[];
+  /** The reason's measurable conditions as last checked, one record each (additive; absent on older documents). */
+  conditions: ConditionRecord[];
 };
 
 const VERDICTS = new Set<Verdict>(["holds", "weaker", "broken", "played_out"]);
@@ -104,6 +107,7 @@ export function readStoredCheck(data: unknown): StoredCheck | null {
     day: str(doc.day),
     checkedAt: str(doc.checked_at),
     history,
+    conditions: readConditionRecords(doc.conditions),
   };
 }
 
@@ -123,11 +127,25 @@ export function sameFindings(stored: StoredCheck | null, check: ReasonCheck, rea
  */
 export function nextStoredCheck(
   stored: StoredCheck | null,
-  input: { uid: string; check: ReasonCheck; reasonUpdatedAt: string; note: string; wordedBy: "rules" | "model"; draft: string; wordTried: boolean; day: string; now: Date },
+  input: {
+    uid: string;
+    check: ReasonCheck;
+    reasonUpdatedAt: string;
+    note: string;
+    wordedBy: "rules" | "model";
+    draft: string;
+    wordTried: boolean;
+    day: string;
+    now: Date;
+    /** The conditions' records after tonight's check; left out, the stored ones are kept. */
+    conditions?: ConditionRecord[];
+  },
 ): StoredCheck | null {
   const { check } = input;
+  const conditions = input.conditions ?? stored?.conditions ?? [];
+  const sameConditions = stableJson(conditions) === stableJson(stored?.conditions ?? []);
   const same = sameFindings(stored, check, input.reasonUpdatedAt);
-  if (same && stored!.day === input.day && stored!.draft === input.draft && stored!.note === input.note && stored!.wordTried === input.wordTried) return null;
+  if (same && sameConditions && stored!.day === input.day && stored!.draft === input.draft && stored!.note === input.note && stored!.wordTried === input.wordTried) return null;
   const row: CheckHistoryRow = { day: input.day, verdict: check.verdict, signals: signalIds(check.signals) };
   // A changed reason is a new reason: the old one's verdicts are not its history.
   const history = stored && stored.reasonUpdatedAt === input.reasonUpdatedAt ? [...stored.history] : [];
@@ -155,7 +173,15 @@ export function nextStoredCheck(
     day: input.day,
     checkedAt: input.now.toISOString(),
     history: history.slice(-HISTORY_MAX),
+    conditions,
   };
+}
+
+/** JSON with object keys sorted, so a record read back compares equal to the same record built tonight. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) =>
+    item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : item,
+  );
 }
 
 /** The shape written to the store: snake case at the top, plain JSON throughout. */
@@ -182,6 +208,7 @@ export function toDoc(check: StoredCheck): Record<string, unknown> {
       day: check.day,
       checked_at: check.checkedAt,
       history: check.history,
+      conditions: check.conditions,
     }),
   ) as Record<string, unknown>;
 }

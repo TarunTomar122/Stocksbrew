@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { ToneGlyph } from "@/components/oa/kit/tone";
+import { ConditionBar } from "@/components/thesis/conditions-picker";
 import { ReasonsSheet } from "@/components/thesis/reasons-sheet";
 import { getCheck, loadChecks, loadTheses, useAllTheses, useCheck, useHeld } from "@/components/thesis/store";
 import { useUser } from "@/lib/auth-context";
 import { dayWords as sayDay } from "@/lib/day-words";
 import { lockCopy } from "@/lib/entitlements";
-import { thesisSentence } from "@/lib/thesis";
+import { thesisSentence, type Thesis } from "@/lib/thesis";
+import { conditionKey, holdsIfText, type ConditionStatus } from "@/lib/thesis-watch/conditions";
+import type { ConditionView } from "@/lib/thesis-watch/server";
 import { dayWords, type Signal, type Verdict } from "@/lib/thesis-watch/rules";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -26,34 +29,57 @@ function bare(value: string): string {
   return value.toUpperCase().replace(/^(US|IN)_/, "").replace(/[._-]/g, "_");
 }
 
-function Sources({ signals, today }: { signals: Signal[]; today: string }) {
-  // One mention per source and day: two facts from the same screen are one source.
+/**
+ * The dated sources behind the facts, for the note's hover title: "Daily closes (Nov 12); Dividend history (Mar 3)".
+ * One mention per source and day. The card shows only the facts (owner rule: no source lines under facts); the
+ * proposal's "How I got here" lists them with links.
+ */
+function sourcesTitle(signals: readonly Signal[], today: string): string | undefined {
   const seen = new Set<string>();
-  const unique = signals.filter((signal) => {
+  const parts: string[] = [];
+  for (const signal of signals) {
     const key = `${signal.source}|${signal.asOf}`;
-    if (seen.has(key)) return false;
+    if (!signal.source || seen.has(key)) continue;
     seen.add(key);
-    return true;
-  });
+    parts.push(signal.asOf ? `${signal.source} (${dayWords(signal.asOf, today)})` : signal.source);
+  }
+  return parts.length > 0 ? `Source${parts.length > 1 ? "s" : ""}: ${parts.join("; ")}` : undefined;
+}
+
+const STATUS_TEXT: Record<ConditionStatus, string> = { holds: "text-oa-fg", broken: "text-signal-bearish", unknown: "text-oa-muted-fg" };
+
+/**
+ * The reason's measurable lines, each with where the stock is now and a small bar against the line: "Holds if
+ * revenue growth > 20%: now 42%". The dated source is the line's hover title (owner rule: no source lines under facts).
+ * Before a check comes back (or on a plan that does not check this stock), the lines alone.
+ */
+function ConditionLines({ thesis, views }: { thesis: Thesis; views: ConditionView[] }) {
+  const conditions = thesis.conditions ?? [];
+  if (conditions.length === 0) return null;
   return (
-    <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
-      {unique.length === 1 ? "Source: " : "Sources: "}
-      {unique.map((signal, index) => (
-        <span key={`${signal.source}|${signal.asOf}`}>
-          {index > 0 ? "; " : ""}
-          {signal.href ? (
-            <Link href={signal.href} prefetch={false} className={`rounded underline decoration-oa-border underline-offset-2 hover:text-oa-fg ${FOCUS}`}>
-              {signal.source}
-            </Link>
-          ) : (
-            signal.source
-          )}
-          {signal.asOf ? ` (${dayWords(signal.asOf, today)})` : ""}
-        </span>
-      ))}
-      .
-    </p>
+    <ul className="mt-2 flex flex-col gap-1.5">
+      {conditions.map((condition) => {
+        const view = views.find((item) => item.key === conditionKey(condition)) ?? null;
+        const known = view && view.status !== "unknown" && view.now !== null;
+        return (
+          <li key={conditionKey(condition)} title={view?.source || undefined} className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,10rem)] items-start gap-x-3 gap-y-1 max-sm:grid-cols-1">
+            <span className="min-w-0 text-pretty text-[14px] leading-5 text-oa-fg">
+              {holdsIfText(condition)}
+              {view ? (
+                <span className={`oa-mono tabular-nums ${STATUS_TEXT[view.status]}`}>{known ? `: now ${view.nowText}${view.waitingFor ? `, waiting for ${view.waitingFor}` : ""}` : `: ${lowerFirst(view.line)}`}</span>
+              ) : null}
+            </span>
+            {known ? <ConditionBar metric={condition.metric} now={view.now!} line={condition.value} holds={view.status === "holds"} className="w-full pt-[7px] max-sm:pt-0" /> : <span className="max-sm:hidden" />}
+          </li>
+        );
+      })}
+    </ul>
   );
+}
+
+function lowerFirst(text: string): string {
+  // "Waiting for the figures…" reads on after a colon; an "EPS"-style acronym keeps its capitals.
+  return /^[A-Z][a-z]/.test(text) ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
 }
 
 const WAS: Record<Verdict, string> = {
@@ -110,7 +136,7 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
   }
 
   const lock = lockCopy("reason_watch");
-  // The note already says the first two facts; any more are listed under it, and every fact's source goes at the foot.
+  // The note already says the first two facts; any more are listed under it. Each fact's dated source is its hover title.
   const evidence = check ? (check.signals.length > 0 ? check.signals : check.checked) : [];
   const extra = evidence.slice(2, 4);
   return (
@@ -120,7 +146,7 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
           <div className="min-w-0 max-w-[52rem]">
             {/* No small label over the note (owner, Nov 11): its first sentence already says whether the reason holds. */}
             {check ? (
-              <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">
+              <p title={sourcesTitle(evidence.slice(0, 2), today)} className="text-pretty text-[15px] leading-[22px] text-oa-fg">
                 <ToneGlyph tone={TONE[check.verdict]} className="mr-2 inline-block align-[1px]" />
                 {check.note}
               </p>
@@ -128,6 +154,7 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
               <p className="text-pretty text-[15px] leading-[22px] text-oa-fg">{thesisSentence(thesis)}</p>
             )}
             {check?.quote ? <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">{check.quote}</p> : null}
+            <ConditionLines thesis={thesis} views={check?.conditions ?? []} />
             {pending && !check ? <p className="mt-1 text-[13px] text-oa-muted-fg">Checking it against today&apos;s numbers.</p> : null}
             {locked ? (
               <p className="mt-1 text-pretty text-[13.5px] leading-5 text-oa-muted-fg">
@@ -145,20 +172,15 @@ export function StockReason({ ticker, preview = false }: { ticker: string; /** L
         {extra.length > 0 ? (
           <ul className="mt-1.5 flex flex-col gap-1">
             {extra.map((signal) => (
-              <li key={signal.id} className="text-pretty text-[14px] leading-5 text-oa-fg">
+              <li key={signal.id} title={sourcesTitle([signal], today)} className="text-pretty text-[14px] leading-5 text-oa-fg">
                 {signal.text}
               </li>
             ))}
           </ul>
         ) : null}
         {/* What the check cannot see (check.limit) stays in the data and the docs: the owner wants no mechanics notes on the page. */}
-        {evidence.length > 0 || check?.change ? (
-          <div className="mt-2.5 flex flex-col gap-1 border-t border-oa-border pt-2.5">
-            {evidence.length > 0 ? <Sources signals={evidence} today={today} /> : null}
-            {check?.change ? (
-              <p className="text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{`${WAS[check.change.from]} until ${sayDay(check.change.day, today) || dayWords(check.change.day, today)}.`}</p>
-            ) : null}
-          </div>
+        {check?.change ? (
+          <p className="mt-1.5 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{`${WAS[check.change.from]} until ${sayDay(check.change.day, today) || dayWords(check.change.day, today)}.`}</p>
         ) : null}
       </section>
       {sheet}

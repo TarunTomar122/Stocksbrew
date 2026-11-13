@@ -58,7 +58,7 @@ describe("filing changes in the inbox", () => {
     const repeat = filingItem("SOFI", comparison("10-Q", "2026-11-05", { scope: "partial", repeated: ["A risk an earlier 10-Q added."] }))!;
     expect(repeat).toMatchObject({ quiet: true, href: "/stock/SOFI", text: "SOFI's new 10-Q repeats 1 risk added after its 10-K." });
     const long = filingItem("AMD", comparison("10-Q", "2026-11-04", { added: ["Our ability to complete the acquisition of ZT Systems is subject to closing conditions, including the receipt of consents and approvals."] }))!;
-    expect(long.detail).toBe("New: “Our ability to complete the acquisition of ZT Systems is subject to closing conditions…”");
+    expect(long.detail).toBe("New: “Our ability to complete the acquisition of ZT Systems is subject to closing conditions.”");
   });
 
   it("keeps only the person's stocks and filings in the window", () => {

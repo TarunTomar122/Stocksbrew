@@ -79,6 +79,7 @@ import { getStockIntelPro, getStockSummary } from "@/lib/stock";
 import { redactLevels } from "@/lib/entitlements";
 import type { Viewer } from "@/lib/entitlements-server";
 import { buildMineTools } from "@/lib/ask-tools-mine";
+import { buildIdeaTools } from "@/lib/ask-tools-ideas";
 import { loadCallEvidence } from "@/lib/call-evidence-data";
 import { callWord } from "@/lib/stock-chart";
 import { loadExamplePortfolio } from "@/lib/portfolio-data";
@@ -1279,6 +1280,8 @@ export function buildAskTools(context: AskToolContext): ToolSet {
   };
   // The person's own reasons, memo, agents, research and briefing, plus "Watch this". Same uid, same viewer.
   Object.assign(tools, buildMineTools({ uid, viewer: context.viewer ?? null, example: Boolean(context.example), now: context.now }));
+  // What a company changed in its risk factors, the person's idea baskets and "Watch this idea" (lib/ask-tools-ideas.ts).
+  Object.assign(tools, buildIdeaTools({ uid, viewer: context.viewer ?? null, now: context.now }));
   // Several inputs are optional. Strict schemas would require every field, so say so explicitly
   // instead of relying on the provider's default.
   for (const item of Object.values(tools)) (item as { strict?: boolean }).strict = false;

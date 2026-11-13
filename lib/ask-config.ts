@@ -78,6 +78,10 @@ export const ASK_TOOL_LABELS: Record<string, string> = {
   get_my_research: "Opening your research",
   open_briefing_item: "Opening your briefing",
   suggest_watch: "Filling in an agent",
+  get_filing_changes: "Comparing its filings",
+  get_my_baskets: "Reading your idea baskets",
+  get_my_basket: "Reading your idea basket",
+  watch_idea: "Drafting the basket",
 };
 
 /** The same steps once they are done, for the line above a finished answer. */
@@ -109,4 +113,8 @@ export const ASK_TOOL_DONE: Record<string, string> = {
   get_my_research: "opened your research",
   open_briefing_item: "opened your briefing",
   suggest_watch: "set up a watch you can save",
+  get_filing_changes: "compared its filings",
+  get_my_baskets: "read your idea baskets",
+  get_my_basket: "read your idea basket",
+  watch_idea: "drafted the basket",
 };

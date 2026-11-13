@@ -218,14 +218,23 @@ export function useHeld(): string[] {
 }
 
 /** Saves reasons on the person's own account. Throws with a plain message when it does not go through. */
-export async function saveReasons(items: Array<{ instrument_id: string; kind: Thesis["kind"]; reason: string | null }>): Promise<Record<string, Thesis>> {
+export async function saveReasons(
+  items: Array<{ instrument_id: string; kind: Thesis["kind"]; reason: string | null; conditions?: Thesis["conditions"] }>,
+): Promise<Record<string, Thesis>> {
   const res = await fetch("/api/thesis", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
   const data = (await res.json().catch(() => ({}))) as { theses?: Record<string, Thesis>; error?: string };
-  if (!res.ok || !data.theses) throw new Error(res.status === 401 ? "Sign in again to save your reason." : "We could not save your reason. Try again.");
+  if (!res.ok || !data.theses) {
+    if (res.status === 401) throw new Error("Sign in again to save your reason.");
+    if (data.error === "condition_no_data") {
+      throw new Error((data as { metric?: string }).metric === "price" ? "Pick a price closer to where the stock trades." : "We don't have that figure for this stock. Pick another.");
+    }
+    if (data.error === "invalid_conditions" || data.error === "too_many_conditions") throw new Error("Check the numbers in your lines and try again.");
+    throw new Error("We could not save your reason. Try again.");
+  }
   putTheses(data.theses);
   return data.theses;
 }

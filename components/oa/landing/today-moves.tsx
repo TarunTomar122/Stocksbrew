@@ -10,7 +10,7 @@ import { SectionHead } from "./shared";
 const ROWS = 3;
 /**
  * Proof one: today's biggest moves with a confirmed reason, as stock cards (the logo and ticker, the move as the
- * one big figure, the reason in one sentence), the whole card opening the stock. They come from Market today's own
+ * one big figure with the price under it, the reason in one sentence), the whole card opening the stock. They come from Market today's own
  * loader, so a stock shows the same move, the same reason and the same time here as there (the first three of its
  * cards), and the head links to the full list. The section renders its own head, so on a day with no confirmed
  * reason yet the whole section stays out instead of showing an empty strip (owner rules 4 and 7).
@@ -40,6 +40,7 @@ export async function TodayMoves() {
             ticker={row.ticker}
             name={row.name || row.ticker}
             figure={signedPct(row.changePct, 1)}
+            price={row.price}
             tone={row.changePct >= 0 ? "up" : "down"}
             sentence={row.reason}
             cover={

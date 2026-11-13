@@ -54,7 +54,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     name: AGENT_MCP_SERVER_NAME,
     version: AGENT_MCP_SERVER_VERSION,
     title: "Stocksbrew for Agents",
-    description: "Full stock detail, Explore, curated screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests and plain-English agent reading for Stocksbrew Pro members.",
+    description: "Full stock detail, risk factor changes in filings, Explore, curated screens, Watchlist tracking, alert tools, portfolio x-ray, dividends, stress tests, copy tests, idea baskets and plain-English agent reading for Stocksbrew Pro members.",
   });
 
   const readOnly = {
@@ -267,6 +267,31 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     },
     annotations: readOnly,
   }, toolHandler(principal, "watch_in_plain_words"));
+
+  server.registerTool("get_filing_changes", {
+    title: "What changed in a company's risks",
+    description: "What one US company added to, dropped from or reworded in the risk factors of its newest 10-K or 10-Q, against the filing before it, with both filings' dates and SEC links. Every risk is the company's own heading, copied from the filing. Read data_status first: no_comparison and unreadable mean there is nothing to report, so say that and do not guess.",
+    inputSchema: {
+      ticker: z.string().min(1).max(20).describe("US ticker symbol, such as AMD"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_filing_changes"));
+
+  server.registerTool("list_baskets", {
+    title: "List my idea baskets",
+    description: "The member's idea baskets: ideas an agent checks after every close. For each, its companies with the latest check's verdict on each reason (holds, weaker, broken, played out, not checked) and the fact behind it, and what that check decided. Read only: baskets are created, switched on and changed in the app.",
+    inputSchema: {},
+    annotations: readOnly,
+  }, toolHandler(principal, "list_baskets"));
+
+  server.registerTool("get_basket", {
+    title: "Get one idea basket",
+    description: "One of the member's idea baskets in full: every company's reason and verdict, what the latest check decided and the changes it proposes, the checks before it, and the four-week replay it ran before it started. Use an id from list_baskets. Read only.",
+    inputSchema: {
+      basket_id: z.string().min(1).max(24).describe("A basket id from list_baskets"),
+    },
+    annotations: readOnly,
+  }, toolHandler(principal, "get_basket"));
 
   return server;
 }

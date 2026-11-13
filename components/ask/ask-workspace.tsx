@@ -482,7 +482,7 @@ function Rail({
   plan: AskPlan;
 }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <button
         type="button"
         onClick={onNew}
@@ -1158,7 +1158,9 @@ export function AskWorkspace({
   return (
     <div className={`grid gap-x-8 lg:grid-cols-[14.5rem_minmax(0,1fr)] ${restoring ? "invisible" : ""}`}>
       <aside className="hidden lg:block">
-        <div className="sticky top-7 h-[calc(100dvh-5.5rem)]">
+        {/* At most a screen tall, never at least one: a fixed height here held a short page (signed out, the examples
+            only) a screen tall, with an empty band before the footer. A long list still scrolls inside the rail. */}
+        <div className="sticky top-7 flex max-h-[calc(100dvh-5.5rem)] flex-col">
           <Rail signedIn={signedIn} conversations={conversations} current={conversationId} onOpen={(id) => void open(id)} onNew={startNew} onSignIn={() => void signIn()} allowance={allowance} plan={plan} />
         </div>
       </aside>

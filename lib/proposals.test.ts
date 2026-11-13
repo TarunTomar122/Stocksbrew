@@ -293,6 +293,24 @@ describe("event → proposal", () => {
     withinBudget(kept);
   });
 
+  it("a broken measurable line names itself and its figure, and shows the dated source", () => {
+    const condition = {
+      line: "Revenue growth is 18%, under your 20%.",
+      source: "Revenue growth 18% after the Q3 report, Nov 4 (SEC 8-K)",
+      asOf: "2026-11-05",
+      href: "/stock/NVDA",
+      label: "Revenue growth",
+      now: "18%",
+    };
+    const reasons = { NVDA: { verdict: "broken" as const, since: "2026-11-10", signals: [{ text: condition.line, asOf: "2026-11-05", level: "hard" }], condition } };
+    const kept = only(candidates(inputs({ reasons, quotes: { NVDA: { price: 150, dayPct: 0, at: null } }, series: { NVDA: series(150) } })), "reason_broken");
+    expect(kept.why[0]).toBe("Revenue growth is 18%, under your 20%.");
+    expect(kept.read[1]).toEqual({ label: condition.source, at: "2026-11-05", href: "/stock/NVDA" });
+    expect(kept.figures).toContainEqual({ label: "Revenue growth", value: "18%" });
+    expect(kept.action.type).toBe("alert_price");
+    withinBudget(kept);
+  });
+
   it("writes filings as sentences: a stake report, and an 8-K without a second 'on'", () => {
     expect(filingSaid("NVDA", "An investor reported an active stake over 5%", "2026-11-12", TODAY)).toBe("An investor reported an active stake in NVDA today.");
     expect(filingSaid("NVDA", "Filed an 8-K on a change in control", "2026-11-09", TODAY)).toBe("On Monday, NVDA filed an 8-K on a change in control.");
@@ -545,7 +563,7 @@ describe("a holding's filing added risks", () => {
     expect(draft.title).toBe("Set an alert at $131.20: NVDA's 10-Q adds 1 risk");
     expect(wordCount(draft.title)).toBeLessThanOrEqual(TITLE_MAX_WORDS);
     expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk.");
-    expect(draft.why[1]).toBe("New: “Our indebtedness may adversely affect our financial condition and cash flows…”");
+    expect(draft.why[1]).toBe("New: “Our indebtedness may adversely affect our financial condition and cash flows from operations.”");
     for (const line of draft.why) expect(wordCount(line)).toBeLessThanOrEqual(WHY_MAX_WORDS);
     expect(draft.event).toMatchObject({ key: `filing_risks:NVDA:${change.accession}`, refs: ["tm_filing_changes/NVDA"] });
     expect(draft.read.slice(0, 2).map((source) => source.label)).toEqual(["NVDA 10-Q risk factors", "NVDA 10-K risk factors"]);
@@ -561,10 +579,14 @@ describe("a holding's filing added risks", () => {
     expect(candidates(inputs({ ...priced, alerts: null, filingChanges: [change] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
   });
 
-  it("quotes a long new risk cut at a clause", () => {
+  it("quotes a long new risk cut at a clause, and leaves out one with no clause that fits", () => {
     const long = { ...change, added: ["We may fail to realize the anticipated benefits of the merger, and any failure to integrate the businesses may hurt us."] };
     const draft = only(candidates(inputs({ ...priced, filingChanges: [long] })), "filing_risks");
-    expect(draft.why[1]).toBe("New: “We may fail to realize the anticipated benefits of the merger…”");
+    expect(draft.why[1]).toBe("New: “We may fail to realize the anticipated benefits of the merger.”");
+    const unbroken = { ...change, added: ["Our results may suffer because of the many different things that could go wrong with the supply of our products."] };
+    const plain = only(candidates(inputs({ ...priced, filingChanges: [unbroken] })), "filing_risks");
+    expect(plain.why.some((line) => line.startsWith("New:"))).toBe(false);
+    for (const line of [...draft.why, ...plain.why]) expect(line.includes("…")).toBe(false);
   });
 
   it("goes stale once the alert is set", () => {

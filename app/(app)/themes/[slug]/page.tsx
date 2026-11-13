@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { LockCard } from "@/components/oa/gate";
 import { AppPage, Delta, NUM, PageHead, Panel, StatStrip, type StatItem } from "@/components/oa/kit";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
 import { BookHead, BookLine } from "@/components/themes-book/book";
@@ -12,6 +11,7 @@ import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { withoutZones } from "@/lib/screener-shared";
 import { BASKET_BENCHMARK, BASKET_WINDOWS, getBasket, getBasketChart, type BasketLine } from "@/lib/screener-themes";
 import { ogImage } from "@/lib/og/url";
+import { thesisHolds } from "@/lib/theme-book-lines";
 import Link from "next/link";
 
 // Reads the viewer (cookies) and live prices, so it is rendered per request like the old theme page.
@@ -49,9 +49,6 @@ export default async function ThemeBookPage({ params }: Props) {
   const lines = basket.lines.map(gate);
   const alsoWatching = basket.alsoWatching.map(gate);
   const tickers = lines.map((line) => line.ticker);
-  const pricedLines = lines.filter((line) => line.row);
-  const weight = pricedLines.length > 0 ? 100 / pricedLines.length : null;
-  const zonesHidden = viewer.plan !== "pro" && basket.lines.some((line) => line.row?.zone) && !lines.some((line) => line.row?.zone);
 
   const chart = await getBasketChart(tickers).catch(() => null);
   const ranges: OverlayRange[] = (chart?.ranges ?? []).map((range) => ({
@@ -86,7 +83,14 @@ export default async function ThemeBookPage({ params }: Props) {
 
   const calls = { Add: 0, Hold: 0, Trim: 0 };
   for (const line of lines) if (line.row?.call) calls[line.row.call] += 1;
-  const called = calls.Add + calls.Hold + calls.Trim;
+  // The call words people see (owner rule 8), only the ones that have stocks: "7 buy more · 3 keep".
+  const callTally = [
+    calls.Add ? `${calls.Add} buy more` : null,
+    calls.Hold ? `${calls.Hold} keep` : null,
+    calls.Trim ? `${calls.Trim} sell some` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -117,8 +121,6 @@ export default async function ThemeBookPage({ params }: Props) {
           </Link>
         }
         title={basket.name}
-        lede={basket.thesis}
-        className="[&_.oa-head-lede]:hidden"
         actions={
           <div className="max-sm:hidden">
             <ThemeActions theme={basket.slug} symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} />
@@ -126,63 +128,62 @@ export default async function ThemeBookPage({ params }: Props) {
         }
       />
 
-      {/* The numbers lead: returns, then the chart. The words that explain them support on the right (below on a phone). */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-5">
-        <div className="flex min-w-0 flex-col gap-4">
-          <StatStrip stats={stats} />
-          <Panel flush label="The basket against the S&P 500" right={<span>Hypothetical</span>}>
-            <OverlayChart ranges={ranges} initialRange="1Y" emptyText="Not enough price history to draw this basket." />
-          </Panel>
-          <p className="max-w-[70ch] text-[12.5px] leading-5 text-oa-muted-fg">
-            Hypothetical equal-weight basket, picked with hindsight.
-          </p>
-        </div>
-
-        <Panel label="The thesis">
-          <p className="text-pretty text-[15px] font-medium leading-6 text-oa-fg">{basket.thesis}</p>
-          <p className="mt-2 text-pretty text-[14px] leading-[22px] text-oa-fg">{basket.description}</p>
-          <p className="mt-2 text-[12.5px] leading-5 text-oa-muted-fg">Leans on: {basket.roles.join(" · ")}</p>
-          <h3 className="oa-label mt-5">What has to hold</h3>
-          <p className="mt-1 text-pretty text-[14px] leading-[22px] text-oa-fg">{basket.holds}</p>
-          <a href="#book" className="mt-3 inline-block text-[14px] text-oa-primary underline underline-offset-2">
-            What would break each of the {lines.length} lines
-          </a>
+      {/* The numbers lead: returns, then the chart, full width. The thesis sits right above the book it explains. */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <StatStrip stats={stats} />
+        <Panel flush label="The basket against the S&P 500" right={<span>Hypothetical</span>}>
+          <OverlayChart ranges={ranges} initialRange="1Y" emptyText="Not enough price history to draw this basket." />
         </Panel>
+        <p className="text-[12.5px] leading-5 text-oa-muted-fg">Hypothetical equal-weight basket, picked with hindsight.</p>
       </div>
       <div className="mt-4 sm:hidden">
         <ThemeActions theme={basket.slug} symbols={tickers} compareLimit={limitFor("compare", viewer.plan)} />
       </div>
 
+      <Panel flush className="mt-5" label="The thesis">
+        <dl className="grid divide-y divide-oa-border md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] md:divide-x md:divide-y-0">
+          <div className="min-w-0 px-4 py-3">
+            <dt className="oa-caption">The idea</dt>
+            <dd className="mt-1 text-pretty text-[14.5px] font-medium leading-[21px] text-oa-fg">{basket.thesis}</dd>
+          </div>
+          <div className="min-w-0 px-4 py-3">
+            <dt className="oa-caption">What has to hold</dt>
+            <dd className="mt-1 text-pretty text-[14.5px] leading-[21px] text-oa-fg">{thesisHolds(basket.slug, basket.holds)}</dd>
+          </div>
+          <div className="min-w-0 px-4 py-3">
+            <dt className="oa-caption">Leans on</dt>
+            <dd className="mt-1.5 flex flex-wrap gap-1.5">
+              {basket.roles.map((role) => (
+                <span key={role} className="rounded-md bg-oa-bg px-2 py-0.5 text-[12.5px] leading-5 text-oa-fg">
+                  {role}
+                </span>
+              ))}
+            </dd>
+          </div>
+        </dl>
+      </Panel>
+
       <Panel
         id="book"
         flush
-        className="mt-5"
+        className="mt-4"
         label="The book"
-        right={
-          called > 0 ? (
-            <span className={NUM}>
-              Our call: {calls.Add} add · {calls.Hold} hold · {calls.Trim} trim
-            </span>
-          ) : undefined
-        }
+        right={callTally ? <span className={NUM}>Our call: {callTally}</span> : undefined}
       >
         <BookHead />
         <ol>
           {lines.map((line, index) => (
-            <BookLine key={line.ticker} line={line} index={index} weight={line.row ? weight : null} />
+            <BookLine key={line.ticker} line={line} index={index} />
           ))}
         </ol>
       </Panel>
-      {zonesHidden ? (
-        <LockCard feature="stock_zones" plan={viewer.plan} trialEligible={viewer.trialEligible} className="mt-3" />
-      ) : null}
 
       {alsoWatching.length > 0 ? (
         <Panel flush className="mt-5" label="Also watching" right={<span>Not in the basket</span>}>
           <BookHead />
           <ol>
             {alsoWatching.map((line, index) => (
-              <BookLine key={line.ticker} line={line} index={index} weight={null} />
+              <BookLine key={line.ticker} line={line} index={index} />
             ))}
           </ol>
         </Panel>

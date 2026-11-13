@@ -24,7 +24,9 @@ export function ThesisLine({ instrumentId }: { instrumentId: string; inline?: bo
   if (!thesis || !check || check.verdict === "holds") return null;
   const word = VERDICT_WORDS[check.verdict];
   // The verdict word as well as the headline: a played-out headline says what changed, not the word itself.
-  const title = `${thesisSentence(thesis)} ${word}. ${check.headline}`;
+  // A broken measurable line says which, with its figure ("Revenue growth is 18%, under your 20%.").
+  const line = (check.conditions ?? []).find((item) => item.status === "broken")?.line;
+  const title = `${thesisSentence(thesis)} ${word}. ${line ?? check.headline}`;
   return (
     <span title={title} className={`block whitespace-nowrap text-[12px] leading-4 ${TONE[check.verdict]}`}>
       <span className="sr-only">{title}</span>

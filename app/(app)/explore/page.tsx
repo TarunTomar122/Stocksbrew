@@ -2,14 +2,14 @@ import { capitalize, dayWords, onDayWords } from "@/lib/day-words";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { loadDeskMarketsData, loadDeskMovers, loadDeskSectors, todayET, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import { deskSectors, loadDeskMarketsData, pageClock, loadDeskMovers, todayET, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
 import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/ghosts";
 import { MoveTables, type MoveRow } from "@/app/(app)/explore/move-tables";
 import { hasMarketsData } from "@/components/markets/overview-sections";
 import { MarketCards } from "@/components/markets/market-cards";
 import { dayLabelFor } from "@/lib/session-label";
 import { MarketTickerStrip } from "@/components/markets/widgets";
-import { AppPage, FOCUS, PageHead, Panel, fmtDay } from "@/components/oa/kit";
+import { AppPage, FOCUS, PageHead, Panel } from "@/components/oa/kit";
 import { staleMoveClock } from "@/lib/move-clock";
 import { pricedAt } from "@/lib/quote-time";
 import { longDay, moversDayHref } from "@/lib/seo/families";
@@ -53,34 +53,34 @@ function SectorList({ rows, asOf }: { rows: DeskSector[]; asOf: string | null })
 
 /**
  * The day's moves, without the few whose quote stopped hours before the close (thinly traded warrants, mostly; see
- * lib/move-clock.ts), and the day they are from. Today's moves sit under the tables' one clock, so they carry no time
- * of their own (owner: one as-of clock per page); a quote left from the morning would be dated wrong by it, so it is
- * left out rather than explained in a footnote. Moves from another day say that day over the list instead.
+ * lib/move-clock.ts), and the day they are from. Today's moves sit under the page's one clock (PageClock, owner: one
+ * as-of per page), so they carry no time of their own; a quote left from the morning would be dated wrong by it, so it
+ * is left out rather than explained in a footnote. Moves from another day say that day over the list instead.
  */
 function sessionMoves(
   movers: DeskData["movers"],
   today: string,
   now: number,
-): { rows: DeskData["movers"]["up"]; day: string | null; dropped: string[]; clock: string | null } {
+): { rows: DeskData["movers"]["up"]; day: string | null; clock: string | null } {
   const rows = [...movers.up, ...movers.down];
   const day = movers.day;
-  if (!day || day !== today) return { rows, day: day ?? null, dropped: [], clock: null };
+  if (!day || day !== today) return { rows, day: day ?? null, clock: null };
   const fresh = rows.filter((row) => !staleMoveClock(row.priceAsOf, now));
   // Never empty the list over quote times: with nothing fresh the moves still show, with their own time over them,
   // so a morning quote is never read as the close.
   if (fresh.length === 0) {
     const at = pricedAt(rows.map((row) => row.priceAsOf), day);
-    return { rows, day, dropped: [], clock: at ? `As of ${at}` : null };
+    return { rows, day, clock: at ? `As of ${at}` : null };
   }
-  return { rows: fresh, day, dropped: rows.filter((row) => !fresh.includes(row)).map((row) => row.ticker), clock: null };
+  return { rows: fresh, day, clock: null };
 }
 
 /**
  * The day's unusual stock moves as two tables, gainers beside losers (./move-tables.tsx). Each row carries the reason
  * when a source confirmed one (lib/reason-quality: nothing is written when none was, and a sentence that only says the
  * move again is no reason), else its measured price fact once `facts` are in ("Its biggest gain since Sep 9"), else
- * nothing. Every move priced in the session shows, from the same live quotes the briefing and the home page use, with
- * one quiet time over the tables. Older days are a row of links to their own pages under it.
+ * nothing. Every move priced in the session shows, from the same live quotes the briefing and the home page use, under
+ * the page's one clock. Older days are a row of links to their own pages under it.
  */
 function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: string }) {
   const session = sessionMoves(movers, today, Date.now());
@@ -97,11 +97,10 @@ function StockMoves({ movers, today }: { movers: DeskData["movers"]; today: stri
   });
   const up = reasoned.filter((row) => row.changePct > 0).sort((a, b) => b.changePct - a.changePct).map(toRow);
   const down = reasoned.filter((row) => row.changePct < 0).sort((a, b) => a.changePct - b.changePct).map(toRow);
-  // One quiet time over the tables: the day for moves from an earlier session, else when today's quotes are from.
-  const clock =
-    session.day && session.day !== today
-      ? fmtDay(session.day)
-      : (session.clock ?? (session.day ? (() => { const at = pricedAt(session.rows.map((row) => row.priceAsOf), session.day!); return at ? `As of ${at}` : null; })() : null));
+  // Today's moves sit under the page's one clock (PageClock); moves from an earlier session say their day here in words
+  // ("Yesterday", owner rule 4), and a list whose quotes all stopped early says its own time, so a morning quote is
+  // never read as the close.
+  const clock = session.day && session.day !== today ? capitalize(dayWords(session.day, today)) : session.clock;
   // "today" only for today's moves: before the open, or on a weekend, they are the last session's.
   const when = movers.day && movers.day !== today ? onDayWords(movers.day, today) : "today";
   return (
@@ -177,10 +176,23 @@ async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]
   );
 }
 
-/** Every sector's day, under the moves. */
-async function SectorsSlot({ sectors }: { sectors: ReturnType<typeof loadDeskSectors> }) {
-  const data = await sectors;
+/** Every sector's day, under the moves, from the same markets read as the strip above and the cards below. */
+async function SectorsSlot({ markets }: { markets: Promise<MarketsData> }) {
+  const data = deskSectors(await markets);
   return <SectorList rows={data.rows} asOf={data.asOf} />;
+}
+
+/** Quote times of today's moves as drawn (the same cut StockMoves makes), or none for another session's list. */
+function movesStamps(movers: DeskData["movers"], today: string): string[] {
+  const session = sessionMoves(movers, today, Date.now());
+  if (session.day !== today || session.clock) return [];
+  return session.rows.filter((row) => Boolean(row.reason)).flatMap((row) => (row.priceAsOf ? [row.priceAsOf] : []));
+}
+
+async function PageClock({ markets, movers, today }: { markets: Promise<MarketsData>; movers: Promise<DeskData["movers"]>; today: string }) {
+  const [data, moves] = await Promise.all([markets, movers]);
+  const text = pageClock([deskSectors(data).asOf, ...movesStamps(moves, today)], today);
+  return text ? <span className="oa-mono text-[12.5px] tabular-nums text-oa-muted-fg">{text}</span> : null;
 }
 
 /** A card for each other part of the market, or one line when the prices are not there. */
@@ -242,14 +254,21 @@ function MoreOnToday() {
  */
 export default function ExplorePage() {
   const today = todayET(new Date());
-  const sectors = loadDeskSectors(today);
   const movers = loadDeskMovers(today);
   const markets = loadDeskMarketsData();
 
   return (
     <AppPage>
       <JsonLd data={toolPageLd("/explore")} />
-      <PageHead title="Market today" />
+      <PageHead
+        title="Market today"
+        inline
+        actions={
+          <Suspense fallback={null}>
+            <PageClock markets={markets} movers={movers} today={today} />
+          </Suspense>
+        }
+      />
 
       <div className="flex flex-col gap-4">
         <Suspense fallback={<StripGhost />}>
@@ -261,7 +280,7 @@ export default function ExplorePage() {
         </Suspense>
 
         <Suspense fallback={<PanelGhost rows={3} />}>
-          <SectorsSlot sectors={sectors} />
+          <SectorsSlot markets={markets} />
         </Suspense>
 
         <Suspense fallback={<MarketCardsGhost className="mt-4" />}>

@@ -4,7 +4,7 @@ import type { Basket, BasketLine } from "@/lib/screener-themes";
 import { buildThemeRead, buildThemesRead, lineMoves } from "@/lib/themes-insights";
 
 function line(ticker: string, ret_1m: number, ret_ytd: number, call?: "Add" | "Hold" | "Trim"): BasketLine {
-  return { company: ticker, ticker, role: "", benefit: "", breaks: "", catalyst: null, row: { symbol: ticker, ret_1m, ret_ytd, call } as BasketLine["row"] };
+  return { company: ticker, ticker, role: "", benefit: "", breaks: "", catalyst: null, line: "", row: { symbol: ticker, ret_1m, ret_ytd, call } as BasketLine["row"] };
 }
 
 function basket(slug: string, name: string, month: number, year: number, lines: BasketLine[]): Basket {

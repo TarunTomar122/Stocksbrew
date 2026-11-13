@@ -18,6 +18,12 @@ import type {
   ResearchCard,
   ResearchListCard,
   WatchCard,
+  FilingChangesCard,
+  FilingLink,
+  IdeaBasketCard,
+  IdeaBasketsCard,
+  IdeaBasketVerdict,
+  WatchIdeaCard,
   BacktestCard,
   BasketCard,
   ChangesCard,
@@ -43,6 +49,8 @@ import { WATCH_HOW_WORDS, WATCH_WHEN_PLAIN, saveOutcome, watchWhenWords, type Sa
 import { lockCopy } from "@/lib/entitlements";
 import { announceBookChanged } from "@/lib/radar-track-events";
 import { ASK_HANDOFF_KEY } from "@/lib/basket-agent/model";
+import { WatchIdeaLink } from "@/components/basket-agent/watch-idea-link";
+import { capitalize, dayWords } from "@/lib/day-words";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppLink } from "@/components/oa/app-link";
@@ -1563,6 +1571,235 @@ function Watch({ card, actions }: { card: WatchCard; actions: CardActions }) {
   );
 }
 
+/* ── filings and idea baskets ───────────────────────────────────────────── */
+
+/** "Feb 4", with the year when it is not this one. */
+function filedDay(iso: string): string {
+  return fmtDay(iso, iso.slice(0, 4) !== String(new Date().getFullYear()));
+}
+
+function FilingAnchor({ link }: { link: FilingLink }) {
+  return (
+    <a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`${link.form} on SEC EDGAR (opens in a new tab)`}
+      className={`whitespace-nowrap font-medium text-oa-primary underline decoration-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)] underline-offset-4 hover:decoration-oa-primary ${FOCUS}`}
+    >
+      {link.form} filed {filedDay(link.filed)}
+      <span aria-hidden>{" ↗"}</span>
+    </a>
+  );
+}
+
+function RiskList({ label, rows, muted = false }: { label: string; rows: Array<{ text: string; was?: string }>; muted?: boolean }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="border-t border-oa-border">
+      <p className="oa-caption px-3.5 pb-1 pt-2.5">{label}</p>
+      <ul aria-label={label} className={`${SCROLL_8} divide-y divide-oa-border`}>
+        {rows.map((row, index) => (
+          <li key={`${index}:${row.text}`} className={`px-3.5 py-2 text-pretty text-[13.5px] leading-5 ${muted ? "text-oa-muted-fg" : "text-oa-fg"}`}>
+            {row.text}
+            {row.was ? <span className="mt-0.5 block text-[12.5px] leading-[18px] text-oa-muted-fg">Was: {row.was}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FilingChanges({ card }: { card: FilingChangesCard }) {
+  const listed = card.added.length + card.repeated.length + card.dropped.length;
+  const counts = [
+    card.added.length ? `${card.added.length} new` : null,
+    card.repeated.length ? `${card.repeated.length} from an earlier 10-Q` : null,
+    card.dropped.length ? `${card.dropped.length} dropped` : null,
+    listed === 0 && card.reworded.length ? `${card.reworded.length} reworded` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const text = (heading: string) => ({ text: heading });
+  return (
+    <Frame
+      label={`How ${card.ticker}'s risks changed`}
+      right={counts ? <span className={NUM}>{counts}</span> : null}
+      source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />}
+      flush
+    >
+      <div className="flex flex-col gap-1 px-3.5 py-2.5 text-[13.5px] leading-5">
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-oa-muted-fg">
+          <TickerLink symbol={card.ticker} />
+          <span>in its</span>
+          <FilingAnchor link={card.filing} />
+          {card.base ? <span>against its {card.base.form} from {filedDay(card.base.filed)}</span> : null}
+        </p>
+        {card.status !== "changes" ? <p className="text-pretty text-oa-fg">{card.headline}</p> : null}
+        {card.since ? <p className="text-pretty text-[12.5px] text-oa-muted-fg">{card.since.line}</p> : null}
+        {card.unread ? (
+          <p className="text-pretty text-[12.5px] text-oa-muted-fg">
+            We couldn&apos;t read the risk section of its {card.unread.form} filed {filedDay(card.unread.filed)}.
+          </p>
+        ) : null}
+      </div>
+      <RiskList label="New risks" rows={card.added.map(text)} />
+      <RiskList label="Still new since its 10-K" rows={card.repeated.map(text)} />
+      <RiskList label="Dropped" rows={card.dropped.map(text)} muted />
+      {listed === 0 ? <RiskList label="Reworded" rows={card.reworded.map((pair) => ({ text: pair.to, was: pair.from }))} /> : null}
+    </Frame>
+  );
+}
+
+const BASKET_TONE: Record<IdeaBasketVerdict, "up" | "down" | "flat"> = { holds: "up", weaker: "down", broken: "down", played_out: "flat", unknown: "flat" };
+
+function holdWords(counts: Record<IdeaBasketVerdict, number>, companies: number): string {
+  const checked = companies - counts.unknown;
+  return checked > 0 ? `${counts.holds} of ${checked} hold` : `${companies} companies`;
+}
+
+function BasketState({ enabled, byPlan }: { enabled: boolean; byPlan: boolean }) {
+  if (!enabled) return <Tag>Paused</Tag>;
+  return byPlan ? <Tag tone="warn">Paused by your plan</Tag> : null;
+}
+
+function IdeaBaskets({ card }: { card: IdeaBasketsCard }) {
+  return (
+    <Frame label="Your idea baskets" right={<span className={NUM}>{card.total}</span>} source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />} flush>
+      {card.rows.length === 0 ? (
+        <p className="px-3.5 py-3 text-[14px] leading-5 text-oa-muted-fg">
+          You have no idea baskets yet.{" "}
+          <AppLink href="/themes" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+            Start from a theme
+          </AppLink>{" "}
+          or ask for a basket on any idea.
+        </p>
+      ) : (
+        <ul className={`${SCROLL_8} divide-y divide-oa-border`}>
+          {card.rows.map((row) => (
+            <li key={row.id}>
+              <AppLink href={row.href} className={`block px-3.5 py-2.5 transition-colors hover:bg-oa-accent ${FOCUS}`}>
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span className="text-[14px] font-medium text-oa-fg">{row.name}</span>
+                  <BasketState enabled={row.enabled} byPlan={row.paused_by_plan} />
+                  <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{holdWords(row.counts, row.tickers.length)}</span>
+                  <span className="text-[12px] text-oa-muted-fg">{row.latest ? `${row.latest.decision_words}, ${dayWords(row.latest.day)}` : "Not checked yet"}</span>
+                </span>
+                {row.needs_look.length > 0 ? (
+                  <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                    {row.needs_look.map((entry) => (
+                      <span key={entry.ticker} className="inline-flex items-center gap-1.5" title={entry.line ?? undefined}>
+                        <StockLogo ticker={entry.ticker} size={16} />
+                        <span className={`${NUM} text-[13px] font-medium text-oa-fg`}>{entry.ticker}</span>
+                        <Verdict tone={BASKET_TONE[entry.verdict]}>{entry.verdict_words}</Verdict>
+                      </span>
+                    ))}
+                  </span>
+                ) : row.latest?.summary ? (
+                  <span className="mt-0.5 block text-pretty text-[13px] leading-5 text-oa-muted-fg">{row.latest.summary}</span>
+                ) : null}
+              </AppLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Frame>
+  );
+}
+
+function IdeaBasket({ card }: { card: IdeaBasketCard }) {
+  const latest = card.latest;
+  return (
+    <Frame label={card.name} right={<span className={NUM}>{holdWords(card.counts, card.companies.length)}</span>} source={<SourceLine source={card.source} asOf={card.as_of} href={card.source_url} />} flush>
+      <div className="border-b border-oa-border px-3.5 py-2.5">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5">
+          <BasketState enabled={card.enabled} byPlan={card.paused_by_plan} />
+          {latest ? (
+            <>
+              <span className="font-medium text-oa-fg">{latest.decision_words}</span>
+              <span className="text-oa-muted-fg">{capitalize(dayWords(latest.day))}</span>
+            </>
+          ) : (
+            <span className="text-oa-muted-fg">Not checked yet</span>
+          )}
+        </p>
+        {latest?.summary ? <p className="mt-0.5 text-pretty text-[13.5px] leading-5 text-oa-fg">{latest.summary}</p> : null}
+      </div>
+      {latest && latest.changes.length > 0 ? (
+        <ul className="divide-y divide-oa-border border-b border-oa-border">
+          {latest.changes.map((change) => (
+            <li key={`${change.op}:${change.ticker}`} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2">
+              <Tag tone={change.op === "drop" ? "warn" : "primary"}>{change.op === "drop" ? "Drop" : "Add"}</Tag>
+              <TickerLink symbol={change.ticker} />
+              <span className="min-w-0 text-pretty text-[13px] leading-5 text-oa-muted-fg">{change.line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <ul className="grid grid-cols-1 sm:grid-cols-2">
+        {card.companies.map((company, index) => (
+          <li
+            key={company.ticker}
+            className={`min-w-0 border-oa-border px-3.5 py-2.5 ${index > 0 ? "border-t" : ""} ${index === 1 ? "sm:border-t-0" : ""} ${index % 2 === 0 ? "sm:border-r" : ""}`}
+            title={`Your reason: ${company.reason}`}
+          >
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="flex min-w-0 items-baseline gap-2">
+                <TickerLink symbol={company.ticker} />
+                {company.price !== null ? (
+                  <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>
+                    {fmtMoney(company.price)} <Delta value={company.day_change_pct} className="text-[12.5px]" />
+                  </span>
+                ) : null}
+              </span>
+              <Verdict tone={BASKET_TONE[company.verdict]}>{company.verdict_words}</Verdict>
+            </div>
+            <p className="mt-1 text-pretty text-[13px] leading-5 text-oa-muted-fg">{company.verdict !== "holds" && company.line ? company.line : company.reason}</p>
+          </li>
+        ))}
+      </ul>
+    </Frame>
+  );
+}
+
+function WatchIdea({ card, actions }: { card: WatchIdeaCard; actions: CardActions }) {
+  // The reasons go over in this tab's storage, the way the basket card hands them over; the address carries the rest.
+  const handOver = () => {
+    try {
+      window.sessionStorage.setItem(ASK_HANDOFF_KEY, JSON.stringify({ idea: card.idea, lines: card.lines.map((line) => ({ ticker: line.ticker, company: line.company, reason: line.reason })) }));
+    } catch {
+      // Storage blocked: the editor fills the reasons it can from our themes.
+    }
+  };
+  return (
+    <Frame label="New idea basket" right={<span className={NUM}>{card.lines.length} companies</span>} flush>
+      <div className="px-3.5 py-3">
+        <p className="text-pretty text-[15px] font-medium leading-5 text-oa-fg">{card.name}</p>
+        <div className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1.5">
+          {card.lines.map((line) => (
+            <TickerLink key={line.ticker} symbol={line.ticker} />
+          ))}
+        </div>
+        {card.left_out.length > 0 ? <p className="mt-2 text-pretty text-[12.5px] leading-5 text-oa-muted-fg">Left out, since we don&apos;t follow {card.left_out.length === 1 ? "it" : "them"}: {card.left_out.join(", ")}.</p> : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-oa-border px-3.5 py-3">
+        {card.status === "already" && card.existing ? (
+          <>
+            <WatchIdeaLink href={card.existing.href} label="Open your basket" />
+            <span className="text-pretty text-[12.5px] leading-5 text-oa-muted-fg">You already watch these in “{card.existing.name}”.</span>
+          </>
+        ) : (
+          <>
+            <WatchIdeaLink href={card.href} onClick={handOver} />
+            {card.outlook ? <span className="text-pretty text-[12.5px] leading-5 text-oa-muted-fg">{card.outlook.line}</span> : null}
+            {!actions.signedIn ? <span className="text-[12.5px] text-oa-muted-fg">Saving it needs a free account.</span> : null}
+          </>
+        )}
+      </div>
+    </Frame>
+  );
+}
+
 /* ── the switch ─────────────────────────────────────────────────────────── */
 
 export function AskCardView({ card, actions }: { card: AskCard; actions: CardActions }) {
@@ -1619,6 +1856,14 @@ export function AskCardView({ card, actions }: { card: AskCard; actions: CardAct
       return <BriefingItem card={card} />;
     case "watch":
       return <Watch card={card} actions={actions} />;
+    case "filing_changes":
+      return <FilingChanges card={card} />;
+    case "idea_baskets":
+      return <IdeaBaskets card={card} />;
+    case "idea_basket":
+      return <IdeaBasket card={card} />;
+    case "watch_idea":
+      return <WatchIdea card={card} actions={actions} />;
     case "sign_in":
       return (
         <div className="oa-surface flex flex-wrap items-center justify-between gap-3 border border-oa-border bg-oa-card px-3.5 py-3">

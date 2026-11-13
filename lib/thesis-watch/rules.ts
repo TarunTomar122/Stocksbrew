@@ -1,5 +1,6 @@
 import { THESIS_LINES, type Thesis, type ThesisKind } from "@/lib/thesis";
 
+import { conditionSignal, type ConditionResult } from "./conditions";
 import { daysBetween, type CallWord, type StockFacts } from "./facts";
 
 /**
@@ -743,4 +744,23 @@ export function ruleNote(check: Pick<ReasonCheck, "ticker" | "headline" | "signa
     : rows.slice(0, 2).map((signal) => signal.text);
   const lead = check.verdict === "holds" && check.checked.length > 0 ? `${check.headline} Nothing we check has turned against it.` : check.headline;
   return [lead, ...lines].join(" ");
+}
+
+/**
+ * The check with the reason's measurable conditions folded in (lib/thesis-watch/conditions.ts): a broken condition is
+ * a hard signal, so it breaks the reason and leads the note; a condition that holds, or one waiting for figures,
+ * changes nothing. Pure.
+ */
+export function withConditions(check: ReasonCheck, results: readonly ConditionResult[]): ReasonCheck {
+  const broken = results.filter((result) => result.status === "broken").map((result) => conditionSignal(result, check.ticker));
+  if (broken.length === 0) return check;
+  const signals = [...broken, ...check.signals.filter((signal) => !broken.some((item) => item.id === signal.id))].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
+  const verdict = verdictOf(signals);
+  return {
+    ...check,
+    verdict,
+    headline: whatChanged({ ticker: check.ticker, verdict, signals })?.headline ?? headlineFor(verdict, check.ticker),
+    signals,
+    checked: [],
+  };
 }

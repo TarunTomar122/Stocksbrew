@@ -10,7 +10,7 @@ import type { InboxItem } from "@/lib/inbox/types";
 
 import type { Comparison } from "./diff";
 import type { FilingChangesDoc } from "./store";
-import { quote, recordLine } from "./words";
+import { QUOTE_WORDS, quote, recordLine } from "./words";
 
 export function filingChangesHref(ticker: string): string {
   return `/stock/${encodeURIComponent(ticker)}#filing-changes`;
@@ -25,6 +25,7 @@ export function filingItem(ticker: string, comparison: Comparison): InboxItem | 
   // Nothing new (no changes, or only risks an earlier 10-Q already added): listed, never counted as unread.
   const quiet = comparison.status !== "changes" || comparison.added.length + comparison.dropped.length === 0;
   const lead = comparison.added[0] ?? comparison.dropped[0] ?? null;
+  const quoted = lead ? quote(lead, QUOTE_WORDS - 1) : null;
   const id = `filing:${ticker}:${comparison.filing.accession}`;
   // Worked out after the close (often the night after the filing): new to the reader from then, filed under its day.
   const arrived = comparison.compared_at && Date.parse(comparison.compared_at) > Date.parse(at) ? comparison.compared_at : null;
@@ -37,7 +38,8 @@ export function filingItem(ticker: string, comparison: Comparison): InboxItem | 
     exact: false,
     tickers: [ticker],
     text,
-    detail: lead ? `${comparison.added[0] ? "New" : "Dropped"}: “${quote(lead).text}”` : null,
+    // The risk's own words when they fit in a line (whole, or cut at a clause); a longer one is left to the stock page.
+    detail: lead && quoted?.fits ? `${comparison.added[0] ? "New" : "Dropped"}: “${quoted.text}”` : null,
     // Only an item with something new is sure the stock page has the section to land on.
     href: quiet ? `/stock/${encodeURIComponent(ticker)}` : filingChangesHref(ticker),
     external: false,

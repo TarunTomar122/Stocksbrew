@@ -5,7 +5,10 @@ import type { ExampleBriefingPage } from "@/lib/briefing-example";
 import { groupBriefingSections } from "@/lib/briefing-groups";
 import { briefingRead, holdingsFirst } from "@/lib/briefing-read";
 import { canSeeLevels, type Viewer } from "@/lib/entitlements-server";
-import { inboxStocks, loadExampleInbox, loadUserInbox, type InboxResult } from "@/lib/inbox/server";
+import { listBaskets } from "@/lib/basket-agent/data";
+import { filingSource } from "@/lib/filing-changes/server";
+import { inboxStocks, loadExampleInbox, loadUserInbox, windowStart, type InboxResult } from "@/lib/inbox/server";
+import type { InboxItem } from "@/lib/inbox/types";
 import { etDay } from "@/lib/insight-format";
 import { BENCHMARK_SYMBOL, EXAMPLE_STOCK_TICKERS, loadDailySeries } from "@/lib/portfolio-data";
 import { callsFrom } from "@/lib/portfolio-home/stocks-server";
@@ -15,12 +18,13 @@ import { getScreenerRows } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import type { UserDoc } from "@/lib/watchlist";
 
-import { buildThread, sessionMoves, THREAD_DAYS, type CallLine, type MorningRead } from "./build";
+import { basketsByTicker, buildThread, sessionMoves, THREAD_DAYS, type CallLine, type MorningRead } from "./build";
 import type { Thread } from "./types";
 
 /**
  * The thread's reads, all of them ones other pages already cache: the person's inbox (one minute per person), the
- * morning briefing (one build a minute), the screener's calls and each stock's daily closes. Each runs on its own
+ * morning briefing (one build a minute), the screener's calls, each stock's daily closes, and the person's idea baskets
+ * with the filing comparisons on the stocks only a basket holds. Each runs on its own
  * time limit; a slow or failed one leaves its notes out, never the page. Never calls a model and never writes.
  */
 
@@ -110,7 +114,19 @@ async function sideReads(common: Common): Promise<{ rows: Map<string, ScreenerRo
   return { rows, series };
 }
 
-function assemble(common: Common, input: { example: boolean; inbox: InboxResult | null; briefing: BriefingPageData | null; rows: Map<string, ScreenerRow>; series: Map<string, DailySeries> }): Thread {
+function assemble(
+  common: Common,
+  input: {
+    example: boolean;
+    inbox: InboxResult | null;
+    briefing: BriefingPageData | null;
+    rows: Map<string, ScreenerRow>;
+    series: Map<string, DailySeries>;
+    /** Filing notes on stocks only the person's idea baskets hold (the inbox has the ones they track). */
+    basketFilings?: InboxItem[];
+    baskets?: Record<string, string[]>;
+  },
+): Thread {
   const morning = morningFrom(input.briefing, common.now);
   const sessions = sessionMoves({ series: input.series, tickers: common.group.tickers, benchmark: input.series.get(BENCHMARK_SYMBOL) ?? null, today: common.today, count: THREAD_DAYS });
   const nothing = !input.inbox && !morning && sessions.length === 0;
@@ -118,7 +134,7 @@ function assemble(common: Common, input: { example: boolean; inbox: InboxResult 
     status: nothing ? "unavailable" : "ready",
     example: input.example,
     today: common.today,
-    items: input.inbox?.items ?? [],
+    items: [...(input.inbox?.items ?? []), ...(input.basketFilings ?? [])],
     upcoming: input.inbox?.upcoming ?? [],
     morning,
     sessions,
@@ -126,8 +142,23 @@ function assemble(common: Common, input: { example: boolean; inbox: InboxResult 
     calls: callLines(input.rows, common.levels, common.today),
     levels: common.levels,
     prices: pricesFrom(input.rows),
+    baskets: input.baskets,
     stocks: common.tickers.length,
   });
+}
+
+/**
+ * The person's idea baskets, and the filing comparisons in the inbox window on the stocks only a basket holds (the
+ * inbox already reads the ones they track). Either read failing or running late leaves its part out.
+ */
+async function basketReads(uid: string | null, tracked: readonly string[], now: Date): Promise<{ baskets: Record<string, string[]>; filings: InboxItem[] }> {
+  if (!uid) return { baskets: {}, filings: [] };
+  const baskets = basketsByTicker(await within(listBaskets(uid), SIDE_TIMEOUT_MS, [], "baskets"));
+  const own = new Set(tracked);
+  const extra = Object.keys(baskets).filter((ticker) => !own.has(ticker));
+  if (extra.length === 0) return { baskets, filings: [] };
+  const filings = await within(filingSource(extra.map((ticker) => ({ ticker })), windowStart(now).sinceDay), SIDE_TIMEOUT_MS, [], "basket filings");
+  return { baskets, filings };
 }
 
 /**
@@ -154,17 +185,19 @@ export async function loadMemberThread(input: {
     group: held.length > 0 ? { tickers: held, holdings: true } : { tickers, holdings: false },
     levels: (ticker) => canSeeLevels(viewer, ticker),
   };
-  const [inbox, briefing, side] = await Promise.all([
+  const [inbox, briefing, side, basket] = await Promise.all([
     // The inbox has its own per-source limits; this one only keeps a stuck store from holding the page.
     within(loadUserInbox(viewer, doc, now), SIDE_TIMEOUT_MS + 1000, null, "inbox"),
     within(input.briefing(), BRIEFING_TIMEOUT_MS, null, "briefing"),
     sideReads(common),
+    // Both basket reads together get no longer than the inbox does.
+    within(basketReads(viewer.uid, tickers, now), SIDE_TIMEOUT_MS + 1000, { baskets: {}, filings: [] }, "baskets"),
   ]);
   // Research rows not built yet: the briefing says so, and the thread waits for them too.
   if (briefing?.viewer.kind === "pending" && (!inbox || inbox.items.length === 0)) {
     return { status: "pending", example: false, today, days: [], stocks: tickers.length };
   }
-  return assemble(common, { example: false, inbox, briefing, ...side });
+  return assemble(common, { example: false, inbox, briefing, ...side, basketFilings: basket.filings, baskets: basket.baskets });
 }
 
 /** The example portfolio's thread, the same for every visitor, from the example's cached briefing and inbox. */

@@ -16,6 +16,24 @@ vi.mock("@/lib/firebase-admin", async () => {
   };
 });
 
+// NVDA's stored figures: revenue growth and a $166 price, no dividend line possible (none paid in this fixture).
+vi.mock("@/lib/thesis-watch/condition-data", () => ({
+  conditionInputsFor: async (ids: string[]) =>
+    new Map(
+      ids.map((id) => [
+        id,
+        {
+          ticker: id.slice(3),
+          report: null,
+          values: {
+            revenue_growth: { value: 62, asOf: "2026-11-08T09:00:00Z", source: "s", href: null },
+            price: { value: 166, asOf: "2026-11-12", source: "Daily closes", href: null },
+          },
+        },
+      ]),
+    ),
+}));
+
 import { createMemoryStore } from "@/lib/import/test-store";
 import { DELETE, GET, POST } from "./route";
 
@@ -149,5 +167,32 @@ describe("/api/thesis", () => {
     state.uid = null;
     expect((await DELETE(del({ instrument_ids: ["US_AAPL"] }))).status).toBe(401);
     expect(state.store!.writes).toEqual([]);
+  });
+
+  it("refuses a new line on a figure the stock lacks, and keeps an old one that lost its figure", async () => {
+    const refused = await POST(post({ items: [{ instrument_id: "US_NVDA", kind: "growth", reason: null, conditions: [{ metric: "dividend", op: "above", value: 0.1 }] }] }));
+    expect(refused.status).toBe(400);
+    expect((await refused.json()).metric).toBe("dividend");
+    // A dividend line saved back when it paid one, and a price line far from today's $166.
+    const doc = state.store!.docs.get("users/me") as Record<string, unknown>;
+    (doc.theses as Record<string, unknown>).US_NVDA = {
+      kind: "growth",
+      reason: null,
+      created_at: "2026-10-01T00:00:00.000Z",
+      updated_at: "2026-10-01T00:00:00.000Z",
+      conditions: [{ metric: "dividend", op: "above", value: 0.1 }],
+    };
+    const kept = await POST(
+      post({
+        items: [{ instrument_id: "US_NVDA", kind: "growth", reason: "AI chips", conditions: [{ metric: "dividend", op: "above", value: 0.1 }, { metric: "revenue_growth", op: "above", value: 40 }] }],
+      }),
+    );
+    expect(kept.status).toBe(200);
+    expect((await kept.json()).theses.US_NVDA.conditions).toHaveLength(2);
+    // Changing the old line's number makes it new: it is checked, and refused.
+    const changed = await POST(post({ items: [{ instrument_id: "US_NVDA", kind: "growth", reason: null, conditions: [{ metric: "dividend", op: "above", value: 0.2 }] }] }));
+    expect(changed.status).toBe(400);
+    const far = await POST(post({ items: [{ instrument_id: "US_NVDA", kind: "growth", reason: null, conditions: [{ metric: "price", op: "above", value: 1000 }] }] }));
+    expect(far.status).toBe(400);
   });
 });

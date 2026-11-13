@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { InboxItem, UpcomingReport } from "@/lib/inbox/types";
 import { findingItems } from "@/lib/inbox/words";
 
-import { againstMarket, buildThread, dayName, eventNote, sessionMoves, sessionSentence, upcomingNote, type ThreadInput } from "./build";
+import { againstMarket, basketLine, basketsByTicker, buildThread, dayName, eventNote, sessionMoves, sessionSentence, upcomingNote, type ThreadInput } from "./build";
 import { threadSuggestions } from "./suggest";
 
 const TODAY = "2026-11-12"; // a Thursday
@@ -331,5 +331,41 @@ describe("the thread", () => {
     const thread = buildThread(input({ items: [NVDA_DROP], upcoming: [report({ ticker: "AAPL", date: "2026-11-16" })] }));
     expect(threadSuggestions(thread)).toEqual(["Why did NVDA move?", "Tell me when AAPL reports"]);
     expect(threadSuggestions(buildThread(input()))).toEqual(["How did my stocks do this week?"]);
+  });
+});
+
+describe("filing notes on stocks in an idea basket", () => {
+  const FILING = item({
+    id: "filing:MU:acc-1",
+    kind: "filing",
+    tickers: ["MU"],
+    text: "MU's new 10-K adds 2 risks and drops 1.",
+    detail: "New: “We depend on a few customers for most of our AI memory sales.”",
+    href: "/stock/MU#filing-changes",
+    source: "SEC 10-K",
+  });
+
+  it("says which basket the filing touches", () => {
+    const baskets = basketsByTicker([
+      { name: "AI capex", lines: [{ ticker: "MU" }, { ticker: "NVDA" }] },
+      { name: "Memory", lines: [{ ticker: "MU" }] },
+    ]);
+    expect(baskets).toEqual({ MU: ["AI capex", "Memory"], NVDA: ["AI capex"] });
+    const note = eventNote(FILING, { levels: () => true, today: TODAY, baskets }, new Map())!;
+    expect(note.text).toBe("MU's new 10-K adds 2 risks and drops 1. It's in your “AI capex” and “Memory” baskets.");
+    expect(note.step).toMatchObject({ href: "/stock/MU#filing-changes" });
+  });
+
+  it("adds nothing for a stock in no basket, or for a note that is not a filing", () => {
+    expect(eventNote(FILING, { levels: () => true, today: TODAY, baskets: {} }, new Map())!.text).toBe("MU's new 10-K adds 2 risks and drops 1.");
+    expect(eventNote(NVDA_DROP, { levels: () => true, today: TODAY, baskets: { NVDA: ["AI capex"] } }, new Map())!.text).not.toContain("basket");
+    expect(basketLine(["A", "B", "C"])).toBe("It's in 3 of your idea baskets.");
+    expect(basketLine([" ", ""])).toBeNull();
+  });
+
+  it("files a basket-only stock's filing note on its day in the thread", () => {
+    const thread = buildThread(input({ items: [FILING], baskets: { MU: ["AI capex"] } }));
+    const day = thread.days.find((entry) => entry.day === "2026-11-11");
+    expect(day?.notes.map((note) => note.text)).toEqual(["MU's new 10-K adds 2 risks and drops 1. It's in your “AI capex” basket."]);
   });
 });

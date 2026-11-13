@@ -198,6 +198,11 @@ export type ProposalReason = {
   /** The day the verdict last changed to what it is now. */
   since: string | null;
   signals: Array<{ text: string; asOf: string; level: string }>;
+  /**
+   * The person's own measurable line that broke, when one did (lib/thesis-watch/conditions.ts): the why-line names it
+   * with its figure, "Revenue growth is 18%, under your 20%.", and "How I got here" shows the dated source.
+   */
+  condition?: { line: string; source: string; asOf: string | null; href: string | null; label: string; now: string | null } | null;
 };
 
 export type ProposalRunFinding = {
@@ -941,7 +946,8 @@ function reasonRules(inputs: ProposalInputs): ProposalDraft[] {
       { label: `Your reason check on ${ticker}`, at: reason.since!, href: `${stockHref(ticker)}#reason` },
       ...hard.slice(0, 3).map((signal) => ({ label: clipWords(signal.text, 14), at: signal.asOf || reason.since!, href: null })),
     ];
-    const brokeWhen = `Your reason check on ${ticker} turned broken ${onDay(reason.since!, inputs.today)}.`;
+    const line = reason.condition ?? null;
+    const brokeWhen = line?.line ?? `Your reason check on ${ticker} turned broken ${onDay(reason.since!, inputs.today)}.`;
     const base = {
       kind: "reason_broken" as const,
       ticker,
@@ -949,7 +955,16 @@ function reasonRules(inputs: ProposalInputs): ProposalDraft[] {
       event: { key: `reason:${ticker}:${reason.since}`, kind: "reason_broken" as const, at: reason.since!, refs: [`tm_thesis_checks/${stock.instrumentId}`] },
       priority: 90,
     };
-    const figures: ProposalFigure[] = [{ label: "Reason check", value: "Broken" }, { label: "Hard signals", value: String(hard.length) }];
+    const figures: ProposalFigure[] = [
+      { label: "Reason check", value: "Broken" },
+      ...(line?.now ? [{ label: line.label, value: line.now }] : [{ label: "Hard signals", value: String(hard.length) }]),
+    ];
+    if (line) {
+      // The broken line's own signal is said by its dated source; it is not listed a second time.
+      const own = read.findIndex((source) => source.label === clipWords(line.line, 14));
+      if (own > 0) read.splice(own, 1);
+      read.splice(1, 0, { label: line.source, at: line.asOf ?? reason.since!, href: line.href });
+    }
     if (!point) continue;
     const next = levelBelow(inputs, ticker, point.price);
     const replaces = alertUnder(inputs, ticker, point.price, next);
@@ -986,6 +1001,8 @@ function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
     const replaces = alertUnder(inputs, ticker, point.price, next);
     if (replaces === false) continue;
     const count = change.added.length;
+    // The new risk in the company's words when they fit the line with "New:" (whole, or cut at a clause), else not quoted.
+    const newRisk = quote(change.added[0]!, WHY_MAX_WORDS - 1);
     const dropped = change.dropped > 0 ? ` and drops ${change.dropped}` : change.partial ? " since its 10-K" : "";
     out.push({
       kind: "filing_risks",
@@ -996,7 +1013,7 @@ function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
       title: `Set an alert at ${usd(next.price)}: ${ticker}'s ${change.form} adds ${risks(count)}`,
       why: [
         `${ticker}'s ${change.form} ${onDay(change.filed, inputs.today)} adds ${risks(count)}${dropped}.`,
-        `New: “${quote(change.added[0]!, 11).text}”`,
+        ...(newRisk.fits ? [`New: “${newRisk.text}”`] : []),
         nextLine(next, "down"),
       ],
       does: alertDoes(ticker, "below", next.price, replaces),

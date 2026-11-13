@@ -508,6 +508,126 @@ export type WatchCard = CardBase & {
   offer?: string | null;
 };
 
+/* ── filings and idea baskets ───────────────────────────────────────────── */
+
+/** A filing on SEC EDGAR, as a card names and links it. */
+export type FilingLink = { form: "10-K" | "10-Q"; filed: string; period: string | null; url: string };
+
+/**
+ * What a company added to, dropped from or reworded in its risk factors in one 10-K or 10-Q against the filing before
+ * it (lib/filing-changes). Every risk is the company's own heading, copied from the filing.
+ */
+export type FilingChangesCard = CardBase & {
+  card: "filing_changes";
+  ticker: string;
+  company: string;
+  /** What the comparison found: "changes", or a 10-Q that said there were none ("no_changes", "none_listed"). */
+  status: "changes" | "no_changes" | "none_listed";
+  /** "partial": a 10-Q that lists only some risks, held against the 10-K, so nothing can be called dropped. */
+  scope: "full" | "partial" | null;
+  filing: FilingLink;
+  /** The filing it was compared with. */
+  base: FilingLink | null;
+  /** One sentence with the counts, written by rules. */
+  headline: string;
+  added: string[];
+  /** A 10-Q's risks new since the 10-K that an earlier 10-Q already added. */
+  repeated: string[];
+  dropped: string[];
+  reworded: Array<{ from: string; to: string }>;
+  /** Headings unchanged word for word. */
+  unchanged: number;
+  /** A newer filing that changed less, in one line ("Since then, its 10-Q filed Nov 4 adds no new risks."). */
+  since: { filing: FilingLink; line: string } | null;
+  /** The newest filing, when its risk section could not be read: nothing is said about it. */
+  unread: FilingLink | null;
+};
+
+export type IdeaBasketVerdict = "holds" | "weaker" | "broken" | "played_out" | "unknown";
+
+export type IdeaBasketCompany = {
+  ticker: string;
+  company: string | null;
+  kind: string;
+  reason: string;
+  verdict: IdeaBasketVerdict;
+  verdict_words: string;
+  line: string | null;
+  figure: string | null;
+  as_of: string | null;
+  /** The latest price and today's move (the price the stock page prints), when we have one. */
+  price: number | null;
+  day_change_pct: number | null;
+};
+
+export type IdeaBasketDecision = {
+  day: string;
+  decision: "propose" | "nothing" | "could_not_check";
+  decision_words: string;
+  summary: string;
+  changes: Array<{ op: "drop" | "add"; ticker: string; company: string | null; line: string; since: string | null }>;
+  missing: string[];
+};
+
+export type IdeaBasketRow = {
+  id: string;
+  name: string;
+  idea: string;
+  enabled: boolean;
+  paused_by_plan: boolean;
+  counts: Record<IdeaBasketVerdict, number>;
+  /** Companies whose reason is broken, played out or weaker, worst first. */
+  needs_look: Array<{ ticker: string; verdict: IdeaBasketVerdict; verdict_words: string; line: string | null }>;
+  tickers: string[];
+  latest: IdeaBasketDecision | null;
+  href: string;
+};
+
+/** The person's idea baskets (lib/basket-agent): each with its latest daily check. */
+export type IdeaBasketsCard = CardBase & {
+  card: "idea_baskets";
+  total: number;
+  rows: IdeaBasketRow[];
+};
+
+/** One idea basket: every company's reason and the latest check's verdict on it, and what the check decided. */
+export type IdeaBasketCard = CardBase & {
+  card: "idea_basket";
+  id: string;
+  name: string;
+  idea: string;
+  enabled: boolean;
+  paused_by_plan: boolean;
+  counts: Record<IdeaBasketVerdict, number>;
+  companies: IdeaBasketCompany[];
+  latest: IdeaBasketDecision | null;
+  recent: Array<{ day: string; decision_words: string; summary: string }>;
+  replay: { from: string; to: string; sessions: number; proposals: number; earlier: boolean } | null;
+  href: string;
+};
+
+/**
+ * "Watch this idea": a basket drafted from the idea in the conversation, with the editor's own starting lines. Nothing
+ * is saved or switched on: the link opens the basket editor, where the person replays it and decides.
+ */
+export type WatchIdeaCard = CardBase & {
+  card: "watch_idea";
+  /** "ready": nothing like it is saved. "already": the person has a basket on the same companies. */
+  status: "ready" | "already";
+  name: string;
+  idea: string;
+  lines: Array<{ ticker: string; company: string | null; reason: string }>;
+  /** Tickers left out because we don't follow them, so the agent couldn't check them. */
+  left_out: string[];
+  /** The editor, with the idea and the companies. */
+  href: string;
+  /** The person's basket on the same companies, when there is one. */
+  existing: { id: string; name: string; enabled: boolean; href: string } | null;
+  /** Signed in: what saving would do on their plan right now (saved paused, or no room). Null when it would start. */
+  outlook: { kind: "full" | "paused"; line: string } | null;
+  signed_in: boolean;
+};
+
 export type MatchesCard = CardBase & { card: "matches"; query: string; matches: Array<{ ticker: string; name: string }> };
 
 export type SignInCard = { card: "sign_in"; message: string };
@@ -540,6 +660,10 @@ export type AskCard =
   | ResearchListCard
   | BriefingItemCard
   | WatchCard
+  | FilingChangesCard
+  | IdeaBasketsCard
+  | IdeaBasketCard
+  | WatchIdeaCard
   | MatchesCard
   | SignInCard
   | ErrorCard;
@@ -746,7 +870,43 @@ export function cardForModel(card: AskCard): Record<string, unknown> {
     const { drafts: _drafts, rule: _rule, outlook: _outlook, ...rest } = card;
     return rest;
   }
+  if (card.card === "filing_changes") return filingChangesForModel(card);
+  if (card.card === "idea_basket") {
+    // The person's own reasons are long and theirs; the model needs the verdict and the fact behind it.
+    return { ...card, companies: card.companies.map(({ reason: _reason, ...company }) => company) };
+  }
+  if (card.card === "watch_idea") {
+    const { lines, ...rest } = card;
+    return { ...rest, tickers: lines.map((line) => line.ticker) };
+  }
   return card as Record<string, unknown>;
+}
+
+/** Risks the model reads per list; the card lists them all, with the counts beside them. */
+export const MODEL_RISKS = 8;
+/** Words of a risk heading the model reads. The card shows it whole. */
+const MODEL_RISK_WORDS = 30;
+
+function clipWords(text: string, max: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length <= max ? words.join(" ") : `${words.slice(0, max).join(" ")}…`;
+}
+
+/** A filing comparison for the model: counts, then at most MODEL_RISKS headings per list, each cut to a few dozen words. */
+function filingChangesForModel(card: FilingChangesCard): Record<string, unknown> {
+  const few = (list: string[]) => list.slice(0, MODEL_RISKS).map((heading) => clipWords(heading, MODEL_RISK_WORDS));
+  const { added, repeated, dropped, reworded, ...rest } = card;
+  return {
+    ...rest,
+    added_count: added.length,
+    repeated_count: repeated.length,
+    dropped_count: dropped.length,
+    reworded_count: reworded.length,
+    added: few(added),
+    repeated: few(repeated),
+    dropped: few(dropped),
+    reworded: reworded.slice(0, 4).map((pair) => ({ from: clipWords(pair.from, MODEL_RISK_WORDS), to: clipWords(pair.to, MODEL_RISK_WORDS) })),
+  };
 }
 
 /* ── the number audit ───────────────────────────────────────────────────── */

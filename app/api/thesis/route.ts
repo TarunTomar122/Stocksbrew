@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { etToday } from "@/lib/day-words";
 import { MAX_THESES_PER_USER, mergeTheses, readTheses, removeTheses, validateRemoveIds, validateThesisItems, type Thesis } from "@/lib/thesis";
+import { conditionKey, conditionsFitStock } from "@/lib/thesis-watch/conditions";
 
 /**
  * GET  /api/thesis: the signed-in person's reasons, by instrument id, and the
  *      stocks they mark as owned (`held`).
- * POST /api/thesis: { items: [{ instrument_id, kind, reason }] } saves one
- *      reason per stock. Only stocks the person tracks are accepted.
+ * POST /api/thesis: { items: [{ instrument_id, kind, reason, conditions? }] } saves one
+ *      reason per stock. Only stocks the person tracks are accepted. `conditions`
+ *      (at most two, lib/thesis-watch/conditions.ts) must each name a figure we
+ *      store for that stock; left out, the saved ones are kept.
  * DELETE /api/thesis: { instrument_ids: [...] } removes those reasons and
  *      keeps every other one. Removing a reason that is not there is fine.
  *
@@ -43,6 +47,40 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { items?: unknown } | null;
   const valid = validateThesisItems(body?.items);
   if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
+
+  // Measurable conditions only on figures we have for that stock (a fund has no gross margin, a non-payer no dividend).
+  // Only new or changed lines are held to that: a line saved earlier stays as it was, even when its figure has since
+  // gone (a dividend that stopped) or the price moved far from it, so it never blocks saving another.
+  let stored: Record<string, Thesis> = {};
+  if (valid.items.some((item) => (item.conditions ?? []).length > 0)) {
+    try {
+      stored = readTheses(((await adminFirestore.collection("users").doc(session.uid).get()).data() ?? {}).theses);
+    } catch {
+      return NextResponse.json({ error: "read_failed" }, { status: 503 });
+    }
+  }
+  const fresh = (item: (typeof valid.items)[number]) => {
+    const kept = new Set((stored[item.instrument_id]?.conditions ?? []).map(conditionKey));
+    return (item.conditions ?? []).filter((condition) => !kept.has(conditionKey(condition)));
+  };
+  const withLines = valid.items.filter((item) => fresh(item).length > 0);
+  if (withLines.length > 0) {
+    let inputs;
+    try {
+      // Loaded only here: the figures' readers pull in the stock facts loaders, which a plain save never needs.
+      const { conditionInputsFor } = await import("@/lib/thesis-watch/condition-data");
+      inputs = await conditionInputsFor(
+        withLines.map((item) => item.instrument_id),
+        etToday(),
+      );
+    } catch {
+      return NextResponse.json({ error: "read_failed" }, { status: 503 });
+    }
+    for (const item of withLines) {
+      const misfit = conditionsFitStock(fresh(item), inputs.get(item.instrument_id) ?? null);
+      if (misfit) return NextResponse.json({ error: "condition_no_data", instrument_id: item.instrument_id, metric: misfit }, { status: 400 });
+    }
+  }
 
   const userRef = adminFirestore.collection("users").doc(session.uid);
   const result = await adminFirestore.runTransaction(

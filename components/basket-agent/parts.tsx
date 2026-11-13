@@ -426,6 +426,38 @@ export function RunRecord({
 /* ── the replay ─────────────────────────────────────────────────────────── */
 
 /**
+ * The replay's days, every one accounted for, within 15 words: "Of 20 days, 3 had a change, 15 were quiet and 2
+ * couldn't check." Numbers stay numbers so the view can set them in figures. Days with a change count every day a
+ * change waited (one change can wait several days), so the parts add up to the days checked.
+ */
+export function replayTally(
+  replay: Pick<ReplaySummary, "sessions" | "counts">,
+): Array<string | number> {
+  const { propose, nothing, could_not_check: missed } = replay.counts;
+  const total = replay.sessions;
+  if (total === 0) return ["No market days to check yet."];
+  const parts: Array<Array<string | number>> = [];
+  if (propose > 0) parts.push([propose, " had a change"]);
+  if (nothing > 0) parts.push([nothing, nothing === 1 ? " was quiet" : " were quiet"]);
+  if (missed > 0) parts.push([missed, ` couldn't check`]);
+  // A stored replay whose counts are missing: the days alone.
+  if (parts.length === 0) return [total, total === 1 ? " day checked." : " days checked."];
+  if (parts.length === 1) {
+    if (total === 1) return [propose > 0 ? "The one day it checked had a change." : nothing > 0 ? "The one day it checked was quiet." : "It couldn't check the one day."];
+    if (propose > 0) return ["All ", total, " days had a change."];
+    if (nothing > 0) return ["All ", total, " days were quiet."];
+    return ["It couldn't check any of the ", total, " days."];
+  }
+  const out: Array<string | number> = ["Of ", total, ` ${total === 1 ? "day" : "days"}, `];
+  parts.forEach((part, index) => {
+    if (index > 0) out.push(index === parts.length - 1 ? " and " : ", ");
+    out.push(...part);
+  });
+  out.push(".");
+  return out;
+}
+
+/**
  * What the replay would have proposed and when: one row per change, its line, and a bar across the four weeks marking
  * the days it would have waited for an answer. The window is said once, under the rows.
  */
@@ -450,13 +482,18 @@ export function ReplayView({
   const window = `${capitalize(dayWords(replay.from, today))} to ${dayWords(replay.to, today)}`;
   return (
     <div className="flex min-w-0 flex-col">
-      {/* The four weeks as one line of history, said once. */}
+      {/* The four weeks as one line of history, said once: every day it checked is counted. */}
       <div className="border-b border-oa-border px-4 py-3">
         <p className="text-[14.5px] font-medium leading-5 text-oa-fg">
-          <span className={NUM}>{replay.sessions}</span> days checked:{" "}
-          <span className={NUM}>{replay.proposals.length}</span>{" "}
-          {replay.proposals.length === 1 ? "change" : "changes"},{" "}
-          <span className={NUM}>{replay.counts.nothing}</span> quiet.
+          {replayTally(replay).map((part, index) =>
+            typeof part === "number" ? (
+              <span key={index} className={NUM}>
+                {part}
+              </span>
+            ) : (
+              <React.Fragment key={index}>{part}</React.Fragment>
+            ),
+          )}
         </p>
         <p
           className="text-[12.5px] leading-5 text-oa-muted-fg"
@@ -491,7 +528,10 @@ export function ReplayView({
                 </div>
               </div>
               {days.length > 0 ? (
-                <div className="min-w-0">
+                <div
+                  className="min-w-0"
+                  title={`Waited ${proposal.days} ${proposal.days === 1 ? "day" : "days"} for an answer`}
+                >
                   <span className="relative block h-2 rounded-full bg-oa-bg">
                     <span
                       className={`absolute inset-y-0 rounded-full ${proposal.op === "drop" ? "bg-signal-bearish" : "bg-oa-primary"}`}
@@ -501,11 +541,9 @@ export function ReplayView({
                       }}
                     />
                   </span>
-                  <span
-                    className={`${NUM} mt-1 block text-[11.5px] text-oa-muted-fg`}
-                  >
-                    Would have waited {proposal.days}{" "}
-                    {proposal.days === 1 ? "day" : "days"} for an answer
+                  {/* How long it waited is the bar's length; the tally above says it in words, once. */}
+                  <span className="sr-only">
+                    Waited {proposal.days} {proposal.days === 1 ? "day" : "days"}
                   </span>
                 </div>
               ) : null}

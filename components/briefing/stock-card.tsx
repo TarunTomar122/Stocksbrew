@@ -47,10 +47,16 @@ export function FactChip({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** "$62.10", "$1,072.79". */
+function priceText(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function StockCard({
   ticker,
   name,
   figure,
+  price,
   tone = "flat",
   sentence,
   extra,
@@ -71,6 +77,8 @@ export function StockCard({
   name: string;
   /** The one big number: the day's move, the gap. Nothing when there is none. */
   figure?: string | null;
+  /** The stock's current price, under the move (owner rule 4: every stock card shows its price beside its move). */
+  price?: number | null;
   tone?: "up" | "down" | "flat";
   sentence?: React.ReactNode;
   /** A second, smaller line under the sentence: the stock's next update, shown rather than folded. */
@@ -95,6 +103,7 @@ export function StockCard({
   const short = ticker ? shortCompanyName(name) : name;
   const label = ticker && short && short.toUpperCase() !== ticker.toUpperCase() ? short : null;
   const figureTone = tone === "up" ? "text-signal-bullish" : tone === "down" ? "text-signal-bearish" : "text-oa-fg";
+  const hasPrice = typeof price === "number" && Number.isFinite(price) && price > 0;
   return (
     <li
       {...rest}
@@ -118,7 +127,12 @@ export function StockCard({
             ) : null}
           </div>
         </div>
-        {figure ? <p className={`oa-mono shrink-0 text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${figureTone}`}>{figure}</p> : null}
+        {figure || hasPrice ? (
+          <div className="shrink-0 text-right">
+            {figure ? <p className={`oa-mono text-[20px] font-semibold leading-7 tracking-[-0.01em] tabular-nums ${figureTone}`}>{figure}</p> : null}
+            {hasPrice ? <p className="oa-mono text-[13px] leading-4 tabular-nums text-oa-fg">{priceText(price as number)}</p> : null}
+          </div>
+        ) : null}
       </div>
       {note ? <p className="mt-1.5 min-w-0 text-pretty text-[12.5px] font-medium leading-[18px] text-oa-primary">{note}</p> : null}
       {sentence ? <p className="mt-2 text-pretty text-[14px] leading-5 text-oa-fg">{sentence}</p> : null}

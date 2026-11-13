@@ -1,6 +1,7 @@
 import type { InvestmentTheme, ThemeCandidate } from "@/lib/investment-themes";
 import { getLiveInvestmentTheme, getLiveInvestmentThemes } from "@/lib/research-themes";
 import { getScreenerRows, getScreenerSnapshot } from "@/lib/screener";
+import { bookLine } from "@/lib/theme-book-lines";
 import {
   BASKET_RANGES,
   basketSeries,
@@ -43,6 +44,8 @@ export type BasketLine = {
   benefit: string;
   breaks: string;
   catalyst: string | null;
+  /** The book's one line for it, at most 15 words: what it does for the idea and what would break it (lib/theme-book-lines.ts). */
+  line: string;
   /** Screening row for the line: price, returns, score, and our call (callers strip it per viewer). */
   row: ScreenerRow | null;
 };
@@ -69,7 +72,7 @@ export type Basket = BasketSummary & {
   resources: InvestmentTheme["resources"];
 };
 
-function line(candidate: ThemeCandidate, rows: Map<string, ScreenerRow>): BasketLine {
+function line(slug: string, candidate: ThemeCandidate, rows: Map<string, ScreenerRow>): BasketLine {
   const ticker = candidate.ticker.trim().toUpperCase();
   return {
     company: candidate.company,
@@ -78,6 +81,7 @@ function line(candidate: ThemeCandidate, rows: Map<string, ScreenerRow>): Basket
     benefit: candidate.benefitMechanism,
     breaks: candidate.failureCase,
     catalyst: candidate.catalyst?.trim() || null,
+    line: bookLine(slug, candidate),
     row: rows.get(ticker) ?? null,
   };
 }
@@ -91,7 +95,7 @@ function perfOf(lines: BasketLine[]): BasketPerf {
 }
 
 function summarize(theme: InvestmentTheme, rows: Map<string, ScreenerRow>, asOf: string | null): Basket {
-  const lines = theme.candidates.map((candidate) => line(candidate, rows));
+  const lines = theme.candidates.map((candidate) => line(theme.slug, candidate, rows));
   const bench = rows.get(BASKET_BENCHMARK);
   const benchmark = {} as Record<BasketWindow, number | null>;
   for (const { id } of BASKET_WINDOWS) benchmark[id] = typeof bench?.[id] === "number" ? (bench[id] as number) : null;
@@ -108,7 +112,7 @@ function summarize(theme: InvestmentTheme, rows: Map<string, ScreenerRow>, asOf:
     roles: [...new Set(lines.map((item) => item.role))],
     asOf,
     lines,
-    alsoWatching: theme.watchlist.map((candidate) => line(candidate, rows)),
+    alsoWatching: theme.watchlist.map((candidate) => line(theme.slug, candidate, rows)),
     resources: theme.resources,
   };
 }

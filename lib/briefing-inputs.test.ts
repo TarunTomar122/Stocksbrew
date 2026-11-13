@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { uncoveredPosition, withMarketIndexFigures } from "@/lib/briefing-inputs";
+import { positionFromRow, uncoveredPosition, withMarketIndexFigures } from "@/lib/briefing-inputs";
+import type { WatchlistRow } from "@/lib/watchlist-view";
 
 describe("withMarketIndexFigures", () => {
   const snapshot = [
@@ -59,5 +60,25 @@ describe("uncoveredPosition", () => {
       pre_earnings_headline: null,
       covered: false,
     });
+  });
+});
+
+describe("positionFromRow price and move", () => {
+  // Only what positionFromRow reads; the rest of a view row does not matter here.
+  const row = { instrument_id: "US_AMD", ticker: "AMD", position_type: "holding", price: 240, day_change_pct: -3.2 } as unknown as WatchlistRow;
+
+  it("takes the price and the move from one quote", () => {
+    const out = positionFromRow(row, { quote: { price: 251.5, day_change_pct: 4.8, as_of: "2026-11-12T20:59:00Z" } });
+    expect(out).toMatchObject({ price: 251.5, day_change_pct: 4.8, price_as_of: "2026-11-12T20:59:00Z" });
+  });
+
+  it("never pairs the quote's price with the row's move", () => {
+    const out = positionFromRow(row, { quote: { price: 251.5, day_change_pct: null, as_of: "2026-11-12T20:59:00Z" } });
+    expect(out).toMatchObject({ price: 251.5, day_change_pct: null });
+  });
+
+  it("falls back to the row's own pair when the quote has no price", () => {
+    const out = positionFromRow(row, { quote: { price: null, day_change_pct: 4.8, as_of: "2026-11-12T20:59:00Z" } });
+    expect(out).toMatchObject({ price: 240, day_change_pct: -3.2, price_as_of: null });
   });
 });

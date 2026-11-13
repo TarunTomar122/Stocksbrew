@@ -167,6 +167,23 @@ function sentence(text: string): string {
   return !trimmed || /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+/** Most words in a card's one fact (owner rule 8: one line of at most 15 words). */
+export const FACT_WORDS = 15;
+
+const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * One fact, at most FACT_WORDS words: a sentence that joins two facts ("Apple's sales grew 15% over the past year, and
+ * its report on Nov 2 beat profit forecasts by 3.5%.") keeps its first ("Apple's sales grew 15% over the past
+ * year."). A sentence with no such join is kept whole, never cut mid-clause.
+ */
+export function oneFact(text: string): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (wordCount(clean) <= FACT_WORDS) return clean;
+  const first = /^(.+?)(?:,\s+(?:and|while|but|with)\s+|;\s+)/.exec(clean)?.[1];
+  return first && wordCount(first) >= 4 && wordCount(first) <= FACT_WORDS ? sentence(first) : clean;
+}
+
 /** The first sentence of a longer text, when it is short enough to read at a glance; else null. */
 export function firstSentence(text: string | null | undefined, max = 120): string | null {
   const clean = (text ?? "").replace(/\s+/g, " ").trim();
@@ -325,11 +342,16 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
       const said = monthWords(month);
       // A fund's card keeps the same short face as a stock's: its month against the S&P 500, without its share of the
       // money (owner rule 10), so it reads as one fact rather than a paragraph.
-      facts.push({ kind: "month", text: size && !fund ? `${size}, ${said}.` : `${capital(said)}.`, priority: 8 });
+      // Its share of the money goes with the month only while the two fit one line (owner rule 8: one fact, 15 words).
+      const sized = size && !fund ? `${size}, ${said}.` : null;
+      facts.push({ kind: "month", text: sized && wordCount(sized) <= FACT_WORDS ? sized : `${capital(said)}.`, priority: 8 });
       // A bare "Next report Dec 10." is thin on its own (council, Nov 11): the month goes with it.
       const report = facts.find((fact) => fact.kind === "next-report");
       if (report && facts.every((fact) => fact === report || fact.priority < report.priority)) {
-        report.text = `${report.text.replace(/\.$/, "")}; ${said}.`;
+        // Within one line: the move against the S&P 500 when it fits, else the move alone.
+        const lead = report.text.replace(/\.$/, "");
+        const full = `${lead}; ${said}.`;
+        report.text = wordCount(full) <= FACT_WORDS ? full : `${lead}; ${monthWords({ ...month, marketPct: null })}.`;
       }
     }
     // Nothing else to say: its share of the money, so no card is left with nothing on it.
@@ -349,7 +371,7 @@ export function stockCards(source: BookSource, extra: Pick<BookFacts, "reasons" 
       // and the home page's example alike (judges, ship 44: QQQ and VOO said Keep on the home page).
       call: call && !fund ? PLAIN_CALL[call.call] : null,
       level: fund ? null : callLevel(call, position.price),
-      fact: facts[0] ?? null,
+      fact: facts[0] ? { ...facts[0], text: oneFact(facts[0].text) } : null,
       fund,
     };
   });

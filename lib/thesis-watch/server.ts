@@ -4,9 +4,11 @@ import { newYorkToday } from "@/lib/portfolio-data";
 import { readTheses, type Thesis } from "@/lib/thesis";
 import type { UserDoc } from "@/lib/watchlist";
 
+import { loadConditionInputs } from "./condition-data";
+import { judgeConditions, nextConditionRecords, type Condition, type ConditionRecord, type ConditionResult } from "./conditions";
 import { closesOnDays, loadStockFacts, tickerFromId } from "./data";
 import { thesisModelReader } from "./model";
-import { evaluate, ruleNote, savedDay, type ReasonCheck, type Verdict } from "./rules";
+import { evaluate, ruleNote, savedDay, withConditions, type ReasonCheck, type Verdict } from "./rules";
 import { CHECKS_COLLECTION, checkDocId, lastChange, nextStoredCheck, readStoredCheck, toDoc, type StoredCheck } from "./store";
 import { wordNote } from "./word";
 
@@ -38,7 +40,19 @@ export type CheckView = {
   asOf: string;
   /** The verdict before the latest change and the day it changed, when there was one. */
   change: { from: Verdict; day: string } | null;
+  /** The reason's measurable conditions, checked tonight, in the order saved. Empty when it has none. */
+  conditions: ConditionView[];
 };
+
+/** One condition as a page shows it: tonight's result, the day a new report was checked, and since when. */
+export type ConditionView = ConditionResult & { checkedOn: string | null; since: string | null };
+
+function conditionViews(results: readonly ConditionResult[], records: readonly ConditionRecord[] | null): ConditionView[] {
+  return results.map((result) => {
+    const record = records?.find((row) => row.key === result.key) ?? null;
+    return { ...result, checkedOn: record?.checked_on ?? null, since: record?.since ?? null };
+  });
+}
 
 export type ReasonChecks = {
   checks: Record<string, CheckView>;
@@ -74,7 +88,12 @@ export function watches(viewer: Viewer, instrumentId: string): boolean {
   return isCovered(viewer, instrumentId);
 }
 
-function viewOf(check: ReasonCheck, stored: Pick<StoredCheck, "note" | "wordedBy" | "history"> | null, note: { note: string; wordedBy: "rules" | "model" }): CheckView {
+function viewOf(
+  check: ReasonCheck,
+  stored: Pick<StoredCheck, "note" | "wordedBy" | "history"> | null,
+  note: { note: string; wordedBy: "rules" | "model" },
+  conditions: ConditionView[] = [],
+): CheckView {
   return {
     instrumentId: check.instrumentId,
     ticker: check.ticker,
@@ -89,6 +108,7 @@ function viewOf(check: ReasonCheck, stored: Pick<StoredCheck, "note" | "wordedBy
     limit: check.limit,
     asOf: check.asOf,
     change: stored ? lastChange(stored.history) : null,
+    conditions,
   };
 }
 
@@ -134,14 +154,18 @@ export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, opti
     .map((stock) => ({ ticker: stock.ticker, day: savedDay(theses[stock.instrumentId]!.created_at) }))
     .filter((request) => /^\d{4}-\d{2}-\d{2}$/.test(request.day));
   let storedReadFailed = false;
-  const [facts, closes, stored] = await Promise.all([
-    loadStockFacts(stocks, today),
+  const factsLoad = loadStockFacts(stocks, today);
+  // The measurable conditions' own figures (reports, results, EPS), only for reasons that have conditions.
+  const withLines = stocks.filter((stock) => (theses[stock.instrumentId]!.conditions ?? []).length > 0);
+  const [facts, closes, stored, conditionInputs] = await Promise.all([
+    factsLoad,
     needClose.length > 0 ? closesOnDays(needClose) : Promise.resolve(new Map<string, number>()),
     readStored(uid, us).catch((error) => {
       console.warn("[thesis-watch] stored checks read failed:", error instanceof Error ? error.message : error);
       storedReadFailed = true;
       return new Map<string, StoredCheck>();
     }),
+    withLines.length > 0 ? factsLoad.then((loaded) => loadConditionInputs(withLines, loaded, today)) : Promise.resolve(new Map()),
   ]);
 
   // At most four wording calls at once: the first visit of a day can redraft every holding's note.
@@ -158,18 +182,24 @@ export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, opti
         return;
       }
       const cost = holdings[stock.instrumentId]?.average_cost;
-      const check = evaluate(
-        thesis,
-        stockFacts,
-        { avgCost: typeof cost === "number" && cost > 0 ? cost : null, savedClose: closes.get(`${stock.ticker}|${savedDay(thesis.created_at)}`) ?? null },
-        today,
+      const before = stored.get(stock.instrumentId) ?? null;
+      const results = judgeConditions(thesis.conditions ?? [], conditionInputs.get(stock.instrumentId) ?? null, today, before?.conditions ?? []);
+      const check = withConditions(
+        evaluate(
+          thesis,
+          stockFacts,
+          { avgCost: typeof cost === "number" && cost > 0 ? cost : null, savedClose: closes.get(`${stock.ticker}|${savedDay(thesis.created_at)}`) ?? null },
+          today,
+        ),
+        results,
       );
       // Nothing fired and nothing to show it was looked at (a fund, a stock with no results on file): no verdict.
-      if (check.signals.length === 0 && check.checked.length === 0) {
+      if (check.signals.length === 0 && check.checked.length === 0 && !results.some((result) => result.status !== "unknown")) {
         unchecked.push(stock.instrumentId);
         return;
       }
-      const before = stored.get(stock.instrumentId) ?? null;
+      // A report is checked once: the records say which report each condition last judged (lib/thesis-watch/conditions.ts).
+      const records = nextConditionRecords(before?.conditions ?? [], results, today);
       const reasonUpdatedAt = thesis.updated_at || thesis.created_at;
       // The stored note is kept while the rules would write the same words (same findings, same figures),
       // and a rules note gets one try at a model's wording when the caller can wait for it.
@@ -180,12 +210,12 @@ export async function checkReasons(viewer: Viewer, userDoc: UserDoc | null, opti
         : reader
           ? { ...(await wordNote(check, reader)), wordTried: true }
           : { note: draft, wordedBy: "rules" as const, wordTried: false };
-      const next = nextStoredCheck(before, { uid, check, reasonUpdatedAt, note: note.note, wordedBy: note.wordedBy, draft, wordTried: note.wordTried, day: today, now });
+      const next = nextStoredCheck(before, { uid, check, reasonUpdatedAt, note: note.note, wordedBy: note.wordedBy, draft, wordTried: note.wordTried, day: today, now, conditions: records });
       // Without the stored checks a write would replace their history: write nothing until they can be read.
       if (next && options.persist !== false && !storedReadFailed) {
         writes.push(adminFirestore.collection(CHECKS_COLLECTION).doc(checkDocId(uid, stock.instrumentId)).set(toDoc(next)));
       }
-      checks[stock.instrumentId] = viewOf(check, next ?? before, note);
+      checks[stock.instrumentId] = viewOf(check, next ?? before, note, conditionViews(results, records));
     }),
   );
   const saved = await Promise.allSettled(writes);
@@ -224,18 +254,29 @@ export const EXAMPLE_REASONS: Record<string, { kind: Thesis["kind"]; savedAt: st
   UNH: { kind: "value", savedAt: "2026-06-22" },
 };
 
-export async function exampleReasonChecks(now: Date = new Date()): Promise<CheckView[]> {
+/**
+ * The example's checks. `conditions` (by ticker) adds made-up measurable lines checked on the real stored figures; only
+ * the local preview page passes them, so the landing and Ask keep the example as it is.
+ */
+export async function exampleReasonChecks(now: Date = new Date(), conditions: Record<string, Condition[]> = {}): Promise<CheckView[]> {
   const today = newYorkToday(now);
   const entries = Object.entries(EXAMPLE_REASONS);
   const stocks = entries.map(([ticker]) => ({ instrumentId: `US_${ticker}`, ticker }));
-  const [facts, closes] = await Promise.all([loadStockFacts(stocks, today), closesOnDays(entries.map(([ticker, row]) => ({ ticker, day: row.savedAt })))]);
+  const withLines = stocks.filter((stock) => (conditions[stock.ticker] ?? []).length > 0);
+  const factsLoad = loadStockFacts(stocks, today);
+  const [facts, closes, inputs] = await Promise.all([
+    factsLoad,
+    closesOnDays(entries.map(([ticker, row]) => ({ ticker, day: row.savedAt }))),
+    withLines.length > 0 ? factsLoad.then((loaded) => loadConditionInputs(withLines, loaded, today)) : Promise.resolve(new Map()),
+  ]);
   const out: CheckView[] = [];
   for (const [ticker, row] of entries) {
     const stockFacts = facts.get(`US_${ticker}`);
     if (!stockFacts) continue;
     const thesis = { kind: row.kind, reason: null, created_at: `${row.savedAt}T00:00:00.000Z` };
-    const check = evaluate(thesis, stockFacts, { avgCost: null, savedClose: closes.get(`${ticker}|${row.savedAt}`) ?? null }, today);
-    out.push(viewOf(check, null, { note: ruleNote(check), wordedBy: "rules" }));
+    const results = judgeConditions(conditions[ticker] ?? [], inputs.get(`US_${ticker}`) ?? null, today);
+    const check = withConditions(evaluate(thesis, stockFacts, { avgCost: null, savedClose: closes.get(`${ticker}|${row.savedAt}`) ?? null }, today), results);
+    out.push(viewOf(check, null, { note: ruleNote(check), wordedBy: "rules" }, conditionViews(results, nextConditionRecords([], results, today))));
   }
   return out;
 }

@@ -55,7 +55,8 @@ export type PositionExtras = {
 export function positionFromRow(row: WatchlistRow, extras: PositionExtras = {}): BriefingPosition {
   const directive = row.directive_v2 ?? row.ai_directive ?? null;
   const zones = directive?.zones ?? {};
-  const quote = extras.quote ?? null;
+  // Price and move from one quote, never the quote's price beside the row's move (which can be another session's).
+  const quote = extras.quote && finite(extras.quote.price) !== null ? extras.quote : null;
   const summary =
     text(directive?.action?.summary) ??
     text(directive?.rationale) ??
@@ -67,8 +68,8 @@ export function positionFromRow(row: WatchlistRow, extras: PositionExtras = {}):
     ticker: (text(extras.label?.ticker) ?? row.ticker).toUpperCase(),
     name: text(extras.label?.name) ?? text(row.instrument_name) ?? row.ticker,
     relation: row.position_type === "holding" ? "holding" : "watching",
-    price: quote?.price ?? finite(row.price),
-    day_change_pct: quote?.day_change_pct ?? finite(row.day_change_pct),
+    price: quote ? finite(quote.price) : finite(row.price),
+    day_change_pct: quote ? finite(quote.day_change_pct) : finite(row.day_change_pct),
     price_as_of: quote?.as_of ?? null,
     stance: text(directive?.stance)?.toLowerCase() ?? null,
     call_summary: summary,

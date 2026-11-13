@@ -47,7 +47,7 @@ type Card = {
   mark?: React.ReactNode;
   /** Is this good or bad for stocks right now, and why in a few words (lib/market-verdict.ts). Null without data. */
   verdict: VerdictLine | null;
-  /** The card's one line when it is not the verdict's reason; the reason then sits in the chip's hover title. */
+  /** The card's one line, only when it adds what the card does not draw; the verdict's reason is the card's hover title. */
   line?: string | null;
   visual?: React.ReactNode;
   /**
@@ -226,7 +226,7 @@ function movedCard(data: MarketsData): Card | null {
     mark: <MoverMark asset={top} />,
     verdict: movesVerdict(gains, stockMoves.length),
     // What came next is drawn as bars beside the leader; without two moves to draw, it stays one line, and the
-    // verdict's own count moves to the chip's hover title.
+    // verdict's own count is the card's hover title.
     ...(bars ? { compare: bars } : { line: nextMovesLine(movers.slice(1)) }),
   };
 }
@@ -265,18 +265,10 @@ function ratesCard(data: MarketsData): Card | null {
     label: "10-year yield",
     verdict: yieldVerdict(change),
     compare: levelPair(ten.value, before ?? null, ["Now", "Month ago"], (n) => `${n.toFixed(2)}%`),
-    // The bars show it is lower or higher than a month ago, so the line keeps only what that means (council, sweep 87).
-    line: rateLine(yieldVerdict(change)),
     visual: curve.points.length > 2 ? <CurveLines curve={curve} /> : null,
   };
 }
 
-/** "Lower than a month ago: cheaper borrowing." -> "Cheaper borrowing.": the part after the colon, or the whole line. */
-export function rateLine(verdict: VerdictLine | null): string | null {
-  if (!verdict) return null;
-  const after = verdict.why.split(": ")[1];
-  return after ? `${after.charAt(0).toUpperCase()}${after.slice(1)}` : verdict.why;
-}
 
 /** The S&P 500's change over the past month, percent, or null. */
 function spMonth(data: MarketsData): number | null {
@@ -414,24 +406,26 @@ function MarketCard({ card }: { card: Card }) {
         {card.mark ? card.mark : card.visual ? <div className="mt-1 shrink-0">{card.visual}</div> : null}
       </div>
       {card.compare ? <div className="mt-2.5 min-w-0">{card.compare}</div> : null}
+      {/* The verdict as its chip alone; why it is good or bad is the card's hover title, not a second sentence under the
+          figure and its bars (owner rule 8: a figure, its visual, at most one short line). A line only when it adds
+          what the card does not draw (the next biggest moves, when there are no bars for them). */}
       {card.verdict || card.line ? (
         <p className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-5">
           {card.verdict ? (
-            <span
-              title={card.line ? card.verdict.why : undefined}
-              className={`inline-flex h-6 shrink-0 items-center rounded px-2 text-[12.5px] font-medium ${VERDICT_CHIP[card.verdict.verdict]}`}
-            >
+            <span className={`inline-flex h-6 shrink-0 items-center rounded px-2 text-[12.5px] font-medium ${VERDICT_CHIP[card.verdict.verdict]}`}>
               {VERDICT_WORDS[card.verdict.verdict]}
             </span>
           ) : null}
-          <span className="min-w-0 text-pretty text-oa-muted-fg">{card.line ?? card.verdict?.why}</span>
+          {card.line ? <span className="min-w-0 text-pretty text-oa-muted-fg">{card.line}</span> : null}
         </p>
       ) : null}
-      {/* The whole card opens its part of /markets; no link words repeated on every card. */}
+      {/* The whole card opens its part of /markets; no link words repeated on every card. It sits over the card, so the
+          reason is its title: a title on the chip under it would never show. */}
       <Link
         href={card.href}
         prefetch={false}
-        aria-label={card.linkLabel}
+        title={card.verdict?.why}
+        aria-label={card.verdict ? `${card.linkLabel}. ${VERDICT_WORDS[card.verdict.verdict]}: ${card.verdict.why}` : card.linkLabel}
         className="absolute inset-0 z-0 rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
       />
     </li>

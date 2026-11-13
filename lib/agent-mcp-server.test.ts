@@ -60,6 +60,9 @@ describe("Stocksbrew MCP server", () => {
       "stress_test",
       "copy_test",
       "watch_in_plain_words",
+      "get_filing_changes",
+      "list_baskets",
+      "get_basket",
     ]);
     for (const name of [
       "search_stocks",
@@ -78,6 +81,9 @@ describe("Stocksbrew MCP server", () => {
       "stress_test",
       "copy_test",
       "watch_in_plain_words",
+      "get_filing_changes",
+      "list_baskets",
+      "get_basket",
     ]) {
       const tool = result.tools.find((item) => item.name === name);
       expect(tool).toBeDefined();
@@ -137,6 +143,14 @@ describe("Stocksbrew MCP server", () => {
     expect(copy.structuredContent).toMatchObject({ tool: "copy_test", args: { query: "berkshire", limit: 10 } });
     const watch = await client.callTool({ name: "watch_in_plain_words", arguments: { text: "x".repeat(301) } });
     expect(watch.isError).toBe(true);
+    const filings = await client.callTool({ name: "get_filing_changes", arguments: { ticker: "AMD" } });
+    expect(filings.structuredContent).toMatchObject({ tool: "get_filing_changes", args: { ticker: "AMD" } });
+    const one = await client.callTool({ name: "get_basket", arguments: { basket_id: "d237b01a117f" } });
+    expect(one.structuredContent).toMatchObject({ tool: "get_basket", args: { basket_id: "d237b01a117f" } });
+    // No uid or other account can be named: the schema has no such field, and the dispatcher uses the token's own.
+    const list = await client.callTool({ name: "list_baskets", arguments: {} });
+    expect(list.structuredContent).toMatchObject({ tool: "list_baskets", args: {} });
+    expect((await client.callTool({ name: "get_basket", arguments: { basket_id: "" } })).isError).toBe(true);
 
     await client.close();
     await server.close();

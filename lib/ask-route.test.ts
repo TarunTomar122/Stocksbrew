@@ -36,6 +36,8 @@ vi.mock("@/lib/ask-data", async () => {
   return { ...actual, askUsageStore: memoryAskUsageStore() };
 });
 vi.mock("@/lib/agent-jobs-data", () => ({
+  // The idea-basket store (lib/basket-agent/data.ts, read by Ask's basket tools) subclasses it when it loads.
+  AgentJobError: class AgentJobError extends Error {},
   listJobs: async (uid: string) => {
     state.calls.push(["listJobs", uid]);
     return [

@@ -41,6 +41,21 @@ vi.mock("./data", async () => {
   };
 });
 
+vi.mock("./condition-data", () => ({
+  // AMD-like figures for every stock with lines: revenue growth 42% after the Nov 3 report, stored Nov 8.
+  loadConditionInputs: async (stocks: Array<{ instrumentId: string; ticker: string }>) =>
+    new Map(
+      stocks.map((stock) => [
+        stock.instrumentId,
+        {
+          ticker: stock.ticker,
+          report: { date: "2026-11-03", quarter: "Q3", acceptedAt: "2026-11-03T21:16:27Z", url: null },
+          values: { revenue_growth: { value: 41.87, asOf: "2026-11-08T09:54:21Z", source: "Company results, last 12 months", href: null } },
+        },
+      ]),
+    ),
+}));
+
 import { checkReasons } from "./server";
 
 const reason = (kind: string) => ({ kind, reason: null, created_at: "2026-10-01T00:00:00.000Z", updated_at: "2026-10-01T00:00:00.000Z" });
@@ -106,6 +121,34 @@ describe("checkReasons", () => {
     expect(result.storedReadFailed).toBe(true);
     expect(state.writes).toEqual([]);
     expect(JSON.stringify([...state.docs.entries()])).toBe(before);
+  });
+
+  it("checks a reason's measurable lines: a broken one breaks the reason and is stored with its dated figure", async () => {
+    const lines = {
+      ...(userDoc as Record<string, unknown>),
+      theses: {
+        US_NVDA: { ...reason("growth"), conditions: [{ metric: "revenue_growth", op: "above", value: 45 }] },
+        US_KO: { ...reason("dividend"), conditions: [{ metric: "revenue_growth", op: "above", value: 20 }, { metric: "gross_margin", op: "above", value: 50 }] },
+      },
+    } as never;
+    const result = await checkReasons(viewer("pro"), lines, { now: NOW });
+    const nvda = result.checks.US_NVDA!;
+    expect(nvda.verdict).toBe("broken");
+    expect(nvda.signals[0]!.text).toBe("Revenue growth is 42%, under your 45%.");
+    expect(nvda.conditions.map((line) => line.status)).toEqual(["broken"]);
+    const ko = result.checks.US_KO!;
+    expect(ko.conditions.map((line) => [line.status, line.nowText])).toEqual([
+      ["holds", "42%"],
+      ["unknown", null],
+    ]);
+    const stored = state.docs.get("tm_thesis_checks/made-up-uid__US_KO") as { conditions: Array<Record<string, unknown>> };
+    expect(stored.conditions[0]).toMatchObject({ key: "revenue_growth:above:20", status: "holds", report_date: "2026-11-03", source: "Revenue growth 42% after the Q3 report, Nov 3 (SEC 8-K)" });
+    // The Q3 report was eight days old when the line was first saved: a baseline, not news.
+    expect(stored.conditions[0]!.checked_on).toBeNull();
+    // The next night, same report: nothing new is written about it.
+    state.writes = [];
+    await checkReasons(viewer("pro"), lines, { now: new Date("2026-11-11T22:00:00Z") });
+    expect(state.writes).toEqual([]);
   });
 
   it("counts failed writes", async () => {

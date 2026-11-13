@@ -1,11 +1,9 @@
 import * as React from "react";
 
 import { Delta, NUM, Ticker, fmtMoney } from "@/components/oa/kit";
-import { CallTag, Unknown, ZoneTag } from "@/components/screener/shared";
+import { CallTag, Unknown } from "@/components/screener/shared";
 import type { BasketLine, BasketPerf, BasketWindow } from "@/lib/screener-themes";
 import { BASKET_WINDOWS } from "@/lib/screener-themes";
-import { plainCallReason } from "@/lib/plain-copy";
-import { withoutVagueChange } from "@/lib/call-basis";
 
 /** Server-rendered pieces of an idea basket: the performance strip and the book's lines. */
 
@@ -44,89 +42,81 @@ export function PerfCells({
 
 function LineNumbers({ line }: { line: BasketLine }) {
   const row = line.row;
-  if (!row) {
-    return <p className="text-[12.5px] leading-4 text-oa-muted-fg">We do not hold prices for this line, so it is left out of the basket numbers.</p>;
-  }
+  if (!row) return <p className="text-right text-[12.5px] leading-4 text-oa-muted-fg">No price yet</p>;
+  // Two lines: the price with the day's move, then the month and the year.
   return (
-    <dl className="grid grid-cols-3 gap-x-3 gap-y-0.5 text-right lg:grid-cols-1 lg:gap-y-1.5">
-      <div>
-        <dt className="oa-caption lg:hidden">Price</dt>
-        <dd className={`${NUM} text-[14px] text-oa-fg`}>
-          {row.price !== undefined ? fmtMoney(row.price) : <Unknown />}
-          <Delta value={row.day_pct} className="ml-2 hidden text-[12px] lg:inline" />
-        </dd>
-      </div>
-      <div>
-        <dt className="oa-caption lg:hidden">1M</dt>
-        <dd className="text-[13px]">
-          <span className="oa-caption mr-1.5 hidden lg:inline">1M</span>
+    <div className="text-right">
+      <p className={`${NUM} whitespace-nowrap text-[14px] leading-5 text-oa-fg`}>
+        {row.price !== undefined ? fmtMoney(row.price) : <Unknown />}
+        <Delta value={row.day_pct} className="ml-2 text-[12px]" />
+      </p>
+      <p className="mt-0.5 flex justify-end gap-x-3 whitespace-nowrap text-[12.5px] leading-5">
+        <span>
+          <span className="oa-caption mr-1">1M</span>
           <Delta value={row.ret_1m} digits={1} />
-        </dd>
-      </div>
-      <div>
-        <dt className="oa-caption lg:hidden">YTD</dt>
-        <dd className="text-[13px]">
-          <span className="oa-caption mr-1.5 hidden lg:inline">YTD</span>
+        </span>
+        <span>
+          <span className="oa-caption mr-1">YTD</span>
           <Delta value={row.ret_ytd} digits={1} />
-        </dd>
-      </div>
-    </dl>
+        </span>
+      </p>
+    </div>
   );
 }
 
-const BOOK_GRID = "lg:grid-cols-[13.5rem_minmax(0,1fr)_minmax(0,1fr)_9.5rem]";
+const BOOK_GRID = "lg:grid-cols-[13.5rem_minmax(0,1fr)_10rem]";
 
 /** Desktop column heads for the book, said once so each line does not repeat them. */
 export function BookHead() {
   return (
     <div className={`oa-caption hidden h-9 items-center gap-x-5 border-b border-oa-border bg-oa-bg px-4 lg:grid ${BOOK_GRID}`}>
-      <span>Line</span>
-      <span>Why it benefits</span>
-      <span>What breaks it</span>
+      <span>Stock and our call</span>
+      <span>Why it's here, and what would break it</span>
       <span className="text-right">Price, 1M, YTD</span>
     </div>
   );
 }
 
-/** One line of the book: the company, its part in the idea, why it gains, what breaks it, our read. */
-export function BookLine({ line, index, weight }: { line: BasketLine; index: number; weight: number | null }) {
+/**
+ * One line of the book: the company with our call beside it and its part in the idea under it, one sentence of at most
+ * 15 words on why it is here and what would break it (lib/theme-book-lines.ts, one line at 1280), and its price. Only
+ * the call, never the price zone: where the price sits against our levels lives on the stock page. The whole row opens
+ * the stock.
+ */
+export function BookLine({ line, index }: { line: BasketLine; index: number }) {
   const row = line.row;
   return (
-    <li className={`grid gap-x-5 gap-y-3 border-b border-oa-border px-4 py-4 last:border-b-0 lg:py-3.5 ${BOOK_GRID}`}>
-      <div className="min-w-0">
+    <li
+      className={`relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-5 gap-y-2 border-b border-oa-border px-4 py-3 transition-colors last:border-b-0 hover:bg-oa-accent [grid-template-areas:'stock_nums'_'line_line'] lg:items-center lg:[grid-template-areas:'stock_line_nums'] ${BOOK_GRID}`}
+    >
+      <div className="min-w-0 [grid-area:stock]">
         <div className="flex items-center gap-2">
           <span className={`${NUM} w-5 shrink-0 text-[12.5px] text-oa-muted-fg`}>{String(index + 1).padStart(2, "0")}</span>
-          <Ticker symbol={line.ticker} size={22} />
-          {weight !== null ? <span className={`${NUM} ml-auto text-[12.5px] text-oa-muted-fg lg:ml-1`}>{weight.toFixed(1)}%</span> : null}
+          <Ticker symbol={line.ticker} size={22} stretch />
+          {/* Beside the ticker from lg; a phone's narrow column puts it under the line instead. */}
+          {row?.call ? (
+            <span className="hidden shrink-0 lg:inline-flex">
+              <CallTag call={row.call} />
+            </span>
+          ) : null}
         </div>
-        <p className="mt-1 truncate pl-7 text-[14px] leading-5 text-oa-fg">{line.company}</p>
-        {/* The role is a description, not a state, so it is plain text that wraps; tags are kept for the call and zone. */}
-        {line.role ? <p className="mt-0.5 pl-7 text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">{line.role}</p> : null}
-        {row?.call || row?.zone ? (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-7">
-            {row?.call ? <CallTag call={row.call} /> : null}
-            {row?.zone ? <ZoneTag zone={row.zone} /> : null}
+        <p className="mt-0.5 text-pretty pl-7 text-[13px] leading-[18px] text-oa-muted-fg">
+          {[line.company, line.role].filter(Boolean).join(" · ")}
+        </p>
+      </div>
+
+      <div className="min-w-0 [grid-area:line]">
+        <p data-book-line className="text-pretty text-[14px] leading-5 text-oa-fg">
+          {line.line}
+        </p>
+        {row?.call ? (
+          <div className="mt-2 lg:hidden">
+            <CallTag call={row.call} />
           </div>
         ) : null}
       </div>
 
-      <div className="min-w-0">
-        <p className="oa-caption mb-1 lg:hidden">Why it benefits</p>
-        <p className="text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{line.benefit}</p>
-        {line.catalyst ? <p className="mt-1.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">Next: {line.catalyst}</p> : null}
-      </div>
-
-      <div className="min-w-0">
-        <p className="oa-caption mb-1 lg:hidden">What breaks it</p>
-        <p className="text-pretty text-[14px] leading-[1.45rem] text-oa-fg">{line.breaks}</p>
-        {row?.call_reason ? (
-          <p className="mt-1.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">
-            <span className="text-oa-fg">Our read:</span> {plainCallReason(withoutVagueChange(row.call_reason))}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="min-w-0 lg:pt-0.5">
+      <div className="min-w-0 [grid-area:nums]">
         <LineNumbers line={line} />
       </div>
     </li>

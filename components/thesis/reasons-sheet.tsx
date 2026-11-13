@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { StockLogo } from "@/components/stock-logo";
+import { ConditionsPicker, draftOf, parseDrafts, type DraftCondition } from "@/components/thesis/conditions-picker";
 import { ThesisLine } from "@/components/thesis/thesis-line";
 import { ThesisStep, type ThesisStock } from "@/components/thesis/thesis-step";
 import { getCheck, loadTheses, removeReasons, saveReasons, useAllTheses, useCheck, useStoreVersion } from "@/components/thesis/store";
@@ -11,7 +12,11 @@ import { MAX_THESIS_REASON, THESIS_KINDS, THESIS_PICKS, thesisSentence, type The
 import { VERDICT_RANK, type Verdict } from "@/lib/thesis-watch/rules";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
-const PRIMARY = `inline-flex h-10 items-center justify-center rounded border border-oa-primary bg-oa-primary px-4 text-[14px] font-medium text-oa-primary-fg hover:brightness-110 disabled:opacity-60 ${FOCUS}`;
+/**
+ * The kit's primary button colours (components/oa/button.tsx): 6.6:1 light, 5.6:1 dark. Disabled is a quiet well with
+ * muted text (7.1:1 light, 9.1:1 dark), never the primary faded by opacity, which fell under 4.5:1 in dark mode.
+ */
+const PRIMARY = `inline-flex h-10 items-center justify-center rounded border border-[color-mix(in_srgb,var(--oa-primary)_80%,#3a3480)] bg-[color-mix(in_srgb,var(--oa-primary)_90%,#3a3480)] px-4 text-[14px] font-medium text-oa-primary-fg hover:border-[color-mix(in_srgb,var(--oa-primary)_70%,#3a3480)] hover:bg-oa-primary disabled:border-oa-border disabled:bg-oa-bg disabled:text-oa-muted-fg ${FOCUS}`;
 const PLAIN = `inline-flex h-10 items-center justify-center rounded border border-oa-border bg-oa-card px-3.5 text-[14px] text-oa-fg hover:border-oa-fg/30 disabled:opacity-60 ${FOCUS}`;
 
 /* ── one reason, edited ─────────────────────────────────────────────────── */
@@ -22,16 +27,20 @@ export function ReasonEditor({ stock, onDone }: { stock: ThesisStock; onDone: ()
   const current = all?.[stock.instrument_id] ?? null;
   const [kind, setKind] = useState<ThesisKind | null>(current?.kind ?? null);
   const [reason, setReason] = useState(current?.reason ?? "");
+  const [drafts, setDrafts] = useState<DraftCondition[]>(() => (current?.conditions ?? []).map(draftOf));
   const [busy, setBusy] = useState<null | "save" | "remove">(null);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState("");
-  const changed = kind !== (current?.kind ?? null) || reason.trim() !== (current?.reason ?? "");
+  const conditions = parseDrafts(drafts);
+  const conditionsChanged = JSON.stringify(conditions) !== JSON.stringify(current?.conditions ?? []);
+  const changed = kind !== (current?.kind ?? null) || reason.trim() !== (current?.reason ?? "") || conditionsChanged;
 
   async function save() {
     setBusy("save");
     setError("");
     try {
-      await saveReasons([{ instrument_id: stock.instrument_id, kind, reason: reason.trim() || null }]);
+      // The lines go only when they changed: a save of the words alone keeps the stored ones.
+      await saveReasons([{ instrument_id: stock.instrument_id, kind, reason: reason.trim() || null, ...(conditionsChanged && conditions ? { conditions } : {}) }]);
       trackThesisSaved({ count: 1, kinds: [kind ?? "text"], with_text: reason.trim() ? 1 : 0, asked: 1 });
       onDone();
     } catch (err) {
@@ -93,6 +102,7 @@ export function ReasonEditor({ stock, onDone }: { stock: ThesisStock; onDone: ()
           className={`w-full resize-none rounded border border-oa-border bg-oa-card px-3 py-2 text-[14px] leading-5 text-oa-fg placeholder:text-oa-muted-fg ${FOCUS}`}
         />
       </label>
+      {stock.instrument_id.startsWith("US_") ? <ConditionsPicker instrumentId={stock.instrument_id} drafts={drafts} onChange={setDrafts} /> : null}
       {error ? (
         <p role="alert" className="text-[13px] text-signal-bearish">
           {error}
@@ -122,7 +132,7 @@ export function ReasonEditor({ stock, onDone }: { stock: ThesisStock; onDone: ()
           <button type="button" onClick={onDone} disabled={busy !== null} className={PLAIN}>
             Cancel
           </button>
-          <button type="button" onClick={() => void save()} disabled={busy !== null || (!kind && !reason.trim()) || !changed} className={PRIMARY}>
+          <button type="button" onClick={() => void save()} disabled={busy !== null || (!kind && !reason.trim()) || !changed || conditions === null} className={PRIMARY}>
             {busy === "save" ? "Saving" : "Save"}
           </button>
         </span>

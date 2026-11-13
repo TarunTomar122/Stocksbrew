@@ -194,9 +194,69 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~06:30: measurable reasons (new capability), data coherence, reading-load cut (ship-queue 89, local)
+
+- **ship-queue 6e7aa99 (89)** on 9a19749 (88): tsc and lint clean, 4054/4054 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
+- **Measurable reasons (judge88's bold ask):**
+  - A "Holds if…" picker on a holding's reason, with up to 2 lines from 7 stored figures: revenue growth, gross and operating margin (TTM), EPS vs estimate, dividend, price, P/E. The number is prefilled from the stock's own value, with a now-vs-line bar.
+  - The server refuses figures we lack and absurd bounds.
+  - The nightly reason check judges each line once per report, only after SEC accepted the filing. A broken line becomes reason_broken ("Revenue growth is 18%, under your 20%"), with the dated source under "How I got here". A held line adds a quiet /agent record line on report day.
+  - Real example: ASTS, "revenue growth > 500%" (now 671%) and "gross margin > 30%" (37%), source "Q3 report, Nov 9 (SEC 8-K)". Test lines on the owner's ASTS reason; remove them in the reasons sheet.
+  - Open: TTM figures only (no single-quarter or guidance); Ask can't see the lines yet.
+- **Data coherence:**
+  - Root cause of judge88's +3.23% vs −0.34% tech: explore's sector heatmap had its own 60s stale-while-revalidate cache stacked on the 300s markets cache. Now one markets read feeds the strip, cards and heatmap, with one page as-of.
+  - Same stacked cache removed from the movers. Briefing positions now take price and % from one quote.
+  - Open (design call): /sectors shows the cap-weighted nightly day while market today shows the live sector fund; the briefing top news' S&P figure is cached separately from its strip.
+- **Balance:**
+  - Calendar days fold after ~12 rows ("Show N more") instead of fading.
+  - Backtest panels end level (the lock row is full width; the year table fills its column), shared with /strategies and /baskets.
+  - /ask's footer comes up.
+- **Reading-load cut:**
+  - Theme books: the thesis panel sits above the book, and each of 106 companies has one written line (why it's in + what breaks it).
+  - Filing quotes end on a complete clause, never "…".
+  - Analyst move lines fit in 15 words.
+  - Example portfolio lines are one fact.
+  - Basket replay accounts for every day.
+  - Landing "why stocks moved" shows prices.
+- **Running:** QA pass on 89; Codex council on 89's visible changes.
+
+### 2026-11-13 ~04:30: Codex judge88 7/10 overall; next wave started (local)
+
+- **Codex judge88** on local captures of ship-queue 88 (scratchpad/judge88/codex.md):
+
+  | Dimension | Score /10 |
+  |---|---|
+  | UI | 7 |
+  | UX | 7 (was 6.5) |
+  | usability | 6.5 |
+  | wording | 6 |
+  | agent feel | 7.5 (was 7) |
+  | volaren similarity | 7 (was 6.5) |
+  | sell | 6.5 |
+  | overall | 7 (was 6.5) |
+
+  - Asks:
+    - Data coherence: the sector move differed between desktop and phone captures.
+    - Reading load: the theme book, filing quotes, basket subtitle and replay accounting, an inbox analyst line at 22 words, landing card lines.
+    - Missing prices on the landing's "why stocks moved".
+    - Balance: backtest, the /ask empty area, calendar day columns cut off.
+    - Bold ask: measurable reasons checked when results arrive.
+  - Not taken: gainers/losers as cards (the owner asked for tables there on Nov 12); proposal cards cut further (the owner's card rule is met).
+- **Ask + MCP tools (done, local):**
+  - Ask: `get_filing_changes`, `get_my_baskets`, `get_my_basket` and `watch_idea` (drafts only, opening the editor).
+  - MCP/REST: `get_filing_changes`, `list_baskets` and `get_basket` (read-only, owner uid; another account's id returns 404), API 1.3.0.
+  - /agent filing notes name the basket they touch.
+  - Live check: signed-in /ask answered "What did AMD add to its risks?" from the new tool.
+  - Open: MCP write tools for baskets (owner decision).
+- **Builders running:**
+  - data coherence + balance
+  - reading-load cut (+ a landing diff)
+  - measurable reasons checked on report day
+  - Ask + MCP tools for filing changes and baskets
+
 ### 2026-11-13 ~03:30: idea baskets (new capability), the agent at work on the landing, visuals sweep (ship-queue 88, local)
 
-- **ship-queue d5bb082 (88)** on 2813642 (87): tsc and lint clean, 3951/3951 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
+- **ship-queue 9a19749 (88, rebuilt after the council + QA rounds)** on 2813642 (87): tsc and lint clean, 3964/3964 tests both ways, `next build` OK. Not pushed: Vercel is still 402.
 - **Idea baskets (judge87's bold ask):** "Watch this idea" on a theme page or an Ask answer opens an editor (reasons per company, each with a kind).
   - It replays the last 4 weeks with dated data only, then runs nightly with the agents.
   - Each run checks every reason with the reason-watcher rules and ends in a decision.
@@ -216,7 +276,7 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   - Prices on /agent record rows; /inbox points to the /agent queue.
   - Briefing filler gone; landing example cards show prices; SEC prompt at 14 words.
   - Two council rounds. Shots: scratchpad/sweep87/r2, r3.
-- **Running:** a cross-cutting QA pass on 88; the Codex council on the basket pages.
+- **QA on 88 (cross-cutting):** 5 confirmed, all fixed: basket proposals capped (1 per basket, 2 total) and outranked by holding proposals; no unapplicable drops; the "Answer in Needs you" link only when a proposal waits; one agent count everywhere; basket refusal copy. **Basket council:** BLOCK on 8 (inline reasons, exact change "Add CEG, keep all 9", replay labelled as history, one-line cards, attention first with a fold, one primary on themes, whole rows, growing idea field), all fixed (scratchpad/basket-agent/r2/).
 
 ### 2026-11-13 ~01:30: filing changes (new capability), lighter pages, LocalDB field select (ship-queue 87, local)
 

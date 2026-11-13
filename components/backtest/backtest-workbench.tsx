@@ -64,6 +64,29 @@ function hindsightSentence(caveats: Caveat[], example: boolean): string | undefi
 function HoldingCards({ run, quotes }: { run: BacktestRun; quotes: Record<string, HoldingQuote> | undefined }) {
   // Every holding's return on one scale with one zero line, so the cards compare at a glance (owner VISUALS CHECK).
   const domain = barDomain(run.holdings.map((holding) => holding.total_return));
+  const only = run.holdings.length === 1 ? run.holdings[0] : null;
+  if (only) {
+    // One holding: one line across the panel, not a half-width card beside an empty half (owner rule 4).
+    const quote = quotes?.[only.symbol.toUpperCase()];
+    return (
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3.5 py-3">
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-medium text-oa-fg">
+          <StockLogo ticker={only.symbol} size={20} eager />
+          <span className="oa-mono">{only.symbol}</span>
+        </span>
+        {quote ? (
+          <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[12.5px] tabular-nums">
+            <span className="text-oa-fg">{money(quote.price)}</span>
+            {quote.dayPct !== null ? <span className={toneOf(quote.dayPct)}>{signedPct(quote.dayPct / 100)}</span> : null}
+          </span>
+        ) : null}
+        <span className={`oa-mono text-[20px] font-medium leading-7 tabular-nums ${toneOf(only.total_return)}`}>{signedPct(only.total_return, 0)}</span>
+        {only.last_price_date && only.last_price_date < run.period.end ? (
+          <span className="text-[12px] text-oa-muted-fg">Last price {longDay(only.last_price_date)}</span>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <div className="p-3">
       {/* Two holdings share the row in halves; three or more go three (four on wide screens) to a row. */}
@@ -183,10 +206,21 @@ function ResultView({ run, example, quotes, today }: { run: BacktestRun; example
  * chart, the figures and the holdings beside it (owner rule 4). About eight years tall; older years scroll inside.
  */
 function ResultSide({ run }: { run: BacktestRun }) {
+  // From lg the panel takes whatever height the column has left beside the results, so the two columns end level for
+  // any number of holdings or years: the year rows spread out up to about half again their height, and scroll inside
+  // when there are more than fit. The wrapper's own height is the leftover space, never the table's.
+  const cap = `calc(2.75rem + 2.5rem + ${run.years.length} * 3.75rem)`;
   return (
-    <Panel title="Year by year">
-      <YearTable years={run.years} benchmarkLabel={run.input.benchmark} strategyLabel="Mix" gap={false} />
-    </Panel>
+    <div className="min-w-0 lg:relative lg:min-h-[13rem] lg:flex-1">
+      <Panel
+        title="Year by year"
+        className="flex flex-col lg:absolute lg:inset-x-0 lg:top-0 lg:h-full"
+        bodyClassName="flex min-h-0 flex-1 flex-col"
+        style={{ maxHeight: cap }}
+      >
+        <YearTable years={run.years} benchmarkLabel={run.input.benchmark} strategyLabel="Mix" gap={false} fill />
+      </Panel>
+    </div>
   );
 }
 
@@ -335,7 +369,7 @@ export function BacktestWorkbench({
   const groups = [...new Set(presets.map((preset) => preset.group))];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
       {/* The right column: the mix, then (after a run) the year table and the holdings under it, so it ends level with
           the results. On a phone the results come first and the mix after them; before a run, the mix comes first. */}
       <div className={`flex min-w-0 flex-col gap-4 lg:order-last ${response?.ok ? "max-lg:order-last" : ""}`}>
@@ -544,19 +578,6 @@ export function BacktestWorkbench({
         ) : response.ok ? (
           <>
             <ResultView run={response.result} example={showingExample} quotes={response.quotes} today={today} />
-            <div className="mt-3 flex flex-col gap-2">
-              {response.gate.lookback ? (
-                <LockCard
-                  feature="backtest_history"
-                  plan={response.gate.plan}
-                  trialEligible={response.gate.trialEligible}
-                  title={`This run starts ${response.gate.lookback.start}: Free tests the last ${response.gate.lookback.years} years`}
-                />
-              ) : null}
-              {response.gate.meter ? (
-                <MeterNote used={response.gate.meter.used} limit={response.gate.meter.limit} unit="backtests" />
-              ) : null}
-            </div>
           </>
         ) : response.error.code === "limit_reached" ? (
           <LockCard feature="backtest" plan={response.gate.plan} trialEligible={response.gate.trialEligible} body={response.error.message} />
@@ -592,6 +613,22 @@ export function BacktestWorkbench({
           </div>
         )}
       </div>
+
+      {/* The plan's limits under both columns, across the page: in the results column they made it run on far past the
+          mix and the year table beside it (owner rule 4). On a phone they come last, after the mix. */}
+      {response?.ok && (response.gate.lookback || response.gate.meter) ? (
+        <div className="order-last flex min-w-0 flex-col gap-2 lg:col-span-2">
+          {response.gate.lookback ? (
+            <LockCard
+              feature="backtest_history"
+              plan={response.gate.plan}
+              trialEligible={response.gate.trialEligible}
+              title={`This run starts ${response.gate.lookback.start}: Free tests the last ${response.gate.lookback.years} years`}
+            />
+          ) : null}
+          {response.gate.meter ? <MeterNote used={response.gate.meter.used} limit={response.gate.meter.limit} unit="backtests" /> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

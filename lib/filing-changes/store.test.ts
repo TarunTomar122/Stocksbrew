@@ -76,17 +76,49 @@ describe("what the stock page shows", () => {
 });
 
 describe("words", () => {
-  it("quotes a short heading whole and cuts a long one at a word boundary, never on a joining word", () => {
-    expect(quote("Climate change may have a long-term impact on our business.")).toEqual({ text: "Climate change may have a long-term impact on our business.", cut: false });
+  it("quotes a short heading whole and cuts a long one at a clause, never with an ellipsis", () => {
+    expect(quote("Climate change may have a long-term impact on our business.")).toEqual({ text: "Climate change may have a long-term impact on our business.", cut: false, fits: true });
     const long = quote("We are subject to complex laws, rules, regulations, and political and other actions, including restrictions on the export of our products, which may adversely impact our business.");
-    expect(long.cut).toBe(true);
-    expect(long.text).toBe("We are subject to complex laws, rules, regulations, and political and other actions…");
-    expect(quote("Our results may suffer because of the many different things that could go wrong with the supply of our products.").text).toBe("Our results may suffer because of the many different things that could go wrong…");
-    expect(long.text.replace("…", "").split(" ").length).toBeLessThanOrEqual(15);
+    expect(long).toEqual({ text: "We are subject to complex laws, rules, regulations, and political and other actions.", cut: true, fits: true });
+    expect(long.text.split(" ").length).toBeLessThanOrEqual(15);
+  });
+
+  it("shows a long heading with no clause to cut at whole", () => {
+    const heading = "Our results may suffer because of the many different things that could go wrong with the supply of our products.";
+    expect(quote(heading)).toEqual({ text: heading, cut: false, fits: false });
   });
 
   it("cuts a dropped risk at a clause where it can", () => {
-    expect(quote("Our ability to complete the acquisition of ZT Systems is subject to closing conditions, including the receipt of consents and approvals.").text).toBe("Our ability to complete the acquisition of ZT Systems is subject to closing conditions…");
+    expect(quote("Our ability to complete the acquisition of ZT Systems is subject to closing conditions, including the receipt of consents and approvals.").text).toBe(
+      "Our ability to complete the acquisition of ZT Systems is subject to closing conditions.",
+    );
+  });
+
+  it("never cuts to a lone opening condition, inside a list or an open bracket", () => {
+    const cases = [
+      "If we fail to retain or attract key members of our staff, our business and results of operations could suffer badly.",
+      "If we are unable to attract, retain and motivate key employees, our business and our results of operations could be harmed.",
+      "In addition, our results could be hurt by many things outside our control, including weather and war and disease.",
+      "As a result of the pandemic, our supply chain and our customers' demand were disrupted for an extended period of time.",
+      "We may not realize the expected benefits of our acquisitions, investments, and partnerships, and they may harm our business results.",
+      "Changes in tax laws (including the OECD's Pillar Two rules, the U.S. Inflation Reduction Act, and others) could hurt our results.",
+    ];
+    for (const heading of cases) {
+      const shown = quote(heading);
+      expect(shown, heading).toEqual({ text: heading, cut: false, fits: false });
+    }
+  });
+
+  it("cuts before a trailing modifier, keeping a list whole, without a double full stop", () => {
+    // Cut before "including" this would be a subject with no verb, so it stays whole.
+    const subjectOnly = "Our operations outside the U.S., including in China and Taiwan, expose us to political and economic risks of many kinds.";
+    expect(quote(subjectOnly)).toEqual({ text: subjectOnly, cut: false, fits: false });
+    expect(quote("We compete with large companies that have more resources, such as Apple Inc., Amazon.com Inc. and Microsoft Corporation and others.").text).toBe(
+      "We compete with large companies that have more resources.",
+    );
+    for (const heading of ["We depend on a few large customers, Amazon.com Inc., which may cut their orders sharply in any quarter without notice."]) {
+      expect(quote(heading).text).not.toMatch(/\.\.$/);
+    }
   });
 
   it("titles the section without promising only additions, within 10 words", () => {

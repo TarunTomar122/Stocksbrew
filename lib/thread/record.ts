@@ -146,7 +146,13 @@ function outcomeItem(outcome: ProposalOutcome): RecordItem {
  * filed under the session it tells (`aboutDay`), not under today. A past day with only a move (a chip on the opener)
  * keeps its own line. A day with nothing to say is left out.
  */
-export function buildRecord(thread: Thread | null, outcomes: readonly ProposalOutcome[], today: string): RecordDay[] {
+export function buildRecord(
+  thread: Thread | null,
+  outcomes: readonly ProposalOutcome[],
+  today: string,
+  /** Lines from elsewhere filed under their own day: a report-day check of the person's measurable lines (lib/thesis-watch/condition-record.ts). */
+  extra: ReadonlyArray<{ day: string; item: RecordItem }> = [],
+): RecordDay[] {
   const byDay = new Map<string, { outcomes: RecordItem[]; openers: RecordItem[]; events: RecordItem[]; quiet: RecordItem[] }>();
   const slot = (day: string) => {
     let entry = byDay.get(day);
@@ -171,6 +177,7 @@ export function buildRecord(thread: Thread | null, outcomes: readonly ProposalOu
       } else entry.events.unshift(item); // the thread reads oldest first; the record, newest first
     }
   }
+  for (const line of extra) slot(line.day).events.push(line.item);
   // The sessions an opener lists as chips ("Mon +0.7%") are days with only a move: each keeps its own line, unless
   // that day already has its move.
   for (const day of thread?.days ?? []) {

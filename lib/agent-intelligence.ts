@@ -12,6 +12,7 @@ import {
   getAgentWhatYouOwn,
   readAgentWatchRequest,
 } from "@/lib/agent-feature-tools";
+import { getAgentBasket, getAgentFilingChanges, listAgentBaskets } from "@/lib/agent-idea-tools";
 import { consumeAgentQuota } from "@/lib/agent-quota";
 import { compareStocks } from "@/lib/compare-stocks";
 import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
@@ -77,7 +78,10 @@ export type AgentToolName =
   | "dividend_plan"
   | "stress_test"
   | "copy_test"
-  | "watch_in_plain_words";
+  | "watch_in_plain_words"
+  | "get_filing_changes"
+  | "list_baskets"
+  | "get_basket";
 
 export { AgentDataError };
 
@@ -119,7 +123,7 @@ function requiredScopeForTool(tool: AgentToolName): AgentScope {
   if (tool === "add_to_radar" || tool === "remove_from_radar") return "radar:write";
   if (tool === "get_my_alerts") return "alerts:read";
   if (tool === "create_alert" || tool === "delete_alert") return "alerts:write";
-  if (tool === "get_my_radar" || tool === "get_radar_changes" || tool === "what_you_own" || tool === "dividend_plan" || tool === "stress_test") return "radar:read";
+  if (tool === "get_my_radar" || tool === "get_radar_changes" || tool === "what_you_own" || tool === "dividend_plan" || tool === "stress_test" || tool === "list_baskets" || tool === "get_basket") return "radar:read";
   return "stocks:read";
 }
 
@@ -959,6 +963,15 @@ export async function executeAgentTool(
       break;
     case "watch_in_plain_words":
       data = await readAgentWatchRequest(principal.uid, { text: String(args.text || "") });
+      break;
+    case "get_filing_changes":
+      data = await getAgentFilingChanges({ ticker: String(args.ticker || "") });
+      break;
+    case "list_baskets":
+      data = await listAgentBaskets(principal.uid);
+      break;
+    case "get_basket":
+      data = await getAgentBasket(principal.uid, { basket_id: String(args.basket_id || "") });
       break;
     default:
       throw new AgentDataError("Unknown agent tool.", "unknown_tool", 404);

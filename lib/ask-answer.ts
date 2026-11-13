@@ -87,7 +87,7 @@ export function firstSentences(paragraph: string, count: number): [string, strin
 }
 
 /** Cards that ask the person to do something. They sit with the short answer; every other card is evidence. */
-const ACTION_CARDS = new Set<AskCard["card"]>(["watch", "action", "basket", "sign_in"]);
+const ACTION_CARDS = new Set<AskCard["card"]>(["watch", "action", "basket", "watch_idea", "sign_in"]);
 
 export function isActionCard(card: AskCard): boolean {
   return ACTION_CARDS.has(card.card);

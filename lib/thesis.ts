@@ -2,12 +2,17 @@
  * "Why do you own this?": one reason per stock, kept on the person's own
  * user doc as an additive map:
  *
- *   theses: { [instrument_id]: { kind, reason, created_at, updated_at } }
+ *   theses: { [instrument_id]: { kind, reason, created_at, updated_at, conditions? } }
+ *
+ * `conditions` (optional, at most two) are the reason's measurable lines, "Holds if revenue growth > 20%"
+ * (lib/thesis-watch/conditions.ts).
  *
  * Pure (no server imports), so the question step, the row line, the route and
  * the tests share the words and the rules. The reason watcher that checks
  * each one lives in lib/thesis-watch (spec in docs/ideas.md).
  */
+
+import { readConditions, validateConditions, type Condition } from "@/lib/thesis-watch/conditions";
 
 export const THESIS_KINDS = ["growth", "dividend", "value", "product", "long_term", "trade"] as const;
 export type ThesisKind = (typeof THESIS_KINDS)[number];
@@ -42,9 +47,12 @@ export type Thesis = {
   reason: string | null;
   created_at: string;
   updated_at: string;
+  /** Measurable lines the reason holds on; absent when there are none. */
+  conditions?: Condition[];
 };
 
-export type ThesisInput = { instrument_id: string; kind: ThesisKind | null; reason: string | null };
+/** `conditions` left out keeps the stored ones (the question step saves only the kind and the words); an empty list clears them. */
+export type ThesisInput = { instrument_id: string; kind: ThesisKind | null; reason: string | null; conditions?: Condition[] };
 
 const INSTRUMENT_ID_RE = /^(US|IN)_[A-Z0-9_]{1,12}$/;
 
@@ -62,7 +70,9 @@ export function cleanReason(value: unknown): string | null | "too_long" {
   return text.length > MAX_THESIS_REASON ? "too_long" : text;
 }
 
-export type ThesisValidation = { ok: true; items: ThesisInput[] } | { ok: false; error: "invalid_items" | "too_many" | "reason_too_long" | "empty_reason" };
+export type ThesisValidation =
+  | { ok: true; items: ThesisInput[] }
+  | { ok: false; error: "invalid_items" | "too_many" | "reason_too_long" | "empty_reason" | "invalid_conditions" | "too_many_conditions" };
 
 /** The request's items, or why they were refused. A row needs a kind, a reason, or both. */
 export function validateThesisItems(raw: unknown): ThesisValidation {
@@ -79,7 +89,13 @@ export function validateThesisItems(raw: unknown): ThesisValidation {
     if (reason === "too_long") return { ok: false, error: "reason_too_long" };
     const kind = isThesisKind(row.kind) ? row.kind : null;
     if (!kind && !reason) return { ok: false, error: "empty_reason" };
-    byId.set(id, { instrument_id: id, kind, reason });
+    let conditions: ThesisInput["conditions"];
+    if (row.conditions !== undefined) {
+      const checked = validateConditions(row.conditions);
+      if (!checked.ok) return { ok: false, error: checked.error };
+      conditions = checked.conditions;
+    }
+    byId.set(id, { instrument_id: id, kind, reason, ...(conditions ? { conditions } : {}) });
   }
   return { ok: true, items: [...byId.values()] };
 }
@@ -95,7 +111,8 @@ export function readTheses(value: unknown): Record<string, Thesis> {
     const reason = typeof entry.reason === "string" && entry.reason.trim() ? entry.reason.trim() : null;
     if (!kind && !reason) continue;
     const created = typeof entry.created_at === "string" ? entry.created_at : "";
-    out[id] = { kind, reason, created_at: created, updated_at: typeof entry.updated_at === "string" ? entry.updated_at : created };
+    const conditions = readConditions(entry.conditions);
+    out[id] = { kind, reason, created_at: created, updated_at: typeof entry.updated_at === "string" ? entry.updated_at : created, ...(conditions.length > 0 ? { conditions } : {}) };
   }
   return out;
 }
@@ -109,7 +126,15 @@ export function mergeTheses(current: unknown, items: ThesisInput[], now: Date): 
   const next = readTheses(current);
   for (const item of items) {
     const before = next[item.instrument_id];
-    next[item.instrument_id] = { kind: item.kind, reason: item.reason, created_at: before?.created_at || at, updated_at: at };
+    // Written as an empty list when cleared: a merge write keeps a nested key it is not given.
+    const conditions = item.conditions !== undefined ? item.conditions : before?.conditions;
+    next[item.instrument_id] = {
+      kind: item.kind,
+      reason: item.reason,
+      created_at: before?.created_at || at,
+      updated_at: at,
+      ...(conditions !== undefined ? { conditions } : {}),
+    };
   }
   return next;
 }

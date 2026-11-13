@@ -13,11 +13,13 @@ import { getScreenerRows } from "@/lib/screener";
 import { loadBriefingPage } from "@/lib/briefing-data";
 import { loadExampleBriefing } from "@/lib/briefing-example";
 import { viewerFromUserDoc } from "@/lib/entitlements-server";
+import { loadConditionRecord } from "@/lib/thesis-watch/condition-record";
 import { buildRecord, type RecordDay } from "@/lib/thread/record";
 import { loadExampleThread, loadMemberThread } from "@/lib/thread/server";
 import { threadSuggestions } from "@/lib/thread/suggest";
 import type { Thread } from "@/lib/thread/types";
 import { getUserDoc } from "@/lib/watchlist";
+import { etToday } from "@/lib/day-words";
 
 export const dynamic = "force-dynamic";
 
@@ -95,10 +97,15 @@ async function MemberThread({ uid }: { uid: string }) {
   const proposals = loadProposalCards(uid).catch(() => null);
   const doc = await getUserDoc(uid).catch(() => null);
   const viewer = viewerFromUserDoc(uid, doc);
-  const [thread, loaded] = await Promise.all([loadMemberThread({ doc, viewer, briefing: () => loadBriefingPage({ persist: false }) }), proposals]);
+  const [thread, loaded, checked] = await Promise.all([
+    loadMemberThread({ doc, viewer, briefing: () => loadBriefingPage({ persist: false }) }),
+    proposals,
+    // The report-day checks of the person's measurable lines that held; one small read, never the page's cost.
+    loadConditionRecord(viewer, doc, etToday()).catch(() => []),
+  ]);
   // "Needs you" leads; the record below carries each answered proposal's outcome beside the agent's notes.
   const lead = <ProposalsSection load={Promise.resolve(loaded)} statusAlone />;
-  const record = buildRecord(thread, loaded?.outcomes ?? [], thread.today);
+  const record = buildRecord(thread, loaded?.outcomes ?? [], thread.today, checked);
   return <Layout thread={thread} record={record} signedIn lead={lead} prices={await recordPrices(record)} />;
 }
 

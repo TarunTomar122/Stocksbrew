@@ -1,6 +1,6 @@
 export const AGENT_ACCESS_VERSION = "2026-08-18";
 export const AGENT_MCP_SERVER_NAME = "stocksbrew";
-export const AGENT_MCP_SERVER_VERSION = "1.2.0";
+export const AGENT_MCP_SERVER_VERSION = "1.3.0";
 
 export const AGENT_SCOPES = [
   "stocks:read",

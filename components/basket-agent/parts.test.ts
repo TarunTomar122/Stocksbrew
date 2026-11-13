@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { changeTitle, foldClass, foldOf, recordRows } from "./parts";
+import { changeTitle, foldClass, foldOf, recordRows, replayTally } from "./parts";
 
 describe("the basket card grid", () => {
   it("shows whole rows only: about eight cards, rounded down to full rows, every card needing attention kept", () => {
@@ -90,5 +90,35 @@ describe("the short card lines", () => {
     );
     for (const ticker of tickers)
       expect(SHORT_REASONS[ticker], ticker).toBeTruthy();
+  });
+});
+
+describe("the replay tally", () => {
+  const said = (counts: { propose: number; nothing: number; could_not_check: number }) =>
+    replayTally({ sessions: counts.propose + counts.nothing + counts.could_not_check, counts }).join("");
+
+  it("accounts for every day it checked", () => {
+    expect(said({ propose: 3, nothing: 15, could_not_check: 2 })).toBe("Of 20 days, 3 had a change, 15 were quiet and 2 couldn't check.");
+    expect(said({ propose: 5, nothing: 15, could_not_check: 0 })).toBe("Of 20 days, 5 had a change and 15 were quiet.");
+    expect(said({ propose: 0, nothing: 1, could_not_check: 19 })).toBe("Of 20 days, 1 was quiet and 19 couldn't check.");
+    expect(said({ propose: 0, nothing: 20, could_not_check: 0 })).toBe("All 20 days were quiet.");
+    expect(said({ propose: 0, nothing: 0, could_not_check: 4 })).toBe("It couldn't check any of the 4 days.");
+    expect(said({ propose: 0, nothing: 0, could_not_check: 0 })).toBe("No market days to check yet.");
+    expect(said({ propose: 1, nothing: 0, could_not_check: 0 })).toBe("The one day it checked had a change.");
+    expect(said({ propose: 0, nothing: 0, could_not_check: 1 })).toBe("It couldn't check the one day.");
+    expect(replayTally({ sessions: 20, counts: { propose: 0, nothing: 0, could_not_check: 0 } }).join("")).toBe("20 days checked.");
+    const longest = said({ propose: 13, nothing: 15, could_not_check: 12 });
+    expect(longest.split(/\s+/).length).toBeLessThanOrEqual(15);
+  });
+
+  it("names numbers that add up to the days checked", () => {
+    for (const counts of [
+      { propose: 3, nothing: 15, could_not_check: 2 },
+      { propose: 1, nothing: 0, could_not_check: 1 },
+    ]) {
+      const parts = replayTally({ sessions: counts.propose + counts.nothing + counts.could_not_check, counts });
+      const [total, ...rest] = parts.filter((part): part is number => typeof part === "number");
+      expect(rest.reduce((sum, n) => sum + n, 0)).toBe(total);
+    }
   });
 });
