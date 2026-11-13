@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
 import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
+import { EDGE_CACHE_HEADER, edgeCacheHeaderFor, isRouterRequest } from "@/lib/edge-cache-policy";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
 import { getMarketSessionState } from "@/lib/market-session";
 
@@ -95,10 +96,10 @@ export function middleware(request: NextRequest) {
     // A shared "/?try=NVDA,JPM" link shows its cards to anyone who opens it, signed in or not.
     !request.nextUrl.searchParams.has("try")
   ) {
-    // Their holdings first (owner, Nov 12: "when I go to stocksbrew.online I should land on /portfolio?tab=holdings
-    // if I'm signed in").
+    // Their briefing first (owner, Nov 13: "we can now start sending signed in users to /briefing, it's a good page";
+    // before that, Nov 12, it was their holdings on /portfolio).
     const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/portfolio";
+    homeUrl.pathname = "/briefing";
     homeUrl.search = "";
     const response = NextResponse.redirect(homeUrl, 307);
     response.headers.set("Cache-Control", "private, no-store");
@@ -118,6 +119,16 @@ export function middleware(request: NextRequest) {
 
   const waitlist = process.env.NEXT_PUBLIC_WAITLIST_MODE === "true";
   if (!waitlist) {
+    // How long the shared cache (Varnish) may keep this signed-out page (lib/edge-cache-policy.ts). Null for anyone
+    // with a session cookie, for client-router requests and for pages not on the public list.
+    const edgeCache = edgeCacheHeaderFor({
+      method: request.method,
+      pathname: request.nextUrl.pathname,
+      hasSessionCookie: request.cookies.has(SESSION_COOKIE_NAME),
+      isRouterRequest: isRouterRequest(request.headers, request.nextUrl.searchParams),
+      country: request.headers.get("x-vercel-ip-country"),
+      searchParams: request.nextUrl.searchParams,
+    });
     // Signed-out visitors get the cached copy of the busiest public pages
     // (lib/anon-view.ts): the same page, served by the CDN instead of being
     // rendered again. Anyone with a session cookie (even a stale one) gets the
@@ -137,10 +148,12 @@ export function middleware(request: NextRequest) {
       anonUrl.search = "";
       const response = NextResponse.rewrite(anonUrl);
       response.headers.set("x-stocksbrew-view", "cached");
+      if (edgeCache) response.headers.set(EDGE_CACHE_HEADER, edgeCache);
       appendVaryAccept(response.headers);
       return response;
     }
     const response = NextResponse.next();
+    if (edgeCache) response.headers.set(EDGE_CACHE_HEADER, edgeCache);
     appendVaryAccept(response.headers);
     return response;
   }

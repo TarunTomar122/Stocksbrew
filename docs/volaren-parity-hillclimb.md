@@ -194,6 +194,32 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~07:00 ET: analytics live, Cloudflare in front, database on the fast disk, small owner fixes (deployed)
+
+- **Owner analytics (/admin/analytics, password-gated):**
+  - First-party beacon: no cookies, a daily-salted visitor hash, no IPs stored.
+  - Country from CF-IPCountry, falling back to db-ip lite mmdb in /srv/tikrr-data/geo.
+  - Storage: tm_analytics_events chunks (deleted 5 days after the rollup is final), tm_analytics_daily rollups, a daily salt.
+  - Dashboard: headline tiles with sparklines, visitors chart, live now, sources/UTMs/countries/devices, pages/routes, stocks opened, searches, and a funnel from real account records.
+  - Verified live: a wrong password gets 401, data without the cookie gets 401, the right password gets 200; noindex + no-store; the beacon returns 204.
+- **Speed and stability:**
+  - LocalDB moved from the add-on volume sdb (~0.5 MB/s random reads) to the system disk: iowait went from 94% to 0, load from 21 to ~1.
+  - The LocalDB unit's sandbox now allows /var/lib/tikrr. It was missing, and every single-doc read 500ed for ~5 min.
+  - Varnish: no health probe (it marked busy instances sick → 503s), one retry on the other instance.
+  - Firecrawl's browser container capped at 1.2 GB with no swap; swap went from 4.0 to 2.7 GB and a test scrape still works.
+  - Caddy access logs (JSON, no IPs or cookies) for tracing.
+- **Cloudflare (free) in front:** nameservers moved, @/www proxied, db DNS-only, Full (strict). Build files are cached at the edge (HIT); pages 200 at ~0.5s via the LHR edge.
+- **Owner fixes:**
+  - The bell count clears on open (all marked read, proposals acknowledged).
+  - "Your words" folds behind one toggle on the reason card.
+  - Lighter stock-card hover.
+- **Running:**
+  - after-hours moves end to end (job, stock page line, agent/briefing/proposals/Ask)
+  - zero-DB page views (metrics, Varnish HTML for signed-out, on-demand revalidation)
+  - serving docs (hot/cold split for the stock page)
+  - landing (hero balance, plain-English agents section with real outputs, pricing)
+- **Open (owner):** Dodo keys (checkout off), PostHog key.
+
 ### 2026-11-13 ~06:00 ET: LIVE AGAIN, self-hosted on the VPS (owner approved the move); batches 84–90 shipped
 
 - **Why:** Vercel paused the Hobby team. Fluid Active CPU was at 12h20m against a 4h limit and function storage at 10.16 against 10 GB; waiting for the 30-day window wasn't viable.
