@@ -284,6 +284,10 @@ export function TabBar({ tabs, current, className = "" }: { tabs: TabItem[]; cur
           <Link
             key={tab.id}
             href={tab.href}
+            // Like Segmented: tabs often differ only by `?tab=` on the same page, and Next 13's prefetch of such a
+            // link comes back without the query in the page's key, so the click changed the address but not the
+            // page (Nov 13: /admin/analytics Speed and System did nothing). A click fetches the tab it names.
+            prefetch={false}
             aria-current={active ? "page" : undefined}
             className={`-mb-px flex h-10 shrink-0 items-center gap-2 border-b-2 text-[14px] transition-colors ${FOCUS} ${
               active
