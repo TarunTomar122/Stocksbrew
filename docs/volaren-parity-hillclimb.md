@@ -214,6 +214,12 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~17:50 ET: Buy more levels without empty cards (6405c662)
+- Owner: "tf is this ui with left cards being mostly empty". With 7 names in the side list, the list cell outgrew the
+  cards and stretched its row's cards. Over 3 names the list is now its own band under the cards (bandColumns picks 3
+  or 4 so rows end full; 8 → 2×4) and each band name keeps its fact. Council BLOCK r1 (LLY's fact lost, uneven band),
+  BLOCK r2 (an old phone shot was sent), APPROVE r3. Shots: scratchpad/lvlfix/.
+
 ### 2026-11-13 ~17:30 ET: signups tab (7dc2e412) and the screener in plain words (06eb66d7) live; pause
 - 7dc2e412 (owner: "can i also see the people who are signing up?"): /admin/analytics → Signups: today/7/30-day
   tiles, all accounts, came back, added stocks, agents on, Pro (paying); newest-first list with email, signed up,
