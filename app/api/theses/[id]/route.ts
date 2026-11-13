@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!session) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   const basket = await getBasket(session.uid, params.id);
   if (!basket?.thesis) return NextResponse.json(NOT_FOUND, { status: 404 });
-  const state = await readState(session.uid, basket.id).catch(() => null);
+  const state = await readState(session.uid, basket).catch(() => null);
   return NextResponse.json(
     { id: basket.id, name: basket.name, enabled: basket.enabled, thesis: basket.thesis, state, href: thesisHref(basket.id) },
     { headers: { "cache-control": "no-store" } },

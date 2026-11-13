@@ -14,13 +14,25 @@ import { companyNames, firstCheck, refused, tooMany } from "./shared";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** The signed-in person's theses with their latest check. */
+/** The signed-in person's theses, each with its companies and latest status. */
 export async function GET() {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "Sign in to see your theses." }, { status: 401 });
   const theses = await listTheses(session.uid);
   return NextResponse.json(
-    { theses: theses.map(({ basket, state }) => ({ id: basket.id, name: basket.name, thesis: basket.thesis, enabled: basket.enabled, state, href: thesisHref(basket.id) })) },
+    // A short list (My stocks reads it after the page has loaded): each thesis, its companies, its status. The full
+    // thesis and its check are at /api/theses/[id].
+    {
+      theses: theses.map(({ basket, state }) => ({
+        id: basket.id,
+        name: basket.name,
+        holdings: basket.source.kind === "holdings",
+        enabled: basket.enabled,
+        tickers: basket.thesis?.lines.map((line) => line.ticker) ?? [],
+        status: state?.status ?? null,
+        href: thesisHref(basket.id),
+      })),
+    },
     { headers: { "cache-control": "no-store" } },
   );
 }

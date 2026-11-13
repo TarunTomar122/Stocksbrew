@@ -124,3 +124,73 @@ export function historyStretches(history: readonly ThesisHistoryRow[]): HistoryS
   }
   return out.reverse();
 }
+
+/* ── one scale per figure ───────────────────────────────────────────────── */
+
+export type Scale = { from: number; to: number };
+
+/** The smallest of 1, 2, 2.5, 5 × 10^k at or above `x` (x > 0). */
+function niceCeil(x: number): number {
+  if (!(x > 0)) return 0;
+  const power = 10 ** Math.floor(Math.log10(x));
+  for (const step of [1, 2, 2.5, 5, 10]) if (step * power >= x * (1 - 1e-9)) return step * power;
+  return 10 * power;
+}
+
+const MARGINS = new Set(["gross_margin", "operating_margin"]);
+
+/**
+ * One scale per figure for every bar on the page, so lengths compare across cards: margins run 0 to 100%; any other
+ * percent or ratio from zero (or a round number under the lowest) to a round number over the highest, but never more
+ * than three times the highest line, so one outlier (a 256% grower) cannot shrink every other bar to a sliver. A
+ * figure past the end is drawn capped, with its number beside it. Prices and dividends are each company's own, so
+ * they keep a scale of their own (left out here).
+ */
+export function sharedScales(companies: readonly CompanyView[]): Partial<Record<Condition["metric"], Scale>> {
+  const byMetric = new Map<Condition["metric"], { values: number[]; lines: number[] }>();
+  for (const company of companies) {
+    for (const line of company.lines) {
+      const metric = line.condition.metric;
+      if (METRICS[metric].unit === "usd") continue;
+      const entry = byMetric.get(metric) ?? { values: [], lines: [] };
+      entry.lines.push(line.condition.value);
+      if (line.now !== null && line.status !== "unknown") entry.values.push(line.now);
+      byMetric.set(metric, entry);
+    }
+  }
+  const out: Partial<Record<Condition["metric"], Scale>> = {};
+  for (const [metric, { values, lines }] of byMetric) {
+    const maxLine = Math.max(...lines);
+    const all = [...values, ...lines];
+    const lowest = Math.min(...all);
+    const cap = Math.max(...lines.map(Math.abs)) * 3 || 1;
+    const from = lowest < 0 ? -niceCeil(Math.min(-lowest, cap)) : 0;
+    let to: number;
+    if (MARGINS.has(metric)) to = 100;
+    else {
+      const highest = Math.max(...all);
+      to = niceCeil(Math.max(Math.min(highest, cap), maxLine * 1.1, 1));
+    }
+    out[metric] = { from, to: to > from ? to : from + 1 };
+  }
+  return out;
+}
+
+/** "Revenue growth 0–100%", once per figure, for the scale legend. */
+export function scaleWords(metric: Condition["metric"], scale: Scale): string {
+  const unit = METRICS[metric].unit === "pct" ? "%" : "";
+  const end = (value: number) => `${value < 0 ? "−" : ""}${Math.abs(value)}${unit}`;
+  return `${METRICS[metric].label} ${end(scale.from)}–${end(scale.to)}`;
+}
+
+/** "Q3" or "Nov 3" from a waiting line ("Waiting for the figures from the Q3 report, Nov 3."), for "Waiting for Q3". */
+export function waitingFor(text: string): string | null {
+  const match = /Waiting for (?:the figures from|[A-Z.]+'s EPS from) the (Q\d) report|Waiting for (?:the figures from|[A-Z.]+'s EPS from) the (\w{3} \d{1,2}) report/.exec(text);
+  return match ? (match[1] ?? match[2] ?? null) : null;
+}
+
+/** The oldest and newest day the verdicts stand on, for "lines from reports Aug 26 – Nov 8". */
+export function basisSpan(companies: readonly CompanyView[]): { from: string; to: string } | null {
+  const days = companies.flatMap((company) => (company.basis ? [company.basis.day] : [])).sort();
+  return days.length > 0 ? { from: days[0]!, to: days[days.length - 1]! } : null;
+}

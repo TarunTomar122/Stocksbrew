@@ -300,9 +300,11 @@ export function withoutLevels(text: string): string {
 }
 
 /** The person's idea baskets that hold each stock, by name (archived ones are already left out by the store read). */
-export function basketsByTicker(baskets: ReadonlyArray<{ name: string; lines: ReadonlyArray<{ ticker: string }> }>): Record<string, string[]> {
+export function basketsByTicker(baskets: ReadonlyArray<{ name: string; lines: ReadonlyArray<{ ticker: string }>; source?: { kind: string } }>): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const basket of baskets) {
+    // A thesis over holdings (lib/thesis-monitor) is not a basket: a note never calls it one.
+    if (basket.source?.kind === "holdings") continue;
     for (const line of basket.lines) {
       const names = (out[line.ticker] ??= []);
       if (!names.includes(basket.name)) names.push(basket.name);

@@ -194,6 +194,66 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~06:00 ET: LIVE AGAIN, self-hosted on the VPS (owner approved the move); batches 84–90 shipped
+
+- **Why:** Vercel paused the Hobby team. Fluid Active CPU was at 12h20m against a 4h limit and function storage at 10.16 against 10 GB; waiting for the 30-day window wasn't viable.
+- **Setup (backend/vps/web/):**
+  - Caddy (HTTPS, auto certs) → Varnish 127.0.0.1:6081 → two Next standalone instances, tikrr-web@3000 and @3001, on HOSTNAME=localhost with a memory cap.
+  - www.stocksbrew.online is canonical; the bare domain 301s to it.
+  - Varnish caches only public routes (build files, logos, OG images, sitemaps, feeds); everything else passes.
+  - Deploys: `bash backend/vps/web/deploy-web.sh` builds in ~/.cache/tikrr-web-build with ~/.config/tikrr/web.env, swaps sharp for linux-x64, does a rolling restart and warms pages. The VPS never builds.
+  - DNS at Hostinger: the owner pointed @ and www to 144.217.6.112.
+- **Pushed main:** 84–90 plus 91–93 (self-host config and fixes, Varnish). The VPS backend is pulled; LocalDB was restarted with select_sql (field select live).
+- **Fixes found on the way:**
+  - Next standalone rewrites broke behind the https proxy unless HOSTNAME=localhost.
+  - Absolute redirects pointed at localhost; Caddy now rewrites Location.
+  - A symlinked node_modules broke standalone tracing.
+  - The env file needed literal quoting for the Firebase JSON.
+- **Load test (live):** pages ~110 req/s, p95 <0.8s, 0 errors; cached logos ~3,500 req/s; two instances use ~450 MB.
+- **Open (owner):**
+  - Dodo keys + DODO_MODE=live (checkout off until then) and the PostHog key: Vercel won't reveal sensitive values, and the laptop copies were blank.
+  - ANALYTICS_PASSWORD for the new /admin/analytics.
+  - The GitHub dispatch token (optional).
+- **Next:** the analytics dashboard (builder running), landing/pricing selling the new capabilities (builder running), the thesis council and QA fixes (done, local), then batch 94.
+
+### 2026-11-13 ~10:30: thesis monitor + first look (new capabilities), judge89 sweeps (ship-queue 90, local)
+
+- **ship-queue 81f2054 (90)** on d5907e7 (89): tsc and lint clean, 4171/4171 tests both ways, `next build` OK, backend 1429 passed with the same 3 old failures. Not pushed: Vercel is still 402.
+- **Thesis monitor (judge89's bold ask):**
+  - A thesis over your holdings is an idea basket with a `thesis` field: your statement plus up to 2 lines per company, through the "Holds if…" picker and conditions engine.
+  - Nightly `scripts/run-thesis-checks.ts` (in schedule.py after filing changes) records each report once and each 10-K/10-Q whose risks changed, quoting the company. What was on file at the start is context, never news.
+  - Status rules: broken (>half the lines broke), under strain (any broke, or new risks within 14 days), waiting, holds.
+  - A worse status with dated evidence drafts a `thesis_review` proposal (priority 60 on a holding), inside the basket caps.
+  - The page shows the statement, status, company cards with now-vs-line bars and their report, "What moved it", and history.
+  - Real test thesis "Test thesis: AI infrastructure" (/agents/theses/3ee5aa33cf79, More → Remove): under strain, 7 of 8 hold, MRVL revenue growth 31% under 35% (Q2 report, Aug 27).
+- **First look:**
+  - After signup the agent's first pass lands on /agent:
+    - its decision ("5 need a look. Look at CBRS first: it reports today.") with the calls bar
+    - grouped and single findings, skipping stocks already in Needs you
+    - "Agents I'd set up for you" as compact rows with evidence and one-tap switches inside the plan limit
+    - a reason prompt for the largest holding
+  - New users get it through a `first_look` field on their own doc; existing users get a one-time header button.
+  - Runs take 0.5–1.2s.
+- **Judge89 sweep A:**
+  - The AMD Reddit count was the scan total (294); it is now the stock's own 7.
+  - "Even with the S&P" only when the printed figures match, in the briefing and the memo.
+  - Proposals sharing an action are grouped under one heading, with a layout plan so no row ends empty; titles are the action with one trigger line.
+  - Briefing buy-more cards show one fact.
+  - "What changed" has no source line, and headlines are sentence case.
+- **Judge89 sweep B:**
+  - All 11 sectors are shown; the inbox folds after 10 rows and shows prices.
+  - Signals headlines are ≤15 words; President posts are one line each.
+  - The theme thesis drops the repeated idea; the basket replay is one dated label with "now" prices.
+  - Portfolio phone cards have one gain bar; calendar IPOs are structured fields with full names.
+  - Landing strip and FAQ trimmed.
+- **Councils:**
+  - First look and sweeps: BLOCK.
+    - Fixed: agent rows sized to content, inbox prices, the What changed source and casing, replay "now", IPO names.
+    - Overruled: the first look's decision card (it is the run's decision), 15-word lines wrapping on phones, the shared-scale gain bars.
+  - Thesis monitor council: running.
+- **QA on 90:** running.
+- **Dev server:** now started detached (nohup), so the 2-hour background limit can't stop it.
+
 ### 2026-11-13 ~08:00: Codex judge89 (agent feel 7.8); first look + judge89 sweeps started (local)
 
 - **Codex judge89** on ship-queue 89 captures (scratchpad/judge89/codex.md):

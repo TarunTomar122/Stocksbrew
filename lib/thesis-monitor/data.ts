@@ -12,7 +12,7 @@
 
 import { agentMarketDay, AgentJobError, listJobs } from "@/lib/agent-jobs-data";
 import { basketFromDoc, basketsOverPlan, createBasket, getBasket, listBaskets, quotesFor, type CardQuote } from "@/lib/basket-agent/data";
-import { BASKETS_COLLECTION, basketDocId, BASKET_ID_RE, inferKind, instrumentIdOf, mergeLines, nameFromIdea, reasonText, type BasketAgent } from "@/lib/basket-agent/model";
+import { BASKETS_COLLECTION, MAX_BASKETS_PER_USER, basketDocId, BASKET_ID_RE, inferKind, instrumentIdOf, mergeLines, nameFromIdea, reasonText, type BasketAgent } from "@/lib/basket-agent/model";
 import { limitFor, systemPlanOf, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFilingChangesFor } from "@/lib/filing-changes/server";
@@ -43,21 +43,33 @@ const baskets = () => adminFirestore.collection(BASKETS_COLLECTION);
 
 /* ── reads ──────────────────────────────────────────────────────────────── */
 
-export async function readState(uid: string, basketId: string): Promise<ThesisState | null> {
-  if (!BASKET_ID_RE.test(basketId)) return null;
-  const snap = await states().doc(thesisStateDocId(uid, basketId)).get();
-  return snap.exists ? readThesisState(snap.data(), uid) : null;
+type StateOwner = Pick<BasketAgent, "id" | "thesis">;
+
+/**
+ * The state is this thesis's own: the basket has a thesis and the state was made for it. Lines taken off and put
+ * back are a new thesis (a new `created_at`), so the old one's state is never shown or carried over. Pure.
+ */
+export function stateFits(state: ThesisState | null, basket: StateOwner): state is ThesisState {
+  return Boolean(state && basket.thesis && state.basket_id === basket.id && state.spec_created_at === basket.thesis.created_at);
 }
 
-/** States for several of the person's theses in one read; missing ones are left out. */
-export async function readStates(uid: string, basketIds: readonly string[]): Promise<Map<string, ThesisState>> {
-  const ids = basketIds.filter((id) => BASKET_ID_RE.test(id));
-  if (ids.length === 0) return new Map();
-  const snaps = await adminFirestore.getAll(...ids.map((id) => states().doc(thesisStateDocId(uid, id))));
+/** One thesis's latest check, or null when there is none for the thesis the basket carries now. */
+export async function readState(uid: string, basket: StateOwner): Promise<ThesisState | null> {
+  if (!BASKET_ID_RE.test(basket.id) || !basket.thesis) return null;
+  const snap = await states().doc(thesisStateDocId(uid, basket.id)).get();
+  const state = snap.exists ? readThesisState(snap.data(), uid) : null;
+  return stateFits(state, basket) ? state : null;
+}
+
+/** States for several of the person's theses in one read; missing ones (and earlier theses') are left out. */
+export async function readStates(uid: string, list: readonly StateOwner[]): Promise<Map<string, ThesisState>> {
+  const owned = list.filter((basket) => BASKET_ID_RE.test(basket.id) && basket.thesis);
+  if (owned.length === 0) return new Map();
+  const snaps = await adminFirestore.getAll(...owned.map((basket) => states().doc(thesisStateDocId(uid, basket.id))));
   const out = new Map<string, ThesisState>();
   snaps.forEach((snap, index) => {
     const state = snap.exists ? readThesisState(snap.data(), uid) : null;
-    if (state && state.basket_id === ids[index]) out.set(ids[index]!, state);
+    if (stateFits(state, owned[index]!)) out.set(owned[index]!.id, state);
   });
   return out;
 }
@@ -65,10 +77,7 @@ export async function readStates(uid: string, basketIds: readonly string[]): Pro
 /** The person's baskets that carry a thesis, with their latest check. */
 export async function listTheses(uid: string): Promise<Array<{ basket: BasketAgent; state: ThesisState | null }>> {
   const list = (await listBaskets(uid)).filter((basket) => basket.thesis);
-  const found = await readStates(
-    uid,
-    list.map((basket) => basket.id),
-  );
+  const found = await readStates(uid, list);
   return list.map((basket) => ({ basket, state: found.get(basket.id) ?? null }));
 }
 
@@ -108,6 +117,9 @@ export async function createHoldingsThesis(uid: string, draft: ThesisDraft, plan
   if (outside.length > 0) throw new ThesisError(`You don't hold ${outside.join(", ")}. A thesis over your holdings takes only stocks you own.`, 400);
   if (draft.lines.length < MIN_HOLDINGS) throw new ThesisError(`Give at least ${MIN_HOLDINGS} of your holdings a line.`, 400);
   if (draft.lines.length > MAX_COMPANIES) throw new ThesisError(`A thesis spans up to ${MAX_COMPANIES} companies.`, 400);
+  // Theses and idea baskets share one cap; say it in a thesis's words, not the basket's.
+  if ((await listBaskets(uid)).length >= MAX_BASKETS_PER_USER)
+    throw new ThesisError(`You can keep up to ${MAX_BASKETS_PER_USER} theses and idea baskets together. Remove one to add another.`, 400);
   return createBasket(uid, holdingsBasket(draft, names), null, plan, now, specOf(draft, null, now));
 }
 
@@ -174,7 +186,7 @@ export async function runThesis(basket: BasketAgent, now = new Date(), options: 
   const tickers = basket.lines.map((line) => line.ticker);
   const lineTickers = spec.lines.map((line) => line.ticker).filter((ticker) => tickers.includes(ticker));
   const [previous, figures, filings] = await Promise.all([
-    readState(basket.uid, basket.id),
+    readState(basket.uid, basket),
     conditionInputsFor(lineTickers.map(instrumentIdOf), day),
     // A failed read is null, not "no filings": the check then keeps the risks it knew.
     getFilingChangesFor(lineTickers).catch(() => null),
@@ -306,7 +318,7 @@ export async function loadThesis(uid: string, id: string): Promise<ThesisPageDat
   const basket = await getBasket(uid, id);
   if (!basket?.thesis) return null;
   const tickers = basket.thesis.lines.map((line) => line.ticker);
-  const [state, quotes, nextReports] = await Promise.all([readState(uid, basket.id).catch(() => null), quotesFor(tickers), nextReportsFor(tickers)]);
+  const [state, quotes, nextReports] = await Promise.all([readState(uid, basket).catch(() => null), quotesFor(tickers), nextReportsFor(tickers)]);
   return { basket: basket as BasketAgent & { thesis: ThesisSpec }, state, quotes, nextReports };
 }
 
@@ -332,21 +344,22 @@ export async function removeThesisLines(uid: string, basketId: string, now = new
 /* ── for the agent's proposals ──────────────────────────────────────────── */
 
 /**
- * The person's theses on switched-on baskets with their latest check, as the proposal rules read them
- * (lib/thesis-monitor/proposals.ts), with prices for the affected companies they do not track.
+ * Every thesis the person has, with its latest check (null before the first), as the proposal rules read them
+ * (lib/thesis-monitor/proposals.ts): switched-on ones with a check draft reviews, and a review whose thesis is gone or
+ * paused is set aside. Prices for the affected companies they do not track come with it.
  */
 export async function readProposalTheses(uid: string, tracked: ReadonlySet<string>): Promise<ProposalThesis[]> {
-  const theses = (await listTheses(uid)).filter((entry) => entry.basket.enabled && entry.state);
+  const theses = await listTheses(uid);
   if (theses.length === 0) return [];
-  const untracked = [...new Set(theses.flatMap((entry) => entry.state!.affected))].filter((ticker) => !tracked.has(ticker));
+  const untracked = [...new Set(theses.flatMap((entry) => (entry.basket.enabled ? (entry.state?.affected ?? []) : [])))].filter((ticker) => !tracked.has(ticker));
   const quotes = untracked.length > 0 ? await quotesFor(untracked).catch(() => ({}) as Record<string, CardQuote>) : {};
   return theses.map(({ basket, state }) => ({
     id: basket.id,
     name: basket.name,
     enabled: basket.enabled,
-    state: state!,
+    state,
     quotes: Object.fromEntries(
-      state!.affected.filter((ticker) => (quotes as Record<string, CardQuote>)[ticker]).map((ticker) => {
+      (state?.affected ?? []).filter((ticker) => (quotes as Record<string, CardQuote>)[ticker]).map((ticker) => {
         const quote = (quotes as Record<string, CardQuote>)[ticker]!;
         return [ticker, { price: quote.price, dayPct: quote.dayPct, at: null }];
       }),

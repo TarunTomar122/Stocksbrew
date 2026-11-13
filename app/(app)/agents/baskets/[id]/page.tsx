@@ -99,7 +99,7 @@ export default async function BasketAgentPage({ params }: Props) {
         ? listJobs(session.uid).catch(() => [])
         : Promise.resolve([]),
       basket.thesis
-        ? readState(session.uid, basket.id).catch(() => null)
+        ? readState(session.uid, basket).catch(() => null)
         : Promise.resolve(null),
     ]);
   const limit = limitFor("agents", viewer.plan);

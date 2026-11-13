@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { Box, CardRows, NUM, price, signedPct, type CardQuote } from "@/components/basket-agent/parts";
+import { Box, NUM, price, signedPct, type CardQuote } from "@/components/basket-agent/parts";
 import { OaButton } from "@/components/oa/button";
 import { StockLogo } from "@/components/stock-logo";
 import { ConditionsPicker, draftOf, parseDrafts, type DraftCondition } from "@/components/thesis/conditions-picker";
@@ -108,14 +108,16 @@ export function ThesisEditor({
       </Box>
 
       <section aria-label="Lines" className="flex min-w-0 flex-col gap-2">
+        {/* "Holds if…" once for every card; each card only picks its figures. */}
         <h2 className="flex flex-wrap items-baseline gap-x-2 px-1 text-[15px] font-semibold leading-6 text-oa-fg">
-          {mode === "holdings" ? "Your holdings" : "Companies"}
+          {mode === "holdings" ? "Each holding holds if…" : "Each company holds if…"}
           <span className={`${NUM} text-[13px] font-medium text-oa-muted-fg`}>
             {lineTotal === 0 ? `${companies.length} to pick from` : `${lineTotal} ${lineTotal === 1 ? "line" : "lines"} on ${withLines.length} of ${companies.length}`}
           </span>
         </h2>
-        {/* Two columns: the picker's figure menu, side, number and bar need the width. */}
-        <CardRows cols={2}>
+        {/* Two columns (the picker's menu, side, number and bar need the width), each card its own height. */}
+        <div className="[container-type:inline-size]">
+          <ul className="-mb-3 [column-gap:0.75rem] [@container(min-width:34rem)]:columns-2">
           {companies.map((company) => (
             <EditorCard
               key={company.ticker}
@@ -124,7 +126,8 @@ export function ThesisEditor({
               onChange={(next) => setDrafts((current) => ({ ...current, [company.ticker]: next }))}
             />
           ))}
-        </CardRows>
+          </ul>
+        </div>
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-3 px-1">
@@ -154,7 +157,7 @@ export function ThesisEditor({
 function EditorCard({ company, drafts, onChange }: { company: EditorCompany; drafts: DraftCondition[]; onChange: (next: DraftCondition[]) => void }) {
   const name = shortCompanyName(company.company ?? "") || null;
   return (
-    <li className={`oa-surface flex h-full min-w-0 flex-col gap-2 border bg-oa-card px-3.5 pb-3 pt-3 ${drafts.length > 0 ? "border-[color-mix(in_srgb,var(--oa-fg)_35%,transparent)]" : "border-oa-border"}`}>
+    <li className={`oa-surface mb-3 flex min-w-0 break-inside-avoid flex-col gap-2 border bg-oa-card px-3.5 pb-3 pt-3 ${drafts.length > 0 ? "border-[color-mix(in_srgb,var(--oa-fg)_35%,transparent)]" : "border-oa-border"}`}>
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <StockLogo ticker={company.ticker} size={28} />
@@ -178,7 +181,7 @@ function EditorCard({ company, drafts, onChange }: { company: EditorCompany; dra
           </div>
         ) : null}
       </div>
-      <ConditionsPicker instrumentId={instrumentIdOf(company.ticker)} drafts={drafts} onChange={onChange} />
+      <ConditionsPicker instrumentId={instrumentIdOf(company.ticker)} drafts={drafts} onChange={onChange} bare />
     </li>
   );
 }

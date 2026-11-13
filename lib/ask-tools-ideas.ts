@@ -179,7 +179,8 @@ export async function basketCard(context: IdeaToolContext, input: { basket_id?: 
   if (!id && input.name?.trim()) {
     // By name: the person's own baskets only, an exact name first, then one whose name contains the words.
     const wanted = input.name.trim().toLowerCase();
-    const all = await listBaskets(context.uid);
+    // A thesis over holdings is not an idea basket (lib/thesis-monitor): never matched here by its name.
+    const all = (await listBaskets(context.uid)).filter((basket) => basket.source.kind !== "holdings");
     const exact = all.filter((basket) => basket.name.toLowerCase() === wanted);
     const matches = exact.length > 0 ? exact : all.filter((basket) => basket.name.toLowerCase().includes(wanted));
     const one = matches.length === 1 ? matches[0]! : null;
@@ -280,7 +281,8 @@ export async function watchIdeaCard(context: IdeaToolContext, input: WatchIdeaIn
       listJobs(context.uid).catch(() => null),
       runningBasketCount(context.uid).catch(() => null),
     ]);
-    const same = baskets?.find((basket) => sameSet(basket.lines.map((line) => line.ticker), tickers)) ?? null;
+    // "Already watching" means an idea basket; a thesis over holdings on the same stocks is something else.
+    const same = baskets?.find((basket) => basket.source.kind !== "holdings" && sameSet(basket.lines.map((line) => line.ticker), tickers)) ?? null;
     if (same) existing = { id: same.id, name: same.name, enabled: same.enabled, href: basketHref(same.id) };
     // Only when every count was read: a guess about the plan is worse than saying nothing.
     if (!same && baskets && jobs && running !== null) {

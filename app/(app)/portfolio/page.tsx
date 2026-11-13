@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { JsonLd } from "@/components/docs/json-ld";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { HoldingsStream } from "@/components/portfolio/holdings-stream";
+import { ThesisEntry } from "@/components/thesis-monitor/thesis-entry";
 import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { myStocksTab } from "@/lib/portfolio-shared";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
@@ -33,15 +33,12 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
         title="My stocks"
         note={false}
         inline
-        // A thesis across the holdings, with measurable lines per company, that the agent checks on every report and filing.
+        // A thesis across the holdings, with measurable lines per company, that the agent checks on every report and
+        // filing: only for a signed-in person with two or more holdings, streamed in so it never holds the page up.
         actions={
-          <Link
-            prefetch={false}
-            href="/agents/theses/new"
-            className="inline-flex h-8 items-center rounded-lg border border-oa-border bg-oa-secondary px-3 text-sm font-medium text-oa-secondary-fg hover:bg-[color-mix(in_srgb,var(--oa-secondary)_95%,var(--ink))]"
-          >
-            Write a thesis
-          </Link>
+          <Suspense fallback={null}>
+            <ThesisEntry />
+          </Suspense>
         }
       />
       <Suspense fallback={<PortfolioGhost />}>

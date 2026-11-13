@@ -372,5 +372,7 @@ const STALE_WORDS: Record<string, string> = {
   agent_exists: "You already have an agent for that. This one is gone.",
   basket_gone: "That idea basket no longer exists. This one is gone.",
   basket_already: "The basket already has that change. This one is gone.",
+  thesis_gone: "That thesis no longer exists. This one is gone.",
+  thesis_paused: "That thesis is paused. This one is gone.",
   default: "The facts changed since, so this one is gone.",
 };

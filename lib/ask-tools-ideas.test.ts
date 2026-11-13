@@ -334,6 +334,13 @@ describe("watch_idea", () => {
     expect(((await watchIdeaCard(context(UID), { idea: "AI spending", tickers: ["VRT", "NVDA", "MU"] })) as WatchIdeaCard).status).toBe("ready");
   });
 
+  it("never takes a thesis over holdings for an idea basket, by name or as 'already watching'", async () => {
+    state.baskets = [basket(UID, "aaaaaa111111", { name: "AI capex thesis", source: { kind: "holdings" } })];
+    expect(await basketCard(context(UID), { name: "AI capex thesis" })).toMatchObject({ card: "error", message: expect.stringContaining("no idea basket called") });
+    const card = (await watchIdeaCard(context(UID), { idea: "AI spending", tickers: ["VRT", "NVDA", "MU"] })) as WatchIdeaCard;
+    expect(card.status).toBe("ready");
+  });
+
   it("dates a reason's bare 'today', never a 'today's' that means our time", () => {
     expect(datedReason("NVIDIA sells the chips that power today’s AI data centers.", "Nov 12")).toBe("NVIDIA sells the chips that power today’s AI data centers.");
     expect(datedReason("It passes the \"Momentum\" screen today: up 30%.", "Nov 12")).toBe("It passed the \"Momentum\" screen on Nov 12: up 30%.");

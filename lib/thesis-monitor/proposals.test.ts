@@ -6,7 +6,7 @@ vi.mock("react", async (importOriginal) => ({
 }));
 vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {}, adminAuth: {} }));
 
-const { candidates, pickProposals, newProposal, MAX_BASKET_WAITING, wordCount, TITLE_MAX_WORDS, WHY_MAX_WORDS } = await import("@/lib/proposals");
+const { candidates, pickProposals, newProposal, staleReason, toCard, MAX_BASKET_WAITING, wordCount, TITLE_MAX_WORDS, WHY_MAX_WORDS } = await import("@/lib/proposals");
 const { thesisDrafts, triggerOf, HELD_PRIORITY, OTHER_PRIORITY } = await import("./proposals");
 
 import type { ProposalDraft, ProposalInputs } from "@/lib/proposals";
@@ -154,5 +154,24 @@ describe("proposal caps: a thesis takes its basket's slot", () => {
     const holding: ProposalDraft = { ...basketDraft("x", "VRT"), kind: "reason_broken", priority: 90, idea: "alert:VRT:below:185", action: { type: "alert_price", ticker: "VRT", instrument_id: "US_VRT", condition: "below", price: 185, replaces: null }, event: { key: "reason:VRT", kind: "reason_broken", at: TODAY, refs: [] } };
     const { fresh } = pickProposals([holding, review], [], NOW);
     expect(fresh.map((draft) => draft.kind)).toEqual(["reason_broken"]);
+  });
+});
+
+describe("a review goes with its thesis", () => {
+  it("is set aside when its thesis is removed or paused, and kept when the theses were not read", () => {
+    const review = newProposal("u1", thesisDrafts(inputs())[0]!, NOW);
+    expect(staleReason(review, inputs())).toBeNull();
+    expect(staleReason(review, inputs({ theses: [] }))).toBe("thesis_gone");
+    expect(staleReason(review, inputs({ theses: [thesis({}, { enabled: false })] }))).toBe("thesis_paused");
+    expect(staleReason(review, inputs({ theses: undefined }))).toBeNull();
+  });
+
+  it("asks for nothing before a thesis's first check", () => {
+    expect(thesisDrafts(inputs({ theses: [{ ...thesis(), state: null }] }))).toEqual([]);
+  });
+
+  it("keeps its review framing when cards share a heading", () => {
+    const card = toCard(newProposal("u1", thesisDrafts(inputs())[0]!, NOW), null);
+    expect(card.group).toEqual({ key: "thesis_review", heading: "Review your thesis", short: "Alert at $190" });
   });
 });

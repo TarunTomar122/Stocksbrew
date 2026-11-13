@@ -392,8 +392,8 @@ export function checkThesis(input: ThesisCheckInput): ThesisState {
         (record.status !== "holds" && record.status !== "broken")
       )
         continue;
-      const fresh = record.checked_on === day;
-      // A company joining: its latest judged report is what was on file, kept as context.
+      // A company joining (on the thesis's first check too): every report it has, however recent, is what was on file.
+      const fresh = record.checked_on === day && !joined;
       if (
         !fresh &&
         !(joined && daysBetween(record.report_date, day) <= BASELINE_DAYS)
@@ -411,7 +411,7 @@ export function checkThesis(input: ThesisCheckInput): ThesisState {
         ? [together]
         : together.map((record) => [record])) {
         const first = group[0]!;
-        const fresh = first.checked_on === day;
+        const fresh = first.checked_on === day && !joined;
         const text = pair ?? fits(reportSentence(line.ticker, first));
         if (!text) continue;
         events.push({
@@ -519,6 +519,9 @@ export function checkThesis(input: ThesisCheckInput): ThesisState {
     });
   }
 
+  const statusSince = changed || !carried ? day : carried.status_since;
+  const previousStatus = changed ? base!.status : (carried?.previous_status ?? null);
+
   // New events replace stored ones with the same key; a status change undone the same day is taken back out.
   const fresh = new Map(events.map((event) => [event.key, event]));
   const kept = (previous?.events ?? []).filter(
@@ -567,10 +570,12 @@ export function checkThesis(input: ThesisCheckInput): ThesisState {
     checked_at: input.now.toISOString(),
     spec_created_at: spec.created_at,
     spec_version: spec.version,
-    base,
+    // After the person's own edit, the status it left is where the rest of the day is judged from: a check later the
+    // same day keeps its since-day and earlier status, and only a real change after the edit is news.
+    base: edited ? { status: rolled.status, status_since: statusSince, previous_status: previousStatus } : base,
     status: rolled.status,
-    status_since: changed || !carried ? day : carried.status_since,
-    previous_status: changed ? base!.status : (carried?.previous_status ?? null),
+    status_since: statusSince,
+    previous_status: previousStatus,
     counts: rolled.counts,
     affected: rolled.affected,
     lines,

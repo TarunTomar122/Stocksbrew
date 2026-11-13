@@ -8,7 +8,7 @@ import { ConditionBar } from "@/components/thesis/conditions-picker";
 import { absoluteDay, capitalize, dayWords } from "@/lib/day-words";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { STATUS_WORDS, type ThesisCounts, type ThesisEvent, type ThesisStatus } from "@/lib/thesis-monitor/model";
-import type { CompanyView, HistoryStretch, LineView } from "@/lib/thesis-monitor/view";
+import { waitingFor, type CompanyView, type HistoryStretch, type LineView, type Scale } from "@/lib/thesis-monitor/view";
 
 /**
  * The thesis page's pieces, with no hooks: the status block, a company card with its lines (now against the line on
@@ -111,8 +111,9 @@ export function ThesisSummary({
 
 /* ── a company and its lines ────────────────────────────────────────────── */
 
-function LineRow({ line }: { line: LineView }) {
+function LineRow({ line, scale }: { line: LineView; scale: Scale | null }) {
   const judged = line.status !== "unknown" && line.now !== null;
+  const awaited = waitingFor(line.text);
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <p className="flex min-w-0 items-baseline justify-between gap-3 text-[13.5px] leading-5">
@@ -123,12 +124,13 @@ function LineRow({ line }: { line: LineView }) {
             {line.nowText}
           </span>
         ) : (
-          <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{line.fresh ? "Not checked yet" : "Waiting"}</span>
+          <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{line.fresh ? "Not checked yet" : awaited ? `Waiting for ${awaited}` : "Can't check yet"}</span>
         )}
       </p>
       {judged ? (
-        <ConditionBar metric={line.condition.metric} now={line.now!} line={line.condition.value} holds={line.status !== "broken"} />
-      ) : (
+        // A figure shared across cards is on the page's one scale for it, labelled once above the cards.
+        <ConditionBar metric={line.condition.metric} now={line.now!} line={line.condition.value} holds={line.status !== "broken"} domain={scale} ends={!scale} />
+      ) : awaited ? null : (
         <p className="truncate text-[12.5px] leading-4 text-oa-muted-fg">{line.text}</p>
       )}
     </div>
@@ -152,11 +154,27 @@ function hoverOf(company: CompanyView): string {
   ].join("\n");
 }
 
-export function LinesCard({ company, name, quote, next = null, today, eager = false }: { company: CompanyView; name: string | null; quote: CardQuote; next?: string | null; today: string; eager?: boolean }) {
+export function LinesCard({
+  company,
+  name,
+  quote,
+  scales,
+  next = null,
+  today,
+  eager = false,
+}: {
+  company: CompanyView;
+  name: string | null;
+  quote: CardQuote;
+  scales: Partial<Record<string, Scale>>;
+  next?: string | null;
+  today: string;
+  eager?: boolean;
+}) {
   const short = shortCompanyName(name ?? "") || null;
   const basis = basisWords(company, next, today);
   return (
-    <li className={`oa-surface relative flex h-full min-w-0 flex-col gap-3 border bg-oa-card px-3.5 pb-3 pt-3 ${CARD_HOVER} ${company.broken > 0 ? "border-[color-mix(in_srgb,var(--signal-bearish)_40%,var(--oa-border))]" : "border-oa-border"}`}>
+    <li className={`oa-surface relative mb-3 flex min-w-0 break-inside-avoid flex-col gap-3 border bg-oa-card px-3.5 pb-3 pt-3 ${CARD_HOVER} ${company.broken > 0 ? "border-[color-mix(in_srgb,var(--signal-bearish)_40%,var(--oa-border))]" : "border-oa-border"}`}>
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <StockLogo ticker={company.ticker} size={28} eager={eager} />
@@ -178,11 +196,11 @@ export function LinesCard({ company, name, quote, next = null, today, eager = fa
       </div>
       <div className="flex min-w-0 flex-col gap-3">
         {company.lines.map((line) => (
-          <LineRow key={line.key} line={line} />
+          <LineRow key={line.key} line={line} scale={scales[line.condition.metric] ?? null} />
         ))}
       </div>
       {company.risk || basis ? (
-        <div className="oa-card-foot mt-auto flex min-w-0 flex-col gap-0.5 border-t border-oa-border pt-2 text-[12.5px] leading-4">
+        <div className="flex min-w-0 flex-col gap-0.5 border-t border-oa-border pt-2 text-[12.5px] leading-4">
           {company.risk ? (
             <p className="truncate text-oa-primary">
               {company.risk.form} {absoluteDay(company.risk.filed, today)} adds {company.risk.added} {company.risk.added === 1 ? "risk" : "risks"}
@@ -200,6 +218,18 @@ export function LinesCard({ company, name, quote, next = null, today, eager = fa
         className="absolute inset-0 z-[1] rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
       />
     </li>
+  );
+}
+
+/**
+ * The company cards in columns that keep each card's own height (one-line cards never stretch beside two-line ones),
+ * filled top to bottom so the ones that need a look, first in order, lead the first column.
+ */
+export function LinesColumns({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="[container-type:inline-size]">
+      <ul className="-mb-3 [column-gap:0.75rem] [@container(min-width:34rem)]:columns-2 [@container(min-width:52rem)]:columns-3">{children}</ul>
+    </div>
   );
 }
 

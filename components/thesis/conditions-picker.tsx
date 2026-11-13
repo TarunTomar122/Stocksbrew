@@ -15,22 +15,53 @@ const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(i
  * as a fill from zero (green while the line holds, red once it breaks) and the line as a tick. The words beside it
  * say the same.
  */
-export function ConditionBar({ metric, now, line, holds, className = "" }: { metric: ConditionMetric; now: number; line: number; holds: boolean; className?: string }) {
-  const scale = barScale(metric, now, line);
+export function ConditionBar({
+  metric,
+  now,
+  line,
+  holds,
+  domain = null,
+  ends = true,
+  className = "",
+}: {
+  metric: ConditionMetric;
+  now: number;
+  line: number;
+  holds: boolean;
+  /**
+   * A scale shared with other bars of the same figure (the thesis page): lengths compare across cards. A figure past
+   * either end is drawn to the end with an arrow there; the number beside the bar says the rest.
+   */
+  domain?: { from: number; to: number } | null;
+  /** Label the scale's ends under the bar (off where the page labels the shared scale once). */
+  ends?: boolean;
+  className?: string;
+}) {
+  const own = barScale(metric, now, line);
+  const at = (x: number, from: number, to: number) => Math.min(1, Math.max(0, (x - from) / (to - from)));
+  const scale = domain && domain.to > domain.from
+    ? { from: domain.from, to: domain.to, value: at(now, domain.from, domain.to), line: at(line, domain.from, domain.to), zero: domain.from < 0 ? at(0, domain.from, domain.to) : null }
+    : own;
+  const over = domain ? (now > domain.to ? "high" : now < domain.from ? "low" : null) : null;
   const base = scale.zero ?? 0;
   const left = Math.min(base, scale.value);
   const width = Math.abs(scale.value - base);
+  const fill = holds ? "bg-signal-bullish" : "bg-signal-bearish";
+  const tip = holds ? "text-signal-bullish" : "text-signal-bearish";
   return (
     <span aria-hidden="true" className={`flex flex-col gap-0.5 ${className}`}>
       <span className="relative block h-1.5 rounded-full bg-oa-bg">
-        <span className={`absolute inset-y-0 rounded-full ${holds ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ left: `${left * 100}%`, width: `${width * 100}%` }} />
+        <span className={`absolute inset-y-0 ${over === "high" ? "rounded-l-full" : over === "low" ? "rounded-r-full" : "rounded-full"} ${fill}`} style={{ left: `${left * 100}%`, width: `${width * 100}%` }} />
+        {over ? <span className={`absolute top-1/2 -translate-y-1/2 text-[10px] leading-none ${tip} ${over === "high" ? "-right-2" : "-left-2"}`}>{over === "high" ? "▶" : "◀"}</span> : null}
         {scale.zero !== null ? <span className="absolute -inset-y-0.5 w-px bg-oa-muted-fg" style={{ left: `${scale.zero * 100}%` }} /> : null}
         <span className="absolute -inset-y-1 w-[2px] rounded-full bg-oa-fg" style={{ left: `calc(${scale.line * 100}% - 1px)` }} />
       </span>
-      <span className="oa-type-fixed oa-mono flex justify-between text-[11px] leading-[13px] tabular-nums text-oa-muted-fg">
-        <span>{formatValue(metric, scale.from)}</span>
-        <span>{formatValue(metric, scale.to)}</span>
-      </span>
+      {ends ? (
+        <span className="oa-type-fixed oa-mono flex justify-between text-[11px] leading-[13px] tabular-nums text-oa-muted-fg">
+          <span>{formatValue(metric, scale.from)}</span>
+          <span>{formatValue(metric, scale.to)}</span>
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -168,7 +199,21 @@ type MenuState = { status: "loading" } | { status: "ready"; menu: ConditionMenu 
  * "Holds if…": up to two measurable lines on a reason, from the figures we store for this stock, each prefilled from
  * the stock's own value and shown against it on a small bar. The drafts live in the editor; this only edits them.
  */
-export function ConditionsPicker({ instrumentId, drafts, onChange }: { instrumentId: string; drafts: DraftCondition[]; onChange: (next: DraftCondition[]) => void }) {
+export function ConditionsPicker({
+  instrumentId,
+  drafts,
+  onChange,
+  bare = false,
+}: {
+  instrumentId: string;
+  drafts: DraftCondition[];
+  onChange: (next: DraftCondition[]) => void;
+  /**
+   * For a page that says "Holds if…" once over many companies (the thesis editor): no label of its own, and the add
+   * button is a quiet link under the lines, shown only while there is room for another.
+   */
+  bare?: boolean;
+}) {
   const [state, setState] = useState<MenuState>({ status: "loading" });
 
   useEffect(() => {
@@ -199,6 +244,34 @@ export function ConditionsPicker({ instrumentId, drafts, onChange }: { instrumen
     const op = METRICS[next.metric].defaultOp;
     onChange([...drafts, { metric: next.metric, op, text: next.prefill[op] !== undefined ? String(next.prefill[op]) : "" }]);
   };
+
+  const list =
+    state.status === "loading" && drafts.length === 0 ? null : drafts.length > 0 ? (
+      <ul className="flex flex-col gap-3">
+        {drafts.map((draft, index) => (
+          <ConditionRow
+            key={`${index}:${draft.metric}`}
+            draft={draft}
+            options={options}
+            taken={taken}
+            onChange={(changed) => onChange(drafts.map((item, at) => (at === index ? changed : item)))}
+            onRemove={() => onChange(drafts.filter((_, at) => at !== index))}
+          />
+        ))}
+      </ul>
+    ) : null;
+  if (bare) {
+    return (
+      <div className="flex flex-col gap-2">
+        {list}
+        {drafts.length < MAX_CONDITIONS && next ? (
+          <button type="button" onClick={add} className={`inline-flex h-8 items-center self-start rounded px-0.5 text-[13px] text-oa-muted-fg hover:text-oa-fg hover:underline ${FOCUS}`}>
+            {drafts.length === 0 ? "+ Add a line" : "+ Another line"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

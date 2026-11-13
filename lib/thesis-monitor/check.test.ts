@@ -257,7 +257,7 @@ describe("what is not news", () => {
   it("a line the person tightens until it breaks changes the status without a status event or a previous status", () => {
     const lines: ThesisLine[] = [LINES[0]!, { ticker: "VRT", conditions: [{ metric: "gross_margin", op: "above", value: 40 }] }];
     const state = checkThesis(input({ day: nextDay, now: new Date(`${nextDay}T15:00:00Z`), previous: first, lines, spec: { created_at: "2026-11-13T21:00:00.000Z", version: 2 } }));
-    expect(state).toMatchObject({ status: "strain", previous_status: null, status_since: nextDay, base: null, spec_version: 2 });
+    expect(state).toMatchObject({ status: "strain", previous_status: null, status_since: nextDay, base: { status: "strain", status_since: nextDay, previous_status: null }, spec_version: 2 });
     expect(state.events.filter((event) => event.kind === "status")).toEqual([]);
     // The night after, judged against itself: no change, nothing to say.
     const night = checkThesis(input({ day: nextDay, now: new Date(`${nextDay}T22:00:00Z`), previous: state, lines, spec: { created_at: "2026-11-13T21:00:00.000Z", version: 2 } }));
@@ -292,6 +292,42 @@ describe("what is not news", () => {
     expect(late.events.filter((event) => event.ticker === "NVDA" && event.kind === "filing").map((event) => [event.key, event.baseline])).toEqual([["filing:NVDA:nv-q", true]]);
     const backfill = checkThesis(input({ day: "2026-11-21", now: new Date("2026-11-21T22:00:00Z"), previous: late, filings: [doc("NVDA", [filing("10-Q", "nv-q", "2026-11-18", ["New debt risk."]), filing("10-K", "nv-k", "2026-02-25", ["Old risk."]), filing("10-Q", "nv-q0", "2026-08-26", ["Older."])])] }));
     expect(backfill.events.filter((event) => !event.baseline && event.kind === "filing")).toEqual([]);
+  });
+});
+
+describe("QA batch 90", () => {
+  const SPEC1 = { created_at: "2026-11-13T21:00:00.000Z", version: 1 };
+  const SPEC2 = { ...SPEC1, version: 2 };
+  const first = checkThesis(input({}));
+  const day = "2026-11-20";
+  const brokenVrt = new Map([
+    ["NVDA", figures("NVDA", "revenue_growth", 83.4, { date: "2026-08-26", quarter: "Q2" }, "2026-11-08T12:00:00Z")],
+    ["VRT", figures("VRT", "gross_margin", 31.2, { date: "2026-11-18", quarter: "Q4" }, "2026-11-19T00:30:00Z")],
+  ]);
+
+  it("a save then a same-day nightly check keeps the status's day and the status before it", () => {
+    // Night of Nov 20: VRT's new report breaks its line, so the thesis turns.
+    const night = checkThesis(input({ day, now: new Date(`${day}T22:00:00Z`), previous: first, inputs: brokenVrt, spec: SPEC1 }));
+    expect(night).toMatchObject({ status: "strain", status_since: day, previous_status: "holds" });
+    // The person edits a line the same evening (a new version): no news, and the status stays as it was.
+    const lines: ThesisLine[] = [{ ticker: "NVDA", conditions: [{ metric: "revenue_growth", op: "above", value: 45 }] }, LINES[1]!];
+    const saved = checkThesis(input({ day, now: new Date(`${day}T23:00:00Z`), previous: night, inputs: brokenVrt, lines, spec: SPEC2 }));
+    expect(saved).toMatchObject({ status: "strain", status_since: day, previous_status: "holds", base: { status: "strain", status_since: day, previous_status: "holds" } });
+    // The nightly check runs again the same day: judged against the post-edit base, nothing is wiped.
+    const again = checkThesis(input({ day, now: new Date(`${day}T23:30:00Z`), previous: saved, inputs: brokenVrt, lines, spec: SPEC2 }));
+    expect(again).toMatchObject({ status: "strain", status_since: day, previous_status: "holds" });
+  });
+
+  it("on a thesis's first check every report is context, even one filed two days ago", () => {
+    const fresh = new Map([
+      ["NVDA", figures("NVDA", "revenue_growth", 62, { date: "2026-11-18", quarter: "Q3" }, "2026-11-19T00:30:00Z")],
+      ["VRT", figures("VRT", "gross_margin", 31.2, { date: "2026-11-18", quarter: "Q4" }, "2026-11-19T00:30:00Z")],
+    ]);
+    const state = checkThesis(input({ day, now: new Date(`${day}T22:00:00Z`), inputs: fresh }));
+    expect(state.events.length).toBeGreaterThan(0);
+    expect(state.events.every((event) => event.baseline)).toBe(true);
+    // So nothing on day one can ask for a review, and the page titles the list "On file when it started".
+    expect(state.previous_status).toBeNull();
   });
 });
 

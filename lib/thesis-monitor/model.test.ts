@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("react", async (importOriginal) => ({ ...(await importOriginal<typeof import("react")>()), cache: <T>(fn: T) => fn }));
+vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {}, adminAuth: {} }));
 
 import {
   changedLines,
@@ -137,5 +140,17 @@ describe("links", () => {
     expect(thesisEditHref("holdings")).toBe("/agents/theses/new");
     expect(thesisEditHref({ basket: "abc123def456" })).toBe("/agents/theses/new?basket=abc123def456");
     expect(thesisEditHref({ id: "abc123def456" })).toBe("/agents/theses/abc123def456/edit");
+  });
+});
+
+describe("a state belongs to one thesis", () => {
+  it("is read only for the thesis it was made for: lines taken off and put back start clean", async () => {
+    const { stateFits } = await import("./data");
+    const state = { basket_id: "abc123def456", spec_created_at: "2026-11-13T00:00:00.000Z" } as never;
+    const basket = { id: "abc123def456", thesis: { created_at: "2026-11-13T00:00:00.000Z" } } as never;
+    expect(stateFits(state, basket)).toBe(true);
+    expect(stateFits(state, { id: "abc123def456", thesis: { created_at: "2026-11-20T00:00:00.000Z" } } as never)).toBe(false);
+    expect(stateFits(state, { id: "abc123def456", thesis: null } as never)).toBe(false);
+    expect(stateFits(null, basket)).toBe(false);
   });
 });

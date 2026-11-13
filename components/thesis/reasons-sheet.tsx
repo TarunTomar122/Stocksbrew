@@ -269,6 +269,22 @@ export function ReasonsStrip({ stocks }: { stocks: ThesisStock[] }) {
   const all = useAllTheses();
   useStoreVersion();
   const [open, setOpen] = useState(false);
+  const [thesis, setThesis] = useState<{ href: string; tickers: string[] } | null>(null);
+
+  useEffect(() => {
+    // After the page is up, the newest thesis over holdings (if any), so the line can count it apart from reasons.
+    let live = true;
+    fetch("/api/theses", { cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<{ theses?: Array<{ holdings: boolean; enabled: boolean; tickers: string[]; href: string }> }>) : null))
+      .then((body) => {
+        const found = body?.theses?.filter((entry) => entry.holdings).at(-1) ?? null;
+        if (live && found) setThesis({ href: found.href, tickers: found.tickers });
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     loadTheses();
@@ -284,6 +300,9 @@ export function ReasonsStrip({ stocks }: { stocks: ThesisStock[] }) {
 
   if (!all || stocks.length === 0) return null;
   const withReason = stocks.filter((stock) => all[stock.instrument_id]);
+  // The holdings a thesis over them covers (lib/thesis-monitor): a different count, said as its own sentence.
+  const held = new Set(stocks.map((stock) => stock.instrument_id.replace(/^US_/, "").replace(/_/g, ".")));
+  const inThesis = thesis ? thesis.tickers.filter((ticker) => held.has(ticker)).length : 0;
   const counts: Record<Verdict, number> = { broken: 0, weaker: 0, played_out: 0, holds: 0 };
   for (const stock of withReason) {
     const check = getCheck(stock.instrument_id).check;
@@ -304,11 +323,21 @@ export function ReasonsStrip({ stocks }: { stocks: ThesisStock[] }) {
   const text =
     withReason.length === 0
       ? "Why do you own them? Give each holding a reason and the agent checks it against the company's numbers."
-      : `You have given a reason for ${withReason.length} of your ${stocks.length} holdings.${found}`;
+      : `You gave your own reason for ${withReason.length} of your ${stocks.length} holdings.${found}`;
 
   return (
     <div className="flex flex-col gap-2 border-b border-oa-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-pretty text-[13.5px] leading-5 text-oa-fg">{text}</p>
+      <p className="text-pretty text-[13.5px] leading-5 text-oa-fg">
+        {text}
+        {thesis && inThesis > 0 ? (
+          <>
+            {" "}
+            <a href={thesis.href} className="font-medium text-oa-primary hover:underline">
+              {inThesis} {inThesis === 1 ? "is" : "are"} in your thesis.
+            </a>
+          </>
+        ) : null}
+      </p>
       <button type="button" onClick={() => setOpen(true)} className={`${PLAIN} h-9 shrink-0 self-start text-[13.5px] sm:self-auto`}>
         {withReason.length === 0 ? "Add your reasons" : "Review your reasons"}
       </button>

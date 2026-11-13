@@ -1,3 +1,9 @@
+## StocksBrew hosting (self-hosted since 2026-11-13)
+
+- The web app no longer runs on Vercel (the Hobby team was paused for CPU on Nov 12). It runs on the VPS: Caddy (HTTPS for www.stocksbrew.online; the bare domain redirects to www) → Varnish on 127.0.0.1:6081 (caches only public routes: build files, logos, share images, sitemaps) → two Next standalone instances, `tikrr-web@3000` and `tikrr-web@3001`. Files: `backend/vps/web/`.
+- Deploy with `bash backend/vps/web/deploy-web.sh [ref]` from the laptop: it builds in `~/.cache/tikrr-web-build` with the production env in `~/.config/tikrr/web.env` (mode 600, never printed or committed), ships the build, swaps the sharp binaries for linux, restarts one instance at a time and warms the busiest pages. The runtime env on the VPS is `/etc/tikrr/web.env`; after editing the laptop copy, `scp` it there before deploying. Never build on the VPS (not enough memory).
+- Load tested Nov 13: ~110 req/s per page type through Caddy with 0 errors, ~3,500 req/s for cached logos.
+
 ## StocksBrew LocalDB/VPS runtime
 
 - The web app and pipeline jobs use the VPS SQLite document store through the Firestore-shaped adapter in `lib/local-firestore.ts`. `lib/firebase-admin.ts` selects LocalDB when `LOCALDB_URL` and `LOCALDB_API_TOKEN` are present; Firebase Admin remains for Auth and explicit rollback only.

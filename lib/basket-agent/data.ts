@@ -233,7 +233,7 @@ export async function createBasket(
   const existing = await listBaskets(uid);
   if (existing.length >= MAX_BASKETS_PER_USER)
     throw new BasketAgentError(
-      `You can keep up to ${MAX_BASKETS_PER_USER} idea baskets. Remove one to add another.`,
+      `You can keep up to ${MAX_BASKETS_PER_USER} idea baskets and theses together. Remove one to add another.`,
     );
   const room = (await runningAgents(uid)) < limitFor("agents", plan);
   const stamp = now.toISOString();

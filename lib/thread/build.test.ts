@@ -351,6 +351,8 @@ describe("filing notes on stocks in an idea basket", () => {
       { name: "Memory", lines: [{ ticker: "MU" }] },
     ]);
     expect(baskets).toEqual({ MU: ["AI capex", "Memory"], NVDA: ["AI capex"] });
+    // A thesis over holdings is not an idea basket: it is never named as one.
+    expect(basketsByTicker([{ name: "AI thesis", lines: [{ ticker: "MU" }], source: { kind: "holdings" } }])).toEqual({});
     const note = eventNote(FILING, { levels: () => true, today: TODAY, baskets }, new Map())!;
     expect(note.text).toBe("MU's new 10-K adds 2 risks and drops 1. It's in your “AI capex” and “Memory” baskets.");
     expect(note.step).toMatchObject({ href: "/stock/MU#filing-changes" });

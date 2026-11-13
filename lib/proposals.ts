@@ -19,7 +19,7 @@ import { quote, risks } from "@/lib/filing-changes/words";
 import { firstSentence } from "@/lib/thread/record";
 import { basketDrafts, basketStale, type ProposalBasket } from "@/lib/basket-agent/proposals";
 import type { BasketChange } from "@/lib/basket-agent/model";
-import { thesisBasketOf, thesisDrafts, type ProposalThesis } from "@/lib/thesis-monitor/proposals";
+import { THESIS_GROUP, thesisBasketOf, thesisDrafts, thesisStale, type ProposalThesis } from "@/lib/thesis-monitor/proposals";
 
 export const PROPOSALS_COLLECTION = "tm_agent_proposals";
 export const PROPOSAL_VERSION = 1;
@@ -1403,6 +1403,9 @@ export const UNVERIFIED = "unverified";
 export function staleReason(proposal: Proposal, inputs: ProposalInputs): string | null {
   const action = proposal.action;
   if (Date.parse(proposal.expires_at) <= inputs.now.getTime()) return "expired";
+  // A thesis review goes with its thesis: removed or paused, the review is set aside (lib/thesis-monitor).
+  const thesis = thesisStale(proposal, inputs.theses);
+  if (thesis) return thesis;
   switch (action.type) {
     case "alert_price": {
       if (inputs.alerts && hasAlertNear(inputs, action.ticker, action.condition, action.price)) return "alert_set";
@@ -1564,7 +1567,8 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     does: repeatsTitle(proposal.title, proposal.does) ? null : proposal.does,
     level: proposal.level ?? levelOf(proposal.action),
     usualPct: proposal.usualPct ?? null,
-    group: groupOf(proposal.action),
+    // A thesis review stays a review under its own heading; the alert it sets is the card's own part.
+    group: proposal.kind === "thesis_review" ? { ...THESIS_GROUP, short: groupOf(proposal.action).short } : groupOf(proposal.action),
   };
 }
 

@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { SignInButton } from "@/components/briefing/sign-in-button";
-import { CardRows } from "@/components/basket-agent/parts";
 import { LockCard } from "@/components/oa/gate";
 import { AppPage, Empty, PageHead, Panel } from "@/components/oa/kit";
-import { EventList, HistoryList, LinesCard, StatusStrip, ThesisSummary } from "@/components/thesis-monitor/parts";
+import { EventList, HistoryList, LinesCard, LinesColumns, StatusStrip, ThesisSummary } from "@/components/thesis-monitor/parts";
 import { ThesisActions } from "@/components/thesis-monitor/thesis-actions";
 import { agentMarketDay, listJobs } from "@/lib/agent-jobs-data";
 import { afterCloseDayWords, afterCloseTimeEt, nextAfterCloseRun } from "@/lib/agent-schedule";
@@ -17,7 +16,8 @@ import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
 import { loadThesis } from "@/lib/thesis-monitor/data";
 import { thesisEditHref } from "@/lib/thesis-monitor/model";
-import { companiesView, historyStretches } from "@/lib/thesis-monitor/view";
+import { absoluteDay } from "@/lib/day-words";
+import { basisSpan, companiesView, historyStretches, scaleWords, sharedScales } from "@/lib/thesis-monitor/view";
 
 export const dynamic = "force-dynamic";
 
@@ -60,17 +60,20 @@ export default async function ThesisPage({ params }: Props) {
   const tickers = basket.lines.map((line) => line.ticker);
   const names = Object.fromEntries(basket.lines.map((line) => [line.ticker, line.company]));
   const companies = companiesView(basket.thesis, state, tickers);
+  const scales = sharedScales(companies);
+  const span = basisSpan(companies);
+  // How old the evidence is, beside when it was checked: "figures from Aug 26 – Nov 8".
+  const spanWords = span ? `figures from ${span.from === span.to ? absoluteDay(span.from, today) : `${absoluteDay(span.from, today)} – ${absoluteDay(span.to, today)}`}` : null;
   const next = nextAfterCloseRun(new Date());
   const when = pausedByPlan
     ? "Paused by your plan"
     : !basket.enabled
       ? "Paused"
       : state
-        ? `Checked ${dayWords(state.day, today)}`
+        ? `Checked ${dayWords(state.day, today)}${spanWords ? ` · ${spanWords}` : ""}`
         : `First check ${afterCloseDayWords(next)}, ${afterCloseTimeEt(next)}`;
   const lineTotal = companies.reduce((sum, company) => sum + company.lines.length, 0);
   const stretches = state ? historyStretches(state.history) : [];
-  const cols = companies.length === 2 || companies.length === 4 ? 2 : 3;
 
   return (
     <AppPage width="wide" className="max-w-[68rem]">
@@ -108,19 +111,28 @@ export default async function ThesisPage({ params }: Props) {
             {lineTotal} on {companies.length} {companies.length === 1 ? "company" : "companies"}
           </span>
         </h2>
-        <CardRows cols={cols}>
+        {Object.keys(scales).length > 0 ? (
+          <p className="oa-mono px-1 text-[12px] leading-4 tabular-nums text-oa-muted-fg">
+            {Object.entries(scales)
+              .map(([metric, scale]) => scaleWords(metric as Parameters<typeof scaleWords>[0], scale!))
+              .join(" · ")
+              .replace(/^/, "Bars: ")}
+          </p>
+        ) : null}
+        <LinesColumns>
           {companies.map((company, index) => (
             <LinesCard
               key={company.ticker}
               company={company}
               name={names[company.ticker] ?? null}
               quote={quotes[company.ticker] ?? null}
+              scales={scales}
               next={nextReports[company.ticker] ?? null}
               today={today}
               eager={index < 6}
             />
           ))}
-        </CardRows>
+        </LinesColumns>
       </section>
 
       {state && state.events.length > 0 ? (

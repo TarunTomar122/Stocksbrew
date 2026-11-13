@@ -43,7 +43,8 @@ export type ProposalThesis = {
   id: string;
   name: string;
   enabled: boolean;
-  state: Pick<ThesisState, "day" | "checked_at" | "status" | "status_since" | "previous_status" | "counts" | "affected" | "events">;
+  /** Its latest check; null before the first (the thesis exists, there is nothing to review yet). */
+  state: Pick<ThesisState, "day" | "checked_at" | "status" | "status_since" | "previous_status" | "counts" | "affected" | "events"> | null;
   /** Prices of affected companies the person does not track (their tracked ones come with the inputs). */
   quotes: Record<string, ProposalQuote>;
 };
@@ -60,7 +61,7 @@ function quoted(name: string): string {
 
 /** "“AI infrastructure” is under strain: 5 of 6 lines hold." (or "Your thesis …" when the name will not fit). */
 function statusLine(thesis: ProposalThesis): string {
-  const { status, counts } = thesis.state;
+  const { status, counts } = thesis.state!;
   const verb = status === "holds" ? "still holds" : `is ${STATUS_WORDS[status].toLowerCase()}`;
   const tail = `${verb}: ${counts.holds} of ${counts.lines} lines hold.`;
   const named = `${quoted(thesis.name)} ${tail}`;
@@ -72,6 +73,7 @@ type Trigger = { key: string; ticker: string; evidence: ThesisEvent | null };
 /** What asks for a review, strongest first: a broken line on a holding, then a worse status. Null when nothing does. */
 export function triggerOf(thesis: ProposalThesis, held: ReadonlySet<string>, today: string): Trigger | null {
   const { state } = thesis;
+  if (!state) return null;
   if (!recent(state.day, today)) return null;
   const news = state.events.filter((event) => !event.baseline && recent(event.day, today));
   const brokeOnHolding = news.find((event) => event.verdict === "broken" && event.ticker && held.has(event.ticker));
@@ -103,7 +105,7 @@ export function thesisDrafts(inputs: ProposalInputs): ProposalDraft[] {
     const next = levelBelow(local, ticker, point.price);
     const replaces = alertUnder(local, ticker, point.price, next);
     if (replaces === false) continue;
-    const { state } = thesis;
+    const state = thesis.state!;
     const evidence = trigger.evidence;
     const title = replaces ? `Review your thesis: move ${ticker}'s alert to ${usd(next.price)}` : `Review your thesis: set an alert on ${ticker} at ${usd(next.price)}`;
     const read: ProposalSource[] = [
@@ -144,3 +146,18 @@ export function thesisBasketOf(entry: { kind?: string; event?: { refs?: readonly
   const ref = entry.event?.refs?.find((value) => value.startsWith("basket:"));
   return ref ? ref.slice("basket:".length) : null;
 }
+
+/**
+ * Why a waiting thesis review no longer fits, or null: its thesis was removed (or lost its lines) or paused. Null too
+ * when the theses were not read, so a slow read never sets a review aside on a guess.
+ */
+export function thesisStale(entry: { kind?: string; event?: { refs?: readonly string[] } }, theses: readonly ProposalThesis[] | null | undefined): string | null {
+  const id = thesisBasketOf(entry);
+  if (!id || !theses) return null;
+  const thesis = theses.find((item) => item.id === id);
+  if (!thesis) return "thesis_gone";
+  return thesis.enabled ? null : "thesis_paused";
+}
+
+/** A thesis review keeps its framing when cards of one action share a heading: under "Review your thesis", not alerts. */
+export const THESIS_GROUP = { key: "thesis_review", heading: "Review your thesis" } as const;

@@ -153,6 +153,7 @@ function assemble(
  */
 async function basketReads(uid: string | null, tracked: readonly string[], now: Date): Promise<{ baskets: Record<string, string[]>; filings: InboxItem[] }> {
   if (!uid) return { baskets: {}, filings: [] };
+  // Idea baskets only (basketsByTicker leaves theses over holdings out: they are not baskets to name in a note).
   const baskets = basketsByTicker(await within(listBaskets(uid), SIDE_TIMEOUT_MS, [], "baskets"));
   const own = new Set(tracked);
   const extra = Object.keys(baskets).filter((ticker) => !own.has(ticker));
