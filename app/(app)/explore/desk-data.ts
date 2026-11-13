@@ -10,6 +10,10 @@ import { FUND_TOPIC, SECTOR_IDS } from "@/lib/markets-insights";
 import { sharedCache } from "@/lib/shared-cache";
 import { moveFacts, type CloseSeries } from "@/lib/briefing-move-facts";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getMarketSnapshot } from "@/lib/firestore";
+import { getSectorFundIndex } from "@/lib/sector-day";
+import { sectorMovers, type SectorMover } from "@/lib/sector-day-shared";
+import type { SnapshotRow } from "@/lib/types";
 
 /**
  * Everything the Market today page shows, one loader per panel so each panel can
@@ -19,13 +23,13 @@ import { adminFirestore } from "@/lib/firebase-admin";
 
 const SOURCE_TIMEOUT_MS = 9000;
 
-async function soft<T>(name: string, work: Promise<T>, fallback: T): Promise<T> {
+async function soft<T>(name: string, work: Promise<T>, fallback: T, ms = SOURCE_TIMEOUT_MS): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<T>((resolve) => {
     timer = setTimeout(() => {
       console.error("explore_source_timeout", name);
       resolve(fallback);
-    }, SOURCE_TIMEOUT_MS);
+    }, ms);
   });
   try {
     return await Promise.race([work.catch((error) => (console.error("explore_source_failed", name, error), fallback)), timeout]);
@@ -194,6 +198,27 @@ export function loadDeskMarketsData(): Promise<MarketsData> {
 }
 
 export type DeskSector = { id: string; name: string; slug: string; day: number; month: number | null };
+
+/** How long the sector map waits for its movers before it draws without them. */
+const SECTOR_MOVERS_BUDGET_MS = 1500;
+
+export type DeskMoverInputs = { quotes: SnapshotRow[]; fundOf: Record<string, string> };
+
+/**
+ * What the sector map's movers come from: the live price snapshot (lib/firestore.ts getMarketSnapshot, one read a
+ * minute for the whole app, shared with the home page, Signals and the screener's sector day) and each stock's sector
+ * (lib/sector-day.ts getSectorFundIndex, a small index cached an hour). The map never waits on them for long: past the
+ * budget, or on a failure, it draws without movers.
+ */
+export function loadDeskMoverInputs(): Promise<DeskMoverInputs> {
+  const work = Promise.all([getMarketSnapshot("US"), getSectorFundIndex()]).then(([quotes, fundOf]) => ({ quotes, fundOf }));
+  return soft("sector-movers", work, { quotes: [], fundOf: {} }, SECTOR_MOVERS_BUDGET_MS);
+}
+
+/** Each sector's biggest movers on the day of the sector figures (`asOf`), keyed by sector fund id. */
+export function deskSectorMovers(inputs: DeskMoverInputs, asOf: string | null): Map<string, SectorMover[]> {
+  return sectorMovers(inputs.quotes, inputs.fundOf, etDayOfStamp(asOf));
+}
 
 /**
  * The 11 sectors and how each did on the day, from the sector funds, best first, and the oldest of their quote times.

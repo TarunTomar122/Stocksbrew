@@ -1,5 +1,7 @@
 import { SECTOR_IDS, type MarketAsset } from "@/lib/markets-shared";
 import { sectorSlug, type ScreenerRow, type SectorStat } from "@/lib/screener-shared";
+import { normalizeSectorName } from "@/lib/gics-sector";
+import { etDayOfStamp } from "@/lib/quote-time";
 import type { SnapshotRow } from "@/lib/types";
 
 /**
@@ -88,4 +90,51 @@ export function sectorDayStamp(funds: ReadonlyMap<string, SectorFundDay>, rows: 
   for (const fund of funds.values()) consider(fund.asOf);
   if (!best) for (const row of rows) consider(row.price_at);
   return (best as { ms: number; iso: string } | null)?.iso ?? null;
+}
+
+/* ── each sector's biggest movers ───────────────────────────────────────── */
+
+/** The screener's sector slug -> its sector fund ("technology" -> "xlk"). */
+const FUND_BY_SLUG: Record<string, string> = Object.fromEntries(Object.entries(SECTOR_FUND_SLUG).map(([fund, slug]) => [slug, fund]));
+
+/** A sector's fund id from its name as the screener resolves it ("Health Care", or an alias such as "Healthcare") -> "xlv", or null. */
+export function sectorFund(sector: string | null | undefined): string | null {
+  return FUND_BY_SLUG[sectorSlug(normalizeSectorName(sector) ?? sector)] ?? null;
+}
+
+export type SectorMover = { ticker: string; pct: number; price: number | null };
+
+/**
+ * Each sector's biggest movers of `day` (a New York day, the day the sector funds' figures are from), up or down,
+ * biggest first, at most `limit` a sector, keyed by sector fund id ("xlk"), from the live price snapshot. A stock's
+ * sector is the screener's (`fundOf`: ticker -> fund id, resolved from its industry), never the snapshot's own tag,
+ * which files Newmont under energy and Moderna under technology. Only quotes priced on `day` count, so a stock's move
+ * is never from another session than its sector's; no `day`, no movers.
+ */
+export function sectorMovers(
+  rows: readonly SnapshotRow[],
+  fundOf: Readonly<Record<string, string>>,
+  day: string | null,
+  limit = 3,
+): Map<string, SectorMover[]> {
+  const out = new Map<string, SectorMover[]>();
+  if (!day) return out;
+  const funds = new Set(SECTOR_IDS);
+  for (const row of rows) {
+    const pct = row?.price?.changePct;
+    const ticker = row?.symbol?.toUpperCase();
+    const fund = ticker && Object.prototype.hasOwnProperty.call(fundOf, ticker) ? fundOf[ticker] : undefined;
+    if (!fund || !ticker || row.market !== "US" || funds.has(ticker.toLowerCase())) continue;
+    if (typeof pct !== "number" || !Number.isFinite(pct) || Math.abs(pct) < 0.005) continue;
+    if (etDayOfStamp(row.lastUpdated) !== day) continue;
+    const price = row.price.current;
+    const list = out.get(fund) ?? [];
+    list.push({ ticker, pct, price: typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null });
+    out.set(fund, list);
+  }
+  for (const [fund, list] of out) {
+    list.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || (a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0));
+    out.set(fund, list.slice(0, Math.max(0, limit)));
+  }
+  return out;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { sectorStats, type ScreenerRow } from "@/lib/screener-shared";
-import { sectorDayStamp, sectorFundDays, withLiveDayMoves, withSectorFundDays } from "@/lib/sector-day-shared";
+import { sectorDayStamp, sectorFund, sectorFundDays, sectorMovers, withLiveDayMoves, withSectorFundDays } from "@/lib/sector-day-shared";
 import { dayLabelFor } from "@/lib/session-label";
 import type { SnapshotRow } from "@/lib/types";
 
@@ -54,5 +54,69 @@ describe("sector day", () => {
     // Without the live figures, the snapshot's own build says yesterday, never today.
     expect(dayLabelFor(BUILT, "Today", thursday)).toBe("Yesterday");
     expect(sectorDayStamp(new Map(), withLiveDayMoves(rows, live))).toBe("2026-11-12T20:59:00+00:00");
+  });
+});
+
+describe("sectorMovers", () => {
+  const quote = (symbol: string, sectorId: string | undefined, changePct: number, lastUpdated = "2026-11-12T20:59:00+00:00", market = "US") =>
+    ({ instrumentId: `US_${symbol}`, market, symbol, name: symbol, sectorId, lastUpdated, price: { current: 100, changePct } }) as SnapshotRow;
+  const snapshot = [
+    quote("NVDA", "technology", -4.43),
+    quote("SMCI", "information-technology", -11.3),
+    quote("AAPL", "technology", 0.74),
+    quote("MSFT", "technology", 0.4),
+    quote("ORCL", "technology", -1),
+    // Yesterday's quote: another session than the sector's.
+    quote("AMD", "technology", 9, "2026-11-11T20:59:00+00:00"),
+    quote("XOM", "energy", 1.2),
+    quote("LLY", "healthcare", -2),
+    quote("XLK", "technology", -0.7),
+    quote("SPY", "macro", -0.2),
+    quote("RELIANCE", "energy", 5, "2026-11-12T20:59:00+00:00", "IN"),
+    // Filed under energy by the snapshot, Materials by the screener: the screener's sector wins.
+    quote("NEM", "energy", -4.9),
+  ];
+  const fundOf: Record<string, string> = {
+    NVDA: "xlk",
+    SMCI: "xlk",
+    AAPL: "xlk",
+    MSFT: "xlk",
+    ORCL: "xlk",
+    AMD: "xlk",
+    XOM: "xle",
+    LLY: "xlv",
+    XLK: "xlk",
+    RELIANCE: "xle",
+    NEM: "xlb",
+  };
+
+  it("gives each sector fund its biggest moves of the day, up or down, biggest first", () => {
+    const movers = sectorMovers(snapshot, fundOf, "2026-11-12");
+    expect(movers.get("xlk")?.map((mover) => mover.ticker)).toEqual(["SMCI", "NVDA", "ORCL"]);
+    expect(movers.get("xle")?.map((mover) => mover.ticker)).toEqual(["XOM"]);
+    expect(movers.get("xlv")?.[0]).toEqual({ ticker: "LLY", pct: -2, price: 100 });
+    // The fund itself, unplaceable sectors and other markets are not movers.
+    expect([...movers.values()].flat().map((mover) => mover.ticker)).not.toContain("XLK");
+    expect([...movers.values()].flat().map((mover) => mover.ticker)).not.toContain("RELIANCE");
+    expect(movers.has("macro")).toBe(false);
+    expect(movers.get("xlb")?.map((mover) => mover.ticker)).toEqual(["NEM"]);
+    // A stock the screener does not cover (SPY here) has no sector, so no tile.
+    expect(sectorMovers(snapshot, {}, "2026-11-12").size).toBe(0);
+  });
+
+  it("never mixes sessions: no day or another day's quotes, no movers", () => {
+    expect(sectorMovers(snapshot, fundOf, null).size).toBe(0);
+    expect(sectorMovers(snapshot, fundOf, "2026-11-11").get("xlk")?.map((mover) => mover.ticker)).toEqual(["AMD"]);
+    expect(sectorMovers([], fundOf, "2026-11-12").size).toBe(0);
+    expect(sectorMovers(snapshot, fundOf, "2026-11-12", 1).get("xlk")).toHaveLength(1);
+  });
+
+  it("names each screener sector's fund", () => {
+    expect(sectorFund("Information Technology")).toBe("xlk");
+    expect(sectorFund("Health Care")).toBe("xlv");
+    expect(sectorFund("Communication Services")).toBe("xlc");
+    expect(sectorFund("Real Estate")).toBe("xlre");
+    expect(sectorFund("Macro")).toBeNull();
+    expect(sectorFund(undefined)).toBeNull();
   });
 });

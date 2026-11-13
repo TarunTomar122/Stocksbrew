@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_SHARE, columnLayout, gridPlan, mapHeight, moveWeights, planTreemap, squarify, type PlanItem } from "@/lib/treemap";
+import { MAX_SHARE, columnLayout, gridPlan, mapHeight, moveWeights, planTreemap, sliceLayout, squarify, stripLayout, type PlanItem } from "@/lib/treemap";
 import { PRICED_H, tileNeed } from "@/lib/treemap-fit-math";
 
 describe("squarify", () => {
@@ -109,8 +109,10 @@ describe("moveWeights", () => {
   it("compresses the moves: a 1.79% day against 0.1% days is nowhere near most of the map", () => {
     const weights = moveWeights(SECTOR_DAY.map(([, move]) => move));
     const total = weights.reduce((sum, weight) => sum + weight, 0);
-    expect(weights[0]! / total).toBeLessThan(0.3);
-    expect(weights[0]! / total).toBeLessThanOrEqual(MAX_SHARE);
+    expect(weights[0]! / total).toBeLessThanOrEqual(MAX_SHARE + 1e-9);
+    // Less compressed than a square root: an 8% day is at least six times a 0.4% one before any floor.
+    const [big, small] = moveWeights([8, 0.4], 0, 1);
+    expect(big! / small!).toBeGreaterThan(6);
   });
 
   it("keeps the order: a bigger move never gets a smaller weight, up or down", () => {
@@ -170,7 +172,7 @@ describe("planTreemap", () => {
           expect((box.w / 100) * plan.width).toBeGreaterThanOrEqual(item.need.w - 0.01);
           expect((box.h / 100) * plan.height).toBeGreaterThanOrEqual(item.need.h - 0.01);
           expect(aspect(plan, item.key)).toBeGreaterThanOrEqual(0.8);
-          expect(aspect(plan, item.key)).toBeLessThanOrEqual(width < 500 ? 2.7 : 2.3);
+          expect(aspect(plan, item.key)).toBeLessThanOrEqual(width < 500 ? 2.7 : 3);
         }
         const area = plan.boxes.reduce((sum, box) => sum + box.w * box.h, 0);
         expect(area).toBeCloseTo(100 * 100, 3);
@@ -186,6 +188,66 @@ describe("planTreemap", () => {
         if (Math.abs(move ?? 0) > Math.abs(otherMove ?? 0)) expect(share(plan, name)).toBeGreaterThanOrEqual(share(plan, other) - 1e-9);
       }
     }
+  });
+
+  it("sizes today's book by its moves at every width: strictly in order, the 8% day at least three times the 0.4% one", () => {
+    // The owner's Nov 13 book, priced, as the briefing's money map asks (its 4px gap and the tile's 2px border).
+    const today: Array<[string, number, string]> = [
+      ["SMR", -8, "$11.20"],
+      ["ASTS", -5.8, "$52.10"],
+      ["AVGO", 5.5, "$362.40"],
+      ["NVDA", -4.4, "$183.10"],
+      ["CBRS", -3.2, "$41.30"],
+      ["MRVL", -2.6, "$88.20"],
+      ["TSM", -1.9, "$290.50"],
+      ["GOOGL", 1.8, "$281.00"],
+      ["ORCL", -1, "$215.30"],
+      ["MSFT", 0.4, "$505.20"],
+    ];
+    const items: PlanItem[] = today.map(([ticker, move, price]) => {
+      const need = tileNeed({ name: ticker, mono: true, move: `${move > 0 ? "+" : "−"}${Math.abs(move).toFixed(1)}%`, price });
+      return { key: ticker, move, need: { w: need.w + 6, h: need.h + 6 } };
+    });
+    for (const width of [304, 482, 592, 653, 736, 992]) {
+      const plan = planTreemap(items, width, { keepAll: true });
+      expect(plan.dropped).toEqual([]);
+      // Strictly in order: a bigger move never gets a smaller tile.
+      for (let index = 1; index < today.length; index += 1) {
+        expect(share(plan, today[index - 1]![0])).toBeGreaterThanOrEqual(share(plan, today[index]![0]) - 1e-9);
+      }
+      expect(share(plan, "SMR") / share(plan, "MSFT")).toBeGreaterThanOrEqual(3);
+      for (const item of items) {
+        const box = plan.boxes.find((entry) => entry.key === item.key)!;
+        expect((box.w / 100) * plan.width).toBeGreaterThanOrEqual(item.need.w - 0.01);
+        expect((box.h / 100) * plan.height).toBeGreaterThanOrEqual(item.need.h - 0.01);
+      }
+    }
+    // On a desktop the map grows a little rather than make the small moves one size: the 1% and 0.4% days differ,
+    // and the 8% day is over five times the 0.4% one (Nov 13, the old square-root map: 14.6% against 8.2%).
+    const desk = planTreemap(items, 992, { keepAll: true });
+    expect(share(desk, "SMR") / share(desk, "MSFT")).toBeGreaterThan(5);
+    expect(share(desk, "ORCL") / share(desk, "MSFT")).toBeGreaterThan(1.2);
+    expect(desk.height).toBeLessThanOrEqual(2 * mapHeight(items.length, 992));
+  });
+
+  it("ends level with the column beside it: a map given a minHeight raises its floor before it grows", () => {
+    for (const width of [482, 653]) {
+      const plan = planTreemap(book(), width, { keepAll: true, minHeight: 260 });
+      expect(plan.height).toBe(260);
+      expect(plan.dropped).toEqual([]);
+    }
+  });
+
+  it("never doubles a big book's map for one huge day among flat ones", () => {
+    const many: PlanItem[] = Array.from({ length: 120 }, (_, index) => ({
+      key: `K${String(index).padStart(3, "0")}`,
+      move: index === 0 ? 40 : (index % 7) * 0.05,
+      need: { w: 80, h: 70 },
+    }));
+    const plan = planTreemap(many, 992, { keepAll: true });
+    expect(plan.boxes).toHaveLength(120);
+    // The grid of 120 labels alone is about 2,300px tall at 992 wide; the map stays within a third of that.
+    expect(plan.height).toBeLessThan(3100);
   });
 
   it("makes a desktop book of eleven about 200-260px tall", () => {
@@ -285,6 +347,59 @@ describe("planTreemap", () => {
       expect(plan.dropped).toEqual([]);
     }
     expect(planTreemap([], 482).boxes).toEqual([]);
+  });
+});
+
+describe("sliceLayout and stripLayout", () => {
+  const weights = [9, 7, 6, 5, 4, 3, 2, 1.5, 1, 0.6].map((weight, index) => ({ key: `K${index}`, weight }));
+  for (const [name, lay] of [
+    ["sliceLayout", (w: number, h: number) => sliceLayout(weights, w, h, 1.5, undefined, [0.8, 3])],
+    ["stripLayout", (w: number, h: number) => stripLayout(weights, w, h, 1.5, undefined, [0.8, 3])],
+    ["stripLayout in columns", (w: number, h: number) => stripLayout(weights, w, h, 1.5, undefined, [0.8, 3], true)],
+  ] as const) {
+    it(`${name} fills the map exactly, every area by its weight`, () => {
+      for (const [w, h] of [[992, 300], [304, 520]] as const) {
+        const boxes = lay(w, h);
+        expect(boxes).toHaveLength(weights.length);
+        const total = weights.reduce((sum, item) => sum + item.weight, 0);
+        for (const item of weights) {
+          const box = boxes.find((entry) => entry.key === item.key)!;
+          expect((box.w * box.h) / (100 * 100)).toBeCloseTo(item.weight / total, 6);
+          expect(box.x).toBeGreaterThanOrEqual(-1e-9);
+          expect(box.y).toBeGreaterThanOrEqual(-1e-9);
+          expect(box.x + box.w).toBeLessThanOrEqual(100 + 1e-6);
+          expect(box.y + box.h).toBeLessThanOrEqual(100 + 1e-6);
+        }
+      }
+    });
+  }
+
+  it("never draws a NaN or loses an item over zero weights", () => {
+    const zeros = [{ key: "A", weight: 3 }, { key: "B", weight: 0 }, { key: "C", weight: 0 }];
+    for (const boxes of [sliceLayout(zeros, 400, 300, 1.5), stripLayout(zeros, 400, 300, 1.5), stripLayout(zeros, 400, 300, 1.5, undefined, undefined, true), sliceLayout([{ key: "Z", weight: 0 }, { key: "Y", weight: 0 }], 400, 300, 1.5)]) {
+      expect(boxes.length).toBeGreaterThan(0);
+      for (const box of boxes) for (const value of [box.x, box.y, box.w, box.h]) expect(Number.isFinite(value)).toBe(true);
+    }
+    expect(stripLayout(zeros, 400, 300, 1.5)).toHaveLength(3);
+  });
+
+  it("judges a column's tiles the way up the map is drawn: no tall slabs in columns either", () => {
+    // A wide map laid in columns: each column is short and wide, so a tall tile there is a real slab, and costs more.
+    const four = [4, 3, 2, 1].map((weight, index) => ({ key: `C${index}`, weight }));
+    const boxes = stripLayout(four, 600, 200, 1.5, undefined, [0.8, 3], true);
+    for (const box of boxes) {
+      const aspect = ((box.w / 100) * 600) / ((box.h / 100) * 200);
+      expect(aspect).toBeGreaterThanOrEqual(0.8 - 1e-9);
+    }
+  });
+
+  it("sliceLayout finds room for every tile's label, the smallest too", () => {
+    const needs = new Map(weights.map((item) => [item.key, { w: 76, h: 69 }]));
+    const fits = (boxes: ReturnType<typeof squarify>, w: number, h: number) =>
+      boxes.every((box) => (box.w / 100) * w >= 75.99 && (box.h / 100) * h >= 68.99);
+    expect(fits(sliceLayout(weights, 992, 400, 1.5, needs, [0.8, 3]), 992, 400)).toBe(true);
+    expect(sliceLayout([], 100, 100, 1.5)).toEqual([]);
+    expect(stripLayout([], 100, 100, 1.5)).toEqual([]);
   });
 });
 

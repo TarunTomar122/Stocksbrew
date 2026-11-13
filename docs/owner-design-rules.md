@@ -105,6 +105,8 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - My stocks is about the person's stocks, not the tools: "a lot of useless insights, I'd rather have more useful stuff about my stocks". Each holding with its move, gain, call and the one thing that matters for it; tools (stress test, goal planner, dividends) are links, not cards.
 - Agent status reads in two seconds: one row per agent (kind, short name, a figure, when it ran) and flagged stocks as logo chips with their move. No "Checked: …" paragraphs ("what is this design and why is it so text").
 
+- Biggest things first (Nov 13): the top of /agent and /briefing ("Needs you") leads with the biggest real events on the person's stocks, ranked by impact: earnings with the after-hours move (CBRS +18% after hours), big news moves (SMCI −11% on a DOJ probe), filings that change the story. Never practice-account buy suggestions there ("I don't want the practice account thingy. That one is useless for me"). The record never shows expired reminders. 5%+ move lines stay ("I needed that").
+
 ## 11. Speed
 
 - The app must feel "super fast and snappy". Pages that do too much are a failure even if they look good. No blocking reads or model calls on page load, and keep HTML light.

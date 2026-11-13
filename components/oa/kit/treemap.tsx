@@ -6,9 +6,9 @@ import { tileNeed } from "@/lib/treemap-fit-math";
 
 /**
  * A true treemap (owner, Nov 12: "cards need to be the size depending on the percentage change", then "why did u give
- * so much height to some of these and why some are as chips below wtf"): every item is a tile, its area by the
- * square root of its move (lib/treemap.ts moveWeights), in a map as tall as its tile count needs at that width, so
- * the tiles come out near square or a little wide. Every tile prints its icon and name, its move, and its price where
+ * so much height to some of these and why some are as chips below wtf"): every item is a tile, its area by its move,
+ * a little compressed (lib/treemap.ts moveWeights), in a map as tall as its tile count needs at that width (taller
+ * where that keeps small moves small), so the tiles come out near square or a little wide. Every tile prints its icon and name, its move, and its price where
  * it has room (TileLabel); a map with more items than tiles that size holds keeps its biggest moves.
  *
  * One layout per screen width, each laid out at the narrowest width it is drawn at and shown by its own `className`,
@@ -17,7 +17,7 @@ import { tileNeed } from "@/lib/treemap-fit-math";
  */
 
 /** A tile's 1px border on both sides: its container queries measure inside it. */
-const TILE_BORDER = 2;
+export const TILE_BORDER = 2;
 
 export type TreemapLayout = {
   /** The narrowest width this layout is drawn at, in CSS pixels. */
@@ -126,11 +126,14 @@ export function TileLabel({
   words,
   moveClassName = "",
   priceClassName = "text-oa-muted-fg",
+  children,
 }: {
   icon: React.ReactNode;
   words: TreemapWords;
   moveClassName?: string;
   priceClassName?: string;
+  /** Anything under the label, inside the same centred body (a sector's movers); the caller sizes it to fit. */
+  children?: React.ReactNode;
 }) {
   return (
     <span className={part.body}>
@@ -147,6 +150,7 @@ export function TileLabel({
       </span>
       {words.move ? <span className={`oa-mono tabular-nums ${part.move} ${moveClassName}`}>{words.move}</span> : null}
       {words.price ? <span className={`oa-mono tabular-nums ${part.price} ${priceClassName}`}>{words.price}</span> : null}
+      {children}
     </span>
   );
 }

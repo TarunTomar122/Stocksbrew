@@ -1,6 +1,8 @@
 import { getMarketSnapshot } from "@/lib/firestore";
 import { getMarketsData } from "@/lib/markets";
-import { sectorFundDays, type SectorFundDay } from "@/lib/sector-day-shared";
+import { getScreenerSnapshot, isCompleteSnapshot } from "@/lib/screener";
+import { sectorFund, sectorFundDays, type SectorFundDay } from "@/lib/sector-day-shared";
+import { sharedCache } from "@/lib/shared-cache";
 import type { SnapshotRow } from "@/lib/types";
 
 /**
@@ -15,3 +17,24 @@ export async function loadSectorDay(): Promise<{ funds: Map<string, SectorFundDa
   ]);
   return { funds: sectorFundDays(markets?.assets ?? []), live };
 }
+
+/**
+ * Every covered stock's sector fund, ticker -> fund id ("NVDA" -> "xlk"), from the screener snapshot's sectors (resolved
+ * from each stock's industry, lib/screener.ts). Small (a few kilobytes) and cached an hour, so a page that only needs
+ * each stock's sector never reads the snapshot's shards itself. Throws on a missing or partial snapshot, so that is
+ * never cached; the caller goes without.
+ */
+export const getSectorFundIndex = sharedCache(
+  async (): Promise<Record<string, string>> => {
+    const snapshot = await getScreenerSnapshot();
+    if (!isCompleteSnapshot(snapshot)) throw new Error("sector index: screener snapshot missing or partial");
+    const out: Record<string, string> = {};
+    for (const row of snapshot.rows) {
+      const fund = sectorFund(row.sector);
+      if (fund) out[row.symbol.toUpperCase()] = fund;
+    }
+    return out;
+  },
+  ["sector-fund-index-v1"],
+  { revalidate: 3600 },
+);

@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { FIT_MAX, FIT_MIN, LABEL_H, PRICED_H, STEPS, figureWidth, fitStep, headWidth, nameFromWidth, priceFromWidth, tileNeed } from "@/lib/treemap-fit-math";
+import {
+  CHIP_GAP,
+  CHIP_H,
+  FIT_MAX,
+  FIT_MIN,
+  LABEL_H,
+  PAD_X,
+  PAD_Y,
+  PRICED_H,
+  STEPS,
+  chipWidth,
+  chipsThatFit,
+  figureWidth,
+  fitStep,
+  headWidth,
+  labelHeight,
+  nameFromWidth,
+  priceFromWidth,
+  tileNeed,
+} from "@/lib/treemap-fit-math";
 
 describe("what a tile's label needs", () => {
   it("rounds up to the stylesheet's 10px steps, within its range", () => {
@@ -57,5 +76,48 @@ describe("what a tile's label needs", () => {
       expect(figureWidth("−1234.5%", step.move)).toBeLessThanOrEqual(width + 1e-9);
     }
     expect(priceFromWidth("$12,346")).toBeGreaterThan(priceFromWidth("$5.07"));
+  });
+});
+
+describe("chips under a label", () => {
+  const widths = ["SMCI", "NVDA", "ORCL"].map((ticker) => chipWidth(ticker, "−11%"));
+
+  it("fits none on a tile with room for its label only, and more as the tile grows, never more than given", () => {
+    expect(chipsThatFit({ w: 130, h: 60 }, { move: "−0.34%" }, widths)).toBe(0);
+    expect(chipsThatFit({ w: 300, h: 110 }, { move: "−0.34%" }, widths)).toBeGreaterThanOrEqual(2);
+    expect(chipsThatFit({ w: 300, h: 400 }, { move: "−0.34%" }, widths)).toBe(3);
+    expect(chipsThatFit({ w: 300, h: 400 }, { move: "−0.34%" }, [])).toBe(0);
+    // A chip wider than the tile is never drawn, nor any after it.
+    expect(chipsThatFit({ w: 60, h: 400 }, { move: "−0.34%" }, widths)).toBe(0);
+  });
+
+  it("never lets the label and its chips overflow the tile, even a type step bigger than laid out", () => {
+    for (let w = 60; w <= 420; w += 7) {
+      for (let h = 40; h <= 300; h += 5) {
+        const count = chipsThatFit({ w, h }, { move: "−0.34%" }, widths);
+        if (count === 0) continue;
+        // Rows as the chips wrap across the tile's inner width.
+        let rows = 1;
+        let used = 0;
+        for (const width of widths.slice(0, count)) {
+          const next = used === 0 ? width : used + CHIP_GAP + width;
+          if (next > w - 2 * PAD_X) {
+            rows += 1;
+            used = width;
+          } else used = next;
+          expect(width).toBeLessThanOrEqual(w - 2 * PAD_X);
+        }
+        // The tallest the label could print when drawn up to 1.2 times as big (one step up at most).
+        const label = labelHeight({ w: w * 1.2, h: h * 1.2 }, { move: "−0.34%" });
+        const chips = CHIP_GAP + rows * CHIP_H + (rows - 1) * CHIP_GAP;
+        expect(2 * PAD_Y + label + chips).toBeLessThanOrEqual(h * 1.2 + 1e-9);
+        expect(2 * PAD_Y + labelHeight({ w, h }, { move: "−0.34%" }) + chips).toBeLessThanOrEqual(h + 1e-9);
+      }
+    }
+  });
+
+  it("steps the label's height with the tile, as the stylesheet does", () => {
+    expect(labelHeight({ w: 80, h: 50 }, { move: "+1%" })).toBe(STEPS[0].name + 4 + 2 + STEPS[0].move + 4);
+    expect(labelHeight({ w: 400, h: 400 }, { move: "+1%" })).toBe(STEPS[4].name + 4 + 2 + STEPS[4].move + 4);
   });
 });

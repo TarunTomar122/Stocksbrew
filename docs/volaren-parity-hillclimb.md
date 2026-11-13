@@ -206,9 +206,23 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
     - fewer moving parts: dead pages, routes and collections removed
   - Lesson from Nov 13: when freezing a release from the shared working tree, take only the hunks that belong to the release; a whole-file `git add` on shared files (middleware.ts, schedule.py, store.py) picks up other builders' unfinished edits.
 
+  - Lesson from Nov 13 (2): releasing with `update-ref` + `git reset` moves the index, not the files on disk, so a release
+    built in a builder's own worktree leaves the main tree holding the previous copies (they show as M/D and the dev
+    server serves old code). After every such release, restore the released files that are byte-identical to HEAD~1:
+    `git diff --name-only HEAD~1 HEAD | xargs git checkout HEAD --` once checked that nobody edits them in place.
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-13 ~15:00 ET: heavy reads round 2 live (024e4d81)
+- Price tails (tm_price_tail, last 640 closes, hash-checked against the live history, written with each history),
+  the pipeline news doc read to two fields or skipped by its write stamp, call history masked, verified anomaly copies
+  (tm_daily_anomaly_refs), the landing sparkline from its serving doc. Cold / 9.20 → 5.71 MB, signed-in /briefing
+  9.55 → 6.70 MB, signed-in /agent 7.47 → 4.30 MB; 10 page pairs pixel-identical; parity checked on 844 symbols.
+- Shipped: backend pulled on /opt/tikrr, both backfills run as ubuntu (844 tails and 4 copies current), web deployed,
+  8 pages 200 in 0.3–0.7 s, no errors in the journal. 4494/4494 tests both ways; the price-core low-coverage pytest
+  fails at HEAD too (pre-existing).
+- Open: screener snapshot left whole (1.7 MB/day/instance); briefing stripSeries could use getRecentDailySeries.
 
 ### 2026-11-13 ~14:15 ET: Codex judge91 on the live site: overall 7.4 (was 7.1)
 - Scores (scratchpad/judge91/codex.md): UI 7.0 (rubric cap), UX 7.5, usability 7.0, wording 7.0, agent feel 8.3,

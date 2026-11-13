@@ -114,3 +114,55 @@ export function nameFromWidth(text: string, mono: boolean): number {
 export function priceFromWidth(price: string): number {
   return Math.ceil(figureWidth(price, Math.max(...STEPS.map((step) => step.price))));
 }
+
+/* ── chips under a label ─────────────────────────────────────────────────── */
+
+/** A small chip under a tile's label (a sector's mover: its logo, ticker and move at 11px, monospace). */
+export const CHIP_H = 18;
+/** The space between chips, across and down, and above the first row. */
+export const CHIP_GAP = 3;
+const CHIP_FONT = 11;
+const CHIP_LOGO = 14;
+const CHIP_PAD_X = 4;
+
+/** How wide a chip is with this ticker and move. */
+export function chipWidth(ticker: string, move: string): number {
+  return (CHIP_LOGO + 2 * CHIP_GAP + (ticker.length + move.length) * MONO * CHIP_FONT + 2 * CHIP_PAD_X) * FIT_PAD;
+}
+
+/** How tall a tile's label is at the type step a tile of this inner size prints (the stylesheet's container queries). */
+export function labelHeight(inner: { w: number; h: number }, text: Pick<TileText, "move" | "price">): number {
+  const step = [...STEPS].reverse().find((entry) => inner.w >= entry.w && inner.h >= entry.h) ?? STEPS[0];
+  let height = lineHeight(step.name);
+  if (text.move) height += LINE_GAP + lineHeight(step.move);
+  if (text.price) height += LINE_GAP + lineHeight(step.price);
+  return height;
+}
+
+/**
+ * How many of `widths` (chips, biggest first) fit under a tile's label, whole, in rows: the tile's inner size (inside
+ * its border) less its padding and the label at its type step, with `slack` to spare for a tile drawn a step bigger
+ * than laid out (one step adds at most 5px of label; a map is drawn at most 1.2 times as tall as laid out, too little
+ * to cross two steps).
+ */
+export function chipsThatFit(inner: { w: number; h: number }, text: Pick<TileText, "move" | "price">, widths: readonly number[], slack = 6): number {
+  const free = inner.h - 2 * PAD_Y - labelHeight(inner, text) - slack - CHIP_GAP;
+  const rows = Math.floor((free + CHIP_GAP) / (CHIP_H + CHIP_GAP));
+  const across = inner.w - 2 * PAD_X;
+  let row = 0;
+  let used = 0;
+  let count = 0;
+  for (const width of widths) {
+    if (width > across) break;
+    const next = used === 0 ? width : used + CHIP_GAP + width;
+    if (next <= across) {
+      used = next;
+    } else {
+      row += 1;
+      used = width;
+    }
+    if (row >= rows) break;
+    count += 1;
+  }
+  return Math.max(0, count);
+}

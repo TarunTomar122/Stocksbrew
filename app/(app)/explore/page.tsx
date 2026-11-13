@@ -2,7 +2,18 @@ import { capitalize, dayWords, onDayWords } from "@/lib/day-words";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { deskSectors, loadDeskMarketsData, pageClock, loadDeskMovers, todayET, type DeskData, type DeskSector } from "@/app/(app)/explore/desk-data";
+import {
+  deskSectorMovers,
+  deskSectors,
+  loadDeskMarketsData,
+  loadDeskMoverInputs,
+  pageClock,
+  loadDeskMovers,
+  todayET,
+  type DeskData,
+  type DeskMoverInputs,
+  type DeskSector,
+} from "@/app/(app)/explore/desk-data";
 import { MarketCardsGhost, MovesGhost, StripGhost } from "@/app/(app)/explore/ghosts";
 import { MoveTables, type MoveRow } from "@/app/(app)/explore/move-tables";
 import { hasMarketsData } from "@/components/markets/overview-sections";
@@ -20,6 +31,7 @@ import { PanelGhost } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import { iconFor } from "@/components/oa/nav-items";
 import { buildMarketsOverview, type MarketsData } from "@/lib/markets-shared";
+import type { SectorMover } from "@/lib/sector-day-shared";
 import { JsonLd } from "@/components/docs/json-ld";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
 import Link from "next/link";
@@ -34,10 +46,14 @@ export function generateMetadata(): Metadata {
 /* ── the page ───────────────────────────────────────────────────────────── */
 
 /**
- * Every sector's day as a heatmap, best first (components/markets/sector-heatmap.tsx), each tile opening its sector.
+ * Every sector's day as a heatmap, best first (components/markets/sector-heatmap.tsx), each tile opening its sector and
+ * showing the sector's biggest movers of the same day where it has room.
  */
-function SectorList({ rows, asOf }: { rows: DeskSector[]; asOf: string | null }) {
-  const sorted = [...rows].filter((row) => Number.isFinite(row.day)).sort((a, b) => b.day - a.day);
+function SectorList({ rows, asOf, movers }: { rows: DeskSector[]; asOf: string | null; movers: ReadonlyMap<string, SectorMover[]> }) {
+  const sorted = [...rows]
+    .filter((row) => Number.isFinite(row.day))
+    .sort((a, b) => b.day - a.day)
+    .map((row) => ({ ...row, movers: movers.get(row.id) }));
   if (sorted.length < 4) return null;
   // "today" only over today's session: before the bell or over a weekend the funds hold the last session's move.
   const when = dayLabelFor(asOf, "today", Date.now(), (label) => (label.words === "yesterday" ? "yesterday" : `on ${label.words}`));
@@ -176,10 +192,14 @@ async function MovesSlot({ movers, today }: { movers: Promise<DeskData["movers"]
   );
 }
 
-/** Every sector's day, under the moves, from the same markets read as the strip above and the cards below. */
-async function SectorsSlot({ markets }: { markets: Promise<MarketsData> }) {
-  const data = deskSectors(await markets);
-  return <SectorList rows={data.rows} asOf={data.asOf} />;
+/**
+ * Every sector's day, under the moves, from the same markets read as the strip above and the cards below, with each
+ * sector's biggest movers of that day from the live price snapshot (left off when it is slow or from another day).
+ */
+async function SectorsSlot({ markets, movers }: { markets: Promise<MarketsData>; movers: Promise<DeskMoverInputs> }) {
+  const [market, inputs] = await Promise.all([markets, movers]);
+  const data = deskSectors(market);
+  return <SectorList rows={data.rows} asOf={data.asOf} movers={deskSectorMovers(inputs, data.asOf)} />;
 }
 
 /** Quote times of today's moves as drawn (the same cut StockMoves makes), or none for another session's list. */
@@ -256,6 +276,7 @@ export default function ExplorePage() {
   const today = todayET(new Date());
   const movers = loadDeskMovers(today);
   const markets = loadDeskMarketsData();
+  const sectorMoverInputs = loadDeskMoverInputs();
 
   return (
     <AppPage>
@@ -280,7 +301,7 @@ export default function ExplorePage() {
         </Suspense>
 
         <Suspense fallback={<PanelGhost rows={3} />}>
-          <SectorsSlot markets={markets} />
+          <SectorsSlot markets={markets} movers={sectorMoverInputs} />
         </Suspense>
 
         <Suspense fallback={<MarketCardsGhost className="mt-4" />}>
