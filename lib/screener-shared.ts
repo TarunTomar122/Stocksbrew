@@ -200,7 +200,7 @@ export const NUMERIC_FIELDS: NumericField[] = [
   { id: "ps", short: "P/S", label: "Price to sales", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
   { id: "p_fcf", short: "P/FCF", label: "Price to free cash flow", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
   { id: "ev_ebitda", short: "EV/EBITDA", label: "Enterprise value to EBITDA", group: "Valuation", unit: "multiple", digits: 1, better: "low" },
-  { id: "pe_hist_pctile", short: "P/E vs own", label: "Today's P/E against the daily P/Es we have on file for the stock (0 is below all of them, 100 above all)", group: "Valuation", unit: "number", digits: 0, better: "low" },
+  { id: "pe_hist_pctile", short: "P/E vs history", label: "Today's P/E against the daily P/Es we have on file for the stock (0 is below all of them, 100 above all)", group: "Valuation", unit: "number", digits: 0, better: "low" },
 
   { id: "rev_growth", short: "Sales growth", label: "Revenue growth, year over year", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
   { id: "rev_cagr_3y", short: "Rev 3Y", label: "Revenue growth per year over 3 fiscal years", group: "Growth", unit: "signed_pct", digits: 1, better: "high" },
@@ -415,6 +415,9 @@ function inRange(value: unknown, range: Range): boolean {
   return true;
 }
 
+/** Company suffixes a search can do without. */
+const NAME_SUFFIXES = new Set(["inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc", "holdings", "sa", "nv", "ag"]);
+
 export function matchesFilters(row: ScreenerRow, filters: ScreenerFilters): boolean {
   if (filters.sectors.length > 0 && !filters.sectors.includes(sectorSlug(row.sector))) return false;
   if (filters.caps.length > 0 && (!row.cap_tier || !filters.caps.includes(row.cap_tier))) return false;
@@ -428,7 +431,10 @@ export function matchesFilters(row: ScreenerRow, filters: ScreenerFilters): bool
     const symbol = row.symbol.toLowerCase();
     if (symbol === q) return true;
     const haystack = `${symbol} ${row.name ?? ""} ${row.industry ?? ""}`.toLowerCase();
-    if (!q.split(/\s+/).every((word) => haystack.includes(word))) return false;
+    // "Advanced Micro Devices Inc" finds AMD whether or not the stored name carries the "Inc".
+    const words = q.split(/\s+/);
+    const meaningful = words.filter((word) => !NAME_SUFFIXES.has(word.replace(/[.,]/g, "")));
+    if (!(meaningful.length ? meaningful : words).every((word) => haystack.includes(word))) return false;
   }
   return true;
 }
@@ -787,6 +793,12 @@ function compactMoney(value: number): string {
 export function formatField(field: NumericField, value: unknown): string {
   if (!isFiniteNumber(value)) return "";
   const digits = field.digits ?? 2;
+  // Where today's P/E sits among the stock's own daily P/Es, 0 to 100: a bare "0" read as missing data
+  // (council, Nov 13), so the ends say what they mean and the middle says its place out of 100.
+  if (field.id === "pe_hist_pctile") {
+    const place = Math.round(value);
+    return place <= 0 ? "Lowest" : place >= 100 ? "Highest" : `${place} of 100`;
+  }
   switch (field.unit) {
     case "price":
       return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

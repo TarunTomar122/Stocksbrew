@@ -34,6 +34,7 @@ import { loadSectorDay } from "@/lib/sector-day";
 import { sectorDayStamp, withLiveDayMoves, withSectorFundDays } from "@/lib/sector-day-shared";
 import { dayLabelFor } from "@/lib/session-label";
 import { readSavedScreens, type SavedScreen } from "@/lib/screener-saved";
+import { SAY_PARAM, readSaid, withSaid } from "@/lib/screener-plain";
 import {
   CALL_COLUMN_IDS,
   ZONE_COLUMN_IDS,
@@ -123,13 +124,28 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   };
 }
 
-function SortLabel({ view, id, numeric, locked = false, children }: { view: ScreenerView; id: string; numeric: boolean; locked?: boolean; children: React.ReactNode }) {
+function SortLabel({
+  view,
+  id,
+  numeric,
+  locked = false,
+  said = null,
+  children,
+}: {
+  view: ScreenerView;
+  id: string;
+  numeric: boolean;
+  locked?: boolean;
+  /** The sentence the screen came from, kept on the link so re-sorting does not empty the box. */
+  said?: string | null;
+  children: React.ReactNode;
+}) {
   const active = view.sort.id === id && !locked;
   // Sorting the market by our call is the same list as filtering by it, so it follows the same rule.
   if (locked) return <span className="tracking-[inherit]">{children}</span>;
   return (
     <Link
-      href={sortHref(view, id, numeric)}
+      href={withSaid(sortHref(view, id, numeric), said)}
       scroll={false}
       prefetch={false}
       aria-label={`Sort by this column${active ? (view.sort.dir === "desc" ? ", now highest first" : ", now lowest first") : ""}`}
@@ -255,6 +271,8 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const view = parseView(searchParams, presets);
   const activePreset = view.preset ? presets.find((preset) => preset.slug === view.preset) ?? null : null;
   const hasScreen = activePreset !== null || countActiveFilters(view.filters) > 0;
+  // The words a screen was typed as ("cheap chip stocks growing 20%+"), when it came from the box.
+  const said = view.tab === "screen" ? readSaid(searchParams[SAY_PARAM]) : null;
 
   // The call is open to everyone. Price zones belong to covered stocks (every stock on Pro),
   // so strip them before anything else touches the rows: no filter or sort can leak them.
@@ -413,7 +431,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
     : oneRowPerCompany(page, (row) => row.symbol);
   const remaining = matched.length - page.length;
   const moreHref = (count: number) => {
-    const href = viewHref(view);
+    const href = withSaid(viewHref(view), said);
     return `${href}${href.includes("?") ? "&" : "?"}n=${count}`;
   };
   const presetCounts = new Map(presets.map((preset) => [preset.slug, applyFilters(snapshot.rows, { ...EMPTY_FILTERS, ...preset.filters }).length]));
@@ -431,7 +449,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
 
   const columns: DataColumn[] = [
     { id: "_select", label: <SelectAllCheck symbols={shown.map((row) => row.symbol)} />, sortable: false },
-    { id: "symbol", label: <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>, sortable: false },
+    { id: "symbol", label: <SortLabel said={said} view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>, sortable: false },
     ...view.columns.map((id): DataColumn => {
       const info = columnMeta(id);
       const callColumn = CALL_COLUMN_IDS.has(id);
@@ -442,7 +460,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         sortable: false,
         label: (
           <span className="inline-flex items-center gap-1.5">
-            <SortLabel view={{ ...view, sort }} id={id} numeric={info.numeric} locked={callColumn && !canCallFilters}>
+            <SortLabel said={said} view={{ ...view, sort }} id={id} numeric={info.numeric} locked={callColumn && !canCallFilters}>
               {info.short}
             </SortLabel>
             {ZONE_COLUMN_IDS.has(id) && plan !== "pro" ? <ProMark /> : null}
@@ -479,12 +497,14 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
   const phoneHead = (
     <div className="oa-caption flex h-9 items-center gap-2 border-b border-oa-border bg-oa-bg px-3">
       <span className="min-w-0 flex-1">
-        <SortLabel view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>
+        <SortLabel said={said} view={{ ...view, sort }} id="symbol" numeric={false}>Stock</SortLabel>
+        {/* The figure beside each ticker is the sorted one: name it once here, not on every row. */}
+        {phoneExtra ? <span className="normal-case tracking-normal"> · {columnMeta(phoneExtra).short}</span> : null}
       </span>
       <span className="w-11 text-center normal-case tracking-normal max-[359px]:hidden">3 mo</span>
       <span className="flex items-center gap-2">
-        <SortLabel view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
-        <SortLabel view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
+        <SortLabel said={said} view={{ ...view, sort }} id="price" numeric>Price</SortLabel>
+        <SortLabel said={said} view={{ ...view, sort }} id="day_pct" numeric>Day</SortLabel>
       </span>
       <span className="w-[4.75rem] text-right">Our call</span>
     </div>
@@ -519,6 +539,47 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
         ...(unsectored.length ? [{ slug: "other", name: "Not classified", linked: false, stocks: stockLines(unsectored) }] : []),
       ]
     : [];
+
+  // The count and the table's controls sit at the end of the filter menus' row, under the box.
+  const resultControls = (
+    <>
+      <span className="lg:hidden">{screensMenu("Lists", "left")}</span>
+      <p className="mr-auto min-w-0 whitespace-nowrap text-[14px] leading-5 text-oa-muted-fg lg:mr-1">
+        {firstList ? (
+          <>
+            <span className="font-medium text-oa-fg sm:hidden">{shown.length} biggest</span>
+            <span className="max-sm:hidden">
+              <span className="font-medium text-oa-fg">Biggest companies</span> <span className={NUM}>{shown.length} of {matched.length.toLocaleString("en-US")}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className={`${NUM} font-medium text-oa-fg`}>{lockedByCall ? "" : matched.length.toLocaleString("en-US")}</span>{" "}
+            {lockedByCall ? "" : !hasScreen ? (sort.id === DEFAULT_SORT.id && sort.dir === DEFAULT_SORT.dir ? "stocks, biggest first" : "stocks") : `of ${meta.row_count}`}
+          </>
+        )}
+      </p>
+      {/* Phones show a fixed list (price, day, our call), so columns are a desktop control. */}
+      <span className="max-sm:hidden">
+        <ColumnPicker view={view} availableFields={availableFields} zonesEverywhere={plan === "pro"} said={said} />
+      </span>
+      <SaveScreen
+        query={currentQuery}
+        canSave={can("saved_screens", plan)}
+        plan={plan}
+        limit={savedLimit}
+        count={saved.length}
+        trialEligible={viewer.trialEligible}
+        suggestedName={activePreset?.name ?? said?.slice(0, 60) ?? description.slice(0, 2).join(", ").slice(0, 60)}
+      />
+      {can("export_data", plan) ? (
+        <a href={`/api/screener/export${currentQuery ? `?${currentQuery}` : ""}`} data-track="screener_exported" data-track-format="csv" className={`${CONTROL} max-sm:h-10`} download>
+          <span className="max-sm:hidden">Export CSV</span>
+          <span className="sm:hidden">CSV</span>
+        </a>
+      ) : null}
+    </>
+  );
 
   return (
     <AppPage>
@@ -571,7 +632,7 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
       <SelectionProvider resetKey={currentQuery}>
         <Panel flush className="!overflow-visible">
           <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-oa-border p-3">
-            <div className="min-w-0 flex-1 basis-full lg:basis-0">
+            <div className="min-w-0 basis-full">
               <FilterBar
                 view={view}
                 sectors={sectorOptions}
@@ -580,46 +641,12 @@ export default async function ScreenerPage({ searchParams }: { searchParams: Sea
                 plan={plan}
                 canCallFilters={canCallFilters}
                 trialEligible={viewer.trialEligible}
+                said={said}
+                right={resultControls}
               />
             </div>
-            <div className="flex min-h-8 basis-full items-center gap-2 max-sm:[&_button]:h-10 lg:basis-auto">
-              <span className="lg:hidden">{screensMenu("Lists", "left")}</span>
-              <p className="mr-auto min-w-0 whitespace-nowrap text-[14px] leading-5 text-oa-muted-fg lg:mr-1">
-                {firstList ? (
-                  <>
-                    <span className="font-medium text-oa-fg sm:hidden">{shown.length} biggest</span>
-                    <span className="max-sm:hidden">
-                      <span className="font-medium text-oa-fg">Biggest companies</span> <span className={NUM}>{shown.length} of {matched.length.toLocaleString("en-US")}</span>
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className={`${NUM} font-medium text-oa-fg`}>{lockedByCall ? "" : matched.length.toLocaleString("en-US")}</span>{" "}
-                    {lockedByCall ? "" : !hasScreen ? (sort.id === DEFAULT_SORT.id && sort.dir === DEFAULT_SORT.dir ? "stocks, biggest first" : "stocks") : `of ${meta.row_count}`}
-                  </>
-                )}
-              </p>
-              {/* Phones show a fixed list (price, day, our call), so columns are a desktop control. */}
-              <span className="max-sm:hidden">
-                <ColumnPicker view={view} availableFields={availableFields} zonesEverywhere={plan === "pro"} />
-              </span>
-              <SaveScreen
-                query={currentQuery}
-                canSave={can("saved_screens", plan)}
-                plan={plan}
-                limit={savedLimit}
-                count={saved.length}
-                trialEligible={viewer.trialEligible}
-                suggestedName={activePreset?.name ?? description.slice(0, 2).join(", ").slice(0, 60)}
-              />
-              {can("export_data", plan) ? (
-                <a href={`/api/screener/export${currentQuery ? `?${currentQuery}` : ""}`} data-track="screener_exported" data-track-format="csv" className={`${CONTROL} max-sm:h-10`} download>
-                  <span className="max-sm:hidden">Export CSV</span>
-                  <span className="sm:hidden">CSV</span>
-                </a>
-              ) : null}
-            </div>
-            {!lockedByCall && description.length > 0 ? (
+            {/* A typed screen shows its parts as the "Understood" chips instead. */}
+            {!lockedByCall && !said && description.length > 0 ? (
               <p className="hidden basis-full text-[12.5px] leading-[18px] text-oa-muted-fg sm:block">Showing: {description.join(" · ")}</p>
             ) : null}
             {!lockedByCall ? (

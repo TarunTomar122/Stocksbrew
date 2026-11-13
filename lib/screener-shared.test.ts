@@ -398,3 +398,14 @@ describe("treemap", () => {
     expect(squarify([{ value: 1, data: 1 }], 0, 0, 0, 10)).toEqual([]);
   });
 });
+
+describe("P/E against its own history", () => {
+  const field = FIELD_BY_ID.get("pe_hist_pctile")!;
+  it("says the ends in words and the middle as a place out of 100", () => {
+    expect(formatField(field, 0)).toBe("Lowest");
+    expect(formatField(field, 0.3)).toBe("Lowest");
+    expect(formatField(field, 12.4)).toBe("12 of 100");
+    expect(formatField(field, 100)).toBe("Highest");
+    expect(formatField(field, null)).toBe("");
+  });
+});
