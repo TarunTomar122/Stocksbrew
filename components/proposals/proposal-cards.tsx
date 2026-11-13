@@ -212,6 +212,8 @@ export function ProposalCards({
   today: todayProp,
   statusAlone = false,
   recordOnPage = false,
+  compact = false,
+  fold,
 }: {
   initial: ProposalCard[];
   watch?: WatchSummary | null;
@@ -220,8 +222,21 @@ export function ProposalCards({
   statusAlone?: boolean;
   /** The page has the record ("What I did", /agent): an answered card leaves at once and its line goes there. */
   recordOnPage?: boolean;
+  /**
+   * One line per card (the briefing's desk): the action, or under a group's heading only the card's own part of it;
+   * the line that set it off is the card's hover and its run log. The status shows only as the tile that fills an odd
+   * row, never as the strip above the cards.
+   */
+  compact?: boolean;
+  /**
+   * Show only this many cards (the briefing: its first row) and the rest behind one "Show N more" under them, which
+   * opens in place. Folding is only how the queue is drawn: the count, the bell and every answer still cover the whole
+   * queue, and the rest stays reachable whatever is answered.
+   */
+  fold?: number;
 }) {
   const router = useRouter();
+  const [unfolded, setUnfolded] = React.useState(false);
 
   const [cards, setCards] = React.useState(initial);
   const [states, setStates] = React.useState<Record<string, CardState>>({});
@@ -393,7 +408,9 @@ export function ProposalCards({
   // the status tile; odd lone cards take the tile. With the tile in the grid the strip above is hidden; one column (a
   // phone) has no empty slot, so the status is always the strip there.
   // Decided from the cards themselves, not which run log is open, so opening one never moves the others.
-  const plan = layoutPlan(proposalBlocks(cards), Boolean(status));
+  const folded = fold !== undefined && !unfolded && cards.length > fold;
+  const shownCards = folded ? cards.slice(0, fold) : cards;
+  const plan = layoutPlan(proposalBlocks(shownCards), Boolean(status));
   const tiled = planHasTile(plan);
   // Each block's cards in grid order: its own (said under its heading), then any lone guest (with its whole title).
   const itemsOf = (block: PlannedBlock) => [
@@ -442,8 +459,10 @@ export function ProposalCards({
     return (
       <li
         key={card.id}
-        className={`oa-surface flex min-w-0 flex-col border bg-oa-card ${CARD_HOVER} ${state.open ? "border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]" : "border-oa-border"}`}
+        className={`oa-surface flex min-w-0 flex-col border bg-oa-card ${CARD_HOVER} ${compact ? "[container-type:inline-size]" : ""} ${state.open ? "border-[color-mix(in_srgb,var(--oa-fg)_30%,transparent)]" : "border-oa-border"}`}
       >
+        {/* Compact on a wide card, the buttons sit beside the body instead of under it, so a wide card is not half empty. */}
+        <div className={compact ? "flex min-w-0 flex-1 flex-col [@container(min-width:36rem)]:flex-row [@container(min-width:36rem)]:items-center [@container(min-width:36rem)]:gap-4" : "contents"}>
         {/* The card body is the run log's toggle: no link text repeated on every card (owner rule 1). */}
         <button
           type="button"
@@ -451,8 +470,10 @@ export function ProposalCards({
           // Only a panel that is on the page; a short name for the toggle, not the whole card read out.
           aria-controls={state.open ? logId : undefined}
           aria-label={`How I got here, ${card.ticker ?? "your agents"}`}
+          // Compact, the line that set it off is the hover (and the run log).
+          title={compact ? card.why[0] : undefined}
           onClick={() => toggle(card.id)}
-          className="flex min-w-0 flex-col rounded-[inherit] px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
+          className={`flex min-w-0 flex-col rounded-[inherit] px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)] ${compact ? "[@container(min-width:36rem)]:flex-1 [@container(min-width:36rem)]:pb-3" : ""}`}
         >
           <span className="flex min-w-0 items-center gap-2.5">
             <Mark ticker={card.ticker} />
@@ -475,7 +496,7 @@ export function ProposalCards({
           {action ? (
             <span className="mt-2.5 block text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">{action}</span>
           ) : null}
-          {card.why[0] ? (
+          {card.why[0] && !compact ? (
             <span
               className={`block text-pretty ${action ? "mt-1 text-[13px] leading-[18px] text-oa-muted-fg" : "mt-2.5 text-[14px] leading-5 text-oa-fg"}`}
             >
@@ -488,7 +509,7 @@ export function ProposalCards({
             <MoveRange now={card.quote.price} pct={card.usualPct} />
           ) : null}
         </button>
-        <div className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-3.5 pb-3 pt-3">
+        <div className={`mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-3.5 pb-3 pt-3 ${compact ? "[@container(min-width:36rem)]:mt-0 [@container(min-width:36rem)]:shrink-0" : ""}`}>
           {state.gone ? null : done ? (
             <p role="status" className="min-w-0 flex-1 text-pretty text-[13px] leading-5 text-oa-fg">
               {done.message}
@@ -531,6 +552,7 @@ export function ProposalCards({
             </>
           )}
         </div>
+        </div>
         {state.error ? (
           <p role="alert" className="-mt-1 px-3.5 pb-3 text-pretty text-[13px] leading-5 text-signal-bearish">
             {state.error}
@@ -549,12 +571,13 @@ export function ProposalCards({
         ) : null}
       </h2>
       <div className="[container-type:inline-size]">
-        {status ? (
+        {status && !compact ? (
           <div className={`mb-3 ${tiled ? "[@container(min-width:34rem)]:hidden" : ""}`}>
             <AgentStatus watch={status} variant="strip" />
           </div>
         ) : null}
-        <div className="flex flex-col gap-4">
+        {/* Folded on a phone (one card across), the first row is one card. */}
+        <div className={`flex flex-col gap-4 ${folded ? "[@container(max-width:33.99rem)]:[&_ul>li.oa-surface~li.oa-surface]:hidden" : ""}`}>
           {plan.map((block, blockIndex) => {
             const items = itemsOf(block);
             const open = blockIndex === openBlock;
@@ -582,6 +605,17 @@ export function ProposalCards({
             );
           })}
         </div>
+        {folded ? (
+          <button
+            type="button"
+            aria-expanded={false}
+            onClick={() => setUnfolded(true)}
+            className={`mt-2 flex h-9 w-full items-center justify-center rounded-md text-[13px] font-medium text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg ${FOCUS}`}
+          >
+            <span className="hidden [@container(max-width:33.99rem)]:inline">Show {cards.length - Math.min(1, shownCards.length)} more</span>
+            <span className="[@container(max-width:33.99rem)]:hidden">Show {cards.length - shownCards.length} more</span>
+          </button>
+        ) : null}
       </div>
     </section>
   );

@@ -98,17 +98,25 @@ export async function listProposals(uid: string): Promise<Proposal[]> {
   return (await readStore(uid)).proposals;
 }
 
+/** Every stored proposal with what the agent watched at the last full sync, from the same one query (the briefing's desk). */
+export async function listProposalsWithWatch(uid: string): Promise<{ proposals: Proposal[]; watch: WatchSummary | null }> {
+  const { proposals, watch } = await readStore(uid);
+  return { proposals, watch };
+}
+
 /**
  * When this person's proposals were last worked out sits beside them, as `{uid}__sync` in the same collection (no
  * proposal, so readProposal skips it), so every server instance shares one throttle and the one query reads both.
  */
 const syncDocId = (uid: string) => `${uid}__sync`;
 
-async function readStore(uid: string): Promise<{ proposals: Proposal[]; nextAt: number | null; watch: WatchSummary | null }> {
+async function readStore(uid: string): Promise<{ proposals: Proposal[]; nextAt: number | null; watch: WatchSummary | null; lastComplete: boolean | null }> {
   const snap = await collection().where("uid", "==", uid).get();
   // null: no sync doc yet (this server's own memory decides); 0: the doc says "now" (never run, or reset).
   let nextAt: number | null = null;
   let watch: WatchSummary | null = null;
+  // Whether the last full run read everything (lastComplete): a throttled read carries it, never assumes it.
+  let lastComplete: boolean | null = null;
   const proposals: Proposal[] = [];
   for (const doc of snap.docs) {
     const data = doc.data() as Record<string, unknown>;
@@ -116,12 +124,13 @@ async function readStore(uid: string): Promise<{ proposals: Proposal[]; nextAt: 
       const at = typeof data.next_at === "string" ? Date.parse(data.next_at) : NaN;
       nextAt = Number.isFinite(at) ? at : 0;
       watch = readWatch(data.watch);
+      lastComplete = typeof data.complete === "boolean" ? data.complete : null;
       continue;
     }
     const proposal = readProposal(data);
     if (proposal && proposal.uid === uid) proposals.push(proposal);
   }
-  return { proposals, nextAt, watch };
+  return { proposals, nextAt, watch, lastComplete };
 }
 
 /**
@@ -509,13 +518,14 @@ export async function syncProposals(uid: string, options: { now?: Date; force?: 
 
 async function runSync(uid: string, options: { now?: Date; force?: boolean; doc?: UserDoc | null }): Promise<SyncResult> {
   const now = options.now ?? new Date();
-  const { proposals: existing, nextAt, watch: storedWatch } = await readStore(uid);
+  const { proposals: existing, nextAt, watch: storedWatch, lastComplete } = await readStore(uid);
   // The shared doc decides (so a reset after an answer holds on every server); this server's memory only stands in
   // when there is no doc yet or its write failed.
   const next = nextAt ?? nextSync.get(uid) ?? 0;
   // A next time far in the future (a skewed clock) is not trusted.
   if (!options.force && now.getTime() < next && next - now.getTime() <= SYNC_EVERY_MS) {
-    return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: true, skipped: true, watch: storedWatch, all: existing };
+    // Inside the throttle: as complete as the last full run was (lastComplete), never more.
+    return { waiting: waitingOf(existing, now), created: 0, expired: 0, complete: lastComplete === true, skipped: true, watch: storedWatch, all: existing };
   }
   nextSync.set(uid, now.getTime() + RETRY_MS);
   const doc = options.doc !== undefined ? options.doc : await getUserDoc(uid).catch(() => null);

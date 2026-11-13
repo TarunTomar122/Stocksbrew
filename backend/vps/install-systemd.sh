@@ -177,7 +177,9 @@ write_pair radar-materialize-open "Mon..Fri *-*-* 09:43:00 America/New_York" rad
 write_pair radar-official-close "Mon..Fri *-*-* 17:10:00 America/New_York" radar_official_sources "--recent-days 3 --include-ir" "" "5min"
 write_pair radar-materialize-close "Mon..Fri *-*-* 17:45:00 America/New_York" radar_materialize "--activate --with-llm" "" "5min"
 write_pair radar-outcomes "Mon..Fri *-*-* 19:00:00 America/New_York" radar_outcomes "--limit 0"
-write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
+# radar-alerts: switched off 2026-11-13 (owner ok). Every run since Nov 11 skipped itself and it caused "database is locked"
+# failures (docs/ops-audit.md). Its work moved to the standing agents and proposals.
+# write_pair radar-alerts "Mon..Fri *-*-* *:00/15:00" radar_alerts
 # Power trades: daily STOCK Act sync + hold-based email alerts. Custom oneshot
 # wrapper (not an orchestrator lane); unit files are committed in the repo.
 for unit in tikrr-power-trades.service tikrr-power-trades.timer; do

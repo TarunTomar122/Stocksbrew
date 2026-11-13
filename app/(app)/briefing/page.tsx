@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 
 import { AskPageHint } from "@/components/ask/ask-page-hint";
-import { BriefingFace } from "@/components/briefing/briefing-face";
+import { BriefingFace, casedMoved, sourceWords } from "@/components/briefing/briefing-face";
+import { Desk } from "@/components/briefing/desk";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
 import { OvernightStrip } from "@/components/briefing/overnight-strip";
 import { SinceVisit } from "@/components/briefing/since-visit";
 import { VisitBeacon } from "@/components/briefing/since-visit-beacon";
 import { withoutCircularReasons } from "@/components/briefing/real-reasons";
 import { AppPage } from "@/components/oa/kit";
-import { ProposalsLine } from "@/components/proposals/proposals-line";
+import { ThesisStrip } from "@/components/thesis-monitor/thesis-strip";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
 import { marketDay, type BriefingPosition } from "@/lib/briefing";
+import { buildDesk, type Desk as DeskData } from "@/lib/briefing-desk";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
 import {
@@ -49,13 +51,17 @@ import { getMarketSeries, getMarketsData } from "@/lib/markets";
 import { getDailySeries } from "@/lib/screener-series";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
-import { proposalsBrief, type ProposalsBrief } from "@/lib/proposals-brief";
+import { capitalize, dayWords } from "@/lib/day-words";
+import { toCard, type WatchSummary } from "@/lib/proposals";
+import { proposalsBrief } from "@/lib/proposals-brief";
 import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
 import { resultsFor } from "@/lib/results/server";
 import type { ResultRead } from "@/lib/results/types";
 import { briefingResultFact } from "@/lib/results/words";
 import { buildSinceVisit, sinceShows, toldElsewhere } from "@/lib/since-visit";
 import { loadSinceVisit, type SinceVisitResult } from "@/lib/since-visit-server";
+import { readStripSource, stripFrom, withinStrip, type StripSource } from "@/lib/thesis-monitor/strip-server";
+import type { ThesisStripData } from "@/lib/thesis-monitor/strip";
 
 export const dynamic = "force-dynamic";
 
@@ -170,17 +176,58 @@ async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ da
 }
 
 /**
- * The slot under the header: the agent's proposals line, then the Overnight strip (before the open), then "Since you
- * last looked"; nothing when none shows.
+ * The slot under the header: the agent's desk (what it found and what it did or proposes, lib/briefing-desk.ts), the
+ * thesis strip, then the Overnight strip (before the open), then "Since you last looked"; nothing when none shows.
  */
-function briefingTop(proposals: ProposalsBrief | null, since: React.ReactNode, overnight: OvernightStripData | null = null): React.ReactNode {
-  const parts = [
-    proposals?.count ? <ProposalsLine key="proposals" brief={proposals} /> : null,
-    overnight ? <OvernightStrip key="overnight" strip={overnight} /> : null,
-    since ? <Fragment key="since">{since}</Fragment> : null,
-  ].filter(Boolean);
-  if (parts.length === 0) return null;
-  return parts.length === 1 ? parts[0] : <div className="flex min-w-0 flex-col gap-3">{parts}</div>;
+function briefingTop(parts: React.ReactNode[]): React.ReactNode {
+  const shown = parts.filter(Boolean);
+  if (shown.length === 0) return null;
+  return shown.length === 1 ? shown[0] : <div className="flex min-w-0 flex-col gap-6">{shown}</div>;
+}
+
+/** How long the page waits, at most, for the thesis strip once the briefing is ready (its reads started early). */
+const STRIP_WAIT_MS = 400;
+
+/**
+ * The thesis strip's data (lib/thesis-monitor/strip.ts). Its reads start with the page, beside the briefing's own, so
+ * they are done by the time the briefing is (measured: the page is no slower); a slow read leaves the strip out
+ * rather than holding the page. Awaited here rather than streamed, so the slot under the header never holds an empty
+ * box. Report days come from the briefing's own positions, the cached calendar only for the rest.
+ */
+async function thesisStripFor(source: Promise<StripSource | null> | null, reports: Record<string, string>, today: string): Promise<ThesisStripData | null> {
+  if (!source) return null;
+  const read = await withinStrip(source, STRIP_WAIT_MS);
+  return read ? withinStrip(stripFrom(read, { today, reports }), 900) : null;
+}
+
+/**
+ * The report day behind each stock's report finding this week: its results read's day, else a report day on its
+ * position from the last few days. A finding pairs with a results proposal only on this day (lib/briefing-desk.ts).
+ */
+function pastReportDays(positions: readonly BriefingPosition[], results: readonly ResultRead[], today: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const position of positions) {
+    const day = position.earnings_date?.slice(0, 10);
+    if (day && day <= today && day >= tradingDayBefore(tradingDayBefore(tradingDayBefore(today)))) out[position.ticker.toUpperCase()] = day;
+  }
+  for (const read of results) if (read.reportDate) out[read.ticker.toUpperCase()] = read.reportDate.slice(0, 10);
+  return out;
+}
+
+/** The desk's cards and line, rendered (components/briefing/desk.tsx); null when it has nothing. */
+function deskNode(desk: DeskData | null, positions: readonly BriefingPosition[], watch: WatchSummary | null, today: string): React.ReactNode {
+  if (!desk) return null;
+  const byTicker = new Map(positions.map((position) => [position.ticker.toUpperCase(), position]));
+  // Each card's price and day from the briefing's own positions (no quote read); a stock the briefing does not price
+  // keeps the price stored with the proposal.
+  const cards = desk.waiting.map((proposal) => {
+    const position = proposal.ticker ? byTicker.get(proposal.ticker.toUpperCase()) : undefined;
+    const quote = position && typeof position.price === "number" && position.price > 0 ? { price: position.price, dayPct: position.day_change_pct ?? null, at: position.price_as_of } : null;
+    return toCard(proposal, quote);
+  });
+  // The agent's status fills an odd row of proposals as a tile (components/proposals compact), never as a strip.
+  if (cards.length + desk.answered.length + desk.checked.length === 0) return null;
+  return <Desk proposals={cards} watch={watch && watch.stocks > 0 ? watch : null} today={today} answered={desk.answered} checked={desk.checked} />;
 }
 
 export default async function BriefingPage({ searchParams }: { searchParams?: { day?: string | string[] } }) {
@@ -196,6 +243,8 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   // The agent's proposals waiting for an answer: one line under the header. lib/proposals-brief.ts also works them out
   // (throttled, as on /agent and /inbox) and shows the stored ones if that runs long.
   const proposalsRead = user && !day ? proposalsBrief(user.uid) : Promise.resolve(null);
+  // The thesis strip's reads (the theses and their checks) start now too, beside the briefing's load.
+  const stripRead: Promise<StripSource | null> | null = user && !day ? readStripSource(user.uid).catch(() => null) : null;
   // Signed out, the market's top stories and the 10-year and VIX tiles start now, beside the example briefing's own
   // load, instead of after it (they are the same for everyone). Signed in they still start after the briefing: the
   // member's own reads come first, and running these beside them was measured no faster (Nov 12) since the store
@@ -307,7 +356,45 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
   for (const row of levels) shown.add(row.ticker);
 
-  const proposals = await proposalsRead;
+  const reportDays = Object.fromEntries(positions.flatMap((position) => (position.earnings_date ? [[position.ticker.toUpperCase(), position.earnings_date.slice(0, 10)] as const] : [])));
+  const [proposals, thesis] = await Promise.all([proposalsRead, live ? thesisStripFor(stripRead, reportDays, today) : Promise.resolve(null)]);
+
+  // The agent's desk: each of the day's findings with what the agent did or proposes (lib/briefing-desk.ts). Today's
+  // briefing only; signed out it is the example's, which has no proposals, so its findings can only be "checked".
+  const doCards = todo?.kind === "cards" ? todo.cards : [];
+  const desk: DeskData | null =
+    live && personal
+      ? buildDesk(
+          {
+            today,
+            now,
+            waiting: signedIn ? proposals?.waiting ?? null : [],
+            all: signedIn ? proposals?.all ?? [] : [],
+            // Signed out the example has no queue to miss: its findings are checked against its own calls.
+            fresh: signedIn ? Boolean(proposals?.fresh) : true,
+            reportDays: pastReportDays(positions, results, today),
+            prices: prePrices,
+            moved: casedMoved(moved),
+            overnight: overnight?.cards ?? [],
+            overnightDropAt: overnight?.dropAt ?? null,
+            levels,
+            doCards,
+            positions,
+            items,
+            sourceOf: sourceWords,
+          },
+          (day) => capitalize(dayWords(day, today)),
+        )
+      : null;
+  // The stocks the desk now tells leave the modules below (a stock shows once).
+  const taken = desk?.taken ?? new Set<string>();
+  const shownMoved = moved.filter((card) => !taken.has(card.ticker));
+  const shownLevels = levels.filter((row) => !taken.has(row.ticker));
+  const keptDo = doCards.filter((card) => !taken.has(card.ticker));
+  const shownTodo = todo?.kind === "cards" && keptDo.length !== doCards.length ? (keptDo.length > 0 ? { kind: "cards" as const, cards: keptDo } : { kind: "quiet" as const }) : todo;
+  const keptOvernight = overnight ? overnight.cards.filter((card) => !taken.has(card.ticker)) : [];
+  const shownOvernight = overnight && keptOvernight.length > 0 ? { ...overnight, cards: keptOvernight } : null;
+  const deskView = deskNode(desk, positions, proposals?.watch ?? null, today);
 
   return (
     <AppPage width="dash">
@@ -326,12 +413,17 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         example={Boolean(data.example)}
         strip={strip}
         topNews={topNews}
-        doToday={todo}
+        doToday={shownTodo}
         heat={personal ? heatCells(positions, pre, prePrices) : []}
-        levels={levels}
-        moved={moved}
+        levels={shownLevels}
+        moved={shownMoved}
         week={week}
-        top={briefingTop(proposals, sinceShows(sinceView) ? <SinceVisit view={sinceView} /> : null, overnight)}
+        top={briefingTop([
+          deskView ? <Fragment key="desk">{deskView}</Fragment> : null,
+          shownOvernight ? <OvernightStrip key="overnight" strip={shownOvernight} /> : null,
+          sinceShows(sinceView) ? <SinceVisit key="since" view={sinceView} /> : null,
+        ])}
+        afterBand={thesis ? <ThesisStrip strip={thesis} today={today} compact /> : null}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}
         locked={locked}
         sessionOpened={!live || sessionOpened(today, now.getTime())}

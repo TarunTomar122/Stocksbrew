@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { Bar } from "@/components/oa/kit/skeleton";
+import { ThesisStripSlot } from "@/components/thesis-monitor/thesis-strip-slot";
 import { getSessionUser } from "@/lib/auth-server";
 import { loadAgentOffers, loadFirstLook, lookStocks, reasonAsks, firstLookViewFor } from "@/lib/first-look/server";
 import type { FirstLookRun } from "@/lib/first-look/types";
@@ -131,6 +132,11 @@ export async function FirstLookSlot({ preview }: { preview: boolean }) {
       </div>
       <Suspense fallback={<FindingsGhost />}>
         <Findings uid={session.uid} />
+      </Suspense>
+      {/* The thesis, when the person already has a checked one or a measurable reason: its own boundary, so the look
+          never waits for it (lib/thesis-monitor/strip.ts). */}
+      <Suspense fallback={null}>
+        <ThesisStripSlot uid={session.uid} className="mt-3" />
       </Suspense>
       <Suspense fallback={<AgentsGhost />}>
         <Agents uid={session.uid} />

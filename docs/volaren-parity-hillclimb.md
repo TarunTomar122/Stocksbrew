@@ -210,6 +210,39 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~10:50 ET: Dodo live on the VPS, ops alert emails on, radar-alerts off
+- Dodo: owner made a live API key; DODO_API_KEY, DODO_WEBHOOK_SECRET and the three product ids (yearly, monthly,
+  India) are in ~/.config/tikrr/web.env and /etc/tikrr/web.env (DODO_MODE=live). Key checked read-only plus write
+  probes (empty POST /checkouts gave 422, PATCH on a missing subscription 404, so the permissions are there).
+- Webhook: the old endpoint pointed at www.tikrr.online (paused Vercel, 402), so Dodo events failed from Nov 12. The
+  owner's new endpoint ep_3M365u… points at https://www.stocksbrew.online/api/subscription/webhook; a duplicate I
+  made 15 s earlier was deleted. A signed test event gave 200, a wrong key 401. Cloudflare answers python's default
+  UA with 1010, while Svix's UA passes: if Dodo shows delivery failures, check Cloudflare first. The old tikrr.online
+  endpoint is still on (owner may disable it).
+- Ops alerts: /etc/tikrr/ops.env (root 0600) holds OPS_ALERT_EMAIL, EMAILS_ENABLED=1 and the Brevo key; emails go only
+  on red checks (two runs in a row), not on amber.
+- radar-alerts timer disabled on the VPS and dropped from install-systemd.sh (owner ok).
+- Firecrawl kept (owner); its container stays capped at 1200 MB. Tell the owner if it causes trouble again.
+- In flight: treemaps sized by move + sector top-mover logos (owner: "i thought u fixed this to be size dependent"),
+  calendar centered on today with the lost row info back, briefing desk round 4 after council BLOCK, heavy reads 2.
+
+### 2026-11-13 midday: one-click agent recipes + filing chips live
+
+- **Agent recipes (2ef402e, 4f31350):**
+  - Stock pages: "Watch X for me" offers report-coming-up (plus the night of, with the after-hours move), a filing that adds a risk, insider buys of $X+, and moves of 3/5/8%.
+  - Fund and Congress pages: "Tell me when they trade". Thesis and basket pages: "Tell me when it breaks".
+  - Each runs a 4-week no-hindsight replay before switching on (real: NVDA −5.47% Tuesday, −9.26% Nov 5).
+  - Each job keeps a `told` set, so late-arriving Congress, 13F, Form 4 and filing records alert exactly once (fixture tests).
+  - "filing changes" now runs before "standing agents" in after_close.
+  - Quiet runs fold into dated lines on the agent page.
+  - The old "Remind me 3 days before earnings" link under the call is removed.
+- **Filing chips (e9b27f6):** owner asked for less text.
+  - The risk section is now topic chips with icons: a rule classifier, ~45 categories, entity-named deals, 81% of 2,328 real headings categorised.
+  - Header shows +N new / −N dropped; dropped chips are struck through. Serious risks (material weakness, going concern…) go first, red only when added.
+  - Full sentences sit behind one "Read them" toggle. Inbox, record and proposal lines name the topics.
+  - Open: red uses the loss colour (no warning token); full heading on hover only.
+- **Running:** the briefing desk (resumed after repeated model-API outages).
+
 ### 2026-11-13 ~11:00 ET: judge90 sweep live (2d04c15)
 
 - News rows no longer overlap on phones (layout switches on the row's own width).

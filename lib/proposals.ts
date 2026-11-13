@@ -1276,6 +1276,16 @@ function levelOf(action: ProposalAction): ProposalLevel | null {
   return action.type === "alert_price" ? { price: action.price, label: action.replaces ? "New alert" : "Alert" } : null;
 }
 
+/**
+ * The level a card's bar draws: the stored one, except that a proposal to set an alert always draws the alert's own
+ * price (a stored level at another price would show a threshold the alert does not have).
+ */
+export function cardLevel(proposal: Pick<Proposal, "level" | "action">): ProposalLevel | null {
+  const alert = levelOf(proposal.action);
+  if (alert && (!proposal.level || Math.abs(proposal.level.price - alert.price) > 0.005)) return alert;
+  return proposal.level ?? alert;
+}
+
 /** Holds a draft to the word budgets: a title over budget drops the draft, a why line over budget is dropped. */
 export function fitWords(draft: ProposalDraft): ProposalDraft | null {
   if (wordCount(draft.title) > TITLE_MAX_WORDS) return null;
@@ -1600,7 +1610,7 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     actionType: proposal.action.type,
     quote: shown ? { price: shown.price, dayPct: shown.dayPct } : null,
     does: repeatsTitle(proposal.title, proposal.does) ? null : proposal.does,
-    level: proposal.level ?? levelOf(proposal.action),
+    level: cardLevel(proposal),
     usualPct: proposal.usualPct ?? null,
     // A thesis review stays a review under its own heading; the alert it sets is the card's own part.
     group: proposal.kind === "thesis_review" ? { ...THESIS_GROUP, short: groupOf(proposal.action).short } : groupOf(proposal.action),

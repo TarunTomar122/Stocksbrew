@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/docs/json-ld";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { HoldingsStream } from "@/components/portfolio/holdings-stream";
 import { ThesisEntry } from "@/components/thesis-monitor/thesis-entry";
+import { ThesisStripSlot } from "@/components/thesis-monitor/thesis-strip-slot";
 import { PortfolioGhost } from "@/components/portfolio/portfolio-ghost";
 import { myStocksTab } from "@/lib/portfolio-shared";
 import { toolPageLd, toolPageMetadata } from "@/lib/seo/tool-pages";
@@ -41,6 +42,11 @@ export default function PortfolioHomePage({ searchParams }: { searchParams?: Sea
           </Suspense>
         }
       />
+      {/* The thesis strip (lib/thesis-monitor/strip.ts) in its own boundary, so the holdings never wait for it. Its two
+          reads finish well before the holdings' own, so it lands above their skeleton, not over the table. */}
+      <Suspense fallback={null}>
+        <ThesisStripSlot className="mb-4" />
+      </Suspense>
       <Suspense fallback={<PortfolioGhost />}>
         <HoldingsStream tab={tab} />
       </Suspense>

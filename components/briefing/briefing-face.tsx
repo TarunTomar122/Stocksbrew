@@ -60,6 +60,8 @@ export type BriefingFaceProps = {
   week: WeekDay[];
   /** Rendered under the header row, above the market band: "Since you looked yesterday" (components/briefing/since-visit.tsx). */
   top?: React.ReactNode;
+  /** Rendered right under the market band: the thesis strip (components/thesis-monitor/thesis-strip.tsx). */
+  afterBand?: React.ReactNode;
   /** Standing-job findings today, for one quiet link to /agent. */
   agentFindings: number;
   /** Whether today's session has opened (9:30 ET), so a before-the-open report counts as out. True on a saved day. */
@@ -236,7 +238,7 @@ function SharedCards({ cards, label, grid = THREE, fit = false }: { cards: Reado
 }
 
 /** "Reuters, Nov 11": who said it and when, under the reason. Our own research is not named. */
-function sourceWords(card: MovedCard): string | null {
+export function sourceWords(card: MovedCard): string | null {
   const name = card.source?.name?.trim();
   if (!name || /^stocksbrew/i.test(name)) return null;
   const day = card.source?.at && /^\d{4}-\d{2}-\d{2}/.test(card.source.at) ? shortDay(card.source.at.slice(0, 10)) : "";
@@ -831,7 +833,7 @@ function MarketNote({ viewer, pendingTracked }: { viewer: BriefingFaceProps["vie
 }
 
 /** The moved cards' lines in sentence case through the wire's shared casing (owner rule 8: no scraped Title Case). */
-function casedMoved(cards: MovedCard[]): MovedCard[] {
+export function casedMoved(cards: MovedCard[]): MovedCard[] {
   const names = Object.fromEntries(cards.map((card) => [card.ticker, card.name]));
   return caseWireHeadlines(
     cards.map((card) => ({ ...card, title: card.line, tickers: [card.ticker] })),
@@ -850,7 +852,7 @@ function headClock(date: string, clock: string): string {
 }
 
 export function BriefingFace(props: BriefingFaceProps) {
-  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, week, top, agentFindings, locked, sessionOpened } = props;
+  const { mode, viewer, date, clock, days, archived, degraded, example, strip, topNews, doToday, heat, levels, week, top, afterBand, agentFindings, locked, sessionOpened } = props;
   const moved = casedMoved(props.moved);
   const personal = mode === "personal";
   const title = example ? "Example briefing for a made-up portfolio of real stocks" : personal ? "Your briefing" : "Market briefing";
@@ -923,6 +925,8 @@ export function BriefingFace(props: BriefingFaceProps) {
       <div className={`min-w-0 ${SPAN.all}`}>
         <MarketBand strip={strip} clock={clock} live={!archived} date={date} />
       </div>
+
+      {afterBand ? <div className={`-mt-3 min-w-0 ${SPAN.all}`}>{afterBand}</div> : null}
 
       {/* Nothing to do shows nothing (judges, sweep 87: "Nothing needs you today" was filler, and it contradicted the
           agent's proposals above it). Only a failed read says so, so quiet is never mistaken for a broken page. */}

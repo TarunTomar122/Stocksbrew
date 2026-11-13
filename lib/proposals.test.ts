@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardLevel,
   alertFromDoc,
   candidates,
   levelScale,
@@ -623,5 +624,18 @@ describe("triggerLine", () => {
     expect(triggerLine("level_reached", "ORCL closed at $251.20 yesterday, over its $250 sell-some level.")).toBe("ORCL closed over its sell-some level yesterday.");
     expect(triggerLine("alert_hit", "LLY closed at $1,427.28 yesterday, under its $1,433.04 buy-more level.")).toBe("LLY closed at $1,427.28 yesterday, under its $1,433.04 buy-more level.");
     expect(triggerLine("level_reached", "Something else.")).toBe("Something else.");
+  });
+});
+
+describe("cardLevel", () => {
+  const alert = { type: "alert_price" as const, ticker: "ASTS", instrument_id: "US_ASTS", condition: "below" as const, price: 33.66, replaces: null };
+  it("always draws an alert proposal's own threshold", () => {
+    expect(cardLevel({ level: { price: 35, label: "Buy-more level" }, action: alert })).toEqual({ price: 33.66, label: "Alert" });
+    expect(cardLevel({ level: null, action: alert })).toEqual({ price: 33.66, label: "Alert" });
+    // A stored level at the alert's own price keeps its words.
+    expect(cardLevel({ level: { price: 33.66, label: "Buy-more level" }, action: alert })).toEqual({ price: 33.66, label: "Buy-more level" });
+  });
+  it("keeps the stored level for any other action", () => {
+    expect(cardLevel({ level: { price: 1433.04, label: "Buy-more level" }, action: { type: "practice_ticket", ticker: "LLY", side: "buy" } })).toEqual({ price: 1433.04, label: "Buy-more level" });
   });
 });
