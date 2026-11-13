@@ -36,5 +36,9 @@ rsync -a --delete "$OUT/" "vps:/opt/tikrr-web/releases/$SHA/"
 # sharp's prebuilt binaries (@img/sharp-*) are per platform: swap the laptop's for linux-x64 ones, installed in a
 # scratch folder so npm never touches the release's own tree.
 ssh vps "set -e; REL=/opt/tikrr-web/releases/$SHA; T=\$(mktemp -d); cd \$T && npm init -y >/dev/null && npm install --no-audit --no-fund --os=linux --cpu=x64 --libc=glibc sharp@$SHARP >/dev/null; rm -rf \$REL/node_modules/sharp \$REL/node_modules/@img; cp -R \$T/node_modules/sharp \$T/node_modules/@img \$REL/node_modules/; rm -rf \$T"
-ssh vps "ln -sfn /opt/tikrr-web/releases/$SHA /opt/tikrr-web/current && sudo systemctl restart tikrr-web && ls -1dt /opt/tikrr-web/releases/* | tail -n +6 | xargs -r rm -rf"
+# Swap in the new release one instance at a time, so Varnish always has one ready backend (no downtime).
+ssh vps "set -e; ln -sfn /opt/tikrr-web/releases/$SHA /opt/tikrr-web/current; for port in 3000 3001; do sudo systemctl restart tikrr-web@\$port; for i in \$(seq 1 60); do curl -s -o /dev/null --max-time 2 http://localhost:\$port/robots.txt && break; sleep 1; done; done; ls -1dt /opt/tikrr-web/releases/* | tail -n +6 | xargs -r rm -rf"
+# Warm the busiest pages on both instances, so nobody waits on a cold render after a deploy.
+ssh vps 'for port in 3000 3001; do for p in / /briefing /explore /signals /news /calendar /sectors /screener /markets /pricing /stock/AAPL /stock/NVDA /stock/AMD /stock/TSLA /stock/MSFT /sitemap.xml; do curl -s -o /dev/null --max-time 90 -H "Host: www.stocksbrew.online" -H "X-Forwarded-Proto: https" http://localhost:$port$p; done; done'
+
 echo "deployed $SHA"

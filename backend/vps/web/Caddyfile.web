@@ -5,12 +5,13 @@ stocksbrew.online, www.stocksbrew.online {
 	@apex host stocksbrew.online
 	redir @apex https://www.stocksbrew.online{uri} permanent
 	encode zstd gzip
-	# Next's build assets are content-hashed, so they can be cached for a year.
+	# Next's build assets are content-hashed, so browsers can keep them for a year.
 	@static path /_next/static/*
 	header @static Cache-Control "public, max-age=31536000, immutable"
-	reverse_proxy 127.0.0.1:3000 {
-		# Next writes absolute redirects from its own bind address (http://localhost:3000/...): point them at the
+	# Varnish (127.0.0.1:6081, backend/vps/web/varnish.vcl) caches the public routes and balances the Next instances.
+	reverse_proxy 127.0.0.1:6081 {
+		# Next writes absolute redirects from its own bind address (http://localhost:300x/...): point them at the
 		# public address instead.
-		header_down Location "^http://localhost:3000(.*)$" "https://www.stocksbrew.online$1"
+		header_down Location "^http://localhost:30[0-9][0-9](.*)$" "https://www.stocksbrew.online$1"
 	}
 }

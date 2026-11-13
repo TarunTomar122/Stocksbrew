@@ -1,8 +1,8 @@
 # The stocksbrew web app, self-hosted (moved off Vercel on 2026-11-13).
-# Runs the Next.js standalone build in /opt/tikrr-web/current, bound to localhost; Caddy serves it as
-# stocksbrew.online. Secrets live in /etc/tikrr/web.env (mode 600, never committed).
+# Runs the Next.js standalone build in /opt/tikrr-web/current, bound to localhost. Caddy (HTTPS) -> Varnish (cache
+# for the routes that are the same for everyone) -> these instances. Secrets live in /etc/tikrr/web.env (mode 600, never committed).
 [Unit]
-Description=stocksbrew web (Next.js standalone)
+Description=stocksbrew web (Next.js standalone) on port %i
 After=network-online.target tikrr-localdb.service
 Wants=network-online.target
 
@@ -15,7 +15,8 @@ Environment=NODE_ENV=production
 # "localhost", not 127.0.0.1: Next builds its own URLs from this name, and a mismatch makes middleware rewrites
 # (the cached signed-out pages) proxy back to itself over https and fail. It still binds to 127.0.0.1 only.
 Environment=HOSTNAME=localhost
-Environment=PORT=3000
+# One instance per core-ish: tikrr-web@3000 and tikrr-web@3001, load-balanced by Varnish (varnish.vcl).
+Environment=PORT=%i
 ExecStart=/usr/local/bin/node --max-old-space-size=1024 server.js
 Restart=always
 RestartSec=3
