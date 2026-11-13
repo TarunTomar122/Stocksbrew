@@ -170,7 +170,7 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [x] Call engine v3 scorecard: built, no edge, stays off. Next: reframe the call as a descriptive scorecard.
 - [x] Open source readiness report done; going public blocked on owner decisions (key rotation, CSV, license): LICENSE, waitlist CSV in history, scrub private infra and personal identities, env example, README.
 - [ ] Share previews (OG cards) for every page family (in progress).
-- [ ] Results night (PARKED, owner decides): built in lib/results/*, components/results/* and wired into the stock page, inbox, briefing card facts and earnings season, but every loader returns empty unless RESULTS_NIGHT=1. Example reads: CRWV "lost $1.27 a share, less than the $1.55 expected, up 25% today, bigger than its usual 17% move after a report"; CEG "beat by 30%, rose 10%, 5.2× its usual"; QLYS "beat by 14%, fell 14% the next day". 9 open QA bugs before switching on: inbox headline ignores results; rows dated by store time ("the next day" undated); "overnight" includes the previous morning's reports; rounding mismatches; repeated call line in inbox rows (rule 1) + old call shown for uncovered stocks; failed per-stock read cached as complete; "call reviewed" from updated_at; empty 4th figure slot; beat/miss judged after rounding. Revenue + guidance need EARNINGS_DAY_ENABLED=1 and the earnings-day timer on the VPS; then drop either the new block or EarningsDayStockEntry.
+- [x] Results night: ON in production (RESULTS_NIGHT=1; found Nov 13); the 9 QA bugs below were fixed in ship 56. Old note: built in lib/results/*, components/results/* and wired into the stock page, inbox, briefing card facts and earnings season, but every loader returns empty unless RESULTS_NIGHT=1. Example reads: CRWV "lost $1.27 a share, less than the $1.55 expected, up 25% today, bigger than its usual 17% move after a report"; CEG "beat by 30%, rose 10%, 5.2× its usual"; QLYS "beat by 14%, fell 14% the next day". 9 open QA bugs before switching on: inbox headline ignores results; rows dated by store time ("the next day" undated); "overnight" includes the previous morning's reports; rounding mismatches; repeated call line in inbox rows (rule 1) + old call shown for uncovered stocks; failed per-stock read cached as complete; "call reviewed" from updated_at; empty 4th figure slot; beat/miss judged after rounding. Revenue + guidance need EARNINGS_DAY_ENABLED=1 and the earnings-day timer on the VPS; then drop either the new block or EarningsDayStockEntry.
 - [ ] Speed: stock page and briefing fast and snappy (owner's main focus after the Nov 11 UI round). Structural rework in progress (ship 24): stock page 580KB → <200KB, markets 460KB, portfolio loaders.
 - [ ] Short interest (FINRA): blocked on terms. FINRA's equity data terms (Dec 2022, 2.2/2.3) allow non-commercial use only; the Reg SHO daily files say "free for non-commercial use". Owner decision: ask FINRA for written consent, or revisit after the free/open-source switch. Notes and PDFs in scratchpad/finra/. Build is ~1 day once cleared.
 - [ ] Inbox: built (bell + /inbox), ships with 24.
@@ -213,6 +213,31 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-13 ~14:45 ET: stale price histories fixed (d529c476)
+- Found by the results-night builder: 197 of 844 tm_price_history_daily docs stopped at Nov 9 (CBRS, CRWV, NBIS...).
+  The after-close price step took its list from backend/config/instrument_universe.json (601 symbols), so stocks
+  added to tm_instruments later got one backfill and never again. --prices-only now adds every active US stock in
+  tm_instruments (a failed coverage read falls back to the old list). 3 new tests; 74/74 in a VPS copy.
+- Pulled on /opt/tikrr and run once: 851 symbols, 244 newer than the store, 488 docs (histories + tails) in 18 s;
+  CBRS/CRWV/NBIS/ASTS now end Nov 12.
+- Also from that builder: results night is already ON in production (RESULTS_NIGHT=1) and its 9 QA bugs were fixed in
+  ship 56 (af5df1b); the backlog line was stale. QLYS stores 1.67 vs 1.46 EPS where the release says non-GAAP 2.12 vs
+  1.95 (open: the EPS source).
+
+### 2026-11-13 ~17:15 ET: judge92 on the live site: overall 7.6 (was 7.4); sweep 91 live (3c623101)
+- 3c623101: headlines cut only at clean clauses (lib/headline-short.ts; kept whole otherwise), landing example cards
+  with prices and one line, AMD's new risk shown directly, basket median ticks, backtest "Costs 0.2%", one-line Ask
+  suggestion, compact footer, thesis line with a bar. Council APPROVE r3; 2 QA passes fixed. 4589/4589 both ways.
+- judge92 (scratchpad/judge92/codex.md): UI 7.0 (cap), UX 7.7, usability 7.1, wording 7.2, agent feel 8.4,
+  similarity 7.5, sell 7.1, overall 7.6. Breaks: landing portfolio cards, sector mover chips without prices, S&P card
+  without the level, Biggest-things source lines, clipped NVDA on Signals, calendar kind icons + beat/miss bars, AMD
+  second sentences, basket replay intro + median label, briefing level bars. Bold pick: an idea-to-agent workspace
+  (thesis → sourced basket with a checkable reason and failure condition per company → no-hindsight replay → a
+  scheduled watcher), joining themes, basket agent and replay.
+- In flight: judge92 sweep, /briefing under 500 ms, results night readied behind its flag (owner decides).
+  Owner (Nov 13, ~17:20 ET): "pretty happy with the website": finish the three in flight, then pause; no new
+  rounds (the idea-to-agent workspace stays an idea until the owner asks).
 
 ### 2026-11-13 ~16:30 ET: treemaps by move, biggest things first, real-user speed, the landing loop (live)
 - bceabf35 treemaps: area = move^0.75, floor 0.1, maps grow a little before small moves flatten. Owner's book at 992:

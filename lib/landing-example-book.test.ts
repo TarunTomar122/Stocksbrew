@@ -69,9 +69,40 @@ describe("the home page's example book", () => {
     const source = exampleSource();
     const cards = stockCards(source, { reasons: [], ideas: [] });
     const view = exampleBookView(source)!;
+    // Without a past month there is no bar, so every card keeps its line and its /portfolio place.
     expect(view.rows.map((r) => r.ticker)).toEqual(cards.map((card) => card.ticker));
     expect(view.rows.map((r) => r.line)).toEqual(cards.map((card) => card.fact?.text ?? null));
+    expect(view.marketMonthPct).toBeNull();
     expect(view.rows.find((r) => r.ticker === "AAPL")).toMatchObject({ shares: 55, price: 354.5, dayPct: 1.72, call: "Buy more" });
+  });
+
+  it("draws the past month as a bar instead of writing it on each card, and gives every card its own line", () => {
+    const month = {
+      MSFT: { pct: -2, marketPct: -1.6 },
+      AAPL: { pct: 3.5, marketPct: -1.6 },
+      NVDA: { pct: -25, marketPct: -1.6 },
+      JPM: { pct: 2.3, marketPct: -1.6 },
+      COST: { pct: 11.4, marketPct: -1.6 },
+      XOM: { pct: -4.1, marketPct: -1.6 },
+      UNH: { pct: 2.4, marketPct: -1.6 },
+      VOO: { pct: -1.6, marketPct: -1.6 },
+      QQQ: { pct: -5.6, marketPct: -1.6 },
+    };
+    const source = exampleSource({ month });
+    const view = exampleBookView(source)!;
+    expect(view.marketMonthPct).toBe(-1.6);
+    expect(view.rows.find((r) => r.ticker === "COST")?.monthPct).toBe(11.4);
+    // No card spells out its month against the S&P 500: the bar and its tick show it.
+    for (const r of view.rows) expect(r.line ?? "").not.toMatch(/past month|S&P 500/);
+    // The funds had only their month to say: the bar shows it, and the line says their own share of the example.
+    expect(view.rows.find((r) => r.ticker === "VOO")?.line).toMatch(/^\d+(\.\d)?% of the example/);
+    // Every card still says one thing of its own, and no two say the same.
+    expect(view.rows.every((r) => r.line)).toBe(true);
+    expect(new Set(view.rows.map((r) => r.line)).size).toBe(view.rows.length);
+    expect(view.rows).toHaveLength(9);
+    // A Buy more with its level says the price we'd act at instead.
+    const leveled = exampleBookView({ ...source, facts: { ...source.facts, calls: { ...source.facts.calls, JPM: { ...call("Add"), addBelow: 330 } } } })!;
+    expect(leveled.rows.find((r) => r.ticker === "JPM")?.line).toBe("We'd buy more below $330.");
   });
 
   it("never puts a call word on a fund, even when the research has one for it (judges, ship 44)", () => {

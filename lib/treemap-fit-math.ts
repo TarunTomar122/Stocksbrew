@@ -117,7 +117,7 @@ export function priceFromWidth(price: string): number {
 
 /* ── chips under a label ─────────────────────────────────────────────────── */
 
-/** A small chip under a tile's label (a sector's mover: its logo, ticker and move at 11px, monospace). */
+/** A small chip under a tile's label (a sector's mover: its logo, ticker, price and move at 11px, monospace). */
 export const CHIP_H = 18;
 /** The space between chips, across and down, and above the first row. */
 export const CHIP_GAP = 3;
@@ -125,9 +125,10 @@ const CHIP_FONT = 11;
 const CHIP_LOGO = 14;
 const CHIP_PAD_X = 4;
 
-/** How wide a chip is with this ticker and move. */
-export function chipWidth(ticker: string, move: string): number {
-  return (CHIP_LOGO + 2 * CHIP_GAP + (ticker.length + move.length) * MONO * CHIP_FONT + 2 * CHIP_PAD_X) * FIT_PAD;
+/** How wide a chip is with this ticker and move, and its price between them when it has one (one more gap). */
+export function chipWidth(ticker: string, move: string, price = ""): number {
+  const gaps = price ? 3 : 2;
+  return (CHIP_LOGO + gaps * CHIP_GAP + (ticker.length + price.length + move.length) * MONO * CHIP_FONT + 2 * CHIP_PAD_X) * FIT_PAD;
 }
 
 /** How tall a tile's label is at the type step a tile of this inner size prints (the stylesheet's container queries). */

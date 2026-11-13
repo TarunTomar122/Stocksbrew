@@ -91,6 +91,15 @@ describe("chips under a label", () => {
     expect(chipsThatFit({ w: 60, h: 400 }, { move: "−0.34%" }, widths)).toBe(0);
   });
 
+  it("counts a chip's price in its width, so a priced chip that would not fit whole is left out", () => {
+    expect(chipWidth("NVDA", "−4.4%", "$166.04")).toBeGreaterThan(chipWidth("NVDA", "−4.4%"));
+    const priced = ["SMCI", "NVDA", "ORCL"].map((ticker) => chipWidth(ticker, "−11%", "$1,234"));
+    // A tile that holds a bare chip on one line can be too narrow for the priced one.
+    const across = chipWidth("SMCI", "−11%") + 2 * 6 + 1;
+    expect(chipsThatFit({ w: across, h: 400 }, { move: "−0.34%" }, widths)).toBeGreaterThan(0);
+    expect(chipsThatFit({ w: across, h: 400 }, { move: "−0.34%" }, priced)).toBe(0);
+  });
+
   it("never lets the label and its chips overflow the tile, even a type step bigger than laid out", () => {
     for (let w = 60; w <= 420; w += 7) {
       for (let h = 40; h <= 300; h += 5) {

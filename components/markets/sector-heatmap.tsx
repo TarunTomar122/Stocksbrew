@@ -108,20 +108,24 @@ const CHIP_CLASS =
 
 /**
  * The movers that fit whole under a tile's label at the size its layout drew it (the tile's box, less its gap and
- * border: the size container its label's type steps read), as logo, ticker and move chips. Plain spans: the tile
- * is one link to its sector.
+ * border: the size container its label's type steps read), as logo, ticker, price and move chips. Every chip carries
+ * its price (owner rule 4: a stock's move never shows without its price), so a mover with no price is left out rather
+ * than shown bare, and the chips that fit are counted at their full width: a chip is whole or not there. Plain spans:
+ * the tile is one link to its sector.
  */
 function MoverChips({ movers, size, gap, move }: { movers: readonly SectorMover[]; size: TreemapTileSize; gap: number; move: string }) {
   const inner = { w: size.w - gap - TILE_BORDER, h: size.h - gap - TILE_BORDER };
-  const shown = movers.slice(0, chipsThatFit(inner, { move }, movers.map((mover) => chipWidth(mover.ticker, chipPct(mover.pct)))));
+  const priced = movers.filter((mover) => chipPrice(mover.price) !== "");
+  const shown = priced.slice(0, chipsThatFit(inner, { move }, priced.map((mover) => chipWidth(mover.ticker, chipPct(mover.pct), chipPrice(mover.price)))));
   if (shown.length === 0) return null;
-  // The chips' look is set once on the row (CHIP_CLASS), so each chip's markup is only its logo, ticker and move.
+  // The chips' look is set once on the row (CHIP_CLASS), so each chip's markup is only its logo, ticker, price and move.
   return (
     <span className={CHIP_CLASS} style={{ gap: CHIP_GAP, marginTop: CHIP_GAP - 2 }}>
       {shown.map((mover) => (
-        <span key={mover.ticker} title={[mover.ticker, chipPrice(mover.price), chipPct(mover.pct)].filter(Boolean).join(" ")}>
+        <span key={mover.ticker} title={`${mover.ticker} ${chipPrice(mover.price)} ${chipPct(mover.pct)}`}>
           <StockLogo ticker={mover.ticker} size={14} />
           {mover.ticker}
+          <span className="font-normal text-oa-muted-fg">{chipPrice(mover.price)}</span>
           <span className={mover.pct > 0 ? "text-signal-bullish" : mover.pct < 0 ? "text-signal-bearish" : ""}>{chipPct(mover.pct)}</span>
         </span>
       ))}
@@ -162,7 +166,8 @@ export function SectorHeatmap({
       label={label}
       renderTile={(row, size) => {
         const words = wordsOf(row);
-        const led = row.movers?.length ? `, biggest movers ${row.movers.map((mover) => `${mover.ticker} ${chipPct(mover.pct)}`).join(", ")}` : "";
+        const priced = (row.movers ?? []).filter((mover) => chipPrice(mover.price) !== "");
+        const led = priced.length ? `, biggest movers ${priced.map((mover) => `${mover.ticker} ${chipPrice(mover.price)} ${chipPct(mover.pct)}`).join(", ")}` : "";
         return (
           <Link
             prefetch={false}

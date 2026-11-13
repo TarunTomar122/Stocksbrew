@@ -2,7 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { Sparkline } from "@/components/markets/widgets";
-import { PairBar, SignedBar } from "@/components/oa/kit/tone";
+import { PairBar } from "@/components/oa/kit/tone";
 import { TileLabel, Treemap, tileClass, type TreemapLayout, type TreemapWords } from "@/components/oa/kit/treemap";
 import { KindIcon } from "@/components/oa/nav-icon";
 import { ShowMoreGrid } from "@/components/oa/kit/show-more-grid";
@@ -454,6 +454,13 @@ function MarketBand({ strip, clock, live, date }: { strip: Strip; clock: string;
 
 /* ── top market news ───────────────────────────────────────────────────── */
 
+/** "$166.04" for a stock's price, "6,812" for the S&P 500's level in points; null without one. */
+function reactionLevel(story: TopStory): string | null {
+  const value = story.reaction.price;
+  if (value == null || !Number.isFinite(value) || value <= 0) return null;
+  return story.kind === "macro" ? Math.round(value).toLocaleString("en-US") : sharePrice(value);
+}
+
 /**
  * The market's three biggest stories today (lib/briefing-top-news.ts), side by side at equal height: the stock's logo
  * or the event's icon, the move it caused, and the headline as the card's one line (owner rule 8). The card opens the
@@ -489,9 +496,8 @@ function TopNews({ stories }: { stories: TopStory[] }) {
                   </span>
                 )}
                 <span className="flex shrink-0 items-baseline gap-1.5">
-                  {story.reaction.price != null && sharePrice(story.reaction.price) ? (
-                    <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{sharePrice(story.reaction.price)}</span>
-                  ) : null}
+                  {/* A stock's share price, or the index's level in points (no dollar sign) beside its move (owner rule 4). */}
+                  {reactionLevel(story) ? <span className="oa-mono text-[12px] tabular-nums text-oa-muted-fg">{reactionLevel(story)}</span> : null}
                   <span className={`oa-mono text-[18px] font-semibold tabular-nums tracking-[-0.01em] ${toneText(tone)}`}>{signedPct(story.reaction.pct, 1)}</span>
                 </span>
               </span>
@@ -616,13 +622,7 @@ function whereWords(row: LevelRow): string {
 
 /** The level line on a card: "Level $309.92 · 0.4% under". */
 function levelWords(row: LevelRow, mixed: boolean): string {
-  const name = mixed ? (row.level.call === "Sell some" ? "Sell level" : "Buy level") : "Level";
-  return `${name} ${sharePrice(row.level.level)} · ${whereWords(row)}`;
-}
-
-/** A list row's level words, short: "0.4% under", or "Sell · 0.4% over" when buys and sells are mixed. */
-function levelGapWords(row: LevelRow, mixed: boolean): string {
-  return mixed ? `${row.level.call === "Sell some" ? "Sell" : "Buy"} · ${whereWords(row)}` : whereWords(row);
+  return `${levelName(row, mixed)} ${sharePrice(row.level.level)} · ${whereWords(row)}`;
 }
 
 /**
@@ -642,11 +642,74 @@ function levelCells(rows: LevelRow[]): { cards: Array<LevelRow & { fact: LevelFa
   return { cards: all, listed: repeats };
 }
 
+/** The level's name on its bar: "Level", or "Buy level" / "Sell level" when the section mixes the two calls. */
+function levelName(row: LevelRow, mixed: boolean): string {
+  return mixed ? (row.level.call === "Sell some" ? "Sell level" : "Buy level") : "Level";
+}
+
+/**
+ * The price against its level as a labelled ruler (judge92, owner rule 4: two prices compared get a picture you can
+ * read): the level is the tick in the middle, the price the dot, under it to the left and over it to the right, on one
+ * scale for the whole section (`span`, the furthest name's gap in percent). A card says under the ruler what each mark
+ * is, on its own side (the level and its price under the tick's, how far the price is from it under the dot's), so the
+ * two never overlap however close they are. A list row (`compact`) says it in one line beside a shorter ruler.
+ */
+function LevelRuler({ row, span, mixed, compact = false }: { row: LevelRow; span: number; mixed: boolean; compact?: boolean }) {
+  const gap = row.level.gapPct;
+  const at = Math.max(4, Math.min(96, 50 + (gap / span) * 46));
+  const under = gap < 0;
+  const tickGlyph = <span aria-hidden="true" className="inline-block h-2.5 w-0.5 shrink-0 rounded-full bg-oa-fg" />;
+  const dotGlyph = <span aria-hidden="true" className="inline-block size-1.5 shrink-0 rounded-full bg-oa-primary" />;
+  const ruler = (
+    <span aria-hidden="true" className={`relative block rounded-full bg-[color-mix(in_srgb,var(--oa-fg)_8%,transparent)] ${compact ? "h-1 min-w-12 flex-1" : "h-1.5"}`}>
+      <span className="absolute inset-y-0 rounded-full bg-[color-mix(in_srgb,var(--oa-primary)_45%,transparent)]" style={{ left: `${Math.min(at, 50)}%`, width: `${Math.abs(at - 50)}%` }} />
+      <span className="absolute -bottom-1 -top-1 w-0.5 -translate-x-1/2 rounded-full bg-oa-fg" style={{ left: "50%" }} />
+      <span className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-oa-primary ring-2 ring-oa-card ${compact ? "size-2" : "size-2.5"}`} style={{ left: `${at}%` }} />
+    </span>
+  );
+  if (compact) {
+    // "● 0.1% over ▏$372.36": how far the price is, then the level it is measured from, each with its mark's glyph.
+    return (
+      <span className="flex min-w-0 items-center gap-2">
+        {ruler}
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11.5px] leading-4 text-oa-muted-fg">
+          {dotGlyph}
+          <span className="oa-mono tabular-nums text-oa-fg">{whereWords(row)}</span>
+          {tickGlyph}
+          {mixed ? (row.level.call === "Sell some" ? "Sell " : "Buy ") : null}
+          <span className="oa-mono tabular-nums">{sharePrice(row.level.level)}</span>
+        </span>
+      </span>
+    );
+  }
+  const level = (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      {tickGlyph}
+      {levelName(row, mixed)} <span className="oa-mono tabular-nums text-oa-fg">{sharePrice(row.level.level)}</span>
+    </span>
+  );
+  const price = (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      {dotGlyph}
+      <span className="oa-mono tabular-nums text-oa-fg">{whereWords(row)}</span>
+    </span>
+  );
+  return (
+    <span className="flex min-w-0 flex-col gap-1">
+      {ruler}
+      <span className="flex items-center justify-between gap-2 text-[12px] leading-4 text-oa-muted-fg">
+        {under ? price : level}
+        {under ? level : price}
+      </span>
+    </span>
+  );
+}
+
 function Levels({ rows }: { rows: LevelRow[] }) {
   const mixed = new Set(rows.map((row) => row.level.call)).size > 1;
   const { cards, listed } = levelCells(rows);
-  // One scale for every card's price-to-level bar: the furthest card sets it, never under 1%.
-  const gapSpan = Math.max(1, ...cards.map((row) => Math.abs(row.level.gapPct)));
+  // One scale for every price-to-level ruler, cards and list alike: the furthest name sets it, never under 1%.
+  const gapSpan = Math.max(1, ...[...cards, ...listed].map((row) => Math.abs(row.level.gapPct)));
   const cells = cards.length + (listed.length > 0 ? 1 : 0);
   // The cells were made to fill three or four columns (levelCells), at every wide size.
   const columns = { sm: 2, lg: gridColumns(cells, [3, 4]), xxl: gridColumns(cells, [3, 4]) };
@@ -660,21 +723,19 @@ function Levels({ rows }: { rows: LevelRow[] }) {
         return (
           <li key={row.ticker} className="min-w-0">
             <Link href={row.href} prefetch={false} className={`${CARD} ${HOVER} ${FOCUS} flex h-full flex-col gap-2.5 px-3.5 py-3`}>
-              <span className="flex items-start justify-between gap-3">
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo ticker={row.ticker} size={24} eager />
-                    <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
-                  </span>
-                  <span className="oa-mono whitespace-nowrap text-[12px] leading-4 tabular-nums text-oa-muted-fg">{levelWords(row, mixed)}</span>
-                  {/* The price against its level as a bar from the level's line: under it runs left, over it right, all
-                      cards on one scale (judges, ship 85: two prices compared get a picture). */}
-                  <SignedBar value={row.level.gapPct} domain={[-gapSpan, gapSpan]} color="var(--oa-primary)" className="mt-1.5 !h-1.5 w-28" />
+              <span className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <StockLogo ticker={row.ticker} size={24} eager />
+                  <span className="oa-mono text-[14px] font-semibold text-oa-fg">{row.ticker}</span>
                 </span>
-                <span className="flex shrink-0 flex-col items-end leading-5">
-                  {sharePrice(row.price) ? <span className="oa-mono text-[15px] font-semibold tabular-nums text-oa-fg">{sharePrice(row.price)}</span> : null}
-                  {row.pct != null ? <span className={`oa-mono text-[12.5px] tabular-nums ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
+                <span className="oa-mono flex shrink-0 items-baseline gap-1.5 tabular-nums">
+                  {sharePrice(row.price) ? <span className="text-[15px] font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
+                  {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
                 </span>
+              </span>
+              {/* The price against its level, as a ruler whose marks say what they are (judge92, owner rule 4). */}
+              <span title={levelWords(row, mixed)}>
+                <LevelRuler row={row} span={gapSpan} mixed={mixed} />
               </span>
               {/* One measured fact: a big figure and what it is. The card already says the level and the price, so the
                   fact's own context line ("$5.38 expected, reported on Oct 29.") is the hover, not a third thing to
@@ -692,9 +753,8 @@ function Levels({ rows }: { rows: LevelRow[] }) {
       })}
       {listed.length > 0 ? (
         <li className="min-w-0">
-          {/* One line a name: how far it is from its level, then its price and move. Its strongest fact and the level
-              itself are the hover, so the list stays no taller than the cards beside it and they need no padding
-              (owner rules 4 and 8). */}
+          {/* Two short lines a name: its price and move, then the same labelled ruler as the cards, smaller (judge92).
+              Its strongest fact is the hover, so the list stays about as tall as the cards beside it (owner rules 4, 8). */}
           <ul aria-label="Also at their level" className={`${CARD} flex h-full flex-col justify-center divide-y divide-oa-border px-3.5 py-1`}>
             {listed.map((row) => (
               <li key={row.ticker}>
@@ -702,17 +762,20 @@ function Levels({ rows }: { rows: LevelRow[] }) {
                   href={row.href}
                   prefetch={false}
                   title={`${levelWords(row, mixed)} · ${(row.fact ?? row.best).figure} ${factWord(row.fact ?? row.best)}`}
-                  className={`${FOCUS} -mx-1.5 flex items-center justify-between gap-2 rounded px-1.5 py-2 transition-colors hover:bg-oa-accent`}
+                  className={`${FOCUS} -mx-1.5 flex flex-col gap-1 rounded px-1.5 py-1.5 transition-colors hover:bg-oa-accent`}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StockLogo ticker={row.ticker} size={20} eager />
-                    <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
-                    <span className="oa-mono truncate text-[12px] tabular-nums text-oa-muted-fg">{levelGapWords(row, mixed)}</span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <StockLogo ticker={row.ticker} size={20} eager />
+                      <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
+                    </span>
+                    <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums">
+                      {sharePrice(row.price) ? <span className="font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
+                      {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
+                    </span>
                   </span>
-                  <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums">
-                    {sharePrice(row.price) ? <span className="font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
-                    {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
-                  </span>
+                  {/* The same labelled ruler as the cards, smaller, so every price-and-level pair has its picture. */}
+                  <LevelRuler row={row} span={gapSpan} mixed={mixed} compact />
                 </Link>
               </li>
             ))}

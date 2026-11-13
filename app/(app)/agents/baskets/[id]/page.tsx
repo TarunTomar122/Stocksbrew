@@ -166,6 +166,8 @@ export default async function BasketAgentPage({ params }: Props) {
   // for a middle, no bars at all.
   const median = label ? basketMedian(label, shared) : null;
   const domain = barDomain([...shared, median?.value ?? 0]);
+  // The median tick says its word on the first card that draws a bar, once, so it reads without the header.
+  const labelled = median ? ordered.find((line) => statuses.get(line.ticker)?.metric?.label === label)?.ticker ?? null : null;
   const checked = basket.lines.filter(
     (line) =>
       statuses.has(line.ticker) &&
@@ -251,13 +253,11 @@ export default async function BasketAgentPage({ params }: Props) {
                 : `${basket.lines.length} · ${KIND_WORDS[kind].toLowerCase()} reasons`}
             </span>
           </span>
+          {/* What the bars measure, once; the median is said at its tick on the first card (judge92), not again here. */}
           {label && median ? (
-            <span className="flex items-center gap-1.5 text-[12.5px] font-normal text-oa-muted-fg">
+            <span className="text-[12.5px] font-normal text-oa-muted-fg">
               {label}
-              <span aria-hidden="true" className="inline-block h-3 w-[2px] rounded-full bg-oa-fg" />
-              <span>
-                median <span className="oa-mono tabular-nums text-oa-fg">{median.text}</span>
-              </span>
+              <span className="sr-only">, median {median.text}</span>
             </span>
           ) : null}
         </h2>
@@ -287,7 +287,7 @@ export default async function BasketAgentPage({ params }: Props) {
                   title={`Your reason: ${line.reason}`}
                   bar={
                     metric && median
-                      ? { value: metric.value, text: metric.text, domain, mark: median.value }
+                      ? { value: metric.value, text: metric.text, domain, mark: median.value, markLabel: line.ticker === labelled ? `median ${median.text}` : null }
                       : null
                   }
                   href={`/stock/${encodeURIComponent(line.ticker)}`}

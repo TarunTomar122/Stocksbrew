@@ -9,6 +9,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - No icon on every row or card: no chat/Ask icon, no eye icon, no chevron (›, ⌄) on rows. "i dont like these chevrons at all i hate it ... id rather not have to click these."
 - No identical link text on every row or card ("Why it moved →", "Our view on X →", "Ask about this →", "Open →", "N more →").
 - No identical sentence or badge on several cards ("Our call moved to Hold, and you hold it. Review?" ×3). Say a shared event once at the group level; each card shows only what differs.
+- No number said twice inside one card, row or email block (Nov 13, "so many numbers repeating :( maybe this needs a pass on all email and across the entire app"). A card showing $50.77, −1.8% and "Buy more under $50.79" must not add "Fell 1.8% to $50.77, below its $50.79 buy-more level." A line under figures only appears when it adds a fact the figures don't ("Up 1.8% before the open this morning."). Applies to emails as much as the app.
 - The row or card itself is the link, with a hover state. One shared action goes in the section header or footer. One Ask per page, never per item, even when a judge suggests "make every card askable".
 - Two buttons that do the same thing are a break ("why two buttons abt ask and chat???").
 

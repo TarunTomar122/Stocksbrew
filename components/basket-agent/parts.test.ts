@@ -94,32 +94,20 @@ describe("the short card lines", () => {
 });
 
 describe("the replay label", () => {
-  const said = (counts: { propose: number; nothing: number; could_not_check: number }, lead?: string) =>
-    replayLabel({ from: "2026-10-16", to: "2026-11-12", sessions: counts.propose + counts.nothing + counts.could_not_check, counts }, lead);
+  const said = (counts: { propose: number; nothing: number; could_not_check: number }, lead?: string | null) =>
+    replayLabel({ from: "2026-10-16", to: "2026-11-12", sessions: counts.propose + counts.nothing + counts.could_not_check }, lead);
 
-  it("is one dated label that accounts for every day it checked", () => {
-    expect(said({ propose: 5, nothing: 15, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12: 5 days with a change, 15 quiet");
-    expect(said({ propose: 3, nothing: 15, could_not_check: 2 })).toBe("Replay, Oct 16 – Nov 12: 3 days with a change, 15 quiet, 2 not checked");
-    expect(said({ propose: 0, nothing: 20, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12: 20 quiet days");
-    expect(said({ propose: 1, nothing: 0, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12: 1 day with a change");
-    expect(said({ propose: 0, nothing: 0, could_not_check: 4 })).toBe("Replay, Oct 16 – Nov 12: 4 days not checked");
+  it("is the dated window alone: the rows below say what changed (judge92: no day counts)", () => {
+    expect(said({ propose: 5, nothing: 15, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12");
+    expect(said({ propose: 0, nothing: 20, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12");
+    expect(said({ propose: 3, nothing: 15, could_not_check: 2 })).toBe("Replay, Oct 16 – Nov 12");
     expect(said({ propose: 0, nothing: 0, could_not_check: 0 })).toBe("Replay, Oct 16 – Nov 12: no market days to check yet");
-    expect(replayLabel({ from: "2026-10-16", to: "2026-11-12", sessions: 20, counts: { propose: 0, nothing: 0, could_not_check: 0 } })).toBe(
-      "Replay, Oct 16 – Nov 12: 20 days checked",
-    );
   });
 
   it("names an earlier version and a one-day window plainly", () => {
-    expect(said({ propose: 2, nothing: 3, could_not_check: 0 }, "Earlier replay")).toBe(
-      "Earlier replay, Oct 16 – Nov 12: 2 days with a change, 3 quiet",
-    );
-    expect(replayLabel({ from: "2026-11-12", to: "2026-11-12", sessions: 1, counts: { propose: 0, nothing: 1, could_not_check: 0 } })).toBe(
-      "Replay, Nov 12: 1 quiet day",
-    );
-  });
-
-  it("stays within 15 words", () => {
-    const longest = said({ propose: 13, nothing: 15, could_not_check: 12 });
-    expect(longest.split(/\s+/).filter((word) => word !== "–").length).toBeLessThanOrEqual(15);
+    expect(said({ propose: 2, nothing: 3, could_not_check: 0 }, "Earlier replay")).toBe("Earlier replay, Oct 16 – Nov 12");
+    expect(replayLabel({ from: "2026-11-12", to: "2026-11-12", sessions: 1 })).toBe("Replay, Nov 12");
+    // Under the page's "The replay" panel: the dates alone.
+    expect(said({ propose: 2, nothing: 3, could_not_check: 0 }, null)).toBe("Oct 16 – Nov 12");
   });
 });

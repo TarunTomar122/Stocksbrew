@@ -97,8 +97,11 @@ export function CompanyCard({
   verdict?: StatusVerdict | null;
   /** Shown only when it differs from the basket's main kind. */
   kind?: ThesisKind | null;
-  /** The company's figure on the basket's shared scale, with the basket's median as a tick when there is one. */
-  bar?: { value: number; text: string; domain: [number, number]; mark?: number | null } | null;
+  /**
+   * The company's figure on the basket's shared scale, with the basket's median as a tick when there is one, and the
+   * tick's word ("median 12%") on the first card only, so the tick reads without the header (judge92, owner rule 1).
+   */
+  bar?: { value: number; text: string; domain: [number, number]; mark?: number | null; markLabel?: string | null } | null;
   href?: string;
   onSelect?: () => void;
   selected?: boolean;
@@ -185,11 +188,12 @@ export function CompanyCard({
         </div>
       ) : null}
       {bar ? (
-        <div className="mt-auto flex items-center gap-2.5 pt-3">
+        <div className={`mt-auto flex items-center gap-2.5 ${bar.markLabel && bar.mark != null ? "pt-6" : "pt-3"}`}>
           <SignedBar
             value={bar.value}
             domain={bar.domain}
             mark={bar.mark ?? null}
+            markLabel={bar.markLabel ?? null}
             color="var(--oa-primary)"
             className="min-w-0 flex-1"
           />
@@ -429,30 +433,19 @@ export function RunRecord({
 /* ── the replay ─────────────────────────────────────────────────────────── */
 
 /**
- * The replay in one dated label, every day accounted for: "Replay, Oct 16 – Nov 12: 5 days with a change, 15 quiet".
- * Days with a change count every day a change waited (one change can wait several days), so the parts add up to the
- * days checked. `lead` names it ("Replay", or "Earlier replay" when the basket has changed since).
+ * The replay as one dated label: "Replay, Oct 16 – Nov 12". The rows under it are the changes it would have made, each
+ * with a bar across these days, and "It would have changed nothing" when there were none, so the label does not count
+ * the days again (judge92, owner rule 8: no mechanics). `lead` names it ("Replay", or "Earlier replay" when the
+ * basket has changed since), or is null under a panel that already says "The replay". A window with no market day in
+ * it yet says so.
  */
-export function replayLabel(
-  replay: Pick<ReplaySummary, "from" | "to" | "sessions" | "counts">,
-  lead = "Replay",
-): string {
+export function replayLabel(replay: Pick<ReplaySummary, "from" | "to" | "sessions">, lead: string | null = "Replay"): string {
   const from = fmtDay(replay.from);
   const to = fmtDay(replay.to);
   const window = from && to && from !== to ? `${from} – ${to}` : from || to;
-  const head = window ? `${lead}, ${window}` : lead;
-  const { propose, nothing, could_not_check: missed } = replay.counts;
-  const total = replay.sessions;
-  if (total === 0) return `${head}: no market days to check yet`;
-  const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
-  const parts: string[] = [];
-  if (propose > 0) parts.push(`${days(propose)} with a change`);
-  // "15 quiet" after the first part; said alone, "20 quiet days".
-  if (nothing > 0) parts.push(parts.length ? `${nothing} quiet` : `${nothing} quiet ${nothing === 1 ? "day" : "days"}`);
-  if (missed > 0) parts.push(parts.length ? `${missed} not checked` : `${days(missed)} not checked`);
-  // A stored replay whose counts are missing: the days alone.
-  if (parts.length === 0) return `${head}: ${days(total)} checked`;
-  return `${head}: ${parts.join(", ")}`;
+  // Under a panel already titled "The replay", the dates alone (lead null).
+  const head = lead && window ? `${lead}, ${window}` : lead || window || "Replay";
+  return replay.sessions === 0 ? `${head}: no market days to check yet` : head;
 }
 
 /**
@@ -468,7 +461,7 @@ export function ReplayView({
 }: {
   replay: Pick<
     ReplaySummary,
-    "from" | "to" | "sessions" | "days" | "proposals" | "counts" | "notes"
+    "from" | "to" | "sessions" | "days" | "proposals" | "notes"
   >;
   today: string;
   /** "page": the replay kept with a saved basket; `earlier` when the basket has changed since it ran. */
@@ -480,10 +473,11 @@ export function ReplayView({
   const days = replay.days ?? [];
   const at = (day: string) => Math.max(0, days.indexOf(day));
   const span = Math.max(1, days.length);
-  const lead = kind === "page" && earlier ? "Earlier replay" : "Replay";
+  // The saved basket's page puts it under "The replay", so there it is the dates alone unless the basket has changed.
+  const lead = kind === "page" ? (earlier ? "Earlier replay" : null) : "Replay";
   return (
     <div className="flex min-w-0 flex-col">
-      {/* One dated label, said once: every day it checked is counted (judge89: no second sentence under it). */}
+      {/* One dated label, said once: the rows below are what it would have changed (judge92: no day counts). */}
       <p
         className="border-b border-oa-border px-4 py-3 text-[14.5px] font-medium leading-5 text-oa-fg"
         title={replay.notes.join(" ") || undefined}

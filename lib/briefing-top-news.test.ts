@@ -81,6 +81,11 @@ describe("topMarketNews", () => {
     const stories = topMarketNews(input([nvda, avgo, mu, fed, preview]));
     expect(stories.map((entry) => entry.kind)).toEqual(["macro", "stock", "stock"]);
     expect(stories[0]).toMatchObject({ icon: "capitol", reaction: { label: "S&P 500", pct: -0.4 }, why: "The 10-year yield rose 10.0 bps to 4.98%." });
+    // No level known: the move alone, never a made-up figure.
+    expect(stories[0]!.reaction.price).toBeNull();
+    // With the index's level, the card shows it beside the move (owner rule 4).
+    const level = topMarketNews(input([fed, preview, nvda, avgo, mu], { sp500Level: 6812.4 }));
+    expect(level[0]!.reaction).toEqual({ label: "S&P 500", pct: -0.4, price: 6812.4 });
   });
 
   it("takes a market wrap only on a big index day, with the sectors as its line", () => {

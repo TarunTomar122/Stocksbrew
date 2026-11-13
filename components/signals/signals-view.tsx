@@ -367,26 +367,29 @@ function SinceBar({ pct, domain, className = "" }: { pct: number; domain: [numbe
   );
 }
 
-/** A post's names, each opening its stock page, with its move since the post. */
+/**
+ * A post's names, each opening its stock page, with its move since the post. Each name stays whole (logo, ticker and
+ * move on one line); a second name wraps under the first rather than being cut ("NVD", judge92; owner rules 3 and 5).
+ */
 function PolicyNames({ post, className = "", keepCell = false, max = 2 }: { post: PolicyPost; className?: string; keepCell?: boolean; max?: number }) {
   // In the wide grid the cell stays, empty, so the S&P column keeps its place.
   if (!post.names.length) return keepCell ? <span className={className} /> : null;
   return (
-    <span className={`min-w-0 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[12.5px] ${className}`}>
+    <span className={`min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] ${className}`}>
       {post.names.slice(0, max).map((name) => (
         <Link
           prefetch={false}
           key={name.ticker}
           href={`/stock/${encodeURIComponent(name.ticker)}`}
           title={name.since ? `${name.company}: from the ${fmtDay(name.since.fromDate)} close to ${fmtDay(name.since.toDate)}` : name.company}
-          className={`inline-flex items-baseline gap-1.5 rounded hover:underline ${FOCUS}`}
+          className={`inline-flex items-baseline gap-1.5 whitespace-nowrap rounded hover:underline ${FOCUS}`}
         >
           <StockLogo ticker={name.ticker} size={14} className="self-center" />
           <span className={`${NUM} font-medium text-oa-fg`}>{name.ticker}</span>
           {name.since ? <Delta value={name.since.pct} className="text-[12.5px]" /> : null}
         </Link>
       ))}
-      {post.names.length > max ? <span className="text-oa-muted-fg">+{post.names.length - max}</span> : null}
+      {post.names.length > max ? <span className="whitespace-nowrap text-oa-muted-fg">+{post.names.length - max}</span> : null}
     </span>
   );
 }
@@ -402,13 +405,9 @@ function PolicyLine({ post, domain, names }: { post: PolicyPost; domain: [number
   return (
     <div className={`px-4 py-2.5 lg:py-2 ${names ? POLICY_COLS : POLICY_COLS_NO_NAMES}`}>
       <div className="flex items-center justify-between gap-3 lg:contents">
-        <span className="flex min-w-0 items-baseline gap-3">
-          <time dateTime={post.publishedAt} className={`${NUM} whitespace-nowrap text-[12.5px] leading-5 text-oa-muted-fg`}>
-            {stamp}
-          </time>
-          {/* A phone has room for one name beside the time and the S&P bar. */}
-          <PolicyNames post={post} className="flex lg:hidden" max={1} />
-        </span>
+        <time dateTime={post.publishedAt} className={`${NUM} min-w-0 whitespace-nowrap text-[12.5px] leading-5 text-oa-muted-fg`}>
+          {stamp}
+        </time>
         <span className="shrink-0 text-right text-[13px] lg:hidden" title={spyTitle}>
           {post.market ? <SinceBar pct={post.market.pct} domain={domain} /> : null}
         </span>
@@ -427,6 +426,8 @@ function PolicyLine({ post, domain, names }: { post: PolicyPost; domain: [number
           {shortHeadline(post.summary)}
         </a>
       </p>
+      {/* A phone has no room for a name beside the time and the S&P bar: its names go under the post, whole. */}
+      <PolicyNames post={post} className="mt-1 flex lg:hidden" />
       {names ? <PolicyNames post={post} className="hidden lg:flex" keepCell /> : null}
       <span className="hidden text-right lg:block" title={spyTitle}>
         {/* No session since the post yet: the cell stays empty rather than saying "n/a". */}

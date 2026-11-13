@@ -45,7 +45,7 @@ export type TopStory = {
   headline: string;
   /** One measured line on why it matters, ≤15 words; null when we have none. */
   why: string | null;
-  /** The market's reaction: the stock's move (with its price), or the S&P 500's. */
+  /** The market's reaction: the stock's move (with its price), or the S&P 500's (with its level, in points). */
   reaction: { label: string; pct: number; price: number | null };
   /** "today", "yesterday", "Tuesday". */
   day: string;
@@ -63,6 +63,8 @@ export type TopNewsInput = {
   /** Each stock's weight in the S&P 500, percent (SPY's holdings). */
   indexWeights: Readonly<Record<string, number>>;
   sp500: number | null;
+  /** The S&P 500's level in points, shown beside its move on a market story (owner rule 4); null when unknown. */
+  sp500Level?: number | null;
   /** The 10-year yield and its day's change in basis points. */
   tenYear: { level: number; bps: number } | null;
   /** How many of the 11 sector funds rose and fell today. */
@@ -196,7 +198,7 @@ function macroCandidates(input: TopNewsInput): Candidate[] {
       icon: MACRO_ICON[kind],
       headline,
       why: macroWhy(kind, input),
-      reaction: { label: "S&P 500", pct: input.sp500!, price: null },
+      reaction: { label: "S&P 500", pct: input.sp500!, price: fin(input.sp500Level) && input.sp500Level > 0 ? input.sp500Level : null },
       day: storyDay(item, input.today),
       source: item.source,
       url: item.url,

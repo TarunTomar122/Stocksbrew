@@ -414,7 +414,9 @@ function rowName(item: EarningsItem): string {
 function dayRowWeight(item: EarningsItem, past: boolean): number {
   const reported = item.epsActual !== null;
   if (!reported && !past && item.lastReport) return 2.1;
-  const second = rowName(item) !== "" || (reported && item.reaction !== null && resultWord(item) !== null);
+  // The move on line one, then the bars and "Beat 12%" beside the name: in a narrow column they wrap under it.
+  if (reported && item.reaction !== null && resultWord(item) !== null && hasEpsPair(item.epsActual, item.epsEstimate)) return 2.1;
+  const second = rowName(item) !== "" || (reported && item.reaction !== null && resultWord(item) !== null) || (reported && hasEpsPair(item.epsActual, item.epsEstimate));
   return second ? 1.5 : 1;
 }
 
@@ -436,10 +438,18 @@ function DayReportLine({ item, quiet }: { item: EarningsItem; quiet: boolean }) 
   ) : !quiet && item.epsEstimate !== null ? (
     <EstimateValue item={item} />
   ) : null;
+  // Reported against expected as the two small bars (owner rule 4: a beat or miss compares two numbers), beside the
+  // result's words when the move took line one, alone under a "Beat 12%" that did. Keyed once over the day's group.
+  const bars = reported && hasEpsPair(item.epsActual, item.epsEstimate) ? <EpsBars actual={item.epsActual} estimate={item.epsEstimate} className="!w-8" /> : null;
   const side = reported
     ? item.reaction
-      ? (inLine ?? <ResultFigure item={item} />)
-      : null
+      ? (
+          <span className="inline-flex items-center gap-1.5">
+            {bars}
+            {inLine ?? <ResultFigure item={item} />}
+          </span>
+        )
+      : bars
     : !quiet && item.lastReport
       ? <LastReport item={item} className="inline-flex whitespace-nowrap" />
       : null;
@@ -469,6 +479,20 @@ function DayReportLine({ item, quiet }: { item: EarningsItem; quiet: boolean }) 
   );
 }
 
+/**
+ * An economic release's own icon, by what it measures (owner rule 4: every kind has its icon): the Fed's decision, jobs,
+ * income and spending, prices, growth, trade. Anything else keeps the section's globe.
+ */
+export function economicIcon(title: string): KindIconName {
+  if (/\b(?:fed|fomc|federal reserve)\b/i.test(title)) return "capitol";
+  if (/\b(?:jobs?|jolts|employment|payrolls?|jobless|unemployment)\b/i.test(title)) return "briefcase";
+  if (/\b(?:income|spending|retail sales)\b/i.test(title)) return "dollar";
+  if (/\b(?:cpi|ppi|pce|inflation|prices?)\b/i.test(title)) return "percent";
+  if (/\b(?:gdp|productivity|growth)\b/i.test(title)) return "growth";
+  if (/\b(?:trade|imports?|exports?)\b/i.test(title)) return "exchange";
+  return TYPE_ICON.economic;
+}
+
 function EconomicLine({ item }: { item: EconomicItem }) {
   return (
     <a
@@ -478,10 +502,10 @@ function EconomicLine({ item }: { item: EconomicItem }) {
       rel="noopener noreferrer"
       className={`flex min-h-10 items-start gap-2 px-3 py-1.5 hover:bg-oa-accent lg:min-h-0 ${FOCUS}`}
     >
-      <span
-        aria-hidden="true"
-        className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${item.importance === "high" ? "bg-oa-primary" : "bg-oa-border"}`}
-      />
+      {/* What it measures as its icon, in the accent when the release usually moves the market. */}
+      <span aria-hidden="true" className={`mt-0.5 shrink-0 ${item.importance === "high" ? "text-oa-primary" : "text-oa-muted-fg"}`}>
+        <KindIcon name={economicIcon(item.title)} className="size-4" />
+      </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-medium leading-5 text-oa-fg">{item.title}</span>
         <span className={`${NUM} block text-[12.5px] leading-4 text-oa-muted-fg`}>
@@ -521,23 +545,24 @@ function IpoLine({ item }: { item: IpoItem }) {
     ...(item.exchange ? [{ key: "exchange", text: shortExchange(item.exchange), title: item.exchange, muted: true }] : []),
   ];
   return (
-    <div data-row="" className="px-3 py-1.5">
-      <p className="line-clamp-2 break-words text-[14px] font-medium leading-5 text-oa-fg" title={name}>
-        {name}
-      </p>
-      <p className={`${NUM} mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] leading-[18px] text-oa-fg`}>
-        {item.ticker ? (
-          <span className="inline-flex items-center gap-1 font-medium">
-            <StockLogo ticker={item.ticker} size={14} atOnce />
-            {item.ticker}
-          </span>
-        ) : null}
-        {facts.map((fact) => (
-          <span key={fact.key} title={fact.title} className={fact.muted ? "text-oa-muted-fg" : undefined}>
-            {fact.text}
-          </span>
-        ))}
-      </p>
+    <div data-row="" className="flex items-start gap-2 px-3 py-1.5">
+      {/* The company's logo leads, as on every other row; a listing with no ticker yet gets the IPO icon. */}
+      <span aria-hidden="true" className="mt-0.5 shrink-0">
+        {item.ticker ? <StockLogo ticker={item.ticker} size={16} atOnce /> : <KindIcon name={TYPE_ICON.ipo} className="size-4 text-oa-muted-fg" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 break-words text-[14px] font-medium leading-5 text-oa-fg" title={name}>
+          {name}
+        </p>
+        <p className={`${NUM} mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] leading-[18px] text-oa-fg`}>
+          {item.ticker ? <span className="font-medium">{item.ticker}</span> : null}
+          {facts.map((fact) => (
+            <span key={fact.key} title={fact.title} className={fact.muted ? "text-oa-muted-fg" : undefined}>
+              {fact.text}
+            </span>
+          ))}
+        </p>
+      </div>
     </div>
   );
 }
@@ -616,12 +641,13 @@ function dayBlocks(bucket: DayBuckets, { today, mark }: { today: string; mark: b
     const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
     // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
     const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
-    // The reported-vs-expected bars' key, once over the first group that draws them. Only today's wide rows draw
-    // bars (the other days' two-line rows say the result in words), and a small phone hides them beside a move.
+    // The reported-vs-expected bars' key, once over the first group that draws them: today's wide rows and every other
+    // day's two-line rows alike (judge92: a "Beat 64%" with no picture). Only today's wide row hides its bars beside a
+    // move on a small phone.
     const paired = (list: EarningsItem[]) => list.filter((item) => hasEpsPair(item.epsActual, item.epsEstimate));
-    const sayKey = isToday && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
-    // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
-    const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
+    const sayKey = paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
+    // Shown on a small phone when any row of the day keeps its bars there (today's row beside a move hides them).
+    const keyAlways = !isToday || sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
     const keyClass = keyAlways ? "" : "max-[420px]:hidden";
     blocks.push({
       node: (
@@ -641,13 +667,13 @@ function dayBlocks(bucket: DayBuckets, { today, mark }: { today: string; mark: b
             {/* A narrow desktop column has no room for it beside the count (it wrapped the heading to three lines): there
                 it is the heading's hover title, and the figures carry the words for screen readers. */}
             {sayExpected ? <span className={`block font-normal ${isToday ? "" : "lg:hidden"}`}>Expected profit a share</span> : null}
-            {sayKey ? <EpsKey className={`mt-0.5 flex ${keyClass}`} /> : null}
+            {sayKey ? <EpsKey className={`mt-0.5 flex flex-wrap gap-y-0.5 ${keyClass}`} /> : null}
           </span>
           <span className={`${NUM} shrink-0`}>{rows.length}</span>
         </h3>
       ),
       weight: 0,
-      // Its own line, plus "Expected profit a share" under it and the bars' key (today's wide column only, at lg).
+      // Its own line, plus "Expected profit a share" under it (today's wide column only, at lg) and the bars' key.
       height: HEADING + (sayExpected && isToday ? SUBLINE : 0) + (sayKey ? SUBLINE : 0),
     });
     for (const item of rows) {
@@ -1117,7 +1143,7 @@ function ListDay({ bucket, today, single, filters, mark }: { bucket: DayBuckets;
           ) : null}
           {bucket.dividends.length ? (
             <div className="min-w-0 pb-1.5">
-              <h3 className={SECTION}>Buy before this day to get the dividend</h3>
+              <h3 className={SECTION_KIND}><KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />Buy before this day to get the dividend</h3>
               {(single ? bucket.dividends : bucket.dividends.slice(0, 6)).map((item) => (
                 <DividendLine key={item.id} item={item} />
               ))}

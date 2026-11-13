@@ -108,7 +108,9 @@ export function MoveBar({
  * One signed figure as a short bar on a scale shared with its neighbours (pass the list's lowest and highest figure
  * as `domain`), with the zero line drawn through it: a loss runs left of zero, a gain right, so a column of these
  * reads as one chart (owner VISUALS CHECK). `color` is a CSS colour; without one the bar is green up and red down.
- * `mark`, when given, is a thin tick at that figure on the same scale (the S&P 500's own figure, for scale).
+ * `mark`, when given, is a thin tick at that figure on the same scale (the S&P 500's own figure, for scale), and
+ * `markLabel` a tiny word just above the tick ("median 12%"), so the tick reads without a legend; the caller leaves
+ * room above the bar for it.
  */
 export function SignedBar({
   value,
@@ -116,6 +118,7 @@ export function SignedBar({
   color,
   mark,
   markColor = "var(--oa-fg)",
+  markLabel = null,
   strongZero = false,
   className = "",
 }: {
@@ -124,6 +127,7 @@ export function SignedBar({
   color?: string;
   mark?: number | null;
   markColor?: string;
+  markLabel?: string | null;
   /** A zero line that reads at a glance in a column of short bars: taller, solid, and in muted ink so a mark stands apart. */
   strongZero?: boolean;
   className?: string;
@@ -156,10 +160,21 @@ export function SignedBar({
           style={{ left: `${tick.negative ? tick.left : tick.left + tick.width}%`, background: markColor }}
         />
       ) : null}
+      {tick && markLabel ? <MarkLabel at={tick.negative ? tick.left : tick.left + tick.width}>{markLabel}</MarkLabel> : null}
       <span
         className={`absolute w-px -translate-x-1/2 ${strongZero ? "-bottom-1 -top-1 bg-oa-muted-fg" : "-bottom-0.5 -top-0.5 bg-oa-fg/60"}`}
         style={{ left: `${geometry.zero}%` }}
       />
+    </span>
+  );
+}
+
+/** A tick's word, centred over it, or held to the bar's end near an edge so it is never cut off. */
+function MarkLabel({ at, children }: { at: number; children: React.ReactNode }) {
+  const style: React.CSSProperties = at < 20 ? { left: `${at}%`, transform: "translateX(-1px)" } : at > 80 ? { right: `${100 - at}%`, transform: "translateX(1px)" } : { left: `${at}%`, transform: "translateX(-50%)" };
+  return (
+    <span className="absolute bottom-full mb-1.5 whitespace-nowrap text-[11px] leading-3 text-oa-muted-fg" style={style}>
+      {children}
     </span>
   );
 }

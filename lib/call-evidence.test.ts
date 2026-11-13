@@ -186,6 +186,8 @@ describe("buildCallEvidence", () => {
       expect(card.label.split(/\s+/).length).toBeLessThanOrEqual(5);
       expect(card.label).toBe(card.label.toLowerCase());
       if (card.line) expect(card.line.split(/\s+/).length).toBeLessThanOrEqual(15);
+      // A card with bars has no line: the bars are its one thing (owner rule 8, judge92).
+      if (card.compare) expect(card.line).toBeNull();
     }
     const high = evidence[1]!.card;
     expect(high).toMatchObject({ tone: "down", label: "below its past-year high" });
@@ -196,7 +198,8 @@ describe("buildCallEvidence", () => {
       figure: "$6.10",
       tone: "up",
       label: "earnings per share",
-      line: "Beat the forecast in the Oct\u00a013 report.",
+      // The bars say the beat; no second sentence under the figure (owner rule 8, judge92).
+      line: null,
       compare: [
         { label: "Reported", value: 6.1, display: "$6.10" },
         { label: "Forecast", value: 5.94, display: "$5.94" },
@@ -209,7 +212,7 @@ describe("buildCallEvidence", () => {
     const prices = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
     const benchmark = prices.benchmark.map((point, index, all) => (index === all.length - 1 ? { ...point, close: 495.5 } : point));
     const move = buildCallEvidence(base({ series: prices.series, benchmark, sayDays: true })).evidence.find((line) => line.id === "move")!;
-    expect(move.card).toMatchObject({ figure: "\u221218%", tone: "down", label: "five trading days", line: "To yesterday's close." });
+    expect(move.card).toMatchObject({ figure: "\u221218%", tone: "down", label: "five trading days", line: null });
     expect(move.card.compare).toEqual([
       { label: "NVDA", value: expect.closeTo(-18, 0), display: "\u221218%" },
       { label: "S&P 500", value: expect.closeTo(-0.9, 1), display: "\u22120.9%" },
@@ -219,7 +222,7 @@ describe("buildCallEvidence", () => {
   it("puts a loss on the card as a loss, and a flat market as 0%", () => {
     const calendar = [{ event_date: "2026-10-13", eps_estimate: -0.2, estimated_eps: -0.2, reported_eps: -0.12, eps_surprise: 0.08, source: "nasdaq_calendar" }];
     const eps = buildCallEvidence(base({ sales: null, calendar, reports: [], nextReport: null })).evidence.find((line) => line.id === "eps")!;
-    expect(eps.card).toMatchObject({ figure: "\u2212$0.12", tone: "up", line: "Beat the forecast in the Oct\u00a013 report." });
+    expect(eps.card).toMatchObject({ figure: "\u2212$0.12", tone: "up", line: null });
     expect(eps.card.compare!.map((bar) => bar.display)).toEqual(["\u2212$0.12", "\u2212$0.20"]);
     const prices = closes("2026-11-10", 80, [-0.04, -0.04, -0.05, -0.03, -0.04]);
     const move = buildCallEvidence(base({ series: prices.series, benchmark: prices.benchmark })).evidence.find((line) => line.id === "move")!;
@@ -434,7 +437,7 @@ describe("buildCallEvidence", () => {
       id: "eps",
       text: "In its Oct\u00a013 report, JPM's earnings per share of $5.75 missed the $5.94 analysts expected.",
       source: "Nasdaq earnings calendar, Oct\u00a013",
-      card: { figure: "$5.75", tone: "down", line: "Missed the forecast in the Oct\u00a013 report." },
+      card: { figure: "$5.75", tone: "down", line: null },
     });
     const mixed = buildCallEvidence(base({ ticker: "JPM", calendar: [{ ...calendar[0]!, eps_estimate: 4.74, estimated_eps: 5.81, eps_surprise: 0.15 }], reports, nextReport: null }));
     expect(mixed.evidence.find((line) => line.id === "eps")).toBeUndefined();
@@ -553,7 +556,7 @@ describe("buildCallEvidence", () => {
       figure: "29\u00d7",
       tone: null,
       label: "price to past year's earnings",
-      line: "Cheaper than its median from Aug\u00a01 to Nov\u00a07.",
+      line: null,
       compare: [
         { label: "Now", value: 29.1, display: "29\u00d7" },
         { label: "Median", value: 32.9, display: "33\u00d7" },

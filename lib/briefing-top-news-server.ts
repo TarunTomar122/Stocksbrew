@@ -76,6 +76,7 @@ async function readTopNews(today: string): Promise<TopStory[]> {
     caps,
     indexWeights,
     sp500: fin(sp) ? sp : null,
+    sp500Level: asset("sp500")?.price ?? null,
     tenYear: ten && fin(ten.price) && tenBps !== null ? { level: ten.price, bps: tenBps } : null,
     sectors: sectorMoves.length >= 4 ? { up: sectorMoves.filter((move) => move > 0).length, down: sectorMoves.filter((move) => move < 0).length, total: sectorMoves.length } : null,
     sinceMs,

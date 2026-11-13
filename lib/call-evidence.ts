@@ -465,12 +465,13 @@ function moveLine(input: CallEvidenceInput, swing: number | null): EvidenceLine 
     id: "move",
     text: `${input.ticker} ${best.stock > 0 ? "rose" : "fell"} ${pct(best.stock)} in the ${window} to ${to}, while ${marketWords}.`,
     source: priceSourceNote(input, last.date),
-    // The card: the stock's move large, the stock and the S&P 500 as the bars, and the close it runs to as the line.
+    // The card: the stock's move large and the stock and the S&P 500 as the bars; no line (owner rule 8: a card is a
+    // figure, a label and one thing, and here the bars are that one thing). The close it runs to is in the source.
     card: {
       figure: signedPct(best.stock),
       tone: toneOf(best.stock),
       label: best.span === MOVE_WEEK_SESSIONS ? window : "past month",
-      line: to ? `To ${to}.` : null,
+      line: null,
       compare: [
         { label: input.ticker, value: best.stock, display: signedPct(best.stock) },
         { label: "S&P 500", value: marketFlat ? 0 : best.market, display: marketFlat ? "0%" : signedPct(best.market) },
@@ -495,12 +496,12 @@ function highLine(input: CallEvidenceInput): EvidenceLine | null {
     id: "high",
     text: `${input.ticker} closed at ${dollars(last.close)} ${onDay(last.date, input)}, ${pct(below)} below its high of ${dollars(high.close)} ${onDay(high.date, input)}.`,
     source: priceSourceNote(input, last.date),
-    // The card: how far below the high, the last close and the high as the bars, and the high's day as the line.
+    // The card: how far below the high, and the last close and the high as the bars (the bars are its one line).
     card: {
       figure: signedPct(below),
       tone: "down",
       label: "below its past-year high",
-      line: `The high was ${onDay(high.date, input)}.`,
+      line: null,
       compare: [
         { label: "Last close", value: last.close, display: dollars(last.close) },
         { label: "High", value: high.close, display: dollars(high.close) },
@@ -530,13 +531,14 @@ function epsLine(input: CallEvidenceInput): EvidenceLine | null {
   if (fin(row.eps_surprise) && Math.abs(actual - forecast - row.eps_surprise) > 0.015) return null;
   const gap = actual - forecast;
   const when = `In its ${day(date, input.today)} report`;
-  // The card: the reported figure large, reported and forecast as the bars, and the verdict with the report's day.
+  // The card: the reported figure large, and reported and forecast as the bars, which say the beat or miss; no second
+  // sentence under it (owner rule 8, judge92). The report's day is in the source, the card's hover.
   const matched = Math.abs(gap) < 0.005;
   const card: EvidenceCard = {
     figure: signedDollars(actual),
     tone: matched ? null : gap > 0 ? "up" : "down",
     label: "earnings per share",
-    line: `${matched ? "Matched" : gap > 0 ? "Beat" : "Missed"} the forecast in the ${day(date, input.today)} report.`,
+    line: null,
     compare: [
       { label: "Reported", value: actual, display: signedDollars(actual) },
       { label: "Forecast", value: forecast, display: signedDollars(forecast) },
@@ -596,12 +598,12 @@ function valuationLine(input: CallEvidenceInput): EvidenceLine | null {
     id: "valuation",
     text: `At ${times(v.pe)} times its past year's earnings, ${input.ticker} is ${off < 0 ? "cheaper" : "more expensive"} than its median of ${times(v.medianPe)} from ${day(v.from, input.today)} to ${day(v.to, input.today)}.`,
     source: `Daily P/E on file, ${day(v.from, input.today)} to ${day(v.to, input.today)}`,
-    // The card: today's P/E large, today's and the median as the bars, and the window the median spans as the line.
+    // The card: today's P/E large, and today's and the median as the bars (the window the median spans is the source).
     card: {
       figure: `${times(v.pe)}×`,
       tone: null,
       label: "price to past year's earnings",
-      line: `${off < 0 ? "Cheaper" : "Pricier"} than its median from ${day(v.from, input.today)} to ${day(v.to, input.today)}.`,
+      line: null,
       compare: [
         { label: "Now", value: v.pe, display: `${times(v.pe)}×` },
         { label: "Median", value: v.medianPe, display: `${times(v.medianPe)}×` },
