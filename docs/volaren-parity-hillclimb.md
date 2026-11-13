@@ -214,6 +214,26 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~16:30 ET: tabs fixed, faster briefing, each number once (live: 635d024d, 3ef67287, b0c8dc1d)
+- 635d024d: TabBar links had prefetch on; Next 13.5's prefetch of a same-page `?tab=` link returns the tree without
+  the query in the page key, so the click changed only the address. /admin/analytics Speed and System, /follow,
+  /insiders/[ticker] and My stocks tabs were all dead. prefetch={false} like Segmented; checked by clicking in
+  headless Chrome on production.
+- 3ef67287: /briefing was cold after every news write (revalidatePath marked its tag, every cached read missed:
+  ~125-145 store calls, ~8 MB). Now refreshed through its signed-out copy route, the copy rebuilt before the Varnish
+  ban, signed-in reads tagged by data kind, sticky Varnish routing for sessions (sticky.vtc), strip from price tails.
+  Right after a write: signed in 868 → 146 ms, signed out 839 → 6 ms; pixel-identical. VCL loaded on the VPS.
+  Open: the per-user proposals sync can still hold a view up to 1.2 s every 10 min; /news, /portfolio, /explore
+  have the same cold-after-revalidate pattern (one COPY_ROUTES line each).
+- b0c8dc1d (owner: "so many numbers repeating"): emails (16 rendered, 14 cards with a repeat → 1 legit) via
+  backend/mail/kit.py new_facts; app notes on /markets, fund pages, briefing levels, agents, memo, practice. Audit
+  scripts: scripts/audit-number-repeats.mjs, scripts/email-number-repeats.py. Council APPROVE r3; QA 3 bugs fixed.
+  148 mail tests on the VPS venv, 4642/4642 web tests both ways; backend pulled on /opt/tikrr.
+- PostHog: no events since the Vercel move: NEXT_PUBLIC_POSTHOG_KEY was a Vercel "sensitive" var, never copied to
+  web.env (laptop copy blank). Waiting on the owner's phc_ key.
+- In flight (owner asks): Signups tab on /admin/analytics; plain-English screener box ("stocks with the lowest P/E
+  compared to their history").
+
 ### 2026-11-13 ~15:30 ET: judge92 sweep (9dbde0fe) and results in Biggest things (8f8bdda3) live
 - 9dbde0fe: landing holdings with a month bar vs the S&P (the repeated month sentence gone), sector mover chips with
   prices (a chip that can't fit its price is dropped), S&P card with the index level, Biggest-things source line moved
