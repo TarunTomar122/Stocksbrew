@@ -1,0 +1,12 @@
+# Installed by backend/vps/install-ops.sh.
+[Unit]
+Description=Tikrr health check every 5 minutes
+
+[Timer]
+OnCalendar=*:00/5:30
+Persistent=false
+AccuracySec=15s
+Unit=tikrr-ops-health.service
+
+[Install]
+WantedBy=timers.target

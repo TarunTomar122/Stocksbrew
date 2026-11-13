@@ -1,0 +1,15 @@
+# Installed by backend/vps/install-ops.sh. 03:30 New York: hours after the 20:05 extended-hours run and the
+# after-close chain, hours before the 07:30 pre-market run, and away from the trace backup (23:00 New York).
+# Not Persistent: after a reboot it waits for the next quiet night rather than running at a busy hour; the health
+# check turns amber when the newest backup is more than 26 hours old.
+[Unit]
+Description=Nightly Tikrr LocalDB backup at 03:30 New York
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 America/New_York
+Persistent=false
+AccuracySec=1min
+Unit=tikrr-localdb-backup.service
+
+[Install]
+WantedBy=timers.target

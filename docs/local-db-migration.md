@@ -128,10 +128,9 @@ If `/health` is `200` but `/documents:batchGet` is `404`, Vercel can reach the V
 
 ## backup and rollback
 
-Use SQLite's online backup API while the service is running and keep the backup on storage with enough free space:
-
-```sh
-python3 -c 'from backend.localdb import LocalDocumentStore; LocalDocumentStore("/var/lib/tikrr/localdb/documents.sqlite3").backup_to("/var/lib/tikrr/backups/localdb.sqlite3")'
-```
+A nightly online backup (SQLite's backup API, checked with quick_check, compressed, 7 dailies and 4 weeklies on
+`/srv/tikrr-data/backups/localdb/`) runs from `tikrr-localdb-backup.timer`; take one by hand before a risky change
+with `bash backend/vps/ops.sh backup-now`. Restoring, into a scratch copy or production: `docs/localdb-restore.md`.
+Never `cp` the live file while the service runs.
 
 Rollback is explicit: set `FIRESTORE_BACKEND=firebase` in the deployed environment and redeploy, while preserving the local backup. Keep Firebase data untouched until parity and stability are jointly confirmed.

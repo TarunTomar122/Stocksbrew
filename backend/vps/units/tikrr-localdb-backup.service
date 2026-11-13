@@ -1,0 +1,41 @@
+# Installed by backend/vps/install-ops.sh. The nightly LocalDB backup: backend/ops/localdb_backup.py through
+# backend/vps/backup-localdb.sh. Runbook: docs/localdb-restore.md.
+[Unit]
+Description=Tikrr LocalDB backup: online SQLite copy, checked and compressed to /srv/tikrr-data/backups/localdb
+After=tikrr-localdb.service
+RequiresMountsFor=/srv/tikrr-data /var/lib/tikrr
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+ExecStart=/opt/tikrr/backend/vps/backup-localdb.sh
+# Never in the way of a page load. The disks use the "none" IO scheduler, where an idle IO class changes nothing,
+# so the bandwidth caps (cgroup io.max) are what actually hold it back: ~40 s to read the 4.4 GB store, ~1 min to
+# write the copy, ~1 min for the archive on the slow volume.
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+IOReadBandwidthMax=/var/lib/tikrr 120M
+IOWriteBandwidthMax=/var/lib/tikrr 80M
+IOReadBandwidthMax=/srv/tikrr-data 25M
+IOWriteBandwidthMax=/srv/tikrr-data 25M
+# Page cache this job pulls in is charged to it, so streaming 4.4 GB cannot push LocalDB's hot pages out of memory.
+MemoryHigh=384M
+MemoryMax=768M
+MemorySwapMax=0
+TimeoutStartSec=3h
+# A stop (or the time limit) sends SIGTERM: the job removes its staging copy on the way out.
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The live database's folder too: a read-only SQLite connection still creates the -shm file when it is missing.
+ReadWritePaths=/var/lib/tikrr/localdb -/var/lib/tikrr/backup-staging -/srv/tikrr-data/backups/localdb
+
+[Install]
+WantedBy=multi-user.target

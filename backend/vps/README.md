@@ -182,12 +182,40 @@ Observed successful write jobs:
 ## Operate
 
 ```bash
+bash backend/vps/ops.sh status
 systemctl list-timers 'tikrr-*'
 journalctl -u tikrr-reddit-buzz.service -n 200
 systemctl start tikrr-reddit-buzz.service
 systemctl disable --now tikrr-reddit-buzz.timer
 systemctl show tikrr-reddit-buzz.service -p MemoryMax -p MemorySwapMax
 ```
+
+## Backups, health and one-command ops
+
+Three pieces, installed together with `sudo bash /opt/tikrr/backend/vps/install-ops.sh` (after `git pull`):
+
+- `tikrr-localdb-backup.timer`, 03:30 New York: an online, checked, compressed copy of the LocalDB store in
+  `/srv/tikrr-data/backups/localdb/` (7 dailies, 4 weeklies). Restore runbook: `docs/localdb-restore.md`.
+- `tikrr-ops-health.timer`, every 5 minutes: `backend/ops/health.py` checks the public site, both web instances,
+  Varnish, LocalDB, disk, memory, swap, load, failed units, the last backup, Caddy's 5xx rate and p95, and when key
+  documents were last written against their jobs' schedules. It writes `tm_ops_health/latest` and
+  `tm_ops_health/history` (nothing else), shown on `/admin/analytics?tab=system`. Email alerts stay off until
+  `/etc/tikrr/ops.env` (root, 0600) holds `OPS_ALERT_EMAIL=<address>`, `EMAILS_ENABLED=1` and `BREVO_API_KEY`
+  (the unit loads only that file, not backend.env); off, each run records what it would have sent. A check
+  alerts after two red runs in a row, at most once per check every 2 hours, with a reminder every 6 hours while
+  red and one all-clear.
+- `backend/vps/ops.sh`, from the laptop or on the VPS:
+
+```bash
+bash backend/vps/ops.sh status                # every check, now
+bash backend/vps/ops.sh logs "2 hours ago"    # web and LocalDB errors, failed jobs, tracebacks, Caddy 5xx
+bash backend/vps/ops.sh backup-now            # through the unit, with its limits
+bash backend/vps/ops.sh backups
+bash backend/vps/ops.sh restore latest        # a scratch copy; --production --yes swaps it in (as a systemd unit)
+bash backend/vps/ops.sh deploy [ref]          # backend/vps/web/deploy-web.sh
+```
+
+The job audit (what each timer costs and feeds, and what to cut) is `docs/ops-audit.md`.
 
 ## Free/Pro line flag
 

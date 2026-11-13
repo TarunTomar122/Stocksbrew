@@ -1,0 +1,36 @@
+# Installed by backend/vps/install-ops.sh. Checks the site, the services, the box and data freshness, and writes
+# tm_ops_health/latest and tm_ops_health/history for /admin/analytics (System tab). backend/ops/health.py.
+[Unit]
+Description=Tikrr health check (writes tm_ops_health)
+After=tikrr-localdb.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+# Read the system journal (job runs and failures) without root.
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/tikrr
+Environment=TIKRR_REPO_DIR=/opt/tikrr
+Environment=LOCALDB_PATH=/var/lib/tikrr/localdb/documents.sqlite3
+# LOCALDB_API_TOKEN for /metrics and the write (root-only file, read by systemd before it drops to ubuntu).
+EnvironmentFile=-/etc/tikrr/agentdata-localdb.env
+# Alerts are off until this root-only file (0600) holds OPS_ALERT_EMAIL=<address>, plus EMAILS_ENABLED=1 and
+# BREVO_API_KEY (the sender needs both; this unit does not load backend.env). Nothing is sent without OPS_ALERT_EMAIL.
+EnvironmentFile=-/etc/tikrr/ops.env
+# The alert state (/var/lib/tikrr-ops/alert-state.json), kept off the store so a store outage cannot re-alert every run.
+StateDirectory=tikrr-ops
+StateDirectoryMode=0700
+ExecStart=/opt/tikrr/.venv/bin/python -m backend.ops.health --write
+Nice=10
+MemoryMax=256M
+TimeoutStartSec=4min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The read-only staleness reads may create LocalDB's -shm file when it is missing.
+ReadWritePaths=/var/lib/tikrr/localdb
+
+[Install]
+WantedBy=multi-user.target
