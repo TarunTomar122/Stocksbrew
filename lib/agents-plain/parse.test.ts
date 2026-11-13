@@ -112,10 +112,10 @@ describe("rules: the common shapes", () => {
     });
     const pelosi = rules("tell me when pelosi buys anything");
     expect(pelosi.spec.watches[0].draft.scope).toEqual({ kind: "any" });
-    expect(pelosi.spec.watches[0].note).toMatch(/can't follow one member yet.*Nancy Pelosi/);
+    expect(pelosi.spec.watches[0].note).toMatch(/every member of Congress.*Nancy Pelosi.*their page/);
     const insiders = rules("let me know when insiders sell AAPL");
     expect(insiders.spec.watches[0].draft).toMatchObject({ template: "insider-trade", scope: { kind: "tickers", tickers: ["AAPL"] } });
-    expect(insiders.spec.watches[0].note).toMatch(/buys and sells alike/);
+    expect(insiders.spec.watches[0].note).toMatch(/You asked about sales.*both/);
     expect(rules("tell me when an insider buys").spec.watches[0].draft.scope).toEqual({ kind: "watchlist" });
     expect(rules("tell me when Tesla shows up on the movers list").spec.watches[0].draft.template).toBe("mover");
     expect(rules("tell me when AAPL is a good price to buy").spec.watches[0].draft.template).toBe("buy-zone");
@@ -225,7 +225,7 @@ describe("rules: found in review", () => {
   it("Berkshire filing a 13F is the fund, not the shares", () => {
     const result = rules("tell me when Berkshire files a 13F");
     expect(result.spec.watches[0].draft.scope).toEqual({ kind: "any" });
-    expect(result.spec.watches[0].note).toMatch(/not only Berkshire Hathaway/);
+    expect(result.spec.watches[0].note).toMatch(/follow only Berkshire Hathaway/);
   });
 
   it("folds two move sizes on the same stocks into one agent", () => {
@@ -309,7 +309,7 @@ describe("the model's answer", () => {
     const spec = specFromModel("tell me when Bridgewater sells Apple", parsed, catalog, EARNINGS_OFF);
     expect(spec.via).toBe("model");
     expect(spec.watches[0].draft).toMatchObject({ template: "fund-filing", scope: { kind: "tickers", tickers: ["AAPL"] } });
-    expect(spec.watches[0].note).toMatch(/can't follow one fund yet.*not only Bridgewater/);
+    expect(spec.watches[0].note).toMatch(/every fund we track.*only Bridgewater/);
   });
 
   it("drops invented kinds and stocks, and never widens a missing stock to your list", () => {

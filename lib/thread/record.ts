@@ -152,6 +152,11 @@ export function buildRecord(
   today: string,
   /** Lines from elsewhere filed under their own day: a report-day check of the person's measurable lines (lib/thesis-watch/condition-record.ts). */
   extra: ReadonlyArray<{ day: string; item: RecordItem }> = [],
+  /**
+   * Today's quiet line across every kind of agent (lib/agent-recipes/quiet-server.ts): it stands in for the thread's
+   * own "N of your agents checked" line. Null when none checked quietly today; left out, the thread's line stays.
+   */
+  agentsQuiet?: RecordItem | null,
 ): RecordDay[] {
   const byDay = new Map<string, { outcomes: RecordItem[]; openers: RecordItem[]; events: RecordItem[]; quiet: RecordItem[] }>();
   const slot = (day: string) => {
@@ -173,11 +178,12 @@ export function buildRecord(
       else if (ordinaryMove(note)) continue;
       else if (note.kind === "quiet") {
         // On past days it would say the same thing every day (owner rule 1).
-        if (at === today) entry.quiet.push(item);
+        if (at === today && !(agentsQuiet !== undefined && item.id === `note:quiet:${today}`)) entry.quiet.push(item);
       } else entry.events.unshift(item); // the thread reads oldest first; the record, newest first
     }
   }
   for (const line of extra) slot(line.day).events.push(line.item);
+  if (agentsQuiet) slot(today).quiet.push(agentsQuiet);
   // The sessions an opener lists as chips ("Mon +0.7%") are days with only a move: each keeps its own line, unless
   // that day already has its move.
   for (const day of thread?.days ?? []) {

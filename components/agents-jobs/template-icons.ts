@@ -11,6 +11,7 @@ export const TEMPLATE_ICON: Record<string, KindIconName> = {
   "earnings-out": "alerts",
   mover: "movers",
   "sec-filing": "filings",
+  "filing-risks": "filings",
   news: "news",
   "price-level": "tag",
   "big-move": "pulse",

@@ -267,7 +267,8 @@ function stockRows(findings: AgentFinding[], moves: MoveRow[], dates: DateRow[],
     if (!move.ticker || out.has(move.ticker)) return;
     const finding = findings.find((entry) => entry.ticker === move.ticker && (entry.kind === "move" || entry.kind === "mover" || entry.kind === "level"));
     const at = finding?.at ?? "";
-    let line = move.zone && move.level != null && move.close != null ? capital(levelWhere(move.close, move.level, move.zone)) : scaleWords(finding?.headline ?? "");
+    // A big move a watch asked the reason for says the reason (lib/agent-jobs.ts moves_pct `reason`), else its size against a normal day.
+    let line = move.zone && move.level != null && move.close != null ? capital(levelWhere(move.close, move.level, move.zone)) : finding?.reason ?? scaleWords(finding?.headline ?? "");
     if (closeDate && /^\d{4}-\d{2}-\d{2}/.test(at) && at < closeDate && finding?.kind !== "mover") {
       line = `Closed ${shortDate(at)}${line ? `, ${line.replace(/^./, (char) => char.toLowerCase())}` : ""}`;
     }

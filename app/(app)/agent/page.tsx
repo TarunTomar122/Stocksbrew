@@ -16,6 +16,7 @@ import { loadBriefingPage } from "@/lib/briefing-data";
 import { loadExampleBriefing } from "@/lib/briefing-example";
 import { viewerFromUserDoc } from "@/lib/entitlements-server";
 import { loadConditionRecord } from "@/lib/thesis-watch/condition-record";
+import { todayQuietItem } from "@/lib/agent-recipes/quiet-server";
 import { buildRecord, type RecordDay } from "@/lib/thread/record";
 import { loadExampleThread, loadMemberThread } from "@/lib/thread/server";
 import { threadSuggestions } from "@/lib/thread/suggest";
@@ -93,21 +94,34 @@ async function ExampleThread() {
   return <Layout thread={thread} record={record} signedIn={false} prices={await recordPrices(record)} />;
 }
 
+/**
+ * Today's quiet checks across every agent (jobs, baskets, theses) as one record line, bounded like the prices: a slow
+ * read leaves the thread's own line in place (undefined), never the page waiting.
+ */
+async function agentsQuietLine(uid: string, today: string): Promise<RecordDay["items"][number] | null | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), PRICES_MS);
+  });
+  return Promise.race([todayQuietItem(uid, today).catch(() => undefined), late]).finally(() => clearTimeout(timer));
+}
+
 async function MemberThread({ uid }: { uid: string }) {
   // The agent's proposals (and its status: agents, alerts, next check) are worked out beside the thread's reads,
   // bounded from now (lib/proposals-server.ts loadProposalCards).
   const proposals = loadProposalCards(uid).catch(() => null);
   const doc = await getUserDoc(uid).catch(() => null);
   const viewer = viewerFromUserDoc(uid, doc);
-  const [thread, loaded, checked] = await Promise.all([
+  const [thread, loaded, checked, quiet] = await Promise.all([
     loadMemberThread({ doc, viewer, briefing: () => loadBriefingPage({ persist: false }) }),
     proposals,
     // The report-day checks of the person's measurable lines that held; one small read, never the page's cost.
     loadConditionRecord(viewer, doc, etToday()).catch(() => []),
+    agentsQuietLine(uid, etToday()),
   ]);
   // "Needs you" leads; the record below carries each answered proposal's outcome beside the agent's notes.
   const lead = <ProposalsSection load={Promise.resolve(loaded)} statusAlone />;
-  const record = buildRecord(thread, loaded?.outcomes ?? [], thread.today, checked);
+  const record = buildRecord(thread, loaded?.outcomes ?? [], thread.today, checked, quiet);
   return <Layout thread={thread} record={record} signedIn lead={lead} prices={await recordPrices(record)} />;
 }
 

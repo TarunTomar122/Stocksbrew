@@ -508,17 +508,18 @@ function noteFor(kind: WatchKind, subject: Subject, intent: Intent): string | nu
     notes.push("Agents read each day's closing price, so you'll hear after the market closes, not the moment it happens.");
   }
   if (kind === "fund_13f") {
-    if (intent.person) notes.push(`Agents can't follow one fund yet, so you'll hear about every fund we track, not only ${intent.person}.`);
+    if (intent.person) notes.push(`This one covers every fund we track. To follow only ${intent.person}, use “Tell me when they trade” on its page.`);
     if (intent.side) {
       notes.push("13F filings list each fund's biggest changes, but agents can't yet tell a sale from a purchase, so you'll hear about every new filing from a fund we track.");
     }
     notes.push("Funds file these four times a year, up to 45 days after each quarter ends.");
   }
   if (kind === "congress_trade" && intent.person) {
-    notes.push(`Agents can't follow one member yet, so you'll hear about any member of Congress, ${intent.person} included.`);
+    notes.push(`This one covers every member of Congress. To follow only ${intent.person}, use “Tell me when they trade” on their page.`);
   }
-  if ((kind === "congress_trade" || kind === "insider_trade") && intent.side) {
-    notes.push(`You asked about ${intent.side === "sell" ? "sales" : "purchases"}, but agents report buys and sells alike, so you'll hear about both.`);
+  // Purchases alone are watched (the trigger's `side`); sales alone are not, so a sale watch reports both.
+  if ((kind === "congress_trade" || kind === "insider_trade") && intent.side === "sell") {
+    notes.push("You asked about sales. Agents can watch purchases alone or every trade, so you'll hear about both.");
   }
   if (kind === "congress_trade") {
     notes.push("Members have up to 45 days to disclose a trade, so you'll hear when it's disclosed, not when it happened.");
@@ -641,6 +642,8 @@ function buildIntent(intent: Intent, ctx: BuildContext): { watches: BuiltWatch[]
       filings: intent.filings ?? undefined,
       news: intent.news ?? undefined,
       to: intent.to ?? undefined,
+      // "When insiders buy NVDA": only purchases (Congress and Form 4 only; a 13F filing is one report either way).
+      side: (intent.kind === "congress_trade" || intent.kind === "insider_trade") && intent.side === "buy" ? "buy" : undefined,
     };
     const parsed = parseJobDraft(
       { template: TEMPLATE_OF[intent.kind], name: jobName(intent.kind, subject, settled), scope: scopeOf(subject), trigger },

@@ -1051,10 +1051,14 @@ export function JobsWorkspace({
             </p>
           </div>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {GROUPS.flatMap((group) => offered.filter((entry) => entry.group === group)).map((entry, index) => {
+            {/* A filing-risk watch is started from a stock's own page (components/agent-recipes), so the grid keeps its rows full. */}
+            {GROUPS.flatMap((group) => offered.filter((entry) => entry.group === group && entry.id !== "filing-risks")).map((entry, index) => {
               const active = entry.id === templateId;
               const unavailable = Boolean(entry.needs && !available[entry.needs]);
-              const taken = jobs.some((job) => job.template === entry.id && entry.id !== "price-level");
+              // Only a watch on your whole list (or every stock) takes the card; one made for a stock or an investor does not.
+              const taken = jobs.some(
+                (job) => job.template === entry.id && entry.id !== "price-level" && job.scope.kind !== "tickers" && !(job.trigger.type === "event" && job.trigger.who),
+              );
               return (
                 <li
                   key={entry.id}
@@ -1164,7 +1168,9 @@ function JobRow({
               {jobDisplayName(job.name)}
             </span>
             <span className="text-[12.5px] text-oa-muted-fg">
-              {triggerLabel(job.trigger)} · {scopeWords(job, tracked)}
+              {/* An investor watch names its investor in the rule; "any stock" beside it would say nothing. */}
+              {triggerLabel(job.trigger)}
+              {job.trigger.type === "event" && job.trigger.who ? null : ` · ${scopeWords(job, tracked)}`}
             </span>
           </span>
           <span className={`mt-1 block text-[13.5px] leading-5 ${open ? "" : "line-clamp-2 sm:line-clamp-1"} ${view?.verdict === "quiet" ? "text-oa-muted-fg" : "text-oa-fg"}`}>
@@ -1205,6 +1211,10 @@ function JobRow({
               >
                 Check now
               </OaButton>
+              {/* Its own page: every check it made, quiet days included (app/(app)/agents/jobs/[id]). */}
+              <Link prefetch={false} href={`/agents/jobs/${encodeURIComponent(job.id)}`} className="inline-flex h-7 items-center px-2 text-[12.5px] font-medium text-oa-primary hover:underline">
+                Every check
+              </Link>
               <button
                 type="button"
                 onClick={onRemove}

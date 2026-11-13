@@ -82,8 +82,10 @@ class ScheduleTest(unittest.TestCase):
         labels = [label for label, _ in schedule.GROUPS["after_close"]]
         self.assertIn("reason checks", labels)
         self.assertEqual(labels.index("reason checks"), labels.index("standing agents") + 1)
-        # The filing check only reads SEC and writes tm_filing_changes; the thesis check after it reads what it wrote.
-        self.assertEqual(labels[-5:], ["reason checks", "filing changes", "thesis checks", "serving docs", "data quality"])
+        # The filing check only reads SEC and writes tm_filing_changes; the thesis check after the agents reads what it wrote.
+        self.assertEqual(labels[-4:], ["reason checks", "thesis checks", "serving docs", "data quality"])
+        # Filing changes run before the standing agents, so a filing-risk agent sees tonight's comparisons.
+        self.assertLess(labels.index("filing changes"), labels.index("standing agents"))
 
     def test_serving_docs_run_last_after_their_writers(self):
         for group, after in (("frequent", "news tone"), ("hourly", "calendar events"), ("after_close", "thesis checks")):

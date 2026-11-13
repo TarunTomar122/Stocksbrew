@@ -49,6 +49,8 @@ import {
 import { dayWords } from "@/lib/day-words";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
+import { RecipeEntry } from "@/components/agent-recipes/recipe-entry";
+import { basketFullyWatched } from "@/lib/agent-recipes/recipes";
 import { ThesisRow } from "@/components/thesis-monitor/thesis-row";
 import { readState } from "@/lib/thesis-monitor/data";
 import { thesisEditHref, thesisHref } from "@/lib/thesis-monitor/model";
@@ -183,6 +185,12 @@ export default async function BasketAgentPage({ params }: Props) {
     [...replayTickers].sort().join(",") !== [...tickers].sort().join(","),
   );
 
+  // Agent recipes for this basket (components/agent-recipes): offered until its check and a filing watch both stand.
+  const watched = basketFullyWatched(
+    { kind: "basket", id: basket.id, name: basket.name, tickers, thesis: Boolean(basket.thesis), enabled: basket.enabled },
+    jobs,
+  );
+
   return (
     <AppPage width="wide" className="max-w-[68rem]">
       <PageHead
@@ -190,6 +198,8 @@ export default async function BasketAgentPage({ params }: Props) {
         meta={<span>{when}</span>}
         note={false}
         actions={
+          <span className="flex flex-wrap items-start justify-end gap-2">
+          {watched ? null : <RecipeEntry subject={`basket:${basket.id}`} label="Tell me when it breaks" />}
           <BasketAgentActions
             id={basket.id}
             enabled={basket.enabled}
@@ -203,6 +213,7 @@ export default async function BasketAgentPage({ params }: Props) {
                   }
             }
           />
+          </span>
         }
       />
 

@@ -11,6 +11,7 @@
 import { randomBytes } from "node:crypto";
 
 import { loadFilingFacts, loadNewsFacts } from "@/lib/agent-events-data";
+import { loadFilingRisks, loadFundFilings, loadInsiderTrades, loadMemberTrades, loadMoveReasons, loadTonightQuotes } from "@/lib/agent-recipes/facts";
 import { runningBasketCount } from "@/lib/basket-agent/count";
 import { listEarningsDayReports } from "@/lib/earnings-day";
 import type { EarningsReportFact } from "@/lib/earnings-day-agent";
@@ -24,6 +25,9 @@ import { readStoredWatchlistView } from "@/lib/watchlist-view-read";
 import {
   AGENT_JOB_ID_RE,
   EMPTY_FACTS,
+  keepsTold,
+  MAX_TOLD,
+  mergeTold,
   MAX_JOBS_PER_USER,
   MAX_SCOPE_TICKERS,
   REPLAY_WEEKS,
@@ -130,6 +134,8 @@ function jobFromDoc(data: Record<string, unknown> | undefined, uid: string): Age
     last_checked_day: text(data.last_checked_day) || null,
     last_close_seen: text(data.last_close_seen) || null,
     ...(data.calls_seen && typeof data.calls_seen === "object" ? { calls_seen: cleanCallsSeen(data.calls_seen) } : {}),
+    ...(Array.isArray(data.told) ? { told: (data.told as unknown[]).filter((id): id is string => typeof id === "string").slice(-MAX_TOLD) } : {}),
+    ...(text(data.told_since) ? { told_since: text(data.told_since) } : {}),
   };
 }
 
@@ -191,6 +197,8 @@ export async function createJob(
     updated_at: stamp,
     last_checked_day: null,
     last_close_seen: null,
+    // An event agent that keeps what it told says nothing dated before the day it was made (that is what its replay showed).
+    ...(keepsTold(draft.trigger) ? { told: [], told_since: agentMarketDay(now) } : {}),
   };
   await adminFirestore.collection(AGENT_JOBS_COLLECTION).doc(jobDocId(uid, job.id)).set(job);
   return job;
@@ -259,6 +267,17 @@ export async function listRuns(uid: string, limit = MAX_RUNS_LISTED): Promise<Ag
   return snap.docs
     .map((doc) => runFromDoc(doc.data() as Record<string, unknown>, uid))
     .filter((run): run is AgentRun => run !== null)
+    .sort((a, b) => b.day.localeCompare(a.day) || b.ran_at.localeCompare(a.ran_at))
+    .slice(0, limit);
+}
+
+/** One job's runs, newest first: its own page lists every check it made, not a share of the person's latest runs. */
+export async function listJobRuns(uid: string, jobId: string, limit = 400): Promise<AgentRun[]> {
+  if (!AGENT_JOB_ID_RE.test(jobId)) return [];
+  const snap = await adminFirestore.collection(AGENT_RUNS_COLLECTION).where("uid", "==", uid).where("job_id", "==", jobId).get();
+  return snap.docs
+    .map((doc) => runFromDoc(doc.data() as Record<string, unknown>, uid))
+    .filter((run): run is AgentRun => run !== null && run.job_id === jobId)
     .sort((a, b) => b.day.localeCompare(a.day) || b.ran_at.localeCompare(a.ran_at))
     .slice(0, limit);
 }
@@ -541,6 +560,13 @@ export async function loadFacts(
   const event = options.trigger?.type === "event" ? options.trigger.event : null;
   const wantsFilings = !options.trigger || event === "sec_filing";
   const wantsNews = !options.trigger || event === "news";
+  const trigger = options.trigger;
+  // An investor watch reads that investor's own filings (lib/agent-recipes/facts.ts), not the market-wide lists.
+  const who = trigger?.type === "event" ? trigger.who : undefined;
+  const wantsInsiders = !trigger || event === "insider_trade";
+  const wantsRisks = !trigger || event === "filing_risks";
+  const wantsReasons = trigger?.type === "price" && trigger.rule === "moves_pct" && trigger.reason === true;
+  const wantsTonight = options.purpose === "run" && trigger?.type === "event" && trigger.event === "earnings_approaching" && trigger.night_of === true;
   const pricesRead = loadPrices(tickers, options.end < settled ? options.end : settled);
   const filingsRead = wantsFilings ? loadFilingFacts(from) : Promise.resolve(null);
   const newsRead = wantsNews
@@ -548,16 +574,21 @@ export async function loadFacts(
         loadNewsFacts(tickers, addDays(options.end, -(options.purpose === "run" ? NEWS_RUN_DAYS : NEWS_REPLAY_DAYS)), calendar),
       )
     : Promise.resolve(null);
-  const [{ prices, calendar }, congressDocs, fundDocs, insiderDocs, earnings, movers, earningsReports, filings, news] = await Promise.all([
+  const [{ prices, calendar }, congressDocs, fundDocs, insiders, earnings, movers, earningsReports, filings, news, memberTrades, fundFilings, risks, reasons, tonight] = await Promise.all([
     pricesRead,
-    loadCollection("tm_power_trades"),
-    loadCollection("tm_follow_activity"),
-    loadCollection("tm_insider_trades"),
+    who?.kind === "congress" ? Promise.resolve(null) : loadCollection("tm_power_trades"),
+    who?.kind === "fund" ? Promise.resolve(null) : loadCollection("tm_follow_activity"),
+    wantsInsiders ? loadInsiderTrades(from) : Promise.resolve([] as AgentFacts["insiders"]),
     loadEarnings(tickers, from, addDays(options.end, 21)),
     loadMovers(),
     loadEarningsReports(tickers, from),
     filingsRead,
     newsRead,
+    who?.kind === "congress" ? loadMemberTrades(who.id, from) : Promise.resolve(null),
+    who?.kind === "fund" ? loadFundFilings(who.id, from) : Promise.resolve(null),
+    wantsRisks ? loadFilingRisks(tickers) : Promise.resolve(null),
+    wantsReasons ? loadMoveReasons(options.purpose === "run" ? addDays(options.end, -7) : from, options.end) : Promise.resolve(null),
+    wantsTonight ? loadTonightQuotes(tickers, options.end) : Promise.resolve(null),
   ]);
 
   const facts: AgentFacts = {
@@ -565,7 +596,7 @@ export async function loadFacts(
     prices,
     levels: options.levels ?? {},
     earnings: earnings ?? [],
-    congress: (congressDocs ?? [])
+    congress: memberTrades ?? (congressDocs ?? [])
       .map((doc) => ({
         id: text(doc.trade_id),
         person: text(doc.person_name),
@@ -577,7 +608,7 @@ export async function loadFacts(
         url: text(doc.source_url) || null,
       }))
       .filter((trade) => trade.id && trade.person && trade.ticker && trade.disclosed >= from),
-    fund_filings: (fundDocs ?? [])
+    fund_filings: fundFilings ?? (fundDocs ?? [])
       .filter((doc) => text(doc.type) === "13f_filing")
       .map((doc) => ({
         id: text(doc.id),
@@ -590,34 +621,28 @@ export async function loadFacts(
           : [],
       }))
       .filter((filing) => filing.id && filing.fund && filing.date >= from),
-    insiders: (insiderDocs ?? [])
-      .map((doc) => ({
-        id: text(doc.id) || text(doc.trade_id),
-        ticker: text(doc.ticker).toUpperCase(),
-        person: text(doc.person) || text(doc.insider_name) || text(doc.name),
-        role: text(doc.role) || text(doc.title) || null,
-        tx_type: text(doc.tx_type) || text(doc.action),
-        value: finite(doc.value) ?? finite(doc.amount),
-        filed: (text(doc.filed_at) || text(doc.filing_date) || text(doc.date)).slice(0, 10),
-        url: text(doc.url) || text(doc.source_url) || null,
-      }))
-      .filter((trade) => trade.id && trade.ticker && trade.person && trade.filed >= from),
+    // Read as tm_insider_trades stores them (`symbol`, `insider`), newest window only (lib/agent-recipes/facts.ts).
+    insiders: insiders ?? [],
     movers: movers?.movers ?? [],
     mover_days: movers?.days ?? [],
     earnings_reports: earningsReports ?? [],
     ...(filings ? { filings } : {}),
     ...(news ? { news } : {}),
     ...(options.calls ? { calls: options.calls } : {}),
+    ...(risks ? { filing_risks: risks } : {}),
+    ...(reasons ? { move_reasons: reasons } : {}),
+    ...(tonight ? { extended: tonight } : {}),
     available: {
-      congress: congressDocs != null && congressDocs.length > 0,
-      fund_filings: (fundDocs ?? []).length > 0,
-      insiders: (insiderDocs ?? []).length > 0,
+      congress: memberTrades != null || (congressDocs != null && congressDocs.length > 0),
+      fund_filings: fundFilings != null || (fundDocs ?? []).length > 0,
+      insiders: wantsInsiders ? insiders != null && insiders.length > 0 : false,
       earnings: earnings != null,
       movers: movers != null,
       earnings_reports: earningsReports != null,
       ...(wantsFilings ? { filings: filings != null && filings.length > 0 } : {}),
       ...(wantsNews ? { news: news != null && news.coverage_from != null } : {}),
       ...(options.calls !== undefined ? { calls: options.calls != null } : {}),
+      ...(wantsRisks ? { filing_risks: risks != null } : {}),
     },
   };
   return { facts, calendar };
@@ -638,6 +663,11 @@ export async function replayDraft(uid: string | null, draft: AgentJobDraft, now 
   return { ...replay, tickers: scope.tickers, available: facts.available, replayed_at: now.toISOString() };
 }
 
+/** A watch that also speaks on the report night itself (earnings `night_of`). */
+function reportNightWatch(job: Pick<AgentJob, "trigger">): boolean {
+  return job.trigger.type === "event" && job.trigger.event === "earnings_approaching" && job.trigger.night_of === true;
+}
+
 export type RunOutcome =
   | { status: "recorded"; run: AgentRun }
   | { status: "already_ran"; run: AgentRun }
@@ -651,12 +681,20 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
   const day = agentMarketDay(now);
   const runRef = adminFirestore.collection(AGENT_RUNS_COLLECTION).doc(runDocId(job.uid, job.id, day));
   const existing = await runRef.get();
+  let earlier: AgentRun | null = null;
   if (existing.exists) {
     const run = runFromDoc(existing.data() as Record<string, unknown>, job.uid);
-    if (run) return { status: "already_ran", run };
+    // A report-night watch checked before the close (a midday "Check now") still gets its evening check, which is the
+    // one that can see the session's close and the after-hours move; the two are kept as one run for the day.
+    if (run && !(reportNightWatch(job) && run.ran_at && lastSettledDay(new Date(run.ran_at)) < day && lastSettledDay(now) === day)) {
+      return { status: "already_ran", run };
+    }
+    earlier = run;
   }
 
   const readsCalls = watchesCalls(job.trigger);
+  const tracksTold = keepsTold(job.trigger);
+  const toldSince = job.told_since ?? (job.last_checked_day ? addDays(job.last_checked_day, 1) : day);
   const scope = await resolveScope(job.uid, job.scope, { calls: readsCalls });
   const { facts } = await loadFacts(scope.tickers, { end: day, levels: scope.levels, calls: scope.calls, now, trigger: job.trigger, purpose: "run" });
   const evaluation = evaluateJob(job, facts, {
@@ -669,11 +707,19 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
     tickers: scope.tickers,
     // A live run of an agent that watches our call compares with what it last saw (empty on a first run).
     ...(readsCalls ? { calls_seen: job.calls_seen ?? {} } : {}),
+    // An event agent that keeps what it told reads every record it has not looked at yet (AgentJob.told), from the day
+    // it began keeping them: a job made before this existed starts the day after its last check, as it read before.
+    ...(tracksTold ? { live: { told: job.told ?? [], since: toldSince } } : {}),
   });
   if (!evaluation) return { status: "not_due" };
 
   const stamp = now.toISOString();
-  const { calls_seen: callsSeen, ...result } = evaluation;
+  const { calls_seen: callsSeen, told: toldNow, ...fresh } = evaluation;
+  // The evening check of a report night after a midday one: both runs' findings stay in the day's one run.
+  const result =
+    earlier && earlier.findings.length > 0
+      ? { ...fresh, decision: "notify" as const, summary: fresh.decision === "notify" ? fresh.summary : earlier.summary, findings: [...earlier.findings, ...fresh.findings] }
+      : fresh;
   const run: AgentRun = {
     ...result,
     latest_close: evaluation.latest_close ?? null,
@@ -696,6 +742,7 @@ export async function runJob(job: StoredJob, now = new Date(), options: { dryRun
         ...(evaluation.latest_close ? { last_close_seen: evaluation.latest_close } : {}),
         // Only the stocks in scope today: one that left the list and came back is read fresh, not against a months-old call.
         ...(callsSeen && Object.keys(callsSeen).length ? { calls_seen: callsSeen } : {}),
+        ...(tracksTold ? { told: mergeTold(job.told, toldNow), told_since: toldSince } : {}),
         updated_at: stamp,
       },
       { merge: true },

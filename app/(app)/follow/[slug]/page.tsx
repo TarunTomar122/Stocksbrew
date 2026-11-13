@@ -9,6 +9,7 @@ import {
   UP,
 } from "@/components/follow/bits";
 import { FollowButton } from "@/components/follow/follow-button";
+import { RecipeEntry } from "@/components/agent-recipes/recipe-entry";
 import { MovesStream } from "@/components/follow/moves-stream";
 import { Panel, PerfTiles, Stat } from "@/components/follow/panel";
 import { RecordChart } from "@/components/follow/record-chart";
@@ -416,13 +417,15 @@ function FundView({
             <p className="text-[15px] leading-6 text-oa-muted-fg">{profile.manager}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <ExternalLink
             href={profile.source_url}
-            className="text-[13px] text-oa-muted-fg"
+            className="text-[13px] text-oa-muted-fg max-sm:order-last max-sm:basis-full"
           >
             Every quarterly report at the SEC
           </ExternalLink>
+          {/* Following saves them to your list; an agent recipe is what tells you when they file (components/agent-recipes). */}
+          <RecipeEntry subject={`fund:${profile.slug}`} label="Tell me when they trade" />
           <FollowButton
             slug={profile.slug}
             name={profile.fund}
@@ -876,13 +879,14 @@ function CongressView({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <ExternalLink
             href={office.url}
-            className="text-[13px] text-oa-muted-fg"
+            className="text-[13px] text-oa-muted-fg max-sm:order-last max-sm:basis-full"
           >
             {office.office}
           </ExternalLink>
+          <RecipeEntry subject={`congress:${profile.slug}`} label="Tell me when they trade" />
           <FollowButton
             slug={profile.slug}
             name={profile.name}

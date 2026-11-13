@@ -34,6 +34,7 @@ import { askContext, formatAskContext } from "@/lib/ask-context";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 import { limitFor } from "@/lib/entitlements";
 import { LatestResults } from "@/components/results/latest-results";
+import { RecipeEntry } from "@/components/agent-recipes/recipe-entry";
 
 const CALL_TONE: Record<CallWord, Tone | null> = { Add: "up", Hold: null, Trim: "down" };
 
@@ -436,6 +437,10 @@ export function StockReport({
                     </Tag>
                   ) : null}
                 </div>
+                {/* Agent recipes on this stock (components/agent-recipes): a quiet action, not a second button. */}
+                {market === "US" ? (
+                  <RecipeEntry subject={`stock:${stock.ticker}`} label={`Watch ${stock.ticker} for me`} short="Watch" className="shrink-0" />
+                ) : null}
                 {/* Follow is a quiet outline: the call is the one coloured thing up here. */}
                 <div className="oa-track-outline hidden shrink-0 sm:block">
                   <TrackButton

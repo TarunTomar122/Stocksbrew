@@ -41,7 +41,9 @@ export type AgentEventKind =
   /** The news about a stock in scope got much heavier or turned one way (lib/agent-events-news.ts). */
   | "news"
   /** Our call on a stock in scope changed (tm_call_stability's own change list). */
-  | "call_change";
+  | "call_change"
+  /** A stock in scope filed a 10-K or 10-Q that lists a risk its last one did not (tm_filing_changes, lib/agent-recipes/facts.ts). */
+  | "filing_risks";
 /**
  * `enters_sell_zone`: a close at or above the sell-some price of a Sell some call, or our call turning to Sell some.
  * It is how "tell me when to sell X" is watched: a signal, never a trade.
@@ -57,6 +59,9 @@ export function isAgentCall(value: unknown): value is AgentCall {
   return value === "Add" || value === "Hold" || value === "Trim";
 }
 
+/** One investor an event watch follows: a fund (its 13F filings) or a member of Congress (their disclosures), by /follow page id. */
+export type AgentWho = { kind: "fund" | "congress"; id: string; name: string };
+
 export type AgentTrigger =
   | { type: "schedule"; cadence: AgentScheduleCadence; /** 1 = Monday … 5 = Friday. Weekly only. */ weekday?: number }
   | {
@@ -70,8 +75,23 @@ export type AgentTrigger =
       news?: NewsWatch;
       /** call_change only: just a change to this call. None means any change. */
       to?: AgentCall;
+      /** congress_trade and fund_13f: only this investor's filings. The scope is then "any". */
+      who?: AgentWho;
+      /** insider_trade and congress_trade: only buys. */
+      side?: "buy";
+      /** insider_trade: the smallest trade value; congress_trade: the smallest reported bracket (its low end). Dollars. */
+      min_value?: number;
+      /** earnings_approaching: also tell on the report day itself, with the after-hours move when there is one. */
+      night_of?: boolean;
     }
-  | { type: "price"; rule: AgentPriceRule; level?: number; pct?: number };
+  | {
+      type: "price";
+      rule: AgentPriceRule;
+      level?: number;
+      pct?: number;
+      /** moves_pct: say the move's confirmed reason when our move research found one that day. */
+      reason?: boolean;
+    };
 
 export type AgentScope =
   /** Whatever the person tracks when the job runs. */
@@ -92,7 +112,7 @@ export type AgentJobDraft = {
  * (lib/entitlements.ts: `agent_events`, Pro only on the tighter line).
  */
 export function usesProEvents(job: Pick<AgentJobDraft, "trigger">): boolean {
-  return job.trigger.type === "event" && (job.trigger.event === "sec_filing" || job.trigger.event === "news");
+  return job.trigger.type === "event" && (job.trigger.event === "sec_filing" || job.trigger.event === "news" || job.trigger.event === "filing_risks");
 }
 
 /** What a filing or news agent says when the plan does not include `agent_events` (one sentence everywhere: API errors, the run button, the plain box). */
@@ -121,6 +141,13 @@ export type AgentJob = AgentJobDraft & {
    * that differs from this on the next run is a change, whenever in the day the pipeline wrote it.
    */
   calls_seen?: Record<string, AgentCall> | null;
+  /**
+   * Event agents that read late-arriving records (disclosures, 13Fs, Form 4s, filing comparisons, report nights): the
+   * ids of what a live run already looked at, newest last, so each is said once however late it was collected.
+   */
+  told?: string[] | null;
+  /** The day the job began keeping `told`: a live run never says anything dated before it. */
+  told_since?: string | null;
 };
 
 export type AgentDecision = "notify" | "nothing" | "could_not_check";
@@ -163,6 +190,8 @@ export type AgentFinding = {
   /** Call changes only, in plain words ("Keep", "Sell some"). `call_from` is null when the plan does not cover the stock. */
   call_from?: string | null;
   call_to?: string;
+  /** Big moves with `reason` on: the move's confirmed reason that day, in our move research's words. */
+  reason?: string;
 };
 
 /** How many things a run found in total, before the list was capped. */
@@ -192,6 +221,8 @@ export type AgentEvaluation = {
   counts?: AgentRunCounts;
   /** Agents that watch our call: the call on each stock now, for the job to remember (AgentJob.calls_seen). */
   calls_seen?: Record<string, AgentCall>;
+  /** A live run of an event agent that keeps what it told: the ids this run looked at, to add to AgentJob.told. */
+  told?: string[];
 };
 
 export type AgentRun = AgentEvaluation & {
@@ -213,9 +244,22 @@ export type AgentFacts = {
   /** `locked`: the agent does not cover this stock for the account, so its levels were not loaded (lib/agent-jobs-data resolveScope). */
   levels: Record<string, { add_below: number | null; trim_above?: number | null; locked?: true }>;
   earnings: Array<{ ticker: string; date: string; time?: string | null }>;
-  fund_filings: Array<{ id: string; fund: string; date: string; headline: string; url: string | null; tickers: string[] }>;
+  fund_filings: Array<{
+    id: string;
+    fund: string;
+    date: string;
+    headline: string;
+    url: string | null;
+    tickers: string[];
+    /** The fund's /follow page id. */
+    source_id?: string;
+    /** Tickers the filing shows it bought: new positions and added ones. */
+    buys?: string[];
+  }>;
   congress: Array<{
     id: string;
+    /** The member's /follow page id, when the row came from their own disclosures (a `who` watch). */
+    person_id?: string;
     person: string;
     ticker: string;
     tx_type: string;
@@ -249,6 +293,12 @@ export type AgentFacts = {
    * are left out (the call itself is free).
    */
   calls?: Record<string, AgentCallFacts>;
+  /** 10-K and 10-Q risk comparisons for the names in scope, each on the day it could first be read (filing_risks). */
+  filing_risks?: FilingRiskFact[];
+  /** Confirmed reasons for big moves, by ticker and session (moves_pct with `reason`). */
+  move_reasons?: Array<{ ticker: string; day: string; headline: string }>;
+  /** A live run only: each name's after-hours quote when it is from the session being checked (earnings `night_of`). */
+  extended?: Record<string, { day: string; change_pct: number; price: number; as_of: string }>;
   /**
    * Whether each source has been collected at all. A source we do not have is
    * reported as "could not check", never as "nothing happened".
@@ -263,7 +313,24 @@ export type AgentFacts = {
     filings?: boolean;
     news?: boolean;
     calls?: boolean;
+    filing_risks?: boolean;
   };
+};
+
+/** One 10-K or 10-Q compared with the filing before it (tm_filing_changes), as the filing_risks event reads it. */
+export type FilingRiskFact = {
+  ticker: string;
+  form: string;
+  /** The day the filing reached the SEC. */
+  filed: string;
+  /** The day it reached the SEC, when anyone could read its risk list. */
+  day: string;
+  accession: string;
+  /** New risks this filing lists, leaving out ones an earlier 10-Q already added. */
+  added: number;
+  /** The first new risk, in the company's words. */
+  first: string | null;
+  url: string | null;
 };
 
 export type AgentCallChange = { date: string; from: AgentCall | null; to: AgentCall; reason?: string | null };
@@ -324,6 +391,26 @@ export function shortDate(day: string): string {
   return match ? `${MONTHS[Number(match[2]) - 1]} ${Number(match[3])}` : "";
 }
 
+/**
+ * How far back a live run looks for records that arrived late, by event. Congressional disclosures and 13F filings are
+ * collected once a week, Form 4s every hour, filing comparisons after the close (and redone when the reading improves).
+ */
+export const LIVE_LOOKBACK_DAYS: Partial<Record<AgentEventKind, number>> = { congress_trade: 45, fund_13f: 45, insider_trade: 14, filing_risks: 14 };
+
+/** At most this many told ids are kept per job, newest last. */
+export const MAX_TOLD = 400;
+
+/** Whether a live run of this job keeps what it told (AgentJob.told) instead of reading only what is dated since its last check. */
+export function keepsTold(trigger: AgentTrigger): boolean {
+  return trigger.type === "event" && (trigger.event in LIVE_LOOKBACK_DAYS || (trigger.event === "earnings_approaching" && trigger.night_of === true));
+}
+
+/** `told` plus this run's ids, deduplicated, newest last, cut to MAX_TOLD. */
+export function mergeTold(before: readonly string[] | null | undefined, added: readonly string[] | undefined): string[] {
+  const fresh = [...new Set(added ?? [])];
+  return [...(before ?? []).filter((id) => !fresh.includes(id)), ...fresh].slice(-MAX_TOLD);
+}
+
 function inWindow(date: string, since: string | null, day: string): boolean {
   const key = (date ?? "").slice(0, 10);
   if (!key || key > day) return false;
@@ -352,6 +439,10 @@ function bracket(low: number | null, high: number | null): string {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function signed(pct: number): string {
@@ -564,6 +655,21 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     },
   },
   {
+    id: "filing-risks",
+    group: "Event",
+    title: "A filing adds risks",
+    ask: "Tell me when one of my names files a 10-K or 10-Q that lists a risk its last one did not.",
+    tells: "When one of your stocks lists a new risk in its annual or quarterly report, quoted in its own words.",
+    fields: [],
+    needs: "filing_risks",
+    defaults: {
+      template: "filing-risks",
+      name: "New risks in my names' filings",
+      trigger: { type: "event", event: "filing_risks" },
+      scope: { kind: "watchlist" },
+    },
+  },
+  {
     id: "news",
     group: "Event",
     title: "The news about a stock changes",
@@ -709,15 +815,21 @@ export function triggerLabel(trigger: AgentTrigger): string {
   if (trigger.type === "price") {
     if (trigger.rule === "crosses_above") return `Closes above ${price(trigger.level ?? 0)}`;
     if (trigger.rule === "crosses_below") return `Closes below ${price(trigger.level ?? 0)}`;
-    if (trigger.rule === "moves_pct") return `Moves ${trigger.pct ?? 5}% or more in a day`;
+    if (trigger.rule === "moves_pct") return `Moves ${trigger.pct ?? 5}% or more in a day${trigger.reason ? ", with the reason" : ""}`;
     if (trigger.rule === "enters_sell_zone") return "When our call says sell some";
     return "Closes at its buy-more level";
   }
   if (trigger.event === "call_change") return trigger.to ? `Our call turns to ${CALL_WORDS[trigger.to]}` : "Our call changes";
-  if (trigger.event === "fund_13f") return "New 13F filing";
-  if (trigger.event === "congress_trade") return "Congressional disclosure";
-  if (trigger.event === "insider_trade") return "Insider trade";
-  if (trigger.event === "earnings_approaching") return `${calendarDays(trigger.days_before ?? 3)} before earnings`;
+  if (trigger.event === "fund_13f") return trigger.who ? `New 13F from ${trigger.who.name}` : "New 13F filing";
+  if (trigger.event === "congress_trade") {
+    const what = trigger.side === "buy" ? `Buys${trigger.min_value ? ` of ${moneyShort(trigger.min_value)} or more` : ""}` : "Disclosures";
+    return trigger.who ? `${what} by ${trigger.who.name}` : trigger.side === "buy" ? `Congressional ${what.toLowerCase()}` : "Congressional disclosure";
+  }
+  if (trigger.event === "insider_trade") {
+    return trigger.side === "buy" ? `Insider buys${trigger.min_value ? ` of ${moneyShort(trigger.min_value)} or more` : ""}` : "Insider trade";
+  }
+  if (trigger.event === "filing_risks") return "A filing adds risks";
+  if (trigger.event === "earnings_approaching") return `${calendarDays(trigger.days_before ?? 3)} before earnings${trigger.night_of ? " and the night of" : ""}`;
   if (trigger.event === "earnings_reported") return "Earnings came out";
   if (trigger.event === "sec_filing") return filingTriggerLabel(trigger.filings);
   if (trigger.event === "news") return newsTriggerLabel(trigger.news ?? "any");
@@ -741,7 +853,7 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
     if (trigger.rule === "crosses_above") return `Tell me when ${who} closes above ${price(trigger.level ?? 0)}.`;
     if (trigger.rule === "crosses_below") return `Tell me when ${who} closes below ${price(trigger.level ?? 0)}.`;
     if (trigger.rule === "moves_pct") {
-      return `Tell me when ${anyOf(job.scope, who)} closes ${trigger.pct ?? 5}% or more away from the day before.`;
+      return `Tell me when ${anyOf(job.scope, who)} closes ${trigger.pct ?? 5}% or more away from the day before${trigger.reason ? ", with the reason when we found one" : ""}.`;
     }
     if (trigger.rule === "enters_sell_zone") {
       return `Tell me when ${anyOf(job.scope, who)} closes at or above our sell-some price, or our call turns to Sell some.`;
@@ -751,15 +863,26 @@ export function describeJob(job: Pick<AgentJobDraft, "trigger" | "scope">): stri
   if (trigger.event === "call_change") {
     return trigger.to ? `Tell me when our call on ${anyOf(job.scope, who)} turns to ${CALL_WORDS[trigger.to]}.` : `Tell me when our call on ${anyOf(job.scope, who)} changes.`;
   }
+  if (trigger.event === "fund_13f" && trigger.who) return `Tell me when ${trigger.who.name} files a new 13F, with what it bought.`;
+  if (trigger.event === "congress_trade" && trigger.who) {
+    return trigger.side === "buy"
+      ? `Tell me when ${trigger.who.name} discloses a purchase${trigger.min_value ? ` of ${moneyShort(trigger.min_value)} or more` : ""}.`
+      : `Tell me when ${trigger.who.name} discloses a new stock trade.`;
+  }
+  if (trigger.event === "filing_risks") return `Tell me when ${anyOf(job.scope, who)} files a 10-K or 10-Q that lists a new risk.`;
   if (trigger.event === "fund_13f") {
     return job.scope.kind === "any"
       ? "Tell me when a fund we track files a new 13F."
       : `Tell me when a fund we track files a new 13F, and point out ${anyOf(job.scope, who)} in it.`;
   }
-  if (trigger.event === "congress_trade") return `Tell me when a member of Congress discloses a trade in ${who}.`;
-  if (trigger.event === "insider_trade") return `Tell me when an executive or director reports a trade in ${who}.`;
+  if (trigger.event === "congress_trade") return `Tell me when a member of Congress discloses a ${trigger.side === "buy" ? "purchase" : "trade"} in ${who}.`;
+  if (trigger.event === "insider_trade") {
+    return trigger.side === "buy"
+      ? `Tell me when an executive or director reports a purchase${trigger.min_value ? ` of ${moneyShort(trigger.min_value)} or more` : ""} in ${who}.`
+      : `Tell me when an executive or director reports a trade in ${who}.`;
+  }
   if (trigger.event === "earnings_approaching") {
-    return `Tell me ${calendarDays(trigger.days_before ?? 3)} before ${anyOf(job.scope, who)} reports earnings.`;
+    return `Tell me ${calendarDays(trigger.days_before ?? 3)} before ${anyOf(job.scope, who)} reports earnings${trigger.night_of ? ", and again the night of with the after-hours move" : ""}.`;
   }
   if (trigger.event === "earnings_reported") {
     return `Tell me when ${anyOf(job.scope, who)} reports earnings, with the numbers against expectations and how the stock reacted.`;
@@ -783,6 +906,24 @@ export function cleanTickers(raw: unknown, max = MAX_SCOPE_TICKERS): string[] {
 }
 
 export type DraftResult = { ok: true; draft: AgentJobDraft } | { ok: false; error: string };
+
+const WHO_ID_RE = /^[a-z0-9][a-z0-9-]{1,79}$/;
+
+/** An investor named by a watch, from untrusted input: a /follow page id and a display name, or undefined. */
+export function cleanWho(raw: unknown, kind: AgentWho["kind"]): AgentWho | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const input = raw as Record<string, unknown>;
+  const id = String(input.id ?? "").trim().toLowerCase();
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (input.kind !== kind || !WHO_ID_RE.test(id) || !name) return undefined;
+  return { kind, id, name };
+}
+
+/** A dollar floor from untrusted input, rounded to whole dollars, or undefined when it is missing or not sensible. */
+function cleanMinValue(raw: unknown): number | undefined {
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 1_000 && value <= 1_000_000_000 ? Math.round(value) : undefined;
+}
 
 /** Turn untrusted input into a job draft, or say what is wrong with it in plain words. */
 /**
@@ -847,7 +988,7 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
       if (!Number.isFinite(pct) || pct < 1 || pct > 50) {
         return { ok: false, error: "Enter a move between 1% and 50%." };
       }
-      trigger = { type: "price", rule: "moves_pct", pct: Math.round(pct * 10) / 10 };
+      trigger = { type: "price", rule: "moves_pct", pct: Math.round(pct * 10) / 10, ...(rawTrigger.reason === true ? { reason: true } : {}) };
     } else if (template.id === "sell-zone") {
       trigger = { type: "price", rule: "enters_sell_zone" };
     } else {
@@ -860,7 +1001,7 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
       if (!Number.isFinite(days) || days < 1 || days > 14) {
         return { ok: false, error: "Pick between 1 and 14 days before earnings." };
       }
-      trigger = { type: "event", event, days_before: Math.round(days) };
+      trigger = { type: "event", event, days_before: Math.round(days), ...(rawTrigger.night_of === true ? { night_of: true } : {}) };
     } else if (event === "sec_filing") {
       const filings = cleanFilingFilter(rawTrigger.filings);
       trigger = filings ? { type: "event", event, filings } : { type: "event", event };
@@ -870,17 +1011,25 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
       trigger = { type: "event", event, news: cleanNewsWatch(rawTrigger.news) };
     } else if (event === "call_change") {
       trigger = isAgentCall(rawTrigger.to) ? { type: "event", event, to: rawTrigger.to } : { type: "event", event };
+    } else if (event === "insider_trade" || event === "congress_trade" || event === "fund_13f") {
+      // One investor (a fund's 13Fs, a member's disclosures), only buys, and a dollar floor: each only where its data has it.
+      const who = event === "insider_trade" ? undefined : cleanWho(rawTrigger.who, event === "fund_13f" ? "fund" : "congress");
+      const side = event !== "fund_13f" && rawTrigger.side === "buy" ? ("buy" as const) : undefined;
+      const minValue = event !== "fund_13f" ? cleanMinValue(rawTrigger.min_value) : undefined;
+      trigger = { type: "event", event, ...(who ? { who } : {}), ...(side ? { side } : {}), ...(minValue ? { min_value: minValue } : {}) };
+      if (who) scope = { kind: "any" };
     } else {
       trigger = { type: "event", event };
     }
     // Earnings, movers, news and our calls are about names the person follows; "any" would be the whole market.
-    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover" || event === "news" || event === "call_change")) {
+    if (scope.kind === "any" && (event === "earnings_approaching" || event === "earnings_reported" || event === "mover" || event === "news" || event === "call_change" || event === "filing_risks")) {
       scope = { kind: "watchlist" };
     }
   }
 
   const typed = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
   let name = typed || base.name;
+  if (!typed && trigger.type === "event" && trigger.who) name = trigger.event === "fund_13f" ? `${trigger.who.name}'s new 13F filings` : `${trigger.who.name}'s trades`;
   if (!typed && template.id === "price-level" && scope.kind === "tickers" && trigger.type === "price") {
     name = `${scope.tickers[0]} ${trigger.rule === "crosses_above" ? "above" : "below"} ${price(trigger.level ?? 0)}`;
   }
@@ -890,6 +1039,12 @@ export function parseJobDraft(raw: unknown, options: { hidden?: string[] } = {})
 /* ── the evaluator ──────────────────────────────────────────────────────── */
 
 export type EvaluateOptions = {
+  /**
+   * A live run of an agent that keeps what it told (keepsTold): records dated from `since` (and within the event's
+   * look-back) that are not in `told` count, whenever they arrived. Left out by a replay, which reads each record on
+   * its own date, the day it could first be known.
+   */
+  live?: { told: readonly string[]; since: string } | null;
   /** The market day being evaluated, YYYY-MM-DD. Nothing dated after it is read. */
   day: string;
   /** The day of the previous check. Null on a first run: only `day` itself counts. */
@@ -1116,9 +1271,12 @@ function evaluatePrice(
         // Against the stock's own normal day ("about four times a normal day"), from the closes before this one.
         const usual = typicalDailyMove(facts.prices[ticker]!.closes.slice(0, quote.index), 60);
         const scale = usual !== null && usual > 0 ? vsDayWords(Math.abs(changePct) / usual) : null;
+        // The move's confirmed reason that session, when the watch asks for it and our research found one.
+        const reason = trigger.reason ? facts.move_reasons?.find((entry) => entry.ticker === ticker && entry.day === quote.date)?.headline : undefined;
         push(`${ticker} ${changePct >= 0 ? "rose" : "fell"} ${Math.abs(changePct).toFixed(2)}% in a day${scale ? `, ${scale}` : ""}`, {
           zone: zone?.zone ?? null,
           level: zone?.level ?? null,
+          ...(reason ? { reason, detail: `${reason} ${closeLine}` } : {}),
         });
       }
     } else if (trigger.rule === "enters_sell_zone") {
@@ -1236,9 +1394,32 @@ function windowLabel(since: string | null, day: string): string {
   return since == null || since === addDays(day, -1) ? shortDate(day) : `${shortDate(addDays(since, 1))} to ${shortDate(day)}`;
 }
 
-function congressFindings(facts: AgentFacts, match: (ticker: string) => boolean, since: string | null, day: string): AgentFinding[] {
+type CongressRow = AgentFacts["congress"][number];
+
+/** The trades an investor watch keeps: one member's, only buys, and only brackets starting at the floor. */
+function tradeFilter(trigger: Extract<AgentTrigger, { type: "event" }>): (trade: CongressRow) => boolean {
+  return (trade) =>
+    (!trigger.who || trade.person_id === trigger.who.id) &&
+    (trigger.side !== "buy" || trade.tx_type === "buy") &&
+    (!trigger.min_value || (trade.amount_low ?? 0) >= trigger.min_value);
+}
+
+/** "buys of $15K or more", "buys", "trades of $1M or more", "trades". */
+function filterWords(trigger: Extract<AgentTrigger, { type: "event" }>): string {
+  return `${trigger.side === "buy" ? "buys" : "trades"}${trigger.min_value ? ` of ${moneyShort(trigger.min_value)} or more` : ""}`;
+}
+
+function congressFindings(
+  facts: AgentFacts,
+  match: (ticker: string) => boolean,
+  since: string | null,
+  day: string,
+  keep: (trade: CongressRow) => boolean = () => true,
+  /** Which trades count as new; by default the ones disclosed since the last check. */
+  isNew: (trade: CongressRow) => boolean = (trade) => inWindow(trade.disclosed, since, day),
+): AgentFinding[] {
   return facts.congress
-    .filter((trade) => inWindow(trade.disclosed, since, day) && match(trade.ticker))
+    .filter((trade) => isNew(trade) && match(trade.ticker) && keep(trade))
     .sort((a, b) => (b.amount_low ?? 0) - (a.amount_low ?? 0) || a.id.localeCompare(b.id))
     .map((trade) => {
       const verb = trade.tx_type === "buy" ? "bought" : trade.tx_type === "sell" ? "sold" : "traded";
@@ -1276,6 +1457,97 @@ function earningsFinding(event: { ticker: string; date: string; time?: string | 
   };
 }
 
+/**
+ * A report on the session being checked, the night of: "NVDA reported after the close; up 4.2% after hours at $201.30",
+ * or for a report before the open the day's close ("NVDA reported before the open; closed up 3.1% at $195.20"). The
+ * after-hours quote is only kept for the latest session, so a replayed night says the report without it.
+ */
+function nightFinding(event: { ticker: string; date: string; time?: string | null }, facts: AgentFacts, day: string): AgentFinding {
+  const ticker = event.ticker;
+  const quote = closesAsOf(facts.prices[ticker], day);
+  const sameDay = quote && quote.date === day && quote.prev != null ? quote : null;
+  const ext = facts.extended?.[ticker];
+  const after = ext && ext.day === day && Number.isFinite(ext.change_pct) && ext.price > 0 ? ext : null;
+  const base: AgentFinding = {
+    ticker,
+    headline: "",
+    detail: "",
+    source: "Earnings calendar",
+    url: `/stock/${ticker}`,
+    at: event.date.slice(0, 10),
+    kind: "earnings",
+    time: event.time ?? null,
+  };
+  if (event.time === "amc") {
+    const move = after ? `; ${after.change_pct >= 0 ? "up" : "down"} ${Math.abs(after.change_pct).toFixed(1)}% after hours at ${price(after.price)}` : "";
+    return {
+      ...base,
+      headline: `${ticker} reports after today's close${move}`,
+      // A replay has no after-hours quotes at all (facts.extended is left out); a live run may simply be early.
+      detail: after ? `After-hours quote as of ${after.as_of}.` : facts.extended ? "No after-hours quote yet when this check ran." : "",
+      ...(after ? { kind: "move" as const, change_pct: round2(after.change_pct), close: after.price } : {}),
+    };
+  }
+  if (event.time === "bmo" && sameDay) {
+    const pct = (sameDay.close / sameDay.prev! - 1) * 100;
+    return {
+      ...base,
+      headline: `${ticker} reported before the open and closed ${pct >= 0 ? "up" : "down"} ${Math.abs(pct).toFixed(1)}%`,
+      detail: `Closed at ${price(sameDay.close)} on ${shortDate(sameDay.date)}, from ${price(sameDay.prev!)}.`,
+      kind: "move",
+      change_pct: round2(pct),
+      close: sameDay.close,
+      from_close: sameDay.prev ?? undefined,
+      from_date: sameDay.prevDate ?? undefined,
+    };
+  }
+  return { ...base, headline: `${ticker} reports earnings today`, detail: `Scheduled for ${shortDate(event.date)}.` };
+}
+
+/**
+ * New risks in a 10-K or 10-Q of a name in scope. A replay places each filing on the day it reached the SEC; a live
+ * run reads every comparison it has not looked at yet within the look-back (they are made after the close, and redone
+ * when the reading improves), so each filing is said once.
+ */
+function evaluateFilingRisks(
+  facts: AgentFacts,
+  options: { day: string; tickers: string[]; fresh: (date: string, id: string) => boolean; live: boolean },
+  namesNote: string,
+  span: string,
+): AgentEvaluation {
+  if (!facts.available.filing_risks) return couldNot("Could not check: the filing comparisons were not available.", ["10-K and 10-Q risk comparisons: unavailable", namesNote]);
+  const wanted = new Set(options.tickers);
+  const key = (fact: FilingRiskFact) => `risk:${fact.ticker}:${fact.accession}`;
+  const inSpan = (facts.filing_risks ?? []).filter((fact) => wanted.has(fact.ticker) && options.fresh(fact.day, key(fact)));
+  const seen = options.live ? { told: inSpan.map(key) } : {};
+  const hits = inSpan.filter((fact) => fact.added > 0).sort((a, b) => b.day.localeCompare(a.day) || b.added - a.added);
+  const checked = [`10-K and 10-Q filings ${options.live ? "new since the last check" : `filed ${span}`}: ${inSpan.length}`, namesNote];
+  if (hits.length === 0) {
+    const where = options.tickers.length === 1 ? options.tickers[0] : "your names";
+    const on = options.live ? "since the last check" : `on ${span}`;
+    return {
+      ...nothing(
+        inSpan.length === 0
+          ? `Checked, nothing to do. No new 10-K or 10-Q from ${where} ${on}.`
+          : `Checked, nothing to do. ${plural(inSpan.length, "filing")} from ${where} ${on}, no new risks.`,
+        checked,
+      ),
+      ...seen,
+    };
+  }
+  const findings: AgentFinding[] = hits.map((fact) => ({
+    ticker: fact.ticker,
+    headline: `${fact.ticker}'s ${fact.form} adds ${plural(fact.added, "risk")}`,
+    detail: fact.first ? `New: “${fact.first}”` : "",
+    source: `SEC ${fact.form}`,
+    url: fact.url ?? `/stock/${fact.ticker}#filing-changes`,
+    at: fact.day,
+    kind: "filing",
+    form: fact.form,
+  }));
+  return { ...notify(findings.length === 1 ? `${findings[0].headline}.` : `New risks in ${listNames([...new Set(hits.map((fact) => fact.ticker))])}.`, findings, checked), ...seen };
+}
+
 function evaluateEvent(
   trigger: Extract<AgentTrigger, { type: "event" }>,
   scope: AgentScope,
@@ -1287,21 +1559,39 @@ function evaluateEvent(
   const span = windowLabel(since, day);
   const scoped = scope.kind !== "any";
   if (scoped && tickers.length === 0 && trigger.event !== "fund_13f") return noNames();
-  const namesNote = scoped ? `Names in scope: ${tickers.length}` : "Names in scope: any";
+  const namesNote = trigger.who ? `Investor: ${trigger.who.name}` : scoped ? `Names in scope: ${tickers.length}` : "Names in scope: any";
+  // A live run of an agent that keeps what it told reads every record it has not looked at yet within the look-back,
+  // however late it was collected; a replay reads each record on its own date.
+  const live = options.live && keepsTold(trigger) ? options.live : null;
+  const told = new Set(live?.told ?? []);
+  const floor = live ? [addDays(day, -(LIVE_LOOKBACK_DAYS[trigger.event] ?? 0)), live.since].sort().pop()! : null;
+  const fresh = (date: string, id: string) => {
+    if (!live) return inWindow(date, since, day);
+    const key = (date ?? "").slice(0, 10);
+    return Boolean(key) && key <= day && key >= floor! && !told.has(id);
+  };
+  // How a count and a summary name the window: the days since the last check, or (live) whatever is new since it.
+  const dated = live ? "new since the last check" : `dated ${span}`;
+  const onSpan = live ? "since the last check" : `on ${span}`;
 
   if (trigger.event === "fund_13f") {
     if (!facts.available.fund_filings) {
       return couldNot("Could not check: 13F filings have not been collected yet.", ["13F filings: none collected"]);
     }
-    const filings = facts.fund_filings.filter((filing) => inWindow(filing.date, since, day));
-    const checked = [`13F filings dated ${span}: ${filings.length}`, namesNote];
-    if (filings.length === 0) return nothing(`Checked, nothing to do. No tracked fund filed a 13F on ${span}.`, checked);
+    const who = trigger.who;
+    const filings = facts.fund_filings.filter((filing) => (!who || filing.source_id === who.id) && fresh(filing.date, `13f:${filing.id}`));
+    const seen = live ? { told: filings.map((filing) => `13f:${filing.id}`) } : {};
+    const checked = [who ? `13F filings from ${who.name} ${dated}: ${filings.length}` : `13F filings ${dated}: ${filings.length}`, namesNote];
+    if (filings.length === 0) {
+      return { ...nothing(who ? `Checked, nothing to do. ${who.name} filed no new 13F ${onSpan}.` : `Checked, nothing to do. No tracked fund filed a 13F ${onSpan}.`, checked), ...seen };
+    }
     const findings = filings
       .sort((a, b) => b.date.localeCompare(a.date) || a.fund.localeCompare(b.fund))
       .map((filing) => {
         const mine = scoped ? filing.tickers.filter((ticker) => match(ticker)) : [];
         return {
-          ticker: mine[0] ?? null,
+          // An investor watch leads with the biggest thing it bought, so the line carries a logo.
+          ticker: mine[0] ?? (who ? filing.buys?.[0] ?? null : null),
           headline: `${filing.fund} filed a 13F`,
           detail: [filing.headline, mine.length ? `It lists changes in ${listNames(mine)}.` : scoped ? "None of your names are among its biggest changes." : ""]
             .filter(Boolean)
@@ -1312,43 +1602,102 @@ function evaluateEvent(
           at: filing.date.slice(0, 10),
         };
       });
-    return notify(
-      filings.length === 1 ? `${filings[0].fund} filed a new 13F on ${shortDate(filings[0].date)}.` : `${filings.length} tracked funds filed a 13F on ${span}.`,
-      findings,
-      checked,
-    );
+    return {
+      ...notify(
+        filings.length === 1 ? `${filings[0].fund} filed a new 13F on ${shortDate(filings[0].date)}.` : `${filings.length} tracked funds filed a 13F ${onSpan}.`,
+        findings,
+        checked,
+      ),
+      ...seen,
+    };
   }
 
   if (trigger.event === "congress_trade") {
     if (!facts.available.congress) {
       return couldNot("Could not check: congressional disclosures were not available.", ["Congressional disclosures: unavailable"]);
     }
-    const all = facts.congress.filter((trade) => inWindow(trade.disclosed, since, day)).length;
-    const findings = congressFindings(facts, match, since, day);
-    const checked = [`Congressional disclosures dated ${span}: ${all}`, namesNote];
-    if (findings.length === 0) {
-      return nothing(
-        all === 0
-          ? `Checked, nothing to do. No congressional trades were disclosed on ${span}.`
-          : `Checked, nothing to do. ${plural(all, "trade")} disclosed on ${span}, none in your names.`,
-        checked,
-      );
+    const who = trigger.who;
+    const filtered = Boolean(who || trigger.side || trigger.min_value);
+    // A live market-wide count stays a count of the days since the last check; only the trades it could tell are kept.
+    const theirs = facts.congress.filter((trade) => (!who || trade.person_id === who.id) && (who ? fresh(trade.disclosed, `congress:${trade.id}`) : inWindow(trade.disclosed, since, day)));
+    const all = theirs.length;
+    const candidates = facts.congress.filter((trade) => (!who || trade.person_id === who.id) && match(trade.ticker) && fresh(trade.disclosed, `congress:${trade.id}`));
+    const findings = congressFindings({ ...facts, congress: candidates }, match, null, day, tradeFilter(trigger), () => true);
+    const seen = live ? { told: candidates.map((trade) => `congress:${trade.id}`) } : {};
+    const checked = [who ? `${who.name}'s disclosures ${dated}: ${all}` : `Congressional disclosures ${live ? `dated ${span}` : dated}: ${all}`, namesNote];
+    if (findings.length === 0 && filtered) {
+      const kept = filterWords(trigger);
+      return {
+        ...nothing(
+          who
+            ? all === 0
+              ? `Checked, nothing to do. ${who.name} disclosed no new trades ${onSpan}.`
+              : `Checked, nothing to do. ${who.name} disclosed ${plural(all, "trade")} ${onSpan}, none of them ${kept.replace(/^(buys|trades)/, (word) => (word === "buys" ? "a buy" : "a trade"))}.`
+            : `Checked, nothing to do. No ${kept} in your names were disclosed ${onSpan}.`,
+          checked,
+        ),
+        ...seen,
+      };
     }
-    return notify(
-      findings.length === 1 ? `${findings[0].headline}, disclosed ${shortDate(findings[0].at)}.` : `${plural(findings.length, "congressional trade")} disclosed in ${listNames([...new Set(findings.map((f) => f.ticker ?? ""))])}.`,
-      findings,
-      checked,
-    );
+    if (findings.length > 0 && who) {
+      const tickers = [...new Set(findings.map((f) => f.ticker ?? ""))];
+      return {
+        ...notify(
+          findings.length === 1 ? `${findings[0].headline}, disclosed ${shortDate(findings[0].at)}.` : `${who.name} disclosed ${plural(findings.length, trigger.side === "buy" ? "buy" : "trade")}: ${listNames(tickers)}.`,
+          findings,
+          checked,
+        ),
+        ...seen,
+      };
+    }
+    if (findings.length === 0) {
+      return {
+        ...nothing(
+          all === 0
+            ? `Checked, nothing to do. No congressional trades were disclosed on ${span}.`
+            : `Checked, nothing to do. ${plural(all, "trade")} disclosed on ${span}, none in your names.`,
+          checked,
+        ),
+        ...seen,
+      };
+    }
+    return {
+      ...notify(
+        findings.length === 1 ? `${findings[0].headline}, disclosed ${shortDate(findings[0].at)}.` : `${plural(findings.length, "congressional trade")} disclosed in ${listNames([...new Set(findings.map((f) => f.ticker ?? ""))])}.`,
+        findings,
+        checked,
+      ),
+      ...seen,
+    };
   }
 
   if (trigger.event === "insider_trade") {
     if (!facts.available.insiders) {
       return couldNot("Could not check: insider (Form 4) trades have not been collected yet.", ["Insider trades: none collected"]);
     }
+    // The market-wide count is the days since the last check; the names in scope are read as new records when live.
     const inSpan = facts.insiders.filter((trade) => inWindow(trade.filed, since, day));
-    const hits = inSpan.filter((trade) => match(trade.ticker));
-    const checked = [`Insider filings dated ${span}: ${inSpan.length}`, namesNote];
-    if (hits.length === 0) return nothing(`Checked, nothing to do. No insider trades in your names were filed on ${span}.`, checked);
+    const named = (live ? facts.insiders : inSpan).filter((trade) => match(trade.ticker) && (!live || fresh(trade.filed, `form4:${trade.id}`)));
+    const seen = live ? { told: named.map((trade) => `form4:${trade.id}`) } : {};
+    const filtered = Boolean(trigger.side || trigger.min_value);
+    const hits = named.filter((trade) => (trigger.side !== "buy" || trade.tx_type === "buy") && (!trigger.min_value || (trade.value ?? 0) >= trigger.min_value));
+    const where = scoped && tickers.length === 1 ? tickers[0]! : "your names";
+    const checked = [
+      `Insider filings dated ${span}: ${inSpan.length}`,
+      ...(filtered ? [`Insider filings in ${where} ${dated}: ${named.length}`, `${capitalize(filterWords(trigger))} in ${where} ${dated}: ${hits.length}`] : []),
+      namesNote,
+    ];
+    if (hits.length === 0) {
+      return {
+        ...nothing(
+          filtered
+            ? `Checked, nothing to do. No insider ${filterWords(trigger)} in ${where} were filed ${onSpan}.`
+            : `Checked, nothing to do. No insider trades in your names were filed ${onSpan}.`,
+          checked,
+        ),
+        ...seen,
+      };
+    }
     const findings = hits
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.id.localeCompare(b.id))
       .map((trade) => {
@@ -1363,11 +1712,14 @@ function evaluateEvent(
           at: trade.filed.slice(0, 10),
         };
       });
-    return notify(
-      findings.length === 1 ? `${findings[0].headline}.` : `${plural(findings.length, "insider trade")} filed in ${listNames([...new Set(findings.map((f) => f.ticker ?? ""))])}.`,
-      findings,
-      checked,
-    );
+    return {
+      ...notify(
+        findings.length === 1 ? `${findings[0].headline}.` : `${plural(findings.length, "insider trade")} filed in ${listNames([...new Set(findings.map((f) => f.ticker ?? ""))])}.`,
+        findings,
+        checked,
+      ),
+      ...seen,
+    };
   }
 
   if (trigger.event === "call_change") {
@@ -1392,6 +1744,7 @@ function evaluateEvent(
     };
   }
   if (trigger.event === "earnings_reported") return evaluateEarningsReported(facts, { day, since, tickers }, MAX_FINDINGS);
+  if (trigger.event === "filing_risks") return evaluateFilingRisks(facts, { day, tickers, fresh, live: Boolean(live) }, namesNote, span);
   if (trigger.event === "sec_filing") return evaluateFilingEvent(trigger.filings, scope, facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "news") return evaluateNewsEvent(trigger.news ?? "any", scope, facts, { day, since, tickers }, MAX_FINDINGS);
   if (trigger.event === "earnings_approaching") {
@@ -1400,24 +1753,53 @@ function evaluateEvent(
     }
     const days = trigger.days_before ?? 3;
     const upcoming = earningsWithin(facts, match, day, days);
+    // The night of: a report dated this very session, with what the stock did. Only once the session's close is in
+    // (a check before the close, a midday "Check now", waits for the evening run), and said once: a live run keeps the
+    // nights it told, a replay reads each night on its own day.
+    const nightKey = (event: { ticker: string; date: string }) => `night:${event.ticker}:${event.date.slice(0, 10)}`;
+    const closed = (ticker: string) => closesAsOf(facts.prices[ticker], day)?.date === day;
+    const tonight = trigger.night_of
+      ? upcoming.filter((event) => event.ahead === 0 && closed(event.ticker) && (live ? !told.has(nightKey(event)) : since == null || since < event.date))
+      : [];
     // Say it once: only dates that were outside the window at the last check.
-    const fresh = upcoming.filter((event) => {
+    const soon = upcoming.filter((event) => {
+      if (tonight.includes(event)) return false;
       if (since == null) return true;
       const before = dayDiff(since, event.date);
       return before == null || before > days;
     });
     const checked = [`Earnings dates within ${calendarDays(days)} of ${shortDate(day)}: ${upcoming.length}`, namesNote];
-    if (fresh.length === 0) {
+    if (trigger.night_of) {
+      // A watch on a few stocks says when each reports next, so a quiet check still says what it is waiting for.
+      if (scoped && tickers.length <= 3) {
+        for (const ticker of tickers) {
+          const next = facts.earnings.filter((event) => event.ticker.toUpperCase() === ticker && event.date.slice(0, 10) > day).sort((a, b) => a.date.localeCompare(b.date))[0];
+          if (next) checked.push(`Next report: ${ticker} on ${shortDate(next.date)}`);
+        }
+      }
+      // Only a live run reads after-hours quotes (a replay has none for past nights).
+      if (facts.extended) checked.push(`After-hours quotes read: ${Object.keys(facts.extended).length}`);
+    }
+    if (tonight.length > 0) {
+      const findings = [...tonight.map((event) => nightFinding(event, facts, day)), ...soon.map(earningsFinding)];
+      return {
+        ...notify(findings.length === 1 ? `${findings[0].headline}.` : `${listNames(findings.map((f) => f.ticker ?? ""))} report earnings soon.`, findings, checked),
+        ...(live ? { told: tonight.map(nightKey) } : {}),
+      };
+    }
+    if (soon.length === 0) {
       return nothing(
         upcoming.length === 0
-          ? `Checked, nothing to do. None of your names reports within ${calendarDays(days)}.`
+          ? scoped && tickers.length === 1
+            ? `Checked, nothing to do. ${tickers[0]} does not report within ${calendarDays(days)}.`
+            : `Checked, nothing to do. None of your names reports within ${calendarDays(days)}.`
           : `Checked, nothing to do. ${listNames(upcoming.map((e) => e.ticker))} ${upcoming.length === 1 ? "reports" : "report"} soon, and you were already told.`,
         checked,
       );
     }
-    const findings = fresh.map(earningsFinding);
+    const findings = soon.map(earningsFinding);
     return notify(
-      findings.length === 1 ? `${findings[0].headline}, on ${shortDate(findings[0].at)}.` : `${listNames(fresh.map((e) => e.ticker))} report earnings within ${calendarDays(days)}.`,
+      findings.length === 1 ? `${findings[0].headline}, on ${shortDate(findings[0].at)}.` : `${listNames(soon.map((e) => e.ticker))} report earnings within ${calendarDays(days)}.`,
       findings,
       checked,
     );
@@ -1681,6 +2063,13 @@ export function replayJob(
   }
   if (trigger.type === "event" && trigger.event === "earnings_approaching") {
     notes.push("Earnings dates are the ones on the calendar today. A date that was moved shows where it ended up.");
+    if (trigger.night_of) notes.push("After-hours quotes are kept only for the latest session, so a replayed report night has no after-hours move.");
+  }
+  if (trigger.type === "event" && trigger.event === "filing_risks") {
+    notes.push("Each filing is placed on the day it reached the SEC. We compared the risk lists later, by rules only.");
+  }
+  if (trigger.type === "price" && trigger.rule === "moves_pct" && trigger.reason) {
+    notes.push("A reason counts only when our move research had written it by that session's day.");
   }
   if (trigger.type === "event" && trigger.event === "mover") {
     notes.push("The movers list is replayed only for the days we kept it.");

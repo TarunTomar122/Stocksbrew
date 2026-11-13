@@ -14,6 +14,8 @@ import { basketHref } from "@/lib/basket-agent/model";
 import { dayWords } from "@/lib/day-words";
 import { limitFor } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
+import { RecipeEntry } from "@/components/agent-recipes/recipe-entry";
+import { basketFullyWatched } from "@/lib/agent-recipes/recipes";
 import { loadThesis } from "@/lib/thesis-monitor/data";
 import { thesisEditHref } from "@/lib/thesis-monitor/model";
 import { absoluteDay } from "@/lib/day-words";
@@ -75,6 +77,9 @@ export default async function ThesisPage({ params }: Props) {
   const lineTotal = companies.reduce((sum, company) => sum + company.lines.length, 0);
   const stretches = state ? historyStretches(state.history) : [];
 
+  // Agent recipes for this thesis (components/agent-recipes): offered until its check and a filing watch both stand.
+  const watched = basketFullyWatched({ kind: "basket", id: basket.id, name: basket.name, tickers, thesis: true, enabled: basket.enabled }, jobs);
+
   return (
     <AppPage width="wide" className="max-w-[68rem]">
       <PageHead
@@ -82,13 +87,16 @@ export default async function ThesisPage({ params }: Props) {
         meta={<span>{when}</span>}
         note={false}
         actions={
-          <ThesisActions
-            id={basket.id}
-            enabled={basket.enabled}
-            holdings={holdings}
-            editHref={thesisEditHref({ id: basket.id })}
-            basketHref={holdings ? null : basketHref(basket.id)}
-          />
+          <span className="flex flex-wrap items-start justify-end gap-2">
+            {watched ? null : <RecipeEntry subject={`basket:${basket.id}`} label="Tell me when it breaks" />}
+            <ThesisActions
+              id={basket.id}
+              enabled={basket.enabled}
+              holdings={holdings}
+              editHref={thesisEditHref({ id: basket.id })}
+              basketHref={holdings ? null : basketHref(basket.id)}
+            />
+          </span>
         }
       />
 

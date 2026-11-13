@@ -18,8 +18,8 @@ Groups and what they keep fresh:
 * ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends, then the
                    serving docs
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
-                   dates and reactions, the screener snapshot, then the standing agents
-                   the reason checks, the filing changes and the thesis checks (TypeScript, see "Node jobs" below),
+                   dates and reactions, the screener snapshot, then the filing changes, the standing agents,
+                   the reason checks and the thesis checks (TypeScript, see "Node jobs" below),
                    then the stock pages' serving docs
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
@@ -98,15 +98,16 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Past dividends per stock for the dividend planner; a bad source reply never overwrites a good history.
         ("dividend history", ["backend.agentdata.dividend_history"]),
         ("screener snapshot", ["backend.agentdata.screener"]),
+        # What changed in each company's risk factors: a 10-K or 10-Q newer than the stored one is compared with the
+        # filing it should be read against and stored in tm_filing_changes (rules only, no model). One SEC request per
+        # stock on a quiet night, 400ms apart so it and the hourly SEC filings step (:20, ~7 a second) stay under SEC's
+        # 10 a second together; documents only for new filings. Before the standing agents, so a filing-risk agent reads
+        # tonight's comparisons the same night (each filing is still said once: lib/agent-jobs.ts keeps what it told).
+        ("filing changes", ["node:scripts/run-filing-changes.ts", "--quiet", "--budget-minutes=20"]),
         ("standing agents", ["node:scripts/run-agent-jobs.ts"]),
         # Every saved reason on a tracked stock, checked against tonight's facts and stored in
         # tm_thesis_checks (rules only, no model), so the reason watcher is current without a visit.
         ("reason checks", ["node:scripts/run-reason-checks.ts"]),
-        # What changed in each company's risk factors: a 10-K or 10-Q newer than the stored one is compared with the
-        # filing it should be read against and stored in tm_filing_changes (rules only, no model). One SEC request per
-        # stock on a quiet night, 400ms apart so it and the hourly SEC filings step (:20, ~7 a second) stay under SEC's
-        # 10 a second together; documents only for new filings.
-        ("filing changes", ["node:scripts/run-filing-changes.ts", "--quiet", "--budget-minutes=20"]),
         # Each thesis's measurable lines judged per report and its companies' new 10-K/10-Q risk changes recorded,
         # stored in tm_agent_thesis_checks (rules only, no model). After the filing changes, so tonight's are seen.
         ("thesis checks", ["node:scripts/run-thesis-checks.ts"]),
