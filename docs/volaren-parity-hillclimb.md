@@ -191,9 +191,156 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [ ] Word budget: the backtest, sectors, AMD overview and insiders intros, the inbox AAPL alert (28 words), the landing FAQ answers.
 - [ ] Delete the dead overview code once ship 72 has been live a day (components/portfolio-home/*.tsx, portfolio-ask-hint, shares-prompt, lib/portfolio-home/{loop,questions,focus}).
 
+- [ ] **NEXT ROUND (owner, Nov 13): an ambitious round on making things faster for users AND cheaper to maintain and run.** Start once the running builders land (after-hours, zero-DB page views, serving docs, landing). Think holistically, not tweaks:
+  - **Speed for users:** every public page served from cache (Cloudflare edge + Varnish) with on-demand purge; stock page and briefing from serving docs; JS weight per route cut (lazy-load below-the-fold, drop unused deps); real-user timings in /admin/analytics (TTFB, LCP per route) so it's measured, not guessed.
+  - **Cost and load on our end:**
+    - jobs audited for value vs CPU/IO (drop or slow the ones nobody sees)
+    - LocalDB hot/cold split and VACUUM, with history pruned or moved to cold files
+    - Firecrawl right-sized (or replaced where trafilatura is enough)
+    - LLM calls counted and cached
+    - one place that shows load, memory, disk, job durations and error rates
+  - **Maintenance:**
+    - one deploy command
+    - health checks with an alert to the owner when the site or a key job fails
+    - backups of LocalDB on a schedule, tested restore
+    - fewer moving parts: dead pages, routes and collections removed
+  - Lesson from Nov 13: when freezing a release from the shared working tree, take only the hunks that belong to the release; a whole-file `git add` on shared files (middleware.ts, schedule.py, store.py) picks up other builders' unfinished edits.
+
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-13 ~11:00 ET: judge90 sweep live (2d04c15)
+
+- News rows no longer overlap on phones (layout switches on the row's own width).
+- Shorter agent/inbox lines: "CGNX, LLY and DELL closed below their buy-more levels."; insiders in 12 words.
+- One-line dropped filing risks in the company's own words.
+- Reasons banner at ≤12 words.
+- Bars: theme 1M/YTD, and sector Rising/Buy-more with an all-sector tick.
+- Headline casing: feed-cut titles end at their last whole clause.
+- Proposals: one trigger plus the marker figure.
+- Ask suggestion icons.
+- Calendar week columns end within ~40px.
+- The /agent composer spacer was tried and dropped (it left a 120px dead band; the bottom already clears).
+- 4362/4362 tests both ways.
+
+### 2026-11-13 ~10:40 ET: data-quality fixes live (f11cae0)
+
+- **Four-quarter growth** is checked against the source's own quarterly table:
+  - corrected when its fiscal years rule out the cell (DAN −21.8% → +5.1%)
+  - withheld when the table contradicts itself (HON +79.6% Solstice spin-off, APTV, DD, KTB, HDB)
+  Readers strip `withheld`, and a reader-side guard covers older docs.
+- **Foreign filers converted to dollars:** TSM $4.94T (TWD) → $150.4B, and per-share figures withheld; SKHY won.
+- **P/E** = today's price over confirmed four-quarter EPS, else Finviz weekly, none on a loss. One rule across the stock page, call evidence, agent intelligence, compare and the screener. The frozen Yahoo block had AMKR at 49.6× (now 15.0×) and JAZZ at 2559.7×.
+- **Counts:**
+  - growth outside its fiscal years 11 → 0
+  - foreign currency 26 → 0
+  - P/E vs price/EPS 218 → 13
+- **Nightly check:** `backend/agentdata/data_quality.py` runs last in after_close and writes tm_data_quality (16 rules, worst offenders); `lib/data-quality.ts` is the reader for the System tab.
+- **Open:**
+  - 67 covered stocks with quotes >4 days old (outside the price universe)
+  - GAAP-vs-adjusted EPS rows
+  - 5 Yahoo-fallback stocks with oldest-first history
+  - dividend outliers
+  - unguarded readers (watchlist view, peers, Ask list) until the weekly facts sync re-runs
+  - HON's fact-card bar labels truncate at 1280 when 3 cards + 2 checks share a row
+
+### 2026-11-13 ~10:05 ET: heavy reads + ops shipped (live); first backup done
+
+- **Heavy reads (8e95145):** pixel-identical pages.
+  - Landing cold reads 21.3 → 9.1 MB: look-alike funds that were never shown are no longer loaded; filings read the last ~8 days with 10 fields.
+  - Signed-in briefing and agent views 1.1 → 0.6 MB per view: the watchlist view is read once per request.
+  - Wire and reason checks read only what they show; follow slugs read 561 → 22 KB.
+  - Left open: tm_screener_snapshot (daily per instance), price-history tails (fits the serving-doc `series` part), daily-anomaly refs, the retired pipeline news doc read in lib/news.ts.
+- **Ops (57b4498):**
+  - LocalDB backups: nightly 03:30 NY via the SQLite backup API, zstd, read back and verified, 7 dailies + 4 weeklies, a guarded restore (production only via a systemd unit).
+  - First backup: 624 MB, 375s, verified; 27.8 GB free.
+  - ops-health every 5 min → tm_ops_health and the /admin System tab. Every check is green except swap (4.0/4.0 GB).
+  - `backend/vps/ops.sh` (status/logs/backup-now/restore/deploy). Email alerts are built but off (OPS_ALERT_EMAIL unset; needs the owner's yes).
+- **Job audit (docs/ops-audit.md), owner decisions:**
+  - Retire self-hosted Firecrawl for trafilatura: 12 vs 6 usable articles on 20 real URLs, 0.2s vs 6.2s, frees ~7 CPU-h/day, 1.2–1.8 GB RAM and ~2.5 GB swap. The trace project uses Firecrawl too.
+  - Turn off tikrr-radar-alerts: it always skips itself and caused 7 locked-DB failures.
+  - Slow fund-requests from 2 min to 10–15.
+  - Make on-demand-news do less when its queue is empty.
+  - Disk hygiene: ~5 GB (the Sep 19 .bak, a journal cap).
+  - Three lanes write unread collections.
+
+### 2026-11-13 ~09:30 ET: Codex judge90 on the live site: overall 7.1, agent feel 8.0
+
+- **Scores** (scratchpad/judge90/codex.md):
+
+  | | Score |
+  |---|---|
+  | UI | 7.0 (rubric cap) |
+  | UX | 7.2 |
+  | usability | 6.5 |
+  | wording | 6.7 (was 6.5) |
+  | agent feel | 8.0 (was 7.8) |
+  | volaren similarity | 7.1 (was 7) |
+  | sell | 6.6 (was 6.5) |
+  | overall | 7.1 (was 7) |
+
+- **Breaks** (sweep90 builder started):
+  - mobile news rows overlap
+  - landing "Or try" without logos; disclosure at 16 words
+  - long agent/inbox lines (CGNX…, COHR insiders)
+  - 24–25-word dropped-risk excerpts
+  - a 22-word reasons banner
+  - theme 1M/YTD without bars; sectors Rising/Buy-more without bars
+  - Title Case news titles
+  - practice proposals repeating the threshold
+  - Ask categories without icons
+  - uneven calendar day columns
+  - the /agent composer over the list
+- **Bold ask:** event-driven agent recipes from any stock/investor/thesis, with a 4-week replay and a dated decision log including quiet runs. Much of this exists (agents + replay + run log); the gap is one-click creation from those pages and showing quiet runs.
+- **Running:** heavy reads, ops, data quality, sweep90.
+
+### 2026-11-13 ~09:00 ET: serving docs live (SERVE_DOCS=1)
+
+- 9c01920 shipped. On the VPS, 779 serve docs were built in 130s with 0 failures; a stale-only rerun found 0 to build. The frequent/hourly/after_close groups keep them fresh, and the news jobs refresh exactly the stock pages they stamp.
+- Cold stock page with the flag on: ~20 store calls and ~150–200 KB (was 21–27 calls, 0.7–0.9 MB). The page renders fully, including the after-hours line.
+- Gotcha: the page-cache setup step made /etc/tikrr/web.env root-owned, so the env push now uses `sudo install` (AGENTS.md updated).
+- Data oddity seen: HON shows "+80% sales over four quarters" (stock facts). Check it in the data-quality pass.
+- Running: heavy cold reads (home ETF holdings, filings query, news tone), and ops (backups, health, System tab, job audit, ops.sh).
+
+### 2026-11-13 ~08:30 ET: landing, after-hours and the page cache shipped (live)
+
+- **Landing (a11fd6d):** hero "An agent that watches your stocks and shows its work." with yesterday's agent counters. "Tell it what to watch, in plain English." has 6 request → real-result cards. Pricing rows match enforcement. Cut: market tiles, "why stocks moved today", the old 3-agent fallback.
+- **After hours (90ec51a):**
+  - The tikrr-agentdata-extended-hours timer is on: every 15 min 16:05–19:50 ET, plus 20:05, 07:35, 08:35 and 09:20.
+  - A stock page line under the price: "Reported after the close yesterday; up 18.3% after hours at $115.68 · 7:59 PM ET" (CBRS).
+  - An Overnight strip on the briefing, inbox/agent lines, results proposals on after-hours drops, and Ask/MCP extended fields.
+  - The old premarket pill is folded in.
+- **Page cache (a682ec3):**
+  - Varnish caches signed-out HTML per the Surrogate-Control policy (5 min fresh plus SWR for market pages) and serves stale-if-error.
+  - A session cookie always passes.
+  - Jobs post `kinds` to /api/revalidate, which refreshes both instances and BANs the touched pages.
+  - Cloudflare gets no-store on HTML.
+  - LocalDB `/metrics` per collection.
+  - All 11 live verify checks passed.
+  - Live timings from London via Cloudflare: 0.25–0.5s per page; VPS load ~1.1.
+- **Release method:** each builder now hands over a release.patch of only its hunks against HEAD, applied with `git apply --cached` on a temp index and verified on a clean worktree.
+- **Next in the faster/cheaper round:** ship serving docs (VPS pull for hooks, schedule entries, SERVE_DOCS=1); fix the heavy cold reads the metrics found (home: tm_etf_holdings 8.2 MB, tm_agent_filings 4,421 docs; news/briefing: tm_agent_news_tone 4,819 docs; tm_screener_snapshot 1.7 MB per render); job audit; health alerts; LocalDB backups.
+
+### 2026-11-13 ~07:40 ET: serving docs built (behind SERVE_DOCS=1, not shipped yet)
+
+- `tm_serve_stock/{ID}` holds one compact doc per covered US stock, in 8 parts (series, snapshot, calls, bundle, anomaly, results, reddit, news), each with a version, as-of and sources.
+  - Hash-checked or dirty-stamped by its writers, with age limits as a safety net.
+  - Falls back to the old loader per part on any miss, timeout (1.5s) or error.
+  - Largest doc is 48.6 KB.
+- Real run: 779 stocks, 6,232 parts, 0 failures.
+- A cold /stock/AMD went from 27 calls / 912 KB to 20 / 284 KB.
+- Flag on and off render pixel-identical (AAPL, AMD, ASTS at 1280/390).
+- Ships with the faster/cheaper round:
+  - pull the VPS for the writer hooks
+  - add the schedule entries (frequent + hourly + after_close "serving docs")
+  - then turn SERVE_DOCS=1 on
+- Open: the signed-out briefing doc; 4 orphan dot-id docs (harmless); the existing lib/news.ts unordered enrichments query.
+
+### 2026-11-13 ~07:20 ET: signed-in visitors land on /briefing (owner); next round queued: faster + cheaper (see backlog)
+
+- `/` → `/briefing` for anyone with a session (was `/portfolio`). Live and verified.
+- A first push of this also took in the caching builder's unfinished middleware edits. The build failed before deploy (production untouched), and main was fixed with a clean follow-up commit.
 
 ### 2026-11-13 ~07:00 ET: analytics live, Cloudflare in front, database on the fast disk, small owner fixes (deployed)
 

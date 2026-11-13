@@ -362,15 +362,12 @@ export function StockReport({
     ready && market === "US"
       ? stockCallSteps({ ticker: stock.ticker, fullRead: data.gate.levels, dayPct, earningsInDays: earningsIn })
       : null;
-  // One next step under the call (owner rule 1: no stack of identical "… →" lines): the thing to watch when there is
-  // one, else the question about today. "What would change your mind" is never it: the conditions box answers it.
-  const callSteps: CallSteps | null = allSteps
-    ? allSteps.watch
-      ? { ask: [], watch: allSteps.watch }
-      : allSteps.ask.length
-        ? { ask: [allSteps.ask[allSteps.ask.length - 1]!], watch: null }
-        : null
-    : null;
+  // One next step under the call (owner rule 1: no stack of identical "… →" lines): the question about today. The
+  // watch link ("Remind me 3 days before earnings", "Tell me when … moves 5%") is gone: "Watch X for me" in the header
+  // (components/agent-recipes) offers the same watches and more, with a replay. "What would change your mind" is
+  // never it: the conditions box answers it.
+  const callSteps: CallSteps | null =
+    allSteps && allSteps.ask.length ? { ask: [allSteps.ask[allSteps.ask.length - 1]!], watch: null } : null;
 
   // What would change the call goes in the strip under the header, unless it is the side column's only content.
   const stripChange = showLock || callSteps ? (checks.length ? checksBlock(checks, true) : changeBox) : null;
