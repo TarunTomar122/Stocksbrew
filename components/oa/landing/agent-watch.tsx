@@ -20,6 +20,7 @@ import {
   type ThesisCard,
   type WatchCard,
 } from "@/lib/landing-agent-watch";
+import { loadLandingAgent } from "@/lib/agent-sequence-server";
 import { loadAgentWatch } from "@/lib/landing-agent-watch-server";
 import { formatValue } from "@/lib/thesis-watch/conditions";
 
@@ -228,7 +229,8 @@ function ReplayView({ card }: { card: ReplayCard }) {
             ))}
           </span>
         ) : null}
-        <span className="truncate text-[14px] font-medium text-oa-fg">4-week replay</span>
+        {/* One word: from lg the four cards share a row, and the dates beside it already span the four weeks. */}
+        <span className="truncate text-[14px] font-medium text-oa-fg">Replay</span>
       </Head>
       <div className={FIGURE_ROW}>
         <span className={`${FIGURE} text-oa-fg`}>{card.changeDays}</span>
@@ -287,20 +289,29 @@ function CardView({ card, today }: { card: WatchCard; today: string }) {
   }
 }
 
-/** Whole rows only: six or three in rows of three from lg, four or two in rows of two from sm. */
+/** Whole rows only: six or three in rows of three from lg, four in one row from lg, four or two in rows of two from sm. */
 function shown(cards: WatchCard[]): { cards: WatchCard[]; grid: string } {
   const n = cards.length >= 6 ? 6 : cards.length >= 4 ? 4 : cards.length === 3 ? 3 : cards.length >= 2 ? 2 : 0;
-  // Three stay stacked below lg: two columns there would leave the third alone in its row.
+  // Three stay stacked below lg: two columns there would leave the third alone in its row. Four sit in one row from lg
+  // (the loop above took the move card's place), never two wide rows of two.
   const grid =
-    n === 6 ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3" : n === 3 ? "grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3" : "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3";
+    n === 6
+      ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3"
+      : n === 4
+        ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4"
+        : n === 3
+          ? "grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3"
+          : "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3";
   return { cards: cards.slice(0, n), grid };
 }
 
 const SECTION = "scroll-mt-24";
 
 export async function AgentWatchSection({ className = "" }: { className?: string }) {
-  const watch = await loadAgentWatch();
-  const all = [watch.earnings, watch.move, watch.filing, watch.line, watch.replay, watch.thesis].filter((card): card is WatchCard => card !== null);
+  const [watch, { loop }] = await Promise.all([loadAgentWatch(), loadLandingAgent()]);
+  // The loop above already tells the move card's case in full (owner rule 1): it is not shown twice.
+  const move = watch.move && loop && loop.ticker === watch.move.ticker && loop.found.day === watch.move.day ? null : watch.move;
+  const all = [watch.earnings, move, watch.filing, watch.line, watch.replay, watch.thesis].filter((card): card is WatchCard => card !== null);
   const { cards, grid } = shown(all);
   if (cards.length < 2) return null;
   return (

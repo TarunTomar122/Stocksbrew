@@ -1,6 +1,7 @@
 /**
- * The landing's "agent at work" strip: the proposal engine (lib/proposals.ts `candidates`) run over the public example
- * portfolio on today's real data, and its strongest proposal shaped into steps (lib/agent-sequence.ts).
+ * The landing's agent section: the example portfolio's loop (one stored case from request to outcome,
+ * lib/agent-loop.ts) and, as its fallback, the proposal engine (lib/proposals.ts `candidates`) run over the public
+ * example portfolio on today's real data, its strongest proposal shaped into steps (lib/agent-sequence.ts).
  *
  * The example portfolio is not a person and has no user doc, so the reads are the proposal engine's own sources taken
  * for the example's stocks: our calls, the levels a signed-out visitor may see (the showcase stocks'), quotes, daily closes,
@@ -9,6 +10,8 @@
  * stored. Shared by every visitor, cached for half an hour, and never calls a model.
  */
 
+import { cache } from "react";
+
 import { filingFact, isMajorFiling } from "@/lib/agent-events-filings";
 import { agentMarketDay, listJobs, listRuns, resolveScope } from "@/lib/agent-jobs-data";
 import { nextCheckFor } from "@/lib/agent-watch";
@@ -16,9 +19,10 @@ import { EXAMPLE_AGENTS_UID } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFilingsSince } from "@/lib/filings";
 import { reportsSource } from "@/lib/inbox/sources";
-import { EXAMPLE_STOCK_TICKERS } from "@/lib/portfolio-data";
+import { loopOf, type AgentLoop } from "@/lib/agent-loop";
 import { firstSequence, type AgentSequence } from "@/lib/agent-sequence";
-import { candidates, type ProposalInputs, type ProposalStock } from "@/lib/proposals";
+import { BENCHMARK_SYMBOL, EXAMPLE_STOCK_TICKERS } from "@/lib/portfolio-data";
+import { candidates, latestPrice, type ProposalInputs, type ProposalStock } from "@/lib/proposals";
 import { readQuotes } from "@/lib/proposals-server";
 import { resultsFor } from "@/lib/results/server";
 import { getRecentDailySeries } from "@/lib/screener-series";
@@ -181,32 +185,63 @@ function nextCheckDay(jobs: Awaited<ReturnType<typeof listJobs>>, runs: Awaited<
   return days[0] ?? null;
 }
 
-/** Throws when the stocks' prices could not be read (sharedCache must never keep a failure as everyone's answer). */
-async function buildSequence(today: string): Promise<AgentSequence | null> {
+/**
+ * The landing's agent sections from one read of the example's inputs: the loop (lib/agent-loop.ts, one stored case told
+ * through to its outcome) and the strongest proposal today as a strip (the loop's fallback). Throws when the stocks'
+ * prices could not be read (sharedCache must never keep a failure as everyone's answer).
+ */
+async function buildLanding(today: string): Promise<LandingAgent> {
   const now = new Date();
-  const { inputs, jobs, runs, levelsAsOf } = await loadExampleInputs(now);
+  const [{ inputs, jobs, runs, levelsAsOf }, bench] = await Promise.all([
+    loadExampleInputs(now),
+    // The S&P 500 for the loop's outcome: SPY's recent closes (the ~14 KB tail, cached on its own for 3 hours).
+    within(getRecentDailySeries([BENCHMARK_SYMBOL]), READ_MS, "benchmark"),
+  ]);
   // A read that failed must not become everyone's answer for half an hour: throw, and the next visitor tries again.
   const missing = (["quotes", "series", "calls", "levels", "results", "filings", "runs", "jobs", "upcoming"] as const).filter((key) => !inputs[key]);
   // The series read drops a ticker it could not load rather than failing: a priced stock with no closes is a failed read.
   const unpriced = Object.keys(inputs.quotes ?? {}).filter((ticker) => !inputs.series?.[ticker]?.length);
   if (missing.length > 0 || unpriced.length > 0) throw new Error(`example reads incomplete: ${[...missing, ...unpriced.map((ticker) => `series ${ticker}`)].join(", ")}`);
-  return firstSequence(candidates(inputs), { inputs, today, nextCheck: nextCheckDay(jobs, runs, today), runs, levelsAsOf });
+  // Without SPY's closes the outcome shows the stock alone (lib/agent-loop.ts outcomeOf), and the strip is untouched.
+  const benchSeries = bench?.series[BENCHMARK_SYMBOL];
+  const drafts = candidates(inputs);
+  const sequence = firstSequence(drafts, { inputs, today, nextCheck: nextCheckDay(jobs, runs, today), runs, levelsAsOf });
+  const loop = loopOf({
+    today,
+    jobs,
+    runs,
+    series: inputs.series ?? {},
+    bench: benchSeries,
+    now: (ticker) => {
+      const point = latestPrice(inputs, ticker);
+      if (!point) return null;
+      return { price: point.price, dayPct: point.source === "quote" ? inputs.quotes?.[ticker]?.dayPct ?? null : null, at: point.at };
+    },
+    nextCheck: (job) => nextCheckFor(job, runs.filter((run) => run.job_id === job.id), today),
+  });
+  return { sequence, loop };
 }
 
-const cachedSequence = sharedCache(buildSequence, ["landing-agent-sequence-v4"], { revalidate: REVALIDATE_SECONDS });
+export type LandingAgent = { sequence: AgentSequence | null; loop: AgentLoop | null };
 
-/** The example's strongest proposal today as steps; null when there is none, the read failed, or it ran too long. */
-export async function loadAgentSequence(now: Date = new Date()): Promise<AgentSequence | null> {
+const cachedLanding = sharedCache(buildLanding, ["landing-agent-loop-v5"], { revalidate: REVALIDATE_SECONDS });
+
+/**
+ * The example's loop and its strongest proposal today; both null when the read failed or ran too long. Once per request
+ * (React cache): the loop section and the watch section below it both ask, and a cold cache must not read twice.
+ */
+export const loadLandingAgent = cache(async (): Promise<LandingAgent> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const slow = new Promise<null>((resolve) => {
+  const empty: LandingAgent = { sequence: null, loop: null };
+  const slow = new Promise<LandingAgent>((resolve) => {
     timer = setTimeout(() => {
-      console.warn(`[agent-sequence] took longer than ${SEQUENCE_TIMEOUT_MS}ms; showing the landing without it`);
-      resolve(null);
+      console.warn(`[landing-agent] took longer than ${SEQUENCE_TIMEOUT_MS}ms; showing the landing without it`);
+      resolve(empty);
     }, SEQUENCE_TIMEOUT_MS);
   });
-  const done = cachedSequence(agentMarketDay(now)).catch((error) => {
-    console.warn("[agent-sequence] failed:", error instanceof Error ? error.message : error);
-    return null;
+  const done = cachedLanding(agentMarketDay(new Date())).catch((error) => {
+    console.warn("[landing-agent] failed:", error instanceof Error ? error.message : error);
+    return empty;
   });
   return Promise.race([done, slow]).finally(() => clearTimeout(timer));
-}
+});

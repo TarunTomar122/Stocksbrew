@@ -1,29 +1,23 @@
 import * as React from "react";
 
-import { Bar } from "@/components/oa/kit/skeleton";
 import { NavIcon } from "@/components/oa/nav-icon";
 import type { NavIcon as NavIconName } from "@/components/oa/nav-items";
 import { LevelBar } from "@/components/proposals/level-bar";
-import { Reveal } from "@/components/reveal";
 import { StockLogo } from "@/components/stock-logo";
-import { loadAgentSequence } from "@/lib/agent-sequence-server";
 import type { AgentSequence, SequenceFigure } from "@/lib/agent-sequence";
 import { absoluteDay, dayWords, daysFromToday, etDayOf, etToday, stampWords, weekdayName } from "@/lib/day-words";
 
-import { SectionHead, fmtPrice } from "./shared";
+import { fmtPrice } from "./shared";
 
 /**
  * The agent at work, start to finish, on one real proposal: the proposal engine run over the example portfolio on
  * today's data (lib/agent-sequence-server.ts), told as five connected steps. What happened, the figures it checked,
  * what it drafted, your decision (the end of the card, not working buttons), and what comes next. A strip from lg,
  * stacked on a phone. Each step is an icon, a few words and one figure or small visual; every figure says when it is
- * from, and its source is the hover title. On a day the engine has nothing to show, the strip is left out: the
- * section after it (./agent-watch.tsx) shows the example agents' own results.
+ * from, and its source is the hover title. The landing shows it only on a day with no stored case for its loop
+ * (./agent-loop.tsx), in the loop's place.
  */
 
-const HEAD_TITLE = "Our agent at work on real data.";
-const HEAD_HREF = "/agent";
-const HEAD_LINK = "Try it on your stocks";
 
 /** Every step's parts have fixed heights, so the ghost holds exactly the strip's place while it loads. */
 const STEP = "relative flex min-w-0 gap-3 px-4 py-3 sm:px-5 lg:flex-col lg:gap-2.5 lg:py-5 lg:pl-0 lg:pr-4";
@@ -250,7 +244,8 @@ function ExampleLabel() {
 const CARD = "oa-surface border border-oa-border bg-oa-card";
 const STEPS = "grid grid-cols-1 lg:grid-cols-5 lg:px-5";
 
-function Strip({ sequence }: { sequence: AgentSequence }) {
+/** The strip itself, also the landing loop's fallback on a day with no stored case (./agent-loop.tsx). */
+export function SequenceStrip({ sequence }: { sequence: AgentSequence }) {
   return (
     <div className={CARD}>
       <Header sequence={sequence} />
@@ -262,41 +257,5 @@ function Strip({ sequence }: { sequence: AgentSequence }) {
         <NextStep sequence={sequence} />
       </ol>
     </div>
-  );
-}
-
-const SECTION = "scroll-mt-24";
-
-/** The section: the strip under its heading, or nothing on a day the engine has nothing to show. */
-export async function AgentSequenceSection({ className = "" }: { className?: string }) {
-  const sequence = await loadAgentSequence();
-  if (!sequence) return null;
-  return (
-    <section id="what-it-does" className={`${SECTION} ${className}`}>
-      <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
-      <Reveal delay={60}>
-        <Strip sequence={sequence} />
-      </Reveal>
-    </section>
-  );
-}
-
-/**
- * The strip's exact place while it loads: the same heading and card, at the strip's own height, with no step markup
- * (it is sent in the page's first bytes, so it stays small). Keep in step with STEP, WORDS and VISUAL: from lg one row
- * of 40 + 32 + 10 + 21 + 8 + 58 = 169px under the 56px header, on a phone five rows of 24 + 21 + 6 + 58 = 109px; plus
- * the card's 2px border.
- */
-export function AgentSequenceGhost({ className = "" }: { className?: string }) {
-  return (
-    <section className={`${SECTION} ${className}`}>
-      <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
-      <div aria-hidden="true" className={`${CARD} h-[603px] lg:h-[227px]`}>
-        <div className="flex h-14 items-center justify-between gap-3 border-b border-oa-border px-4 sm:px-5">
-          <Bar className="h-5 w-40" />
-          <ExampleLabel />
-        </div>
-      </div>
-    </section>
   );
 }

@@ -15,7 +15,7 @@ import { getLandingUserContext } from "@/components/landing-data";
 import { pricingMarket } from "@/lib/pricing";
 import { headers } from "next/headers";
 
-import { AgentSequenceGhost, AgentSequenceSection } from "./landing/agent-sequence";
+import { AgentLoopGhost, AgentLoopSection } from "./landing/agent-loop";
 import { AgentWatchGhost, AgentWatchSection } from "./landing/agent-watch";
 import { HeroCounters, HeroCountersGhost } from "./landing/hero-counters";
 import { HeroDemo, HeroDemoGhost } from "./landing/hero-demo";
@@ -91,11 +91,11 @@ export async function OaLanding() {
           />
         </section>
 
-        {/* Right under the hero, the agent at work: one real proposal on the example portfolio, from the event to what
-            it checked, what it drafted, your answer and the next check. It replaces the three agent cards that sat
-            lower down, so the page is no longer; on a day with no proposal those cards show here instead. */}
-        <Suspense fallback={<AgentSequenceGhost className="mt-8 sm:mt-12" />}>
-          <AgentSequenceSection className="mt-8 sm:mt-12" />
+        {/* Right under the hero, the agent's loop on one real case: what the example portfolio asked, the days it
+            checked, what it found, what it decided and what the stock did next against the S&P 500. On a day with no
+            stored case, the strongest proposal today takes its place. */}
+        <Suspense fallback={<AgentLoopGhost className="mt-8 sm:mt-12" />}>
+          <AgentLoopSection className="mt-8 sm:mt-12" />
         </Suspense>
 
         {/* Then what else the agent watches, as small cards on real data: a filing that changed its risks, a reason
