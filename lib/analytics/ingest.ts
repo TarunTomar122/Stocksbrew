@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 
 import { analyticsDb, analyticsNamespace } from "@/lib/analytics/db";
-import { pruneRawChunks } from "@/lib/analytics/retention";
+import { pruneRawChunks, pruneVitalsChunks } from "@/lib/analytics/retention";
 import { countryOf, ensureGeo } from "@/lib/analytics/geo";
 import {
   cleanPath,
@@ -19,6 +19,8 @@ import {
   type KeyEventName,
 } from "@/lib/analytics/normalize";
 import type { EventChunk, StoredEvent } from "@/lib/analytics/rollup";
+import { parseVitals, vitalsChunkOf, type ParsedVitals, type VitalsChunk, type VitalsRow } from "@/lib/analytics/speed";
+import { speedDb } from "@/lib/analytics/speed-db";
 import { browserFamily, deviceClass, screenBucket } from "@/lib/analytics/ua";
 import { SaltKeeper, utcDay, visitorHash } from "@/lib/analytics/visitor";
 
@@ -32,6 +34,11 @@ import { SaltKeeper, utcDay, visitorHash } from "@/lib/analytics/visitor";
  *
  * Production runs two Next instances behind Varnish, so each has its own
  * buffer and writes its own chunks; nothing here relies on seeing every event.
+ *
+ * A page-load speed report (the beacon's `v`, one per full page load) carries
+ * nothing about the visitor, so it skips the hashing and waits up to a minute
+ * (or 200 reports) before it is written as one tm_analytics_vitals chunk: the
+ * Speed tab needs no live view, and fewer, bigger writes are cheaper.
  */
 
 export const FLUSH_MS = 5_000;
@@ -39,6 +46,8 @@ export const FLUSH_AT = 50;
 /** If the store is down, keep at most this many events waiting (oldest dropped first). */
 export const MAX_BUFFER = 5_000;
 export const MAX_EVENTS_PER_REQUEST = 20;
+export const VITALS_FLUSH_MS = 60_000;
+export const VITALS_FLUSH_AT = 200;
 /** How old an event the browser held on to may be (a tab that queued it and was closed later). */
 const MAX_AGE_MS = 10 * 60 * 1000;
 
@@ -55,7 +64,7 @@ export type ParsedEvent = {
   age: number;
 };
 
-export type ParsedBeacon = { sid: string; sw: string | null; swPx: number | null; si: boolean | null; events: ParsedEvent[] };
+export type ParsedBeacon = { sid: string; sw: string | null; swPx: number | null; si: boolean | null; events: ParsedEvent[]; vitals: ParsedVitals | null };
 
 /** The beacon body (lib/analytics/beacon.ts), validated and cleaned. Null when it is not one. */
 export function parseBeacon(raw: unknown, ownHosts: readonly string[]): ParsedBeacon | null {
@@ -86,18 +95,22 @@ export function parseBeacon(raw: unknown, ownHosts: readonly string[]): ParsedBe
       age,
     });
   }
-  return { sid, sw: screenBucket(swPx), swPx, si: typeof body.si === "boolean" ? body.si : null, events };
+  const si = typeof body.si === "boolean" ? body.si : null;
+  return { sid, sw: screenBucket(swPx), swPx, si, events, vitals: parseVitals(body.v, si) };
 }
 
 /** `cc`: Cloudflare's country for the request, when it sent one (better than our lookup, and free). */
 type Pending = { ns: string; host: string; ip: string; ua: string; cc: string | null; t: number; sid: string; sw: string | null; swPx: number | null; si: boolean | null; e: ParsedEvent };
 
 /** A chunk ready to write: events already hashed, nothing identifying left. Kept as-is until the write lands. */
-type Ready = { ns: string; id: string; chunk: EventChunk };
+type Ready = { ns: string; id: string; kind?: undefined; chunk: EventChunk } | { ns: string; id: string; kind: "vitals"; chunk: VitalsChunk };
 
 type IngestState = {
   buffer: Pending[];
   ready: Ready[];
+  /** Page-load speed rows waiting for their minute (VITALS_FLUSH_MS). */
+  vitals: Array<{ ns: string; row: VitalsRow }>;
+  vitalsTimer: ReturnType<typeof setTimeout> | null;
   timer: ReturnType<typeof setTimeout> | null;
   flushing: Promise<void> | null;
   keepers: Map<string, SaltKeeper>;
@@ -112,18 +125,20 @@ type GlobalWithIngest = typeof globalThis & { [globalKey]?: IngestState };
 function state(): IngestState {
   const g = globalThis as GlobalWithIngest;
   if (!g[globalKey]) {
-    g[globalKey] = { buffer: [], ready: [], timer: null, flushing: null, keepers: new Map(), failures: 0, shutdownHooked: false, spoolRead: false };
+    g[globalKey] = { buffer: [], ready: [], vitals: [], vitalsTimer: null, timer: null, flushing: null, keepers: new Map(), failures: 0, shutdownHooked: false, spoolRead: false };
   }
   return g[globalKey]!;
 }
 
 /** Queue a parsed beacon. Never waits on the store. */
 export function enqueue(beacon: ParsedBeacon, request: { host: string; ip: string; ua: string; country?: string | null; now?: number }) {
-  if (beacon.events.length === 0) return;
+  if (beacon.events.length === 0 && !beacon.vitals) return;
   const s = state();
   hookShutdown(s);
   const now = request.now ?? Date.now();
   const ns = analyticsNamespace(request.host);
+  if (beacon.vitals) enqueueVitals(s, ns, { t: now, ...beacon.vitals });
+  if (beacon.events.length === 0) return;
   for (const e of beacon.events) {
     s.buffer.push({ ns, host: request.host, ip: request.ip, ua: request.ua, cc: request.country ?? null, t: now - e.age, sid: beacon.sid, sw: beacon.sw, swPx: beacon.swPx, si: beacon.si, e });
   }
@@ -140,6 +155,45 @@ function schedule(delay: number) {
     void flush();
   }, delay);
   (s.timer as { unref?: () => void }).unref?.();
+}
+
+function enqueueVitals(s: IngestState, ns: string, row: VitalsRow) {
+  s.vitals.push({ ns, row });
+  if (s.vitals.length > MAX_BUFFER) s.vitals.splice(0, s.vitals.length - MAX_BUFFER);
+  if (s.vitals.length >= VITALS_FLUSH_AT) {
+    readyVitals(s);
+    schedule(0);
+    return;
+  }
+  if (s.vitalsTimer) return;
+  s.vitalsTimer = setTimeout(() => {
+    s.vitalsTimer = null;
+    readyVitals(s);
+    schedule(0);
+  }, VITALS_FLUSH_MS);
+  (s.vitalsTimer as { unref?: () => void }).unref?.();
+}
+
+export function vitalsChunkId(chunk: VitalsChunk): string {
+  const digest = createHash("sha256").update(JSON.stringify(chunk.rows)).digest("hex").slice(0, 20);
+  return `v${chunk.first_ts.toString(36)}_${digest}`;
+}
+
+/** Waiting speed rows become one ready chunk per namespace. */
+function readyVitals(s: IngestState) {
+  if (s.vitalsTimer) clearTimeout(s.vitalsTimer);
+  s.vitalsTimer = null;
+  if (s.vitals.length === 0) return;
+  const byNs = new Map<string, VitalsRow[]>();
+  for (const { ns, row } of s.vitals.splice(0)) {
+    const list = byNs.get(ns) ?? [];
+    list.push(row);
+    byNs.set(ns, list);
+  }
+  for (const [ns, rows] of byNs) {
+    const chunk = vitalsChunkOf(rows, Date.now());
+    s.ready.push({ ns, id: vitalsChunkId(chunk), kind: "vitals", chunk });
+  }
 }
 
 function keeperFor(ns: string): SaltKeeper {
@@ -251,23 +305,33 @@ export async function flush(): Promise<void> {
   if (s.buffer.length === 0 && s.ready.length === 0) return;
   s.flushing = (async () => {
     await prepare(s);
-    while (s.ready.length > 0) {
-      const next = s.ready[0]!;
+    // In order, but a kind whose write failed waits for the next round without holding up the other kind:
+    // a broken vitals collection must never stop the visitor events (and the other way round).
+    const failed = new Set<string>();
+    for (const next of [...s.ready]) {
+      const kind = next.kind ?? "events";
+      if (failed.has(kind)) continue;
       try {
-        await analyticsDb().writeChunk(next.ns, next.id, next.chunk);
-        s.ready.shift();
-        s.failures = 0;
-        maybePrune(next.ns);
+        if (next.kind === "vitals") await speedDb().writeVitals(next.ns, next.id, next.chunk);
+        else await analyticsDb().writeChunk(next.ns, next.id, next.chunk);
+        const at = s.ready.indexOf(next);
+        if (at >= 0) s.ready.splice(at, 1);
+        maybePrune(next.ns, kind);
       } catch (error) {
         // Kept as it is (same id), so the retry can't double count; say what failed, never what was in it.
+        failed.add(kind);
         s.failures += 1;
-        if (s.failures === 1 || s.failures % 20 === 0) console.warn(`[analytics] flush failed (${s.failures}x):`, (error as Error)?.message);
-        break;
+        if (s.failures === 1 || s.failures % 20 === 0) console.warn(`[analytics] ${kind} flush failed (${s.failures}x):`, (error as Error)?.message);
       }
     }
-    // A long outage: keep the newest chunks within the cap.
-    const readyEvents = s.ready.reduce((n, r) => n + r.chunk.count, 0);
-    if (readyEvents > MAX_BUFFER) s.ready.splice(0, Math.max(1, Math.floor(s.ready.length / 4)));
+    if (failed.size === 0) s.failures = 0;
+    // A long outage: keep the newest chunks within the cap, counted per kind so one kind's backlog never pushes out the other's.
+    for (const kind of ["events", "vitals"] as const) {
+      const mine = s.ready.filter((r) => (r.kind ?? "events") === kind);
+      if (mine.reduce((n, r) => n + r.chunk.count, 0) <= MAX_BUFFER) continue;
+      const drop = new Set(mine.slice(0, Math.max(1, Math.floor(mine.length / 4))));
+      s.ready = s.ready.filter((r) => !drop.has(r));
+    }
   })().finally(() => {
     s.flushing = null;
     // More arrived meanwhile, or a failure is waiting: back off up to a minute.
@@ -283,13 +347,15 @@ const PRUNE_EVERY_MS = 6 * 60 * 60 * 1000;
 const pruneKey = "__sbAnalyticsPrunedAt" as const;
 type GlobalWithPrune = typeof globalThis & { [pruneKey]?: Map<string, number> };
 
-function maybePrune(ns: string) {
+function maybePrune(ns: string, kind: "events" | "vitals") {
   const g = globalThis as GlobalWithPrune;
   const last = (g[pruneKey] ??= new Map());
   const now = Date.now();
-  if (now - (last.get(ns) ?? 0) < PRUNE_EVERY_MS) return;
-  last.set(ns, now);
-  void pruneRawChunks(ns, now).catch((error) => console.warn("[analytics] raw clean-up failed:", (error as Error)?.message));
+  const key = kind === "vitals" ? `${ns}:vitals` : ns;
+  if (now - (last.get(key) ?? 0) < PRUNE_EVERY_MS) return;
+  last.set(key, now);
+  const prune = kind === "vitals" ? pruneVitalsChunks : pruneRawChunks;
+  void prune(ns, now).catch((error) => console.warn(`[analytics] raw ${kind} clean-up failed:`, (error as Error)?.message));
 }
 
 /* ── shutdown: a rolling restart must not drop the last few seconds ─────── */
@@ -311,6 +377,7 @@ function spoolPrefix(): string {
  */
 export function spoolNow(s: IngestState = state()) {
   try {
+    readyVitals(s);
     const ready = [...s.ready];
     const byNs = new Map<string, StoredEvent[]>();
     for (const item of s.buffer) {
@@ -354,9 +421,8 @@ function readSpool(s: IngestState) {
       try {
         const items = JSON.parse(fs.readFileSync(file, "utf8")) as Ready[];
         for (const item of Array.isArray(items) ? items : []) {
-          if (item && typeof item.ns === "string" && item.ns.startsWith("tm_analytics") && typeof item.id === "string" && item.chunk && Array.isArray(item.chunk.events)) {
-            s.ready.push(item);
-          }
+          if (!item || typeof item.ns !== "string" || !item.ns.startsWith("tm_analytics") || typeof item.id !== "string" || !item.chunk) continue;
+          if (item.kind === "vitals" ? Array.isArray(item.chunk.rows) : item.kind === undefined && Array.isArray(item.chunk.events)) s.ready.push(item);
         }
       } catch {
         // a torn file: dropped
@@ -376,8 +442,11 @@ export function ingestStateForTests() {
 export function resetIngestForTests() {
   const s = state();
   if (s.timer) clearTimeout(s.timer);
+  if (s.vitalsTimer) clearTimeout(s.vitalsTimer);
   s.buffer = [];
   s.ready = [];
+  s.vitals = [];
+  s.vitalsTimer = null;
   s.spoolRead = true;
   s.timer = null;
   s.flushing = null;

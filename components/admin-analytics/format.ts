@@ -62,3 +62,14 @@ export function pointLabel(label: string): string {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}`;
 }
+
+/** A page-speed figure: "640 ms", "2.4 s", or a layout-shift score "0.05". */
+export function fmtSpeed(metric: "lcp" | "inp" | "cls" | "ttfb" | "fcp", value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "n/a";
+  if (metric === "cls") return value < 0.01 ? (value === 0 ? "0" : "<0.01") : value.toFixed(2);
+  // Rounded first, so 996 ms reads "1.0 s" (not "1000 ms") and 9,960 ms "10 s" (not "10.0 s").
+  const ms = value < 100 ? Math.round(value) : Math.round(value / 10) * 10;
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = Math.round(value / 100) / 10;
+  return seconds < 10 ? `${seconds.toFixed(1)} s` : `${Math.round(value / 1000)} s`;
+}

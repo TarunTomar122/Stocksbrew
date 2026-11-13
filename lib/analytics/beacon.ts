@@ -1,6 +1,7 @@
 "use client";
 
 import { isExcludedPath, keyEventFor } from "@/lib/analytics/normalize";
+import { finishVitals, startVitals, type VitalsPayload } from "@/lib/analytics/vitals-client";
 
 /**
  * The first-party analytics beacon. lib/posthog.ts captureEvent hands every
@@ -13,6 +14,10 @@ import { isExcludedPath, keyEventFor } from "@/lib/analytics/normalize";
  * sessionStorage (this tab only) and is replaced after 30 idle minutes. The
  * visitor id is made on the server from a daily salt and is never stored here.
  * Signed in or not travels as a yes/no flag; who is signed in never does.
+ *
+ * The first pageview of a document also starts the page-speed measurement
+ * (lib/analytics/vitals-client.ts); its one report rides along with the next
+ * send as `v`, at the latest when the tab is hidden or the visitor moves on.
  */
 
 const ENDPOINT = "/api/a";
@@ -29,6 +34,8 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let signedIn: boolean | null = null;
 let listening = false;
 let memorySession: { id: string; last: number } | null = null;
+let vitalsPath: string | null = null;
+let pendingVitals: VitalsPayload | null = null;
 
 function randomId(): string {
   const bytes = new Uint8Array(12);
@@ -99,6 +106,13 @@ export function beaconTrack(name: string, props?: Record<string, unknown>) {
     if (isExcludedPath(path) || automated()) return;
     const item: Queued = { n: name, p: path, t: Date.now() };
     if (key === "pageview") {
+      // The page load is measured on the page it landed on: moving to another page closes that measurement.
+      if (vitalsPath === null) {
+        vitalsPath = path;
+        startVitals(path, (report) => {
+          pendingVitals = report;
+        });
+      } else if (path !== vitalsPath) finishVitals();
       item.r = typeof props?.referrer === "string" ? props.referrer : null;
       const utm = { s: props?.utm_source as string | null, m: props?.utm_medium as string | null, c: props?.utm_campaign as string | null };
       if (utm.s || utm.m || utm.c) item.u = utm;
@@ -118,7 +132,10 @@ export function beaconTrack(name: string, props?: Record<string, unknown>) {
 function listen() {
   if (listening) return;
   listening = true;
-  const leave = () => send();
+  const leave = () => {
+    finishVitals();
+    send();
+  };
   window.addEventListener("pagehide", leave);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") leave();
@@ -128,12 +145,14 @@ function listen() {
 function send() {
   if (timer) clearTimeout(timer);
   timer = null;
-  if (queue.length === 0) return;
+  if (queue.length === 0 && !pendingVitals) return;
   const now = Date.now();
   const events = queue.map(({ t, ...rest }) => ({ ...rest, a: Math.max(0, now - t) }));
+  const v = pendingVitals;
   queue = [];
+  pendingVitals = null;
   try {
-    const body = JSON.stringify({ sid: sessionId(now), sw: window.screen?.width ?? null, si: signedIn, e: events });
+    const body = JSON.stringify({ sid: sessionId(now), sw: window.screen?.width ?? null, si: signedIn, e: events, ...(v ? { v } : {}) });
     // text/plain keeps it a "simple" request; the route parses the JSON itself.
     const sent = typeof navigator.sendBeacon === "function" && navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "text/plain" }));
     if (!sent) void fetch(ENDPOINT, { method: "POST", body, keepalive: true, headers: { "Content-Type": "text/plain" }, credentials: "omit" }).catch(() => undefined);

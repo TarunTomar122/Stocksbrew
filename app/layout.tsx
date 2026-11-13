@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import Script from "next/script";
-import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/components/footer";
 import { monoFont, uiFont } from "@/components/oa/font";
@@ -289,7 +288,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div className="oa-market-tab">
           <MarketStatusTab nowIso={new Date().toISOString()} />
         </div>
-        <Analytics />
       </body>
     </html>
   );

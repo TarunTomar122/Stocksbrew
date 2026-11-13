@@ -21,6 +21,9 @@ export const dynamic = "force-dynamic";
  * (lib/analytics/address.ts says why a direct hit could fake both, and why that
  * is fine here). The address is used for the country and the daily visitor
  * hash, then dropped; it is never stored or logged.
+ *
+ * A body may also carry `v`, the speed of the full page load it came from
+ * (lib/analytics/vitals-client.ts), with or without events beside it.
  */
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
       return done();
     }
     const beacon = parseBeacon(raw, OWN_HOSTS);
-    if (beacon && beacon.events.length > 0) enqueue(beacon, { host, ip, ua, country: cloudflareCountry(request.headers) });
+    if (beacon && (beacon.events.length > 0 || beacon.vitals)) enqueue(beacon, { host, ip, ua, country: cloudflareCountry(request.headers) });
   } catch {
     // never fail a beacon
   }

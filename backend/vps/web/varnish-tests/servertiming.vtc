@@ -1,0 +1,45 @@
+varnishtest "Pages say which cache served them in Server-Timing (read by lib/analytics/vitals-client.ts); other files don't"
+
+server s1 {
+	# 1. Signed-out page, stored.
+	rxreq
+	expect req.http.X-Varnish-Pass == <undef>
+	txresp -hdr "Content-Type: text/html; charset=utf-8" -hdr "Surrogate-Control: max-age=300" -body "news"
+	# 3. Signed in: passed, and the marker never reaches the app.
+	rxreq
+	expect req.http.X-Varnish-Pass == <undef>
+	txresp -hdr "Content-Type: text/html" -hdr "Server-Timing: app;dur=12" -body "news for abc"
+	# 4. A page the app won't let us keep: a miss each time.
+	rxreq
+	txresp -hdr "Content-Type: text/html" -body "fresh"
+	# 5. A logo: no Server-Timing.
+	rxreq
+	txresp -hdr "Content-Type: image/png" -hdr "Cache-Control: s-maxage=60" -body "png"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/news"
+	rxresp
+	expect resp.http.Server-Timing == "cache;desc=miss"
+	# 2. The same page again: a hit.
+	txreq -url "/news"
+	rxresp
+	expect resp.body == "news"
+	expect resp.http.Server-Timing == "cache;desc=hit"
+	# A client can't fake the pass marker into a page from the cache.
+	txreq -url "/news" -hdr "X-Varnish-Pass: 1"
+	rxresp
+	expect resp.http.Server-Timing == "cache;desc=hit"
+	txreq -url "/news" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	expect resp.body == "news for abc"
+	expect resp.http.Server-Timing == "app;dur=12, cache;desc=pass"
+	txreq -url "/about"
+	rxresp
+	expect resp.http.Server-Timing == "cache;desc=miss"
+	txreq -url "/api/logo/AAPL"
+	rxresp
+	expect resp.http.Server-Timing == <undef>
+} -run

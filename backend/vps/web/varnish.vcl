@@ -58,6 +58,7 @@ sub vcl_recv {
   }
   # Internal markers only this file sets: never trust them from a client.
   unset req.http.X-Varnish-Html;
+  unset req.http.X-Varnish-Pass;
   if (req.restarts == 0) { unset req.http.X-Varnish-Refresh; unset req.http.X-Varnish-Stale-If-Error; }
 
   if (req.method != "GET" && req.method != "HEAD") { return (pass); }
@@ -128,7 +129,13 @@ sub vcl_hit {
   return (deliver);
 }
 
+# Marks a request that bypassed the cache, for the Server-Timing line in vcl_deliver.
+sub vcl_pass {
+  set req.http.X-Varnish-Pass = "1";
+}
+
 sub vcl_backend_fetch {
+  unset bereq.http.X-Varnish-Pass;
   # Pages only: the app decides from the request whether a response may be kept, so it must see the request
   # Varnish will store. (Static files are fetched as they are.)
   if (bereq.http.X-Varnish-Html) { unset bereq.http.Cookie; }
@@ -213,6 +220,20 @@ sub vcl_deliver {
   # payloads say so explicitly; Varnish is the only shared cache for HTML. (Build files keep their own headers.)
   if (resp.http.Content-Type ~ "(?i)^text/(html|x-component)") {
     set resp.http.Cloudflare-CDN-Cache-Control = "no-store";
+  }
+  # Pages say which cache served them, in the one header a page's own script can read (Navigation Timing
+  # serverTiming): lib/analytics/vitals-client.ts sends it with the page's real-user speed.
+  if (resp.http.Content-Type ~ "(?i)^text/html") {
+    if (req.http.X-Varnish-Stale-If-Error) { set req.http.X-Cache-Kind = "stale"; }
+    elsif (req.http.X-Varnish-Pass) { set req.http.X-Cache-Kind = "pass"; }
+    elsif (obj.hits > 0) { set req.http.X-Cache-Kind = "hit"; }
+    else { set req.http.X-Cache-Kind = "miss"; }
+    if (resp.http.Server-Timing) {
+      set resp.http.Server-Timing = resp.http.Server-Timing + ", cache;desc=" + req.http.X-Cache-Kind;
+    } else {
+      set resp.http.Server-Timing = "cache;desc=" + req.http.X-Cache-Kind;
+    }
+    unset req.http.X-Cache-Kind;
   }
   # Internal to this cache.
   unset resp.http.X-Url;
