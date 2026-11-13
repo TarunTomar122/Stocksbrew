@@ -214,6 +214,21 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~17:30 ET: signups tab (7dc2e412) and the screener in plain words (06eb66d7) live; pause
+- 7dc2e412 (owner: "can i also see the people who are signing up?"): /admin/analytics → Signups: today/7/30-day
+  tiles, all accounts, came back, added stocks, agents on, Pro (paying); newest-first list with email, signed up,
+  plan, stocks, agents, last seen, "how did you hear" answer. Firebase Auth paged, 60 s cache, no-store, behind the
+  admin cookie (checked: no list without it). Council BLOCK r3 only on a per-row Method column (rule 1 forbids).
+- 06eb66d7 (owner: "say something like stock with lowest pe compared to their history in natural words and get the
+  table updated"): the /screener search box reads sentences on Enter into the table's own chips, sort and columns
+  (lib/screener-plain.ts rules, free; the rest via the model as one Ask question, validated against the real
+  fields, 24 h cache). P/E vs history now reads Lowest / N of 100 / Highest. Checked live: the owner's sentence →
+  "P/E vs its history, lowest first" + "Has a P/E history", 215 of 779. Council BLOCK x4 (last: the bare 0s, fixed
+  by the lead). Open: ties at Lowest sort A–Z (size tie-break needs the shared sort); the phone "Understood" row can
+  run 4 lines; SITC's 598% yield is bad source data.
+- Owner pause: everything pending has landed. Open owner items: the PostHog phc_ key (no events since the Vercel move);
+  SMCI in both Biggest things and Needs you; the landing's "made-up reasons" note; QLYS EPS source.
+
 ### 2026-11-13 ~16:30 ET: tabs fixed, faster briefing, each number once (live: 635d024d, 3ef67287, b0c8dc1d)
 - 635d024d: TabBar links had prefetch on; Next 13.5's prefetch of a same-page `?tab=` link returns the tree without
   the query in the page key, so the click changed only the address. /admin/analytics Speed and System, /follow,
