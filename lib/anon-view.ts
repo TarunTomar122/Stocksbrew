@@ -42,7 +42,9 @@ const STOCK_PAGE_RE = /^\/stock\/[A-Z0-9][A-Z0-9.-]{0,15}$/;
  * drops focus from the search box mid-typing.
  */
 const CACHED_PAGES = new Map<string, readonly string[]>([
-  ["/briefing", ["day"]],
+  // Signed out, /briefing is the example's briefing whatever the query: `?day=` (a member's saved earlier day) is
+  // ignored there (app/(app)/briefing/page.tsx), so a shared day link gets the cached copy too.
+  ["/briefing", []],
   ["/explore", []],
   // Signed out, My stocks is the example portfolio's holdings: the same page for everyone. Its other tabs (?tab=
   // watching, alerts), ?reasons=1 and the list filters (lib/portfolio-filters.ts FILTER_PARAMS) are live pages.

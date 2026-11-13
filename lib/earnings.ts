@@ -60,5 +60,6 @@ export const getNextEarningsCalendarEventCached = (market: string, ticker: strin
   unstable_cache(
     async () => getNextEarningsCalendarEvent(market, ticker),
     ["next-earnings-event", market, ticker],
-    { revalidate: 300 },
+    // Dropped by an earnings or calendar write (lib/revalidate-targets.ts).
+    { revalidate: 300, tags: ["earnings-dates"] },
   )();

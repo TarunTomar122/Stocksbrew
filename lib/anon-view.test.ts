@@ -31,8 +31,11 @@ describe("anonViewPath", () => {
     expect(view("/?home=1")).toBe(ANON_PREFIX);
   });
 
+  it("serves the cached copy for a briefing day link: signed out, the page ignores ?day=", () => {
+    expect(view("/briefing?day=2026-11-10")).toBe(`${ANON_PREFIX}/briefing`);
+  });
+
   it("leaves query-driven views to the live page", () => {
-    expect(view("/briefing?day=2026-11-10")).toBeNull();
     expect(view("/screener")).toBeNull();
     expect(view("/screener?preset=value")).toBeNull();
   });

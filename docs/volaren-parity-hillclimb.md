@@ -214,6 +214,17 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~15:30 ET: judge92 sweep (9dbde0fe) and results in Biggest things (8f8bdda3) live
+- 9dbde0fe: landing holdings with a month bar vs the S&P (the repeated month sentence gone), sector mover chips with
+  prices (a chip that can't fit its price is dropped), S&P card with the index level, Biggest-things source line moved
+  to the hover, whole tickers on Signals, calendar kind icons + reported-vs-expected bars, one-line AMD cards, labelled
+  basket median, level rulers on the briefing. Council APPROVE r3; QA fixed. Open: the small Tech tile now fits no chip.
+- 8f8bdda3: an earnings card in Biggest things says the results in one line ("Revenue rose 55% to $211M, and the
+  full-year outlook was raised."), is ranked by its move against the usual report move, keeps the pre-market print
+  until the first session quote (up to 10:30 ET), and shows the price of the move. Council APPROVE r4.
+- 4615/4615 tests (flag unset, RESULTS_NIGHT=1, PAYWALL_V2=1), deployed, 5 pages 200, no journal errors.
+- Still running: /briefing under 500 ms, no repeated numbers (emails + app). Then pause (owner).
+
 ### 2026-11-13 ~14:45 ET: stale price histories fixed (d529c476)
 - Found by the results-night builder: 197 of 844 tm_price_history_daily docs stopped at Nov 9 (CBRS, CRWV, NBIS...).
   The after-close price step took its list from backend/config/instrument_universe.json (601 symbols), so stocks

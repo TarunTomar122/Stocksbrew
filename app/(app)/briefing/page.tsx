@@ -50,7 +50,7 @@ import { loadTopNews } from "@/lib/briefing-top-news-server";
 import { getViewer } from "@/lib/entitlements-server";
 import { getMarketSessionState } from "@/lib/market-session";
 import { getMarketSeries, getMarketsData } from "@/lib/markets";
-import { getDailySeries } from "@/lib/screener-series";
+import { getRecentDailySeries } from "@/lib/screener-series";
 import { noteDegradedRender } from "@/lib/next-render";
 import { ogImage } from "@/lib/og/url";
 import { capitalize, dayWords } from "@/lib/day-words";
@@ -62,7 +62,7 @@ import type { ResultRead } from "@/lib/results/types";
 import { briefingResultFact, resultCardsByTicker, resultSentence } from "@/lib/results/words";
 import { buildSinceVisit, sinceShows, toldElsewhere } from "@/lib/since-visit";
 import { loadSinceVisit, type SinceVisitResult } from "@/lib/since-visit-server";
-import { readStripSource, stripFrom, withinStrip, type StripSource } from "@/lib/thesis-monitor/strip-server";
+import { readStripSource, startStripCalendar, stripFrom, withinStrip, type StripSource } from "@/lib/thesis-monitor/strip-server";
 import type { ThesisStripData } from "@/lib/thesis-monitor/strip";
 
 export const dynamic = "force-dynamic";
@@ -169,11 +169,15 @@ async function marketExtras(reads: MarketExtraReads = startMarketExtraReads()): 
   return out;
 }
 
-/** Daily closes for the holdings and SPY, for the strip's you-against-the-S&P line; null when the read is slow or fails. */
+/**
+ * Daily closes for the holdings and SPY, for the strip's you-against-the-S&P line; null when the read is slow or fails.
+ * The line only reaches back a few sessions (lib/briefing-face.ts PATH_SESSIONS), so the recent read (the ~14 KB tails,
+ * lib/price-tail.ts) gives it exactly the closes the whole ~60 KB histories would.
+ */
 async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ date: string; close: number }>> | null> {
   if (tickers.length === 0) return null;
   // SPY first: the read keeps the first 40 symbols.
-  const set = await within(getDailySeries(["SPY", ...tickers]), SIDE_READ_MS);
+  const set = await within(getRecentDailySeries(["SPY", ...tickers]), SIDE_READ_MS);
   return set?.series ?? null;
 }
 
@@ -197,10 +201,15 @@ const STRIP_WAIT_MS = 400;
  * rather than holding the page. Awaited here rather than streamed, so the slot under the header never holds an empty
  * box. Report days come from the briefing's own positions, the cached calendar only for the rest.
  */
-async function thesisStripFor(source: Promise<StripSource | null> | null, reports: Record<string, string>, today: string): Promise<ThesisStripData | null> {
+async function thesisStripFor(
+  source: Promise<StripSource | null> | null,
+  calendar: Promise<Record<string, string>> | null,
+  reports: Record<string, string>,
+  today: string,
+): Promise<ThesisStripData | null> {
   if (!source) return null;
   const read = await withinStrip(source, STRIP_WAIT_MS);
-  return read ? withinStrip(stripFrom(read, { today, reports }), 900) : null;
+  return read ? withinStrip(stripFrom(read, { today, reports, calendar: calendar ?? undefined }), 900) : null;
 }
 
 /**
@@ -248,6 +257,10 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const proposalsRead = user && !day ? proposalsBrief(user.uid) : Promise.resolve(null);
   // The thesis strip's reads (the theses and their checks) start now too, beside the briefing's load.
   const stripRead: Promise<StripSource | null> | null = user && !day ? readStripSource(user.uid).catch(() => null) : null;
+  // And the calendar's report days for the strip's companies, as soon as the source is in: the strip needs them only
+  // for companies the briefing has no report day for, which it knows at the end, but reading them then was the last
+  // thing the page waited on (~0.3 s, Nov 13).
+  const stripCalendar = stripRead ? stripRead.then(startStripCalendar).catch(() => ({})) : null;
   // Signed out, the market's top stories and the 10-year and VIX tiles start now, beside the example briefing's own
   // load, instead of after it (they are the same for everyone). Signed in they still start after the briefing: the
   // member's own reads come first, and running these beside them was measured no faster (Nov 12) since the store
@@ -388,7 +401,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   for (const row of levels) shown.add(row.ticker);
 
   const reportDays = Object.fromEntries(positions.flatMap((position) => (position.earnings_date ? [[position.ticker.toUpperCase(), position.earnings_date.slice(0, 10)] as const] : [])));
-  const [proposals, thesis] = await Promise.all([proposalsRead, live ? thesisStripFor(stripRead, reportDays, today) : Promise.resolve(null)]);
+  const [proposals, thesis] = await Promise.all([proposalsRead, live ? thesisStripFor(stripRead, stripCalendar, reportDays, today) : Promise.resolve(null)]);
 
   // The agent's desk: each of the day's findings with what the agent did or proposes (lib/briefing-desk.ts). Today's
   // briefing only; signed out it is the example's, which has no proposals, so its findings can only be "checked".

@@ -267,10 +267,12 @@ async function getPipelineNewsFeed(
   return [];
 }
 
+// Tagged so a headline write drops it (lib/revalidate-targets.ts, kind "news"): the signed-in briefing reads it and is
+// no longer refreshed by its address.
 const getNewsFeedCached = unstable_cache(
   getNewsFeedUncached,
   ["news-feed-v2"],
-  { revalidate: 120 },
+  { revalidate: 120, tags: ["news-feed"] },
 );
 
 export async function getNewsFeed(

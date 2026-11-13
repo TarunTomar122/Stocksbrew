@@ -45,7 +45,8 @@ async function readQuotes(key: string): Promise<Record<string, unknown>> {
   return out;
 }
 
-const readQuotesCached = sharedCache(readQuotes, ["extended-quotes-v1"], { revalidate: 60 });
+// Dropped by a price write (the extended-hours group sends "prices"; lib/revalidate-targets.ts).
+const readQuotesCached = sharedCache(readQuotes, ["extended-quotes-v1"], { revalidate: 60, tags: ["extended-quotes"] });
 
 /**
  * Each ticker's stored quote (fresh or not: the caller decides with `isExtendedLive`). Empty when the read fails, or,

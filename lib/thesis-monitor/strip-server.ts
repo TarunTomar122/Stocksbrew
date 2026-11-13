@@ -45,8 +45,28 @@ export type StripOptions = {
   today: string;
   /** Report days the page already has (the briefing's positions): no calendar read for those. */
   reports?: Readonly<Record<string, string>>;
+  /**
+   * The calendar's report days for every company the source names (startStripCalendar), started early by a page
+   * that knows its own report days only later. Only the companies `reports` has no day for are taken from it, so the
+   * strip is the same as when they are read at the end; it only stops waiting on reads that already ran.
+   */
+  calendar?: Promise<Record<string, string>>;
   ms?: number;
 };
+
+/** Every company the strip can name. */
+function stripTickers(source: StripSource): string[] {
+  return source.kind === "thesis" ? [...new Set(source.list.flatMap((entry) => entry.tickers))] : source.records.map((entry) => entry.ticker);
+}
+
+/**
+ * The calendar's next report day for every company the source names, read now (stripFrom's `calendar`): the page
+ * starts it as soon as the source is in, beside its own loads, instead of after them. Never rejects.
+ */
+export function startStripCalendar(source: StripSource | null): Promise<Record<string, string>> {
+  if (!source) return Promise.resolve({});
+  return calendarReports(stripTickers(source)).catch(() => ({}));
+}
 
 /** What the strip is made from, read from the store: the checked theses, else the measurable reasons' records. */
 export type StripSource =
@@ -84,22 +104,24 @@ export async function readStripSource(uid: string): Promise<StripSource | null> 
 /** The strip from what was read, with each company's next report (the page's own days, else the cached calendar). */
 export async function stripFrom(source: StripSource | null, options: StripOptions): Promise<ThesisStripData | null> {
   if (!source) return null;
-  if (source.kind === "thesis") {
-    const reports = await reportsFor([...new Set(source.list.flatMap((entry) => entry.tickers))], options);
-    return thesisStrip(source.list, reports, options.today);
-  }
-  const reports = await reportsFor(source.records.map((entry) => entry.ticker), options);
-  return reasonsStrip(source.records, reports, options.today);
+  const reports = await reportsFor(stripTickers(source), options);
+  return source.kind === "thesis" ? thesisStrip(source.list, reports, options.today) : reasonsStrip(source.records, reports, options.today);
 }
 
-async function reportsFor(tickers: readonly string[], options: StripOptions): Promise<Record<string, string>> {
+/** Each company's next report day: the page's own (today or later), else the calendar's. Exported for tests. */
+export async function reportsFor(tickers: readonly string[], options: StripOptions): Promise<Record<string, string>> {
   const known = options.reports ?? {};
   const have: Record<string, string> = Object.fromEntries(tickers.flatMap((ticker) => (known[ticker] && known[ticker]! >= options.today ? [[ticker, known[ticker]!] as const] : [])));
   // The page's own report days, and the cached calendar for the companies it has none for, so the earliest report is
   // never missed because the page only knew a later one.
   const missing = tickers.filter((ticker) => !have[ticker]);
   if (missing.length === 0) return have;
-  return { ...((await within(calendarReports(missing), 800)) ?? {}), ...have };
+  const read = options.calendar ? within(options.calendar.then((all) => pick(all, missing)), 800) : within(calendarReports(missing), 800);
+  return { ...((await read) ?? {}), ...have };
+}
+
+function pick(days: Readonly<Record<string, string>>, tickers: readonly string[]): Record<string, string> {
+  return Object.fromEntries(tickers.flatMap((ticker) => (typeof days[ticker] === "string" ? [[ticker, days[ticker]!] as const] : [])));
 }
 
 export async function loadThesisStrip(uid: string, options: StripOptions): Promise<ThesisStripData | null> {

@@ -73,7 +73,8 @@ async function readRecentEventsUncached(since: string, today: string): Promise<R
   return [...byKey.values()].sort((a, b) => b.date.localeCompare(a.date) || a.ticker.localeCompare(b.ticker));
 }
 
-const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v4"], { revalidate: 600 });
+// Dropped by an earnings or price write (lib/revalidate-targets.ts "results" tag).
+const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v4"], { revalidate: 600, tags: ["results"] });
 
 /**
  * Results night is switched on by RESULTS_NIGHT=1 (set in Vercel Production). Without it every loader answers empty,
@@ -173,7 +174,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   return read;
 }
 
-const readResultCached = sharedCache(readResultUncached, ["results-read-v4"], { revalidate: 120 });
+const readResultCached = sharedCache(readResultUncached, ["results-read-v4"], { revalidate: 120, tags: ["results"] });
 
 /** One stock's read for one report, or null. Throws when a store read fails. */
 export function readResult(ticker: string, date: string, today: string = todayET()): Promise<ResultRead | null> {

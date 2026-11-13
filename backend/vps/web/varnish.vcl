@@ -37,6 +37,10 @@ sub vcl_init {
   new web = directors.round_robin();
   web.add_backend(web1);
   web.add_backend(web2);
+  # Signed-in requests: one session, one instance (vcl_recv).
+  new sticky = directors.hash();
+  sticky.add_backend(web1, 1.0);
+  sticky.add_backend(web2, 1.0);
 }
 
 sub vcl_recv {
@@ -45,6 +49,13 @@ sub vcl_recv {
   set req.backend_hint = web.backend();
   # A failed fetch is retried once on the other instance before anyone sees an error.
   if (req.restarts > 0) { set req.backend_hint = web.backend(); }
+  # Signed in: every request of one session goes to the same instance (picked by a hash of the cookie's value), so
+  # what each instance keeps in memory per person (the session check, the briefing build, lib/per-user-cache.ts) is
+  # found again on the next page instead of being worked out on both. Round robin, these were missed half the time.
+  # A failed fetch still goes to the other instance (vcl_backend_fetch).
+  if (req.http.Cookie ~ "(^|;)\s*tikrr_session=[^;]") {
+    set req.backend_hint = sticky.backend(regsub(req.http.Cookie, "^(?:.*;)?\s*tikrr_session=([^;]*).*$", "\1"));
+  }
 
   if (req.method == "BAN" || req.method == "PURGE") {
     if (!(client.ip ~ local_only) || req.http.X-Forwarded-Proto || req.http.X-Forwarded-For ~ ",") {
@@ -136,6 +147,11 @@ sub vcl_pass {
 
 sub vcl_backend_fetch {
   unset bereq.http.X-Varnish-Pass;
+  # The retry after a failed fetch (vcl_backend_error) goes to the other instance. Round robin does that by itself;
+  # a signed-in request was pinned to one instance (vcl_recv), so it is moved here.
+  if (bereq.retries > 0) {
+    if (bereq.backend == web1) { set bereq.backend = web2; } elsif (bereq.backend == web2) { set bereq.backend = web1; }
+  }
   # Pages only: the app decides from the request whether a response may be kept, so it must see the request
   # Varnish will store. (Static files are fetched as they are.)
   if (bereq.http.X-Varnish-Html) { unset bereq.http.Cookie; }

@@ -37,7 +37,9 @@ export function compactSeriesFromRaw(raw: RawDailyDoc): CompactSeries | null {
   };
 }
 
-const getSeriesCached = unstable_cache(readSeries, ["screener-daily-series-v1"], { revalidate: 3 * 3600 });
+// Both series caches carry the "daily-series" tag, which a price write drops (lib/revalidate-targets.ts, kind "prices"):
+// a day's new close shows on the next view rather than up to three hours later.
+const getSeriesCached = unstable_cache(readSeries, ["screener-daily-series-v1"], { revalidate: 3 * 3600, tags: ["daily-series"] });
 
 export type DailySeriesSet = {
   /** Oldest first. Symbols with no stored history are simply absent. */
@@ -81,7 +83,7 @@ async function readRecentSeries(symbol: string): Promise<CompactSeries | null> {
   return full ? lastPoints(full, RECENT_SESSIONS) : null;
 }
 
-const getRecentSeriesCached = unstable_cache(readRecentSeries, ["screener-recent-series-v1"], { revalidate: 3 * 3600 });
+const getRecentSeriesCached = unstable_cache(readRecentSeries, ["screener-recent-series-v1"], { revalidate: 3 * 3600, tags: ["daily-series"] });
 
 /**
  * getDailySeries, cut to each symbol's last RECENT_SESSIONS points, for readers that never look further back.

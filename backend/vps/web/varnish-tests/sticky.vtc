@@ -1,0 +1,65 @@
+varnishtest "Signed in, one session always reaches the same instance; a failed fetch still goes to the other one"
+
+# Two mock instances (run.sh points web1 at s1 and web2 at s2 for a case with an s2). The hash of a session value
+# is fixed (same on Varnish 7.7 and 9.1): "a" lands on web2, "f" on web1. Each response closes its connection, so
+# every request is a new one and the "accept" lines below count them.
+server s1 {
+	# Session f, twice.
+	rxreq
+	expect req.http.Cookie ~ "tikrr_session=f"
+	txresp -hdr "X-From: s1" -hdr "Connection: close"
+	accept
+	rxreq
+	expect req.http.Cookie ~ "tikrr_session=f"
+	txresp -hdr "X-From: s1" -hdr "Connection: close"
+	# The retry of session a's failed fetch (s2 below drops it).
+	accept
+	rxreq
+	expect req.url == "/agent"
+	expect req.http.Cookie == "tikrr_session=a"
+	txresp -hdr "X-From: s1" -hdr "Connection: close"
+} -start
+
+server s2 {
+	# Session a, three times: alone, among analytics cookies, and split over two Cookie lines.
+	rxreq
+	expect req.http.Cookie == "tikrr_session=a"
+	txresp -hdr "X-From: s2" -hdr "Connection: close"
+	accept
+	rxreq
+	expect req.http.Cookie == "_ga=GA1.1; tikrr_session=a; _gid=2"
+	txresp -hdr "X-From: s2" -hdr "Connection: close"
+	accept
+	rxreq
+	expect req.http.Cookie == "_ga=GA1.1; tikrr_session=a"
+	txresp -hdr "X-From: s2" -hdr "Connection: close"
+	# The instance is restarting: the request is read and the connection drops with no answer.
+	accept
+	rxreq
+	expect req.url == "/agent"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/briefing" -hdr "Cookie: tikrr_session=a"
+	rxresp
+	expect resp.http.X-From == "s2"
+	txreq -url "/stock/NVDA" -hdr "Cookie: _ga=GA1.1; tikrr_session=a; _gid=2"
+	rxresp
+	expect resp.http.X-From == "s2"
+	txreq -url "/briefing?_rsc=1" -hdr "Cookie: _ga=GA1.1" -hdr "Cookie: tikrr_session=a"
+	rxresp
+	expect resp.http.X-From == "s2"
+	txreq -url "/briefing" -hdr "Cookie: tikrr_session=f"
+	rxresp
+	expect resp.http.X-From == "s1"
+	txreq -url "/portfolio" -hdr "Cookie: tikrr_session=f"
+	rxresp
+	expect resp.http.X-From == "s1"
+	# Pinned to the instance that drops the request: answered by the other one.
+	txreq -url "/agent" -hdr "Cookie: tikrr_session=a"
+	rxresp
+	expect resp.status == 200
+	expect resp.http.X-From == "s1"
+} -run
