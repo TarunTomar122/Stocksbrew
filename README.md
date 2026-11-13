@@ -6,22 +6,15 @@ This repository is the whole product: the Next.js web app, the document store it
 
 ## Screenshots
 
+![An agent that shows its work: one plain-English request followed from what it watched to what happened next](docs/screenshots/agent-loop.png)
+
 | | |
 |---|---|
-| ![Landing page](docs/screenshots/landing.png) Landing | ![Briefing](docs/screenshots/briefing.png) Briefing |
-| ![Stock page for NVDA](docs/screenshots/stock-nvda.png) Stock page | ![Explore](docs/screenshots/explore.png) Explore |
-| ![Screener](docs/screenshots/screener.png) Screener | ![Calendar](docs/screenshots/calendar.png) Calendar |
-| ![Follow: funds, Congress and insiders](docs/screenshots/follow.png) Follow | ![Strategies](docs/screenshots/strategies.png) Strategies |
-| ![Agents](docs/screenshots/agents.png) Agents | ![Portfolio (signed-out example)](docs/screenshots/watchlist.png) Portfolio, signed-out example |
+| ![Find stocks by saying it: a sentence turned into the screener's filters and sort](docs/screenshots/plain-english-screener.png) | ![Every US stock on one page: the call, what would change it and the numbers behind it, on desktop and phone](docs/screenshots/stock-page.png) |
 
-On a phone:
+![The whole market at a glance: sectors sized by how far they moved, with the stocks that moved them](docs/screenshots/market-map.png)
 
-<p>
-  <img src="docs/screenshots/stock-nvda-phone.png" alt="Stock page on a phone" width="260">
-  <img src="docs/screenshots/briefing-phone.png" alt="Briefing on a phone" width="260">
-</p>
-
-All screenshots are of the signed-out app on live data, November 2026.
+All four are the signed-out app on live data, November 2026.
 
 ## What it does
 
