@@ -265,6 +265,40 @@ class PricesOnlyStepTest(unittest.TestCase):
         sync.assert_not_called()
         facts.assert_called_once()
 
+    def _wanted(self, *argv: str, covered: list[object]) -> list[str]:
+        series = {"SPY": _series("SPY", ["2026-11-09", "2026-11-10"], [1.0, 1.1])}
+        patch_covered = mock.patch("backend.agentdata.feeds_common.load_universe", return_value=covered)
+        with mock.patch.object(backtest_strategies.DocStore, "from_env", return_value=mock.Mock()), mock.patch.object(
+            backtest_strategies, "load_instruments", return_value=[{"ticker": "AAPL"}]
+        ), mock.patch.object(backtest_strategies.prices, "load_many", return_value=series) as load_many, mock.patch.object(
+            backtest_strategies, "sync_prices"
+        ), mock.patch.object(backtest_strategies, "load_facts", side_effect=RuntimeError("stop")), patch_covered, redirect_stdout(io.StringIO()):
+            try:
+                backtest_strategies.main(list(argv))
+            except RuntimeError:
+                pass
+        return load_many.call_args.args[0]
+
+    def test_prices_only_refreshes_every_covered_stock(self) -> None:
+        covered = [mock.Mock(ticker="CBRS"), mock.Mock(ticker="AAPL"), mock.Mock(ticker="NBIS")]
+        wanted = self._wanted("--prices-only", covered=covered)
+        self.assertIn("CBRS", wanted)
+        self.assertIn("NBIS", wanted)
+        self.assertEqual(wanted.count("AAPL"), 1)
+
+    def test_the_strategies_run_keeps_its_own_list(self) -> None:
+        covered = [mock.Mock(ticker="CBRS")]
+        wanted = self._wanted("--no-price-write", covered=covered)
+        self.assertNotIn("CBRS", wanted)
+        self.assertIn("AAPL", wanted)
+
+    def test_a_failed_coverage_read_still_refreshes_the_strategies_list(self) -> None:
+        def broken(*_args: object) -> list[object]:
+            raise RuntimeError("store down")
+
+        with mock.patch("backend.agentdata.feeds_common.load_universe", side_effect=broken), redirect_stdout(io.StringIO()):
+            self.assertEqual(backtest_strategies.covered_tickers(mock.Mock()), [])
+
     def test_the_two_flags_together_are_refused(self) -> None:
         with redirect_stdout(io.StringIO()), mock.patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
             backtest_strategies.main(["--prices-only", "--no-price-write"])

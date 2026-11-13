@@ -552,6 +552,18 @@ def popular_fund_tickers() -> list[str]:
     return [str(row.get("ticker") or "").strip().upper() for row in payload.get("funds") or [] if str(row.get("ticker") or "").strip()]
 
 
+def covered_tickers(store: DocStore) -> list[str]:
+    """Every active US stock in ``tm_instruments`` (the stock pages' coverage); empty if that read fails, so the
+    price step still refreshes the strategies' own list."""
+    from .feeds_common import load_universe
+
+    try:
+        return [instrument.ticker for instrument in load_universe(store)]
+    except Exception as exc:  # noqa: BLE001 - a coverage read must never stop the price job
+        log(f"prices: coverage list unavailable ({type(exc).__name__}); refreshing the strategies' list only")
+        return []
+
+
 def load_instruments() -> list[dict[str, Any]]:
     payload = json.loads(_UNIVERSE_PATH.read_text())
     market = payload["markets"]["US"]
@@ -1518,6 +1530,11 @@ def main(argv: list[str] | None = None) -> int:
     # The popular funds ride along so their pages (1-year return, chart) stay current; the
     # strategies never read them (build_groups below only takes covered stocks).
     wanted = list(dict.fromkeys([BENCHMARK] + sorted(FUND_NAMES) + tickers + popular_fund_tickers()))
+    if args.prices_only:
+        # The price step keeps every active covered stock current, not only the strategies' list: stocks added
+        # after that list (CBRS, CRWV, NBIS...) were backfilled once and then went stale (Nov 13: 197 of 844
+        # histories stopped at Nov 9). The strategies run below still reads only its own instruments.
+        wanted = list(dict.fromkeys(wanted + covered_tickers(store)))
     log(f"prices: {len(wanted)} symbols")
     fetch_started = time.monotonic()
     series = prices.load_many(wanted, log=False)
