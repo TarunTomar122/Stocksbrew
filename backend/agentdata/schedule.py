@@ -112,6 +112,8 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         ("thesis checks", ["node:scripts/run-thesis-checks.ts"]),
         # Serving docs for tonight's prices, series, calls and reports, last so every writer above has run.
         ("serving docs", ["node:scripts/run-serve-docs.ts", "--budget-minutes=20"]),
+        # Plausibility of the figures stock pages show (backend/agentdata/data_quality.py), into tm_data_quality.
+        ("data quality", ["backend.agentdata.data_quality"]),
     ],
     "weekly": [
         ("13F funds", ["backend.agentdata.funds_13f"]),
@@ -167,6 +169,7 @@ TIMEOUT_SECONDS = {"frequent": 20 * 60, "hourly": 40 * 60, "after_close": 90 * 6
 # and leaving everything after it stale. Each limit is several times the step's usual run on
 # the VPS (in brackets, Nov 2026), and wins over TIMEOUT_SECONDS.
 STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
+    ("after_close", "data quality"): 5 * 60,
     # [Before Nov 11: 65-90+ min, ~15-20 s per stored series.] Now: fetch ~2 min, then ~550
     # series written in batches; a timeout keeps what was committed and the next run picks up
     # the rest.

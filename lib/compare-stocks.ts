@@ -1,4 +1,5 @@
 import { getStockSummary, getStockIntelPro, getStockFacts } from "@/lib/stock";
+import { currentPe } from "@/lib/stock-header-facts";
 import { getLatestTechnicals } from "@/lib/technicals";
 
 export type CompareStock = {
@@ -89,8 +90,10 @@ export async function compareStocks(
       price: toNumber(finalSummary.price),
       day_change_pct: toNumber(finalSummary.day_change_pct),
       day_change_abs: toNumber(finalSummary.day_change_abs),
-      market_cap: toNumber(finalSummary.fundamentals?.market_cap),
-      pe_ttm: toNumber(finalSummary.fundamentals?.pe_ttm),
+      // The weekly facts before Yahoo's block, which is written once when a stock is added; a US P/E from today's
+      // price (lib/stock-header-facts.ts currentPe), the same one the stock page shows.
+      market_cap: toNumber(facts?.quick_stats?.market_cap ?? finalSummary.fundamentals?.market_cap),
+      pe_ttm: market === "US" ? currentPe(facts, toNumber(finalSummary.price)) : toNumber(finalSummary.fundamentals?.pe_ttm),
       dividend_yield: toNumber(finalSummary.fundamentals?.dividend_yield),
       week_52_high: toNumber(finalSummary.fundamentals?.week_52_high),
       week_52_low: toNumber(finalSummary.fundamentals?.week_52_low),

@@ -30,6 +30,7 @@ import { isTrumpMentionRecent } from "@/lib/trump-logic-format";
 import { getThematicScreens } from "@/lib/screens";
 import { listMarketDailyEditions } from "@/lib/market-daily";
 import { getNewsForTicker } from "@/lib/news";
+import { currentPe } from "@/lib/stock-header-facts";
 import { getLatestTechnicals } from "@/lib/technicals";
 import { getLatestEarningsIntelByTicker } from "@/lib/earnings-intel";
 import { getNextEarningsCalendarEvent } from "@/lib/earnings";
@@ -249,8 +250,10 @@ export async function getStockAgentIntelligence(input: {
       momentum: nullableNumber(intelPro.pillars?.momentum?.score),
     } : null,
     fundamentals: {
-      market_cap: nullableNumber(summary?.fundamentals?.market_cap ?? facts?.quick_stats?.market_cap),
-      pe_ttm: nullableNumber(summary?.fundamentals?.pe_ttm ?? facts?.quick_stats?.pe_ttm),
+      // The weekly facts before Yahoo's block on the price doc, which is written once when a stock is added; the P/E
+      // from today's price (lib/stock-header-facts.ts currentPe), the same one the stock page shows.
+      market_cap: nullableNumber(facts?.quick_stats?.market_cap ?? summary?.fundamentals?.market_cap),
+      pe_ttm: market === "US" ? currentPe(facts, summary?.price) : nullableNumber(summary?.fundamentals?.pe_ttm ?? facts?.quick_stats?.pe_ttm),
       dividend_yield: nullableNumber(summary?.fundamentals?.dividend_yield),
       week_52_high: nullableNumber(summary?.fundamentals?.week_52_high),
       week_52_low: nullableNumber(summary?.fundamentals?.week_52_low),

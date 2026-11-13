@@ -13,6 +13,7 @@ import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
 
+from backend.facts_quality import check_revenue_growth, convert_to_usd, parse_units
 from backend.providers.yfinance_provider import yahoo_symbol_for
 from backend.screener_scraper import fetch_screener_quote
 from backend.tickertape_scraper import fetch_tickertape_quote
@@ -479,11 +480,23 @@ def _parse_nasdaq_institutions(ticker: str) -> dict[str, Any]:
     }
 
 
+def _page_units(soup: BeautifulSoup) -> tuple[str | None, float]:
+    """The tables' currency and scale ("Financials in millions TWD."); millions of an unknown currency if unsaid."""
+    currency, multiplier = parse_units(soup.get_text(" ", strip=True))
+    return currency, multiplier or 1_000_000.0
+
+
 def _parse_stockanalysis_financials(ticker: str) -> dict[str, Any]:
     soup = _stockanalysis_soup(ticker, "financials/")
     profit_table = _table_for_heading(soup, "Revenue & Profits")
     if profit_table is None:
         return {}
+    currency, multiplier = _page_units(soup)
+
+    def amount(value: str | None) -> float | None:
+        parsed = _parse_number(value)
+        return round(parsed * multiplier, 4) if parsed is not None else None
+
     profit_rows = _rows_by_label(profit_table)
     cash_rows = _rows_by_label(_table_for_heading(soup, "Cash & Debt"))
     cashflow_rows = _rows_by_label(_table_for_heading(soup, "Cash Flow & CapEx"))
@@ -507,12 +520,12 @@ def _parse_stockanalysis_financials(ticker: str) -> dict[str, Any]:
     for index, period in enumerate(fiscal_years[:6]):
         point = {
             "period": period,
-            "revenue": _value_at(revenue, index, _parse_millions),
-            "gross_profit": _value_at(gross_profit, index, _parse_millions),
-            "operating_income": _value_at(operating_income, index, _parse_millions),
-            "net_income": _value_at(net_income, index, _parse_millions),
+            "revenue": _value_at(revenue, index, amount),
+            "gross_profit": _value_at(gross_profit, index, amount),
+            "operating_income": _value_at(operating_income, index, amount),
+            "net_income": _value_at(net_income, index, amount),
             "eps_diluted": _value_at(eps, index, _parse_number),
-            "free_cash_flow": _value_at(free_cash_flow, index, _parse_millions),
+            "free_cash_flow": _value_at(free_cash_flow, index, amount),
             "gross_margin_pct": _value_at(gross_margin, index, _parse_percent),
             "operating_margin_pct": _value_at(operating_margin, index, _parse_percent),
             "profit_margin_pct": _value_at(profit_margin, index, _parse_percent),
@@ -531,13 +544,14 @@ def _parse_stockanalysis_financials(ticker: str) -> dict[str, Any]:
             "net_income": latest.get("net_income"),
             "eps_diluted": latest.get("eps_diluted"),
             "free_cash_flow": latest.get("free_cash_flow"),
+            "currency": currency,
             "source": "stockanalysis",
         },
         "financial_history": history,
         "balance": {
-            "cash_and_investments": _value_at(_row_values(cash_rows, "Cash & Investments"), 0, _parse_millions),
-            "total_debt": _value_at(_row_values(cash_rows, "Total Debt"), 0, _parse_millions),
-            "net_cash": _value_at(_row_values(cash_rows, "Net Cash (Debt)"), 0, _parse_millions),
+            "cash_and_investments": _value_at(_row_values(cash_rows, "Cash & Investments"), 0, amount),
+            "total_debt": _value_at(_row_values(cash_rows, "Total Debt"), 0, amount),
+            "net_cash": _value_at(_row_values(cash_rows, "Net Cash (Debt)"), 0, amount),
         },
         "valuation": {
             "forward_pe": _value_at(_row_values(valuation_rows, "Forward PE"), 0, _parse_number),
@@ -545,6 +559,89 @@ def _parse_stockanalysis_financials(ticker: str) -> dict[str, Any]:
             "price_to_fcf": _value_at(_row_values(valuation_rows, "P/FCF Ratio"), 0, _parse_number),
         },
     }
+
+
+def _period_end(label: str) -> str | None:
+    """ISO day from a "Period Ending" cell ("Sep '26 Sep 30, 2026")."""
+    match = re.search(r"([A-Z][a-z]{2}) (\d{1,2}), (\d{4})$", label.strip())
+    if not match:
+        return None
+    try:
+        return datetime.strptime(" ".join(match.groups()), "%b %d %Y").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _parse_stockanalysis_quarters(ticker: str) -> dict[str, Any]:
+    """Quarterly sales, newest first, in the same currency and scale rules as the yearly tables.
+
+    Only for checking the four-quarter growth (backend/facts_quality.py); not stored.
+    """
+    soup = _stockanalysis_soup(ticker, "financials/?p=quarterly")
+    table = _table_for_heading(soup, "Revenue & Profits")
+    if table is None:
+        return {"quarters": []}
+    currency, multiplier = _page_units(soup)
+    matrix = _table_matrix(table)
+    if not matrix or matrix[0][0] != "Fiscal Quarter":
+        return {"quarters": []}
+    periods = matrix[0][1:]
+    ends = next((row[1:] for row in matrix if row and row[0] == "Period Ending"), [])
+    revenue = _row_values(_rows_by_label(table), "Revenue")
+    quarters = []
+    for index, period in enumerate(periods[:12]):
+        value = _value_at(revenue, index, _parse_number)
+        quarters.append({
+            "period": period,
+            "end": _period_end(ends[index]) if index < len(ends) else None,
+            "revenue": round(value * multiplier, 4) if value is not None else None,
+        })
+    return {"quarters": quarters, "currency": currency}
+
+
+_FX_CACHE: dict[str, float | None] = {}
+
+
+def _fx_to_usd(currency: str) -> float | None:
+    """Dollars per unit of ``currency`` from Yahoo's last daily close, once per run, or None.
+
+    No currency is worth more than a few dollars (the Kuwaiti dinar is about 3.3), so anything outside (0, 10) is a
+    bad reply, never a rate.
+    """
+    if currency in _FX_CACHE:
+        return _FX_CACHE[currency]
+    try:
+        history = yf.Ticker(f"{currency}USD=X").history(period="5d", interval="1d")
+        closes = history["Close"].dropna() if history is not None and not history.empty else []
+        rate = float(closes.iloc[-1]) if len(closes) else None
+    except Exception:
+        return None  # not cached: the next stock tries again
+    usable = rate if rate is not None and 0 < rate < 10 else None
+    _FX_CACHE[currency] = usable
+    return usable
+
+
+def _check_financials(doc: dict[str, Any], quarters: dict[str, Any] | None) -> None:
+    """Hold the stored figures to the source's own other tables (backend/facts_quality.py), in place."""
+    financials = doc.get("financials")
+    if not isinstance(financials, dict) or financials.get("source") != "stockanalysis":
+        return
+    withheld: list[dict[str, Any]] = doc.setdefault("withheld", [])
+    rows = quarters.get("quarters") if isinstance(quarters, dict) else None
+    # A quarterly table in another currency than the yearly one cannot be added up against it.
+    if rows is not None and quarters.get("currency") != financials.get("currency"):
+        rows = None
+    growth = check_revenue_growth(financials, doc.get("financial_history"), rows)
+    financials["revenue_growth_yoy_pct"] = growth["value"]
+    financials["revenue_growth_basis"] = growth["basis"]
+    if growth["withheld"]:
+        withheld.append(growth["withheld"])
+
+    currency = financials.get("currency")
+    if currency and currency != "USD":
+        withheld.extend(
+            convert_to_usd(doc, currency, _fx_to_usd(currency), as_of=datetime.now(timezone.utc).date().isoformat())
+        )
 
 
 def _history_returns(instrument: dict[str, Any]) -> dict[str, float | None]:
@@ -933,6 +1030,7 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
     business_segments: dict[str, Any] | None = None
     geographic_mix: dict[str, Any] | None = None
     analyst_trend: dict[str, Any] = {}
+    quarters: dict[str, Any] | None = None
     used_yahoo_depth = False
 
     for label, fn in (
@@ -940,6 +1038,7 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
         ("nasdaq_analyst", lambda: _parse_nasdaq_analyst(ticker)),
         ("nasdaq_institutions", lambda: _parse_nasdaq_institutions(ticker)),
         ("stockanalysis_financials", lambda: _parse_stockanalysis_financials(ticker)),
+        ("stockanalysis_quarters", lambda: _parse_stockanalysis_quarters(ticker)),
         ("stockanalysis_statistics", lambda: _parse_stockanalysis_statistics(ticker)),
         ("stockanalysis_dividends", lambda: _parse_stockanalysis_dividends(ticker)),
         ("stockanalysis_metrics", lambda: _parse_stockanalysis_metrics(ticker)),
@@ -961,6 +1060,8 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
             financial_history = result.get("financial_history") or []
             balance = result.get("balance") or {}
             valuation.update(result.get("valuation") or {})
+        elif label == "stockanalysis_quarters":
+            quarters = result
         elif label == "stockanalysis_statistics":
             valuation.update({key: value for key, value in (result.get("valuation") or {}).items() if value is not None})
             quality = result.get("quality") or {}
@@ -1006,7 +1107,7 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
             "source": "finviz",
         }
 
-    return {
+    doc = {
         "instrument_id": instrument["instrument_id"],
         "market": market,
         "ticker": ticker,
@@ -1034,4 +1135,10 @@ def fetch_stock_facts(instrument: dict[str, Any]) -> dict[str, Any]:
             ],
             "errors": errors,
         },
+        # Figures held back or corrected by the checks below, with the source's value and why. For us only:
+        # readers strip it (backend/facts_quality.py guard_facts, lib/facts-guard.ts). Always written, so a
+        # figure that checks out again on the next run drops its old record.
+        "withheld": [],
     }
+    _check_financials(doc, quarters)
+    return doc

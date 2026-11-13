@@ -6,6 +6,7 @@ import type { ScreenerRow } from "@/lib/screener-shared";
 import { getDailySeries } from "@/lib/screener-series";
 import { sharedCache } from "@/lib/shared-cache";
 import { getStockFacts, type StockFacts } from "@/lib/stock";
+import { livePe } from "@/lib/stock-header-facts";
 import type { CallWord } from "@/lib/stock-chart";
 import { getStockCallHistory, getStockEarningsDates } from "@/lib/stock-events";
 import { callChanges } from "@/lib/stock-chart";
@@ -76,6 +77,7 @@ export function callEvidenceInput(parts: {
     .filter((event) => /^\d{4}-\d{2}-\d{2}/.test(event.event_date) && event.event_date.slice(0, 10) >= parts.today)
     .sort((a, b) => a.event_date.localeCompare(b.event_date))[0];
   const upcoming = parts.next && parts.next.event_date.slice(0, 10) >= parts.today ? parts.next : fromCalendar;
+  const livePeNow = livePe(facts, parts.price);
   return {
     ticker,
     call: parts.call,
@@ -94,8 +96,16 @@ export function callEvidenceInput(parts: {
     series: parts.series?.[ticker] ?? null,
     benchmark: parts.series?.SPY ?? null,
     priceSource: parts.priceSource ?? null,
+    // Today's P/E from today's price and the facts' four-quarter EPS when those are in dollars (lib/stock-header-facts.ts
+    // livePe; none for a loss), else the screen's; the median is the screen's daily P/E record.
     valuation: row
-      ? { pe: row.pe ?? null, medianPe: row.pe_hist_median ?? null, from: row.pe_hist_from ?? null, to: row.pe_hist_to ?? null, days: row.pe_hist_days ?? null }
+      ? {
+          pe: livePeNow === undefined ? row.pe ?? null : livePeNow,
+          medianPe: row.pe_hist_median ?? null,
+          from: row.pe_hist_from ?? null,
+          to: row.pe_hist_to ?? null,
+          days: row.pe_hist_days ?? null,
+        }
       : null,
     dividend: facts?.dividends
       ? { annual: facts.dividends.annual_dividend ?? null, price: parts.price, growthYears: facts.dividends.growth_years ?? null, capturedAt: facts.captured_at ?? null }

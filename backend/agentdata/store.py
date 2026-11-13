@@ -74,6 +74,8 @@ WRITABLE_PREFIXES = (
     "tm_extended_quotes",
     # The stock page's serving docs (scripts/run-serve-docs.ts builds them; writers stamp parts stale, backend/serve_docs.py).
     "tm_serve_",
+    # The nightly data-quality counts (data_quality.py) for the admin System tab.
+    "tm_data_quality",
 )
 
 

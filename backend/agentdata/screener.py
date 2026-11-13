@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from backend.call_reason import compose_company_reason, peer_label
+from backend.facts_quality import guard_facts
 
 from .store import DocStore
 
@@ -507,6 +508,25 @@ def price_fields(series: list[tuple[str, float]], quote_price: float | None, quo
     return out
 
 
+def live_pe(facts: dict[str, Any], price: float | None) -> float | None:
+    """Today's price over the facts' four-quarter diluted EPS, when the facts confirm it is in dollars.
+
+    0.0 for a four-quarter loss (no P/E, in any currency), None when the facts cannot say. lib/stock-header-facts.ts
+    livePe is the page's twin.
+    """
+    financials = facts.get("financials") if isinstance(facts.get("financials"), dict) else {}
+    if financials.get("fiscal_year") != "TTM":
+        return None
+    eps = num(financials.get("eps_diluted"))
+    if eps is not None and eps <= 0:
+        return 0.0
+    if financials.get("currency") != "USD" or financials.get("reported_currency"):
+        return None
+    if eps is None or price is None or price <= 0:
+        return None
+    return price / eps
+
+
 def build_row(
     *,
     instrument: dict[str, Any],
@@ -524,7 +544,8 @@ def build_row(
     if not ticker:
         return None
     latest = latest or {}
-    facts = facts or {}
+    # The reader's checks (backend/facts_quality.py): no figure the doc's own tables rule out, no withheld map.
+    facts = guard_facts(facts) or {}
     technicals = technicals or {}
     quote = latest.get("quote") if isinstance(latest.get("quote"), dict) else {}
     fundamentals = latest.get("fundamentals") if isinstance(latest.get("fundamentals"), dict) else {}
@@ -558,12 +579,19 @@ def build_row(
         put(row, "day_pct", pct_change(series[-1][1], series[-2][1]))
 
     # Size and valuation
+    # Yahoo's `fundamentals` block on tm_latest_prices is written once, when a stock is added, and never refreshed
+    # (the price jobs fetch quotes only), so the weekly facts (Finviz) come first and Yahoo's block is the fallback.
     quick = facts.get("quick_stats") if isinstance(facts.get("quick_stats"), dict) else {}
-    market_cap = num(fundamentals.get("market_cap")) or num(quick.get("market_cap"))
+    market_cap = num(quick.get("market_cap")) or num(fundamentals.get("market_cap"))
     put(row, "market_cap", market_cap, 0)
     put(row, "cap_tier", cap_tier(market_cap))
     valuation = facts.get("valuation") if isinstance(facts.get("valuation"), dict) else {}
-    pe = num(fundamentals.get("pe_ttm")) or num(quick.get("pe_ttm"))
+    # P/E: today's price over the facts' four-quarter EPS, else the weekly one; never Yahoo's frozen block.
+    pe = live_pe(facts, price)
+    if pe is None:
+        pe = num(quick.get("pe_ttm"))
+    elif pe <= 0:
+        pe = None
     put(row, "pe", pe if pe and pe > 0 else None)
     for key, source in (("fwd_pe", "forward_pe"), ("ps", "price_to_sales"), ("p_fcf", "price_to_fcf"), ("ev_ebitda", "ev_to_ebitda")):
         value = num(valuation.get(source))

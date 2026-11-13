@@ -816,6 +816,9 @@ export async function StockPageStream({ params }: Props) {
       annualDividend: stockFacts?.dividends?.annual_dividend ?? stock.fundamentals?.annual_dividend ?? null,
       dayLow: fin(stock.day_low) ? stock.day_low : null,
       dayHigh: fin(stock.day_high) ? stock.day_high : null,
+      // A US stock's P/E from today's price and the facts' four-quarter EPS, not Yahoo's block from when it was added.
+      market,
+      facts: stockFacts,
     }),
     // The scorecard (pillars, overall score, sector comparisons) is part of the full read, so an uncovered stock
     // sends null and none of it reaches the browser.

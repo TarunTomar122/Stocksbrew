@@ -9,6 +9,7 @@ import {
   type LatestPriceCore,
 } from "@/lib/firestore";
 import { getAiUniverse, getInstrument } from "@/lib/firestore";
+import { guardFacts } from "@/lib/facts-guard";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
@@ -393,7 +394,7 @@ export async function getStockPageDocBundle(
       : null;
 
   return {
-    facts: pick<StockFacts>(refMap.facts),
+    facts: guardFacts(pick<StockFacts>(refMap.facts)),
     technicals: pick<StockTechnicals>(refMap.technicals),
     onDemandJob: pick<OnDemandNewsJobDoc>(refMap.onDemandJob),
     earningsIntel: pick<EarningsIntelDoc>(refMap.earningsIntel),
@@ -485,7 +486,7 @@ export function resolveStockPageViewSections(
     business_questions: view?.business_questions ?? null,
     instrument_view: view?.instrument_view ?? null,
     intel_pro: view?.intel_pro ?? null,
-    facts: view?.facts ?? null,
+    facts: guardFacts(view?.facts ?? null),
     technicals: view?.technicals ?? null,
     earnings_intel: view?.earnings_intel ?? null,
     pre_earnings: view?.pre_earnings ?? null,
@@ -560,10 +561,21 @@ export type StockFacts = {
     fiscal_year?: string | null;
     revenue?: number | null;
     revenue_growth_yoy_pct?: number | null;
+    /**
+     * How the facts job checked the growth (backend/facts_quality.py): "quarters", "fiscal_years", "withheld", or
+     * null when there was none. Absent on a doc written before the checks; lib/facts-guard.ts checks those itself.
+     */
+    revenue_growth_basis?: string | null;
     gross_profit?: number | null;
     operating_income?: number | null;
     net_income?: number | null;
     eps_diluted?: number | null;
+    /** The amounts' currency: "USD", or null when they were in another currency and could not be converted. */
+    currency?: string | null;
+    /** A foreign filer's own currency, when the amounts were converted from it (at `fx_to_usd`). */
+    reported_currency?: string | null;
+    fx_to_usd?: number | null;
+    fx_as_of?: string | null;
     source?: string;
   };
   financial_history?: Array<{
@@ -646,6 +658,8 @@ export type StockFacts = {
     sources?: string[];
     errors?: string[];
   };
+  /** Figures the facts job held back or corrected, with why. For us only: lib/facts-guard.ts strips it on read. */
+  withheld?: Array<{ field?: string; value?: unknown; rule?: string; action?: string; reason?: string }>;
 };
 
 export type StockRevenueMix = {
@@ -676,7 +690,7 @@ export async function getStockFacts(
     .collection("tm_stock_facts")
     .doc(instrumentId)
     .get();
-  return doc.exists ? (doc.data() as StockFacts) : null;
+  return doc.exists ? guardFacts(doc.data() as StockFacts) : null;
 }
 
 // React's request cache only exists in the server-components build; elsewhere (tests, scripts) read each time.

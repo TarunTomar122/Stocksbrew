@@ -1,6 +1,8 @@
 import { unstable_cache } from "next/cache";
 
+import { guardFacts } from "@/lib/facts-guard";
 import { adminFirestore } from "@/lib/firebase-admin";
+import type { StockFacts as StockFactsDoc } from "@/lib/stock";
 
 import { fiscalQuarter, type ConditionInputs, type MetricValue, type ReportRef } from "./conditions";
 import { loadStockFacts, tickerFromId } from "./data";
@@ -132,9 +134,21 @@ async function readRaw(instrumentId: string, ticker: string, today: string): Pro
   const [factsSnap, historySnap] = await adminFirestore.getAll(
     adminFirestore.collection("tm_stock_facts").doc(instrumentId),
     adminFirestore.collection("tm_earnings_history").doc(key),
-    { fieldMask: ["financials", "financial_depth_updated_at", "captured_at", "updated_at", "reports"] },
+    // The fiscal years, market value and price-to-sales are read only for the reader's checks (lib/facts-guard.ts).
+    {
+      fieldMask: [
+        "financials",
+        "financial_history",
+        "quick_stats.market_cap",
+        "valuation.price_to_sales",
+        "financial_depth_updated_at",
+        "captured_at",
+        "updated_at",
+        "reports",
+      ],
+    },
   );
-  const facts = factsSnap?.exists ? ((factsSnap.data() ?? null) as Record<string, unknown> | null) : null;
+  const facts = factsSnap?.exists ? ((guardFacts(factsSnap.data() as StockFactsDoc) ?? null) as Record<string, unknown> | null) : null;
   const reports = historySnap?.exists ? ((historySnap.data() as Record<string, unknown> | undefined)?.reports as unknown[] | undefined) ?? null : null;
   const report = newestReport(reports, today);
   let event: Record<string, unknown> | null = null;

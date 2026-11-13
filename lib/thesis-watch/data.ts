@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { parseHistoryDoc } from "@/lib/dividend-plan";
 import { latestReportFor } from "@/lib/earnings-day";
 import { earningsDayHref } from "@/lib/earnings-day-shared";
+import { guardFacts } from "@/lib/facts-guard";
 import { isBalanceSheetFinancial } from "@/lib/financial-company";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { shortCompanyName } from "@/lib/plain-copy";
@@ -12,6 +13,7 @@ import type { ScreenerRow } from "@/lib/screener-shared";
 import { getRecentMoves } from "@/lib/seo/family-data";
 import { moveHref } from "@/lib/seo/families";
 import { getStockCallHistory } from "@/lib/stock-events";
+import type { StockFacts as StockFactsDoc } from "@/lib/stock";
 import { getStockOwnership } from "@/lib/stock-ownership";
 
 import { THRESHOLDS } from "./rules";
@@ -76,7 +78,8 @@ function yearsOf(raw: unknown): YearFigures[] {
 async function readStockFactsDoc(instrumentId: string): Promise<{ years: YearFigures[]; revenueGrowth: number | null }> {
   const snap = await adminFirestore.collection("tm_stock_facts").doc(instrumentId).get();
   if (!snap.exists) return { years: [], revenueGrowth: null };
-  const data = (snap.data() ?? {}) as Record<string, unknown>;
+  // The reader's checks (lib/facts-guard.ts): a growth the doc's own fiscal years rule out is never judged.
+  const data = (guardFacts(snap.data() as StockFactsDoc) ?? {}) as Record<string, unknown>;
   const financials = (data.financials ?? {}) as Record<string, unknown>;
   return {
     years: yearsOf(data.financial_history),
@@ -91,15 +94,14 @@ async function readDividends(ticker: string) {
 
 /** Labelled headlines about one company since `since`, and how many were negative. */
 async function readNewsTone(ticker: string, since: string): Promise<StockFacts["news"]> {
-  // Ids and times only: the headlines themselves are not shown here.
-  const snap = await adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker).limit(150).select("id", "published_at").get();
+  const snap = await adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker).limit(150).get();
   const ids = snap.docs
     .map((doc) => ({ id: String((doc.data() as { id?: string }).id ?? doc.id), at: String((doc.data() as { published_at?: string }).published_at ?? "") }))
     .filter((row) => row.at >= since)
     .map((row) => row.id)
     .slice(0, 100);
   if (ids.length === 0) return null;
-  const labels = await adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_agent_news_tone").doc(id)), { fieldMask: ["tone"] });
+  const labels = await adminFirestore.getAll(...ids.map((id) => adminFirestore.collection("tm_agent_news_tone").doc(id)));
   let labelled = 0;
   let negative = 0;
   for (const label of labels) {

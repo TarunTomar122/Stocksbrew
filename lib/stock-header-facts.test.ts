@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { consistentFundamentals, dividendYieldPct, pastYearRange } from "./stock-header-facts";
+import { consistentFundamentals, currentPe, dividendYieldPct, livePe, pastYearRange } from "./stock-header-facts";
 
 function closes(count: number, from: string, start: number, step: number) {
   const out: Array<{ date: string; close: number }> = [];
@@ -57,5 +57,51 @@ describe("consistentFundamentals", () => {
     const out = consistentFundamentals({ week_52_high: 84.04, week_52_low: 65.35 }, { closes: null, price: 96.9, today: "2026-11-11", annualDividend: null });
     expect(out?.week_52_high).toBeUndefined();
     expect(out?.dividend_yield_pct).toBeUndefined();
+  });
+
+  it("works a US stock's P/E out from today's price, not Yahoo's block from when the stock was added", () => {
+    const base = { closes: null, price: 37.11, today: "2026-11-13", annualDividend: null, market: "US" as const };
+    const usd = { financials: { fiscal_year: "TTM", eps_diluted: 2.48, currency: "USD" }, quick_stats: { pe_ttm: 13.2 } };
+    expect(consistentFundamentals({ pe_ttm: 49.56 }, { ...base, facts: usd })?.pe_ttm).toBeCloseTo(14.96, 2);
+    // A loss: no P/E at all.
+    expect(consistentFundamentals({ pe_ttm: 49.56 }, { ...base, facts: { ...usd, financials: { ...usd.financials, eps_diluted: -0.4 } } })?.pe_ttm).toBeUndefined();
+    // EPS not known to be in dollars: the weekly P/E.
+    const old = { financials: { fiscal_year: "TTM", eps_diluted: 2.48 }, quick_stats: { pe_ttm: 13.2 } };
+    expect(consistentFundamentals({ pe_ttm: 49.56 }, { ...base, facts: old })?.pe_ttm).toBe(13.2);
+    // Another market keeps its own.
+    expect(consistentFundamentals({ pe_ttm: 49.56 }, { ...base, market: "IN", facts: usd })?.pe_ttm).toBe(49.56);
+  });
+});
+
+describe("livePe", () => {
+  it("needs a four-quarter EPS in dollars", () => {
+    expect(livePe({ financials: { fiscal_year: "TTM", eps_diluted: 5, currency: "USD" } }, 50)).toBe(10);
+    expect(livePe({ financials: { fiscal_year: "TTM", eps_diluted: 5, currency: "USD", reported_currency: "TWD" } }, 50)).toBeUndefined();
+    expect(livePe({ financials: { fiscal_year: "FY 2025", eps_diluted: 5, currency: "USD" } }, 50)).toBeUndefined();
+    expect(livePe({ financials: { fiscal_year: "TTM", eps_diluted: 0, currency: "USD" } }, 50)).toBeNull();
+    expect(livePe(null, 50)).toBeUndefined();
+    // A loss is a loss in any currency.
+    expect(livePe({ financials: { fiscal_year: "TTM", eps_diluted: -2 } }, 50)).toBeNull();
+  });
+});
+
+describe("currentPe", () => {
+  it("prefers today's price over EPS, then the weekly P/E, and is null for a loss", () => {
+    expect(currentPe({ financials: { fiscal_year: "TTM", eps_diluted: 5, currency: "USD" }, quick_stats: { pe_ttm: 12 } }, 50)).toBe(10);
+    expect(currentPe({ financials: { fiscal_year: "TTM", eps_diluted: -1, currency: "USD" }, quick_stats: { pe_ttm: 12 } }, 50)).toBeNull();
+    expect(currentPe({ financials: { fiscal_year: "TTM", eps_diluted: 5 }, quick_stats: { pe_ttm: 12 } }, 50)).toBe(12);
+    expect(currentPe(null, 50)).toBeNull();
+  });
+
+  it("gives a P/E even when the price doc has no Yahoo block", () => {
+    const out = consistentFundamentals(null, {
+      closes: null,
+      price: 50,
+      today: "2026-11-13",
+      annualDividend: null,
+      market: "US",
+      facts: { financials: { fiscal_year: "TTM", eps_diluted: 5, currency: "USD" } },
+    });
+    expect(out?.pe_ttm).toBe(10);
   });
 });

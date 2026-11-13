@@ -8,6 +8,7 @@ from backend.providers.stock_facts_provider import (
     _parse_stockanalysis_financials,
     _parse_stockanalysis_forecast,
     _parse_stockanalysis_metrics,
+    _parse_stockanalysis_quarters,
     _parse_stockanalysis_statistics,
     _parse_finviz_snapshot,
     _get_stockanalysis_text,
@@ -155,6 +156,7 @@ def test_fetch_stock_facts_keeps_each_extended_source_independent() -> None:
         patch("backend.providers.stock_facts_provider._parse_nasdaq_analyst", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_nasdaq_institutions", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_financials", return_value=financial_result),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_quarters", return_value={"quarters": []}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_statistics", return_value=statistics_result),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_dividends", return_value={"history": [{"ex_date": "May 1", "amount": 0.25}]}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_metrics", side_effect=RuntimeError("temporarily unavailable")),
@@ -247,6 +249,7 @@ def test_fetch_stock_facts_uses_yahoo_only_for_missing_depth_sections() -> None:
         patch("backend.providers.stock_facts_provider._parse_nasdaq_analyst", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_nasdaq_institutions", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_financials", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_quarters", return_value={"quarters": []}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_statistics", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_dividends", return_value={}),
         patch("backend.providers.stock_facts_provider._parse_stockanalysis_metrics", return_value={}),
@@ -258,3 +261,106 @@ def test_fetch_stock_facts_uses_yahoo_only_for_missing_depth_sections() -> None:
     assert result["financial_history"] == yahoo["financial_history"]
     assert result["balance"]["net_cash"] == 10
     assert result["source_status"]["sources"][-1] == "yfinance"
+
+
+def test_financials_read_the_tables_currency_and_scale() -> None:
+    html = "<div>Financials in thousands TWD. Fiscal year is January - December.</div>" + _table("Revenue & Profits", [
+        ["Fiscal Year", "TTM", "FY 2025"],
+        ["Revenue Revenue Growth", "4,000", "3,000"],
+        ["Revenue Growth", "33.33%", "10.00%"],
+        ["Earnings Per Share EPS Growth", "8.72", "7.46"],
+    ])
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=html):
+        result = _parse_stockanalysis_financials("TSM")
+
+    assert result["financials"]["currency"] == "TWD"
+    assert result["financials"]["revenue"] == 4_000_000
+    assert result["financial_history"][1]["revenue"] == 3_000_000
+    assert result["financials"]["eps_diluted"] == 8.72
+
+
+def test_quarterly_sales_come_newest_first_with_their_period_ends() -> None:
+    html = "<div>Financials in millions USD.</div>" + _table("Revenue & Profits", [
+        ["Fiscal Quarter", "Q3 2026", "Q2 2026", "Q1 2026"],
+        ["Period Ending", "Sep '26 Sep 30, 2026", "Jun '26 Jun 30, 2026", "Mar '26 Mar 31, 2026"],
+        ["Revenue Revenue Growth", "4,994", "-", "9,143"],
+        ["Revenue Growth", "1.32%", "-", "2.44%"],
+    ])
+    with patch("backend.providers.stock_facts_provider._get_stockanalysis_text", return_value=html) as get_text:
+        result = _parse_stockanalysis_quarters("HON")
+
+    assert get_text.call_args.args[0] == "https://stockanalysis.com/stocks/hon/financials/?p=quarterly"
+    assert result["currency"] == "USD"
+    assert result["quarters"] == [
+        {"period": "Q3 2026", "end": "2026-09-30", "revenue": 4_994_000_000},
+        {"period": "Q2 2026", "end": "2026-06-30", "revenue": None},
+        {"period": "Q1 2026", "end": "2026-03-31", "revenue": 9_143_000_000},
+    ]
+
+
+def _quarters(values: list[float], last_end: str = "2026-09-30") -> list[dict]:
+    ends = ["2026-09-30", "2026-06-30", "2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    return [{"period": f"Q{index}", "end": end, "revenue": value} for index, (end, value) in enumerate(zip(ends, values))]
+
+
+def _with_sources(financial_result: dict, quarters: dict, fx: float | None = None):
+    return (
+        patch("backend.providers.stock_facts_provider._parse_finviz_snapshot", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_nasdaq_analyst", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_nasdaq_institutions", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_financials", return_value=financial_result),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_quarters", return_value=quarters),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_statistics", return_value={"quality": {"roe_pct": 1}, "valuation": {"forward_pe": 1}}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_dividends", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_metrics", return_value={}),
+        patch("backend.providers.stock_facts_provider._parse_stockanalysis_forecast", return_value={}),
+        patch("backend.providers.stock_facts_provider._fx_to_usd", return_value=fx),
+    )
+
+
+def test_fetch_withholds_a_growth_its_own_quarters_cannot_back() -> None:
+    # Honeywell, Nov 2026: +79.64% "TTM" growth on $37.7B, while fiscal 2025 grew 7.85% and a quarter is missing.
+    financial_result = {
+        "financials": {"fiscal_year": "TTM", "revenue": 37_743e6, "revenue_growth_yoy_pct": 79.64, "currency": "USD", "source": "stockanalysis"},
+        "financial_history": [
+            {"period": "TTM", "revenue": 37_743e6},
+            {"period": "FY 2025", "revenue": 37_442e6},
+            {"period": "FY 2024", "revenue": 34_717e6},
+        ],
+        "balance": {"net_cash": 1},
+    }
+    quarters = {"currency": "USD", "quarters": _quarters([4_994e6, None, 9_143e6, 9_758e6, 4_929e6, 849e6, 8_925e6, None])}
+    patches = _with_sources(financial_result, quarters)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9]:
+        result = fetch_stock_facts({"instrument_id": "US_HON", "market": "US", "ticker": "HON"})
+
+    assert result["financials"]["revenue_growth_yoy_pct"] is None
+    assert result["financials"]["revenue_growth_basis"] == "withheld"
+    [record] = result["withheld"]
+    assert record["field"] == "financials.revenue_growth_yoy_pct"
+    assert record["value"] == 79.64
+    assert record["action"] == "withheld"
+    assert record["rule"] == "ttm_growth_vs_fiscal_years"
+    assert "Q1, Q7" in record["reason"]
+
+
+def test_fetch_converts_a_foreign_filers_amounts_and_withholds_its_per_share_figures() -> None:
+    financial_result = {
+        "financials": {"fiscal_year": "TTM", "revenue": 4_000e9, "revenue_growth_yoy_pct": 25.0, "eps_diluted": 97.48, "currency": "TWD", "source": "stockanalysis"},
+        "financial_history": [{"period": "TTM", "revenue": 4_000e9, "eps_diluted": 97.48}, {"period": "FY 2025", "revenue": 3_800e9}, {"period": "FY 2024", "revenue": 2_900e9}],
+        "balance": {"net_cash": 100e9},
+    }
+    quarters = {"currency": "TWD", "quarters": _quarters([1_100e9, 1_000e9, 950e9, 950e9, 880e9, 800e9, 770e9, 750e9])}
+    patches = _with_sources(financial_result, quarters, fx=0.03)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9]:
+        result = fetch_stock_facts({"instrument_id": "US_TSM", "market": "US", "ticker": "TSM"})
+
+    financials = result["financials"]
+    assert financials["revenue"] == 120e9
+    assert financials["currency"] == "USD"
+    assert financials["reported_currency"] == "TWD"
+    assert financials["eps_diluted"] is None
+    assert financials["revenue_growth_yoy_pct"] == 25.0
+    assert financials["revenue_growth_basis"] == "quarters"
+    assert result["balance"]["net_cash"] == 3e9
+    assert {record["field"]: record["rule"] for record in result["withheld"]}["financials.eps_diluted"] == "reporting_currency"

@@ -291,6 +291,35 @@ class RowTest(unittest.TestCase):
         unknown = self.build(instrument={"ticker": "IBM", "sector": "", "industry": ""}, intel_pro={"sector_label": "Technology"})
         self.assertEqual(unknown["sector"], "Technology")
 
+    def test_pe_comes_from_todays_price_and_the_facts_eps_not_yahoos_block(self):
+        # Yahoo's block says 25x; the facts' four-quarter EPS in dollars puts $50 at 10x.
+        facts = {
+            "financials": {"fiscal_year": "TTM", "eps_diluted": 5.0, "currency": "USD", "revenue_growth_basis": "quarters"},
+            "quick_stats": {"pe_ttm": 11.0, "market_cap": 4e9},
+        }
+        row = self.build(facts=facts)
+        self.assertEqual(row["pe"], 10.0)
+        self.assertEqual(row["market_cap"], 4e9)
+        loss = self.build(facts={**facts, "financials": {**facts["financials"], "eps_diluted": -1.0}})
+        self.assertNotIn("pe", loss)
+        # A loss is a loss in any currency: no weekly P/E beside it either.
+        old_loss = self.build(facts={**facts, "financials": {"fiscal_year": "TTM", "eps_diluted": -1.0}})
+        self.assertNotIn("pe", old_loss)
+        # Amounts converted from another currency (or not known to be dollars): the weekly P/E, never Yahoo's.
+        foreign = self.build(facts={**facts, "financials": {**facts["financials"], "reported_currency": "TWD"}})
+        self.assertEqual(foreign["pe"], 11.0)
+        self.assertNotIn("pe", self.build())
+
+    def test_growth_its_own_fiscal_years_rule_out_is_left_out(self):
+        facts = {
+            "financials": {"revenue": 37_743.0, "revenue_growth_yoy_pct": 79.64},
+            "financial_history": [{"period": "TTM", "revenue": 37_743.0}, {"period": "FY 2025", "revenue": 37_442.0}, {"period": "FY 2024", "revenue": 34_717.0}],
+            "withheld": [{"field": "x", "reason": "for us"}],
+        }
+        row = self.build(facts=facts)
+        self.assertNotIn("rev_growth", row)
+        self.assertEqual(row["revenue"], 37_743.0)
+
     def test_no_price_means_no_row(self):
         self.assertIsNone(self.build(latest={}, series=[]))
         self.assertIsNone(self.build(instrument={"ticker": ""}))
