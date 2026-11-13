@@ -276,9 +276,14 @@ def _row(f: Finding, today: date) -> Row:
             shown, where = _level_where(close, level, zone)
             over = " over five sessions" if span else ""
             move = f"{kit.verb(change)} {kit.pct(change, signed=False)}{over} to {shown}" if change is not None else f"closed at {shown}"
-            # the card says the whole fact (owner rule 5b): "Fell 2.3% to $139.75, below its $142.07 buy-more level."
+            # the headline and preheader say the whole fact (owner rule 5b): "fell 2.3% to $139.75, below its $142.07
+            # buy-more level". The card shows the close and the move as figures, so its line is only the level it
+            # reached: "Below its $142.07 buy-more level." (owner rule 1, Nov 13: no number twice in one card)
+            # a close right at the level is the price on the card: "At its sell-some level.", not the price again
+            line = (f"At its {'buy-more' if zone == 'add' else 'sell-some'} level." if where.startswith("at ")
+                    else f"{kit.cap(where)}.")
             return Row(ticker=t, kind="zone", at=f.at, close=close, change=change, zone=zone, level=level,
-                       line=f"{kit.cap(move)}, {where}.", sentence=f"{t} {move}, {where}", span=span, price=shown)
+                       line=line, sentence=f"{t} {move}, {where}", span=span, price=shown)
         # "…in a day, about four times a normal day": the measured scale is the row's line
         scale = re.match(r"in a day, (.+)$", rest.rstrip("."))
         move = f"{kit.verb(change)} {kit.pct(change, signed=False)}" if change is not None else ""
@@ -618,14 +623,15 @@ def build_price_alert(stock, alert: dict, *, now: datetime | None = None,
     where = "at" if round(price, 2) == round(target, 2) else "below" if alert.get("condition") == "below" else "above"
     move = (f"{kit.cap(kit.verb(change))} {kit.pct(change, signed=False)} to {kit.money(price)}"
             if change is not None and round(change, 1) != 0 else f"At {kit.money(price)}")
-    line = f"{move}, {where} your {_whole_money(target)} alert."
+    sentence = f"{move}, {where} your {_whole_money(target)} alert."
     period = _day(day.isoformat(), today)
     doc = kit.Doc()
     title = f"{stock.ticker} is {where} your {_whole_money(target)} alert"
     doc.h1(title + ".")
-    doc.cards([kit.Card(ticker=stock.ticker, name=stock.name, price=price, move=change, period=period, line=line)])
+    # the headline says the alert and the card shows the price and the move: no line under them repeats either
+    doc.cards([kit.Card(ticker=stock.ticker, name=stock.name, price=price, move=change, period=period)])
     doc.button(f"Open {stock.ticker}", kit.stock_url(stock.ticker))
-    return kit.render(doc, kind="price_alert", category="alerts", subject=title, preheader=line,
+    return kit.render(doc, kind="price_alert", category="alerts", subject=title, preheader=sentence,
                       unsubscribe_token=unsubscribe_token, meta={"ticker": stock.ticker, "alert": str(alert.get("id") or "")},
                       reason="You get this because you set a price alert on stocksbrew.", dateline="Price alert")
 

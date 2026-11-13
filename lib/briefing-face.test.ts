@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { repeatsFigure, shownFigures } from "@/lib/no-repeat";
+
 import type { BriefingItem, BriefingPosition } from "@/lib/briefing";
 import {
   atYourLevels,
@@ -13,6 +15,7 @@ import {
   gapWords,
   heatCells,
   levelLine,
+  levelSetAtClose,
   marketStrip,
   marketTiles,
   ownLevel,
@@ -117,6 +120,22 @@ describe("ownLevel: a call speaks only for its own level", () => {
     expect(levelLine(ownLevel(position({ ticker: "B", stance: "accumulate", price: 103, add_below: 100 }))!)).toBe("3.0% over the buy-more price");
     expect(levelLine(ownLevel(position({ ticker: "C", stance: "trim", price: 97, trim_above: 100 }))!)).toBe("3.0% under the sell-some price");
     expect(levelLine(ownLevel(position({ ticker: "D", stance: "trim", price: 97, trim_above: 100 }))!)).not.toMatch(/\$/);
+  });
+
+  it("never says the day's move twice when the level is the last close (owner rule 1, Nov 13)", () => {
+    // AVGO: Buy more set at Wednesday's $364.38 close, $357.35 now, −1.9% on the day: "1.9% under" said −1.9% again
+    const avgo = ownLevel(position({ ticker: "AVGO", stance: "accumulate", price: 357.35, add_below: 364.38 }))!;
+    const pct = (357.35 / 364.38 - 1) * 100;
+    expect(levelSetAtClose(avgo, pct)).toBe(true);
+    expect(levelLine(avgo, pct)).toBe("Under the buy-more price set at the last close");
+    expect(repeatsFigure(levelLine(avgo, pct), shownFigures(`${pct.toFixed(1)}%`))).toBe(false);
+    // a level of its own, a different distance from the day's move, keeps its percent
+    expect(levelSetAtClose(avgo, -0.5)).toBe(false);
+    expect(levelLine(avgo, -0.5)).toBe("1.9% under the buy-more price");
+    expect(levelLine(avgo, null)).toBe("1.9% under the buy-more price");
+    // a level a few cents off the close prints a different distance (1.6% against −1.5%) and keeps it
+    const cgnx = ownLevel(position({ ticker: "CGNX", stance: "accumulate", price: 49.99, add_below: 50.79 }))!;
+    expect(levelLine(cgnx, -1.5)).toBe("1.6% under the buy-more price");
   });
 });
 

@@ -20,7 +20,7 @@ import type {
   Tone,
   WeekDay,
 } from "@/lib/briefing-face";
-import { dayLabel, gapOf, gridColumns, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
+import { dayLabel, gapOf, gridColumns, levelSetAtClose, levelsTitle, lineStatesCall, weekTitle, type LevelFact } from "@/lib/briefing-face";
 import type { TopStory } from "@/lib/briefing-top-news";
 import { capitalize, dayWords, etToday, onDayWords } from "@/lib/day-words";
 import { caseWireHeadlines } from "@/lib/wire-casing";
@@ -617,7 +617,12 @@ function factWord(fact: LevelFact): string {
 /** Where the price sits against its level: "0.4% under", "right at it". */
 function whereWords(row: LevelRow): string {
   const away = Math.abs(row.level.gapPct);
-  return away < 0.05 ? "right at it" : `${away.toFixed(1)}% ${row.level.gapPct < 0 ? "under" : "over"}`;
+  if (away < 0.05) return "right at it";
+  const side = row.level.gapPct < 0 ? "under" : "over";
+  // A level set at the last close is exactly as far off as the day's move beside it: the ruler shows how far, and
+  // the words don't say −1.9% a second time (owner rule 1, Nov 13).
+  if (levelSetAtClose(row.level, row.pct)) return side;
+  return `${away.toFixed(1)}% ${side}`;
 }
 
 /** The level line on a card: "Level $309.92 · 0.4% under". */

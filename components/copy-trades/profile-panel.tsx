@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CopyChart } from "@/components/copy-trades/copy-chart";
 import { Panel } from "@/components/follow/panel";
 import { NUM } from "@/components/oa/kit";
-import { buildCopyRead, copyHref, fmtDollars, fmtPointsWord, getCopyRecord, isFullRecord } from "@/lib/copy-trades";
+import { copyHref, copyLeadLine, fmtDollars, fmtPointsWord, getCopyRecord, isFullRecord } from "@/lib/copy-trades";
 import { fmtDate, fmtFrac } from "@/lib/follow-shared";
 
 /**
@@ -16,7 +16,8 @@ import { fmtDate, fmtFrac } from "@/lib/follow-shared";
 export async function ProfileCopyPanel({ slug, title, fallback }: { slug: string; title: string; fallback: React.ReactNode }) {
   const record = await getCopyRecord(slug).catch(() => null);
   if (!isFullRecord(record)) return <>{fallback}</>;
-  const read = buildCopyRead(record);
+  // The line says who beat whom; the tiles under it carry the dollars (owner rule 1, Nov 13).
+  const lead = copyLeadLine(record);
   const gap = record.excess_per_year;
   const cells: { label: string; value: string; tone?: string }[] = [
     { label: "$10,000 copied", value: fmtDollars(record.copy.end_value) },
@@ -32,7 +33,7 @@ export async function ProfileCopyPanel({ slug, title, fallback }: { slug: string
   }
   return (
     <Panel title={title} right={<span>Closes to {fmtDate(record.end_date)}</span>}>
-      {read ? <p className="px-4 pt-3 text-pretty text-[15px] leading-[22px] text-oa-fg">{read.headline}</p> : null}
+      {lead ? <p className="px-4 pt-3 text-pretty text-[15px] leading-[22px] text-oa-fg">{lead}</p> : null}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 pt-3 sm:grid-cols-4">
         {cells.map((cell) => (
           <div key={cell.label}>
@@ -42,7 +43,8 @@ export async function ProfileCopyPanel({ slug, title, fallback }: { slug: string
         ))}
       </dl>
       <div className="px-4 py-4">
-        <CopyChart curve={record.curve} name={record.name} holdLabel={record.hold ? record.hold_label : null} />
+        {/* The tiles above say where the copy and the S&P 500 ended; the legend says them again only on hover. */}
+        <CopyChart curve={record.curve} name={record.name} holdLabel={record.hold ? record.hold_label : null} shownAtEnd={2} />
       </div>
       <p className="border-t border-oa-border px-4 py-3 text-pretty text-[13px] leading-5 text-oa-muted-fg">
         A test before costs and taxes, not a real account. Companies that were later delisted or bought out are skipped, which flatters it.{" "}

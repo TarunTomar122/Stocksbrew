@@ -98,9 +98,20 @@ describe("takeaways", () => {
     expect(listTakeaway([asset("a", 1), asset("b", 2)], "funds")).toBeNull();
     expect(listTakeaway([asset("a", 1), asset("b", -2), asset("c", 3)], "funds")).toBe("2 of 3 funds rose. C led at +3.0%, B trailed at −2.0%.");
   });
+  it("names a leader the card already shows without its move (owner rule 1, Nov 13)", () => {
+    const list = [asset("a", 1), asset("b", -2), asset("c", 3)];
+    expect(listTakeaway(list, "funds", list.slice(0, 2))).toBe("2 of 3 funds rose. C led at +3.0%, B trailed.");
+    expect(listTakeaway(list, "funds", list)).toBe("2 of 3 funds rose. C led, B trailed.");
+    const grid = sectors([1.51, -1.28, 0.2, -0.3, 0.1, -0.1, 0.4, -0.5, 0.3, -0.2, 0.6]);
+    const line = sectorTakeaway(grid, { figures: false })!;
+    expect(line).toMatch(/led and .* trailed\.$/);
+    expect(line).not.toMatch(/%/);
+  });
   it("movers line counts gains", () => {
     expect(moversTakeaway([asset("a", 5), asset("b", 4), asset("c", 3)])).toMatch(/^All 3 of the biggest moves were gains/);
     expect(moversTakeaway([asset("a", -5), asset("b", 4), asset("c", 3)])).toMatch(/^2 of the 3 biggest moves were gains/);
+    // over the movers' own rows the leader's move is not said again (owner rule 1, Nov 13)
+    expect(moversTakeaway([asset("a", -5), asset("b", 4), asset("c", 3)], { figures: false })).toBe("2 of the 3 biggest moves were gains. A moved most.");
   });
 });
 

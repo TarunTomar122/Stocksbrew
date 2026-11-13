@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { repeatsFigure, shownFigures } from "@/lib/no-repeat";
+
 import {
   applyFollowChange,
   assetAsOfText,
@@ -31,6 +33,7 @@ import {
   sparkPoints,
   structureReading,
   tileTone,
+  vixReading,
   volCurveReading,
   volCurveVerdict,
   yieldCurveReading,
@@ -399,6 +402,25 @@ describe("readings", () => {
     });
     expect(predictionReading(ladder)).toBe("Even odds sit between 3.6% and 3.7%.");
     expect(predictionReading(prediction({ outcomes: [] }))).toBeNull();
+    // under rows that already show those odds the sentence only said them again (owner rule 1, Nov 13)
+    expect(predictionReading(fed, ["Hike 25bps", "Fed maintains rate"])).toBeNull();
+    expect(predictionReading(binary, ["Yes", "No"])).toBeNull();
+    expect(predictionReading(fed, ["Hike 25bps"])).toBe("Traders put 81% on Hike 25bps, then 20% on Fed maintains rate.");
+    expect(predictionReading(ladder, ["Above 3.6%"])).toBe("Even odds sit between 3.6% and 3.7%.");
+  });
+
+  it("says no figure twice under a chart or rows that show it (owner rule 1, Nov 13)", () => {
+    const chart = shownFigures(...TREASURY.points.map((point) => `${point.value.toFixed(2)}%`));
+    const curve = yieldCurveReading(TREASURY, { figures: false })!;
+    expect(curve).toMatch(/bps/);
+    expect(repeatsFigure(curve, chart)).toBe(false);
+    const vol = volCurveReading(VOL, { figures: false })!;
+    expect(vol).toContain("points above the three-month level");
+    expect(VOL.points.some((point) => vol.includes(point.value.toFixed(1)))).toBe(false);
+    const ratio = putCallReading({ price: 1.26, average_20d: 1.03, unit: "ratio" }, { figures: false })!;
+    expect(ratio).toBe("More bets on a fall than usual: a usual day has 1.03 for each bet on a rise.");
+    expect(ratio).not.toContain("1.26");
+    expect(vixReading(18.1, { figures: false })).toBe("The VIX prices in S&P 500 moves of about 1.1% a day.");
   });
 });
 

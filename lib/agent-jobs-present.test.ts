@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { AGENT_TEMPLATES, EMPTY_FACTS, MAX_FINDINGS, evaluateJob, type AgentFacts, type AgentJob, type AgentRun } from "@/lib/agent-jobs";
-import { aheadWhen, closeLabel, orderJobs, pastWhen, presentRun, ranLabel, structured } from "@/lib/agent-jobs-present";
+import { aheadWhen, closeLabel, dayOnce, orderJobs, pastWhen, presentRun, ranLabel, runLead, structured } from "@/lib/agent-jobs-present";
+import { repeatsFigure, shownFigures } from "@/lib/no-repeat";
 
 function template(id: string) {
   const found = AGENT_TEMPLATES.find((entry) => entry.id === id);
@@ -114,6 +115,24 @@ describe("stock rows", () => {
   it("says one stock's move into its level as a sentence", () => {
     const view = presentRun({ ...ZONE_RUN, findings: ZONE_RUN.findings.slice(0, 1) }, job("z", "buy-zone"));
     expect(view.headline).toBe("SPCX fell 2.3% to $139.75 today, below its $142.07 buy-more level.");
+  });
+
+  it("over the stock rows, the headline says only what the rows don't (owner rule 1, Nov 13)", () => {
+    const view = presentRun({ ...ZONE_RUN, findings: ZONE_RUN.findings.slice(0, 1) }, job("z", "buy-zone"));
+    const figures = view.rows.flatMap((row) => [row.close != null ? `$${row.close}` : null, row.change_pct != null ? `${row.change_pct}%` : null, row.line]);
+    const lead = runLead(view);
+    expect(repeatsFigure(lead, shownFigures(...figures))).toBe(false);
+    expect(lead).toMatch(/^SPCX fell today/);
+    // with no rows under it the headline keeps its figures
+    expect(runLead({ headline: view.headline, rows: [] })).toBe(view.headline);
+  });
+
+  it("says the run's day once when the row shows it beside the headline", () => {
+    expect(dayOnce("Checked, nothing to do. No congressional trades were disclosed on Nov 12.", "2026-11-12")).toBe(
+      "Checked, nothing to do. No congressional trades were disclosed that day.",
+    );
+    expect(dayOnce("Nothing new on Nov 11.", "2026-11-12")).toBe("Nothing new on Nov 11.");
+    expect(dayOnce("Nothing new.", null)).toBe("Nothing new.");
   });
 });
 

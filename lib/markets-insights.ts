@@ -324,16 +324,24 @@ export function buildMarketsRead(data: MarketsData, now: Date = new Date()): The
 
 /* ── one-line takeaways for the cards below the read ──────────────────── */
 
-/** "9 of 11 sectors rose; Tech led at +3.73%, Energy trailed at +0.52%." */
-export function sectorTakeaway(assets: MarketAsset[]): string | null {
+/**
+ * "9 of 11 sectors rose; Tech led at +3.73%, Energy trailed at +0.52%." Beside a grid that shows every sector's move
+ * (`figures: false`) it names the leader and the laggard without their moves: "9 of 11 sectors rose; Tech led and
+ * Energy trailed." (owner rule 1, Nov 13: no number twice in one card).
+ */
+export function sectorTakeaway(assets: MarketAsset[], { figures = true }: { figures?: boolean } = {}): string | null {
   const breadth = sectorBreadth(assets);
   if (breadth.total < 4 || !breadth.best || !breadth.worst) return null;
   const head = breadth.up === breadth.total ? `All ${breadth.total} sectors rose` : breadth.down === breadth.total ? `All ${breadth.total} sectors fell` : `${breadth.up} of ${breadth.total} sectors rose`;
+  if (!figures) return `${head}; ${topic(breadth.best)} led and ${topic(breadth.worst)} trailed.`;
   return `${head}. ${topic(breadth.best)} led at ${signedPct(breadth.best.change.d1!, 2)}; ${topic(breadth.worst)} trailed at ${signedPct(breadth.worst.change.d1!, 2)}.`;
 }
 
-/** For a list of funds or assets: how many rose, and the best and worst. */
-export function listTakeaway(assets: MarketAsset[], noun: string): string | null {
+/**
+ * For a list of funds or assets: how many rose, and the best and worst. `shown` are the rows on the card under this
+ * line: a best or worst that is one of them is named without its move, which its row already shows (owner rule 1).
+ */
+export function listTakeaway(assets: MarketAsset[], noun: string, shown: MarketAsset[] = []): string | null {
   const moved = assets.filter((asset) => isNum(asset.change.d1) && asset.change_mode === "pct");
   if (moved.length < 3) return null;
   const sorted = [...moved].sort((a, b) => b.change.d1! - a.change.d1! || a.id.localeCompare(b.id));
@@ -341,17 +349,20 @@ export function listTakeaway(assets: MarketAsset[], noun: string): string | null
   const best = sorted[0]!;
   const worst = sorted[sorted.length - 1]!;
   const name = (asset: MarketAsset) => FUND_TOPIC[asset.id] ?? asset.name;
-  if (up === moved.length) return `All ${moved.length} ${noun} rose; ${name(best)} led at ${signedPct(best.change.d1!)}.`;
-  if (up === 0) return `All ${moved.length} ${noun} fell; ${name(worst)} fell most at ${signedPct(worst.change.d1!)}.`;
-  return `${up} of ${moved.length} ${noun} rose. ${name(best)} led at ${signedPct(best.change.d1!)}, ${name(worst)} trailed at ${signedPct(worst.change.d1!)}.`;
+  const onCard = new Set(shown.map((asset) => asset.id));
+  const at = (asset: MarketAsset) => (onCard.has(asset.id) ? "" : ` at ${signedPct(asset.change.d1!)}`);
+  if (up === moved.length) return `All ${moved.length} ${noun} rose; ${name(best)} led${at(best)}.`;
+  if (up === 0) return `All ${moved.length} ${noun} fell; ${name(worst)} fell most${at(worst)}.`;
+  return `${up} of ${moved.length} ${noun} rose. ${name(best)} led${at(best)}, ${name(worst)} trailed${at(worst)}.`;
 }
 
 /** Of the biggest moves across markets, how many went up and which one led. */
-export function moversTakeaway(movers: MarketAsset[]): string | null {
+export function moversTakeaway(movers: MarketAsset[], { figures = true }: { figures?: boolean } = {}): string | null {
   if (movers.length < 3) return null;
   const up = movers.filter((asset) => (asset.change.d1 ?? 0) > 0).length;
   const top = movers[0]!;
-  const lead = `${FUND_TOPIC[top.id] ?? top.name} moved most, ${signedPct(top.change.d1!)}.`;
+  // Over the movers' own rows (`figures: false`) the leader's move is on its row already (owner rule 1, Nov 13).
+  const lead = figures ? `${FUND_TOPIC[top.id] ?? top.name} moved most, ${signedPct(top.change.d1!)}.` : `${FUND_TOPIC[top.id] ?? top.name} moved most.`;
   if (up === movers.length) return `All ${movers.length} of the biggest moves were gains. ${lead}`;
   if (up === 0) return `All ${movers.length} of the biggest moves were losses. ${lead}`;
   return `${up} of the ${movers.length} biggest moves ${up === 1 ? "was a gain" : "were gains"}. ${lead}`;

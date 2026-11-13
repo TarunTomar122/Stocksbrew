@@ -597,7 +597,7 @@ export function YieldCurveChart({
             priorLabel={curve.date_1m_ago ? `${formatDay(curve.date_1m_ago)} (a month earlier)` : null}
           />
           <div className="mt-auto flex flex-col gap-1 border-t border-oa-border bg-oa-bg px-3.5 py-2">
-            <NoteLine text={yieldCurveReading(curve)} verdict={yieldCurveWord(yieldCurveSpreadBps(curve))} />
+            <NoteLine text={yieldCurveReading(curve, { figures: false })} verdict={yieldCurveWord(yieldCurveSpreadBps(curve))} />
             <AsOfLine when={`${formatDay(curve.date)} close`} />
           </div>
         </>
@@ -639,7 +639,7 @@ export function VolCurveChart({
             minSpan={3}
           />
           <div className="mt-auto flex flex-col gap-1 border-t border-oa-border bg-oa-bg px-3.5 py-2">
-            <NoteLine text={volCurveReading(curve)} verdict={volCurveVerdict(curve)} />
+            <NoteLine text={volCurveReading(curve, { figures: false })} verdict={volCurveVerdict(curve)} />
             <AsOfLine when={`${formatDay(curve.date)} close`} />
           </div>
         </>
@@ -718,7 +718,7 @@ export function PredictionCard({
   }
   const outcomes = shownOutcomes(market, limit);
   const top = Math.max(...outcomes.map((outcome) => outcome.probability));
-  const reading = predictionReading(market);
+  const reading = predictionReading(market, outcomes.map((outcome) => outcome.label));
   const volume = formatPredictionVolume(market);
   const closes = formatDay(market.close_time, true);
   return (

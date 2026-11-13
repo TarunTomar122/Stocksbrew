@@ -18,7 +18,11 @@ const LINES = [
  * on a linear dollar scale so the picture matches the numbers beside it.
  * Hover (or touch) reads the three values on any day.
  */
-export function CopyChart({ curve, name, holdLabel }: { curve: Row[]; name: string; holdLabel: string | null }) {
+/**
+ * `shownAtEnd`: how many of the lines' end values the panel already shows as figures beside the chart (the copy and
+ * the S&P 500 tiles): at rest the legend leaves those out and says them only for the day under the pointer.
+ */
+export function CopyChart({ curve, name, holdLabel, shownAtEnd = 0 }: { curve: Row[]; name: string; holdLabel: string | null; shownAtEnd?: number }) {
   const geometry = React.useMemo(() => copyChartGeometry(curve), [curve]);
   const [hover, setHover] = React.useState<number | null>(null);
   const boxRef = React.useRef<HTMLDivElement>(null);
@@ -51,7 +55,7 @@ export function CopyChart({ curve, name, holdLabel }: { curve: Row[]; name: stri
                 <span aria-hidden="true" className={`inline-block h-0.5 w-4 translate-y-[-3px] ${line.swatch}`} />
                 <span className={index === 0 ? "text-oa-fg" : "text-oa-muted-fg"}>{labels[index]}</span>
                 <span className={`oa-mono tabular-nums ${index === 0 ? "font-medium text-oa-fg" : "text-oa-fg"}`}>
-                  {value != null ? fmtDollars(value * START_VALUE) : ""}
+                  {value != null && (hover != null || index >= shownAtEnd) ? fmtDollars(value * START_VALUE) : ""}
                 </span>
               </li>
             );

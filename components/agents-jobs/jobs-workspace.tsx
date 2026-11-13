@@ -27,7 +27,7 @@ import {
   type AgentTemplate,
 } from "@/lib/agent-jobs";
 import { draftHref, type LinkedDraft } from "@/lib/agent-jobs-link";
-import { orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
+import { dayOnce, orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
 import { sameJob } from "@/lib/agents-plain/save";
 import type { Plan } from "@/lib/entitlements";
 import { currentFirebaseUser, firebaseUserNow, POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
@@ -1178,7 +1178,7 @@ function JobRow({
               <span className="text-oa-muted-fg">{PRO_EVENTS_PAUSED} It stays saved and does not run until then.</span>
             ) : view ? (
               <>
-                {view.headline} <span className="text-oa-muted-fg">{open ? "" : view.todo}</span>
+                {dayOnce(view.headline, last?.day)} <span className="text-oa-muted-fg">{open ? "" : view.todo}</span>
               </>
             ) : (
               <span className="text-oa-muted-fg">No report yet. It reports here after its next check, or open it and check now.</span>

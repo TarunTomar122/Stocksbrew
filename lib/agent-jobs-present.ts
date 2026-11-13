@@ -9,6 +9,7 @@
  */
 
 import { isNyseHoliday } from "@/lib/market-session";
+import { newFacts, shownFigures } from "@/lib/no-repeat";
 import {
   shortDate,
   zoneOf,
@@ -157,6 +158,29 @@ function money(value: number): string {
 
 export function signedPct(value: number, digits = 1): string {
   return `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(digits)}%`;
+}
+
+/**
+ * A headline beside its own run's date ("No congressional trades were disclosed on Nov 12." in a row that ends
+ * "Nov 12"): the date is said once, beside it, and the sentence says "that day" (owner rule 1, Nov 13).
+ */
+export function dayOnce(headline: string, day: string | null | undefined): string {
+  if (!day) return headline;
+  const date = shortDate(day);
+  return date ? headline.replace(new RegExp(` on ${date.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[.,;]|$)`), " that day") : headline;
+}
+
+/**
+ * The headline over the run's stock rows: what it says that the rows (each with its close, its move and its line)
+ * don't. "CGNX fell 1.8% to $50.77 yesterday, below its $50.79 buy-more level." over the CGNX row that shows $50.77,
+ * −1.8% and the level reads "CGNX fell yesterday, below its buy-more level." (owner rule 1, Nov 13: no number twice
+ * in one block). With no rows the headline comes back whole; "" when the rows say all of it.
+ */
+export function runLead(view: Pick<RunView, "headline" | "rows">): string {
+  const shown = shownFigures(
+    ...view.rows.flatMap((row) => [row.close != null ? money(row.close) : null, row.change_pct != null ? signedPct(row.change_pct) : null, row.line]),
+  );
+  return newFacts(view.headline, shown, { strict: true });
 }
 
 function names(list: string[], max = 3): string {

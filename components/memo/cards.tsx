@@ -108,8 +108,10 @@ function Visual({ visual, example }: { visual: MemoVisual; example: boolean }) {
         className="mt-3"
         domain={[0, 100]}
         bars={[
-          { label: own, value: visual.pct, text: pct(visual.pct), series: "a" },
-          ...(visual.benchmarkPct !== null ? [{ label: "S&P 500", value: visual.benchmarkPct, text: pct(visual.benchmarkPct), series: "b" as const }] : []),
+          // The card's big figure and its label already say both shares ("80% in Technology, against 37% of the
+          // S&P 500"): the bars show them, without printing them a second time (owner rule 1, Nov 13).
+          { label: own, value: visual.pct, text: "", series: "a" },
+          ...(visual.benchmarkPct !== null ? [{ label: "S&P 500", value: visual.benchmarkPct, text: "", series: "b" as const }] : []),
         ]}
       />
     );

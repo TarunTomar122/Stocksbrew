@@ -383,6 +383,18 @@ export function copyPace(record: CopyRecord): Insight | null {
   return null;
 }
 
+/**
+ * The line over a copy record's figures ("$10,000 copied $77,883 · In the S&P 500 $27,960"): what was copied and how
+ * it did against the index, without the dollar figures the tiles under it show (owner rule 1, Nov 13: no number twice).
+ */
+export function copyLeadLine(record: CopyRecord): string | null {
+  if (!isFullRecord(record)) return null;
+  const word = versus(record.copy.end_value, record.spy.end_value);
+  const did = word === "more than" ? "beaten" : word === "less than" ? "trailed" : "matched";
+  // a card line is 15 words or fewer (owner rule 8): "filings" or "trades", the dollars are in the tiles
+  return `Copying ${possessive(record.name)} ${record.kind === "fund" ? "filings" : "trades"} ${period(record)} would have ${did} the S&P 500.`;
+}
+
 /** The read on top of one copy page: the result against the S&P 500, then the best and worst moves it copied. */
 export function buildCopyRead(record: CopyRecord): TheRead | null {
   if (!isFullRecord(record)) return null;

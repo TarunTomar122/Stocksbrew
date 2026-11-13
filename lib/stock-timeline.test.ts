@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analystTrendChanges, buildStockTimeline, developmentSentence, parseLooseDate, parseMonthPeriod, prettyDay, saysSameDevelopment, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+import { analystTrendChanges, buildStockTimeline, developmentSentence, lineRepeatsRow, parseLooseDate, parseMonthPeriod, prettyDay, saysSameDevelopment, timelineHeadline, timelineSortMs, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
 import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { TimelineEvent } from "@/lib/stock";
@@ -304,5 +304,15 @@ describe("saysSameDevelopment", () => {
     expect(saysSameDevelopment("JPMorgan took the lead role in a major AI IPO on Nov 10.", "JPMorgan has a new partnership with OpenAI.", jpm)).toBe(false);
     expect(saysSameDevelopment("JPM reported earnings on Nov 10.", "JPMorgan has a new partnership with OpenAI.", jpm)).toBe(false);
     expect(saysSameDevelopment("JPMorgan partnered with OpenAI on Nov 11.", "", jpm)).toBe(false);
+  });
+});
+
+describe("lineRepeatsRow", () => {
+  it("catches a week line that is a row of the list under it, said again (owner rule 1, Nov 13)", () => {
+    const rows = [{ title: "Cerebras shares fell 3.24% after results, while profitability evidence remained incomplete." }, { title: "Our call moved to Keep" }];
+    expect(lineRepeatsRow("Cerebras shares fell 3.24% after results, while profitability evidence remained incomplete.", rows)).toBe(true);
+    expect(lineRepeatsRow("Our call moved to Keep on Nov 9.", rows)).toBe(true);
+    expect(lineRepeatsRow("JPMorgan partnered with OpenAI on Nov 11.", rows)).toBe(false);
+    expect(lineRepeatsRow(null, rows)).toBe(false);
   });
 });

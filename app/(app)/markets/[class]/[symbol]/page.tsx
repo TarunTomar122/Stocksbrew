@@ -328,7 +328,8 @@ async function AssetPage({ asset, data }: { asset: MarketAsset; data: MarketsDat
 async function PredictionPage({ market }: { market: PredictionMarket }) {
   const history = market.has_history ? await getPredictionHistory(market.id) : [];
   const top = Math.max(...market.outcomes.map((outcome) => outcome.probability));
-  const reading = predictionReading(market);
+  // the outcomes are listed with their odds right below: the line says only what they don't (owner rule 1)
+  const reading = predictionReading(market, market.outcomes.map((outcome) => outcome.label));
   const hidden = market.outcome_count - market.outcomes.length;
   const dayVolume =
     market.volume_24h !== null && market.volume_24h > 0

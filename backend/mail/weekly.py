@@ -86,6 +86,23 @@ def _reason_for_week(s: Stock, days: list[str]) -> tuple[str, str]:
     return first_reason(s, close - timedelta(hours=30), close + timedelta(minutes=30), moves[big_day])
 
 
+_SLOTS = {"bmo": " before the open", "amc": " after the close"}
+
+
+def _report_words(s: Stock, today: date) -> str:
+    return f"Reports {kit.day_word(s.earnings_date, today)}{_SLOTS.get(s.earnings_time, '')}."
+
+
+def _with_report(c: kit.Card, s: Stock, today: date, week_end: date) -> kit.Card:
+    """The card with next week's report date on its line (marked `own`), or the card as it was when the stock does
+    not report by `week_end` or the date won't fit beside the line."""
+    if not s.earnings_date or not today <= s.earnings_date <= week_end:
+        return c
+    report = _report_words(s, today)
+    line = report if not c.line else f"{c.line} {report}" if kit.fits(f"{c.line} {report}") else ""
+    return kit.Card(**{**c.__dict__, "line": line, "own": True}) if line else c
+
+
 def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now: datetime | None = None,
                  unsubscribe_token: str | None = None) -> kit.Email | None:
     now = now or datetime.now(timezone.utc)
@@ -122,6 +139,9 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
                 f"{word} ({kit.pct(spy_week)} for the S&P 500).")
 
     week_ago = (end_day - timedelta(days=6)).isoformat()
+    # Monday to Friday of the coming week (from a Saturday: two to six days out)
+    week_start = today + timedelta(days=7 - today.weekday())
+    week_end = week_start + timedelta(days=4)
     changed = calls_changed(stocks, week_ago)
 
     # what moved the week: the two best and two worst, each with the news behind its biggest day
@@ -129,6 +149,10 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
     ups = [s for s in ranked if (s.week_change_pct or 0) > 0][:2]
     downs = [s for s in ranked[::-1] if (s.week_change_pct or 0) < 0 and s not in ups][:2]
     picks = ups + downs if len(stocks) > 1 else ranked[:1]
+    # a stock that is already a card here and whose call changed shows the change as its pill, and is not shown a
+    # second time, with the same price and moves, under "Calls we changed" (owner rule 1, Nov 13)
+    turned = {s.id: f"{before} → {after}" for s, before, after in changed if s in picks}
+    changed = [c for c in changed if c[0].id not in turned]
     if picks:
         cards = []
         for s in picks:
@@ -147,12 +171,16 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
             day_line = (f"Its biggest day was {date.fromisoformat(big_day).strftime('%A')}, {kit.pct(moves[big_day])}."
                         if big_day else "")
             line, why = (why, where) if why else (where or day_line, day_line if where else "")
-            cards.append(week_card(s, today, call=kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)),
+            cards.append(week_card(s, today, call=turned.get(s.id) or kit.call_pill_text(label, kit.call_level(label, s.add_below, s.trim_above)),
                                line=line, why=why, fallback=kit.recent_move(s.closes)))
         # two cards saying the same thing ("Now right at our buy-more price") say the day that made their week instead
         lines = [c.line for c in cards]
         cards = [kit.Card(**{**c.__dict__, "line": c.why or c.line, "why": ""}) if lines.count(c.line) > 1 and c.why else c
                  for c in cards]
+        # a pick that reports next week says when on its own card, not again as a second card under "Coming up next
+        # week" with the same price and moves (owner rule 1, Nov 13); when the date won't fit beside its line, it
+        # keeps that second card
+        cards = [_with_report(c, s, today, week_end) for c, s in zip(cards, picks)]
         doc.h2("Best and worst weeks")
         doc.cards(cards)
 
@@ -176,16 +204,13 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
         if len(changed) > 4:
             doc.p(f"And {len(changed) - 4} more in the app.", muted=True, size=kit.t.TEXT_SM)
 
-    # Monday to Friday of the coming week (from a Saturday: two to six days out)
-    week_start = today + timedelta(days=7 - today.weekday())
-    week_end = week_start + timedelta(days=4)
-    coming = sorted([s for s in person.emailed_stocks() if s.earnings_date and today <= s.earnings_date <= week_end],
-                    key=lambda s: (s.earnings_date, s.ticker))
+    reporting = sorted([s for s in person.emailed_stocks() if s.earnings_date and today <= s.earnings_date <= week_end],
+                       key=lambda s: (s.earnings_date, s.ticker))
+    carded = {c.ticker for c in cards if c.own} if picks else set()
+    coming = [s for s in reporting if s.ticker not in carded]
     if coming:
         doc.h2("Coming up next week")
-        slots = {"bmo": " before the open", "amc": " after the close"}
-        doc.cards([week_card(s, today, call=kit.call_label(s.stance, s.call_text),
-                         line=f"Reports {kit.day_word(s.earnings_date, today)}{slots.get(s.earnings_time, '')}.", own=True)
+        doc.cards([week_card(s, today, call=kit.call_label(s.stance, s.call_text), line=_report_words(s, today), own=True)
                    for s in coming[:4]])
 
     doc.button("Read the full memo", kit.app_url("/portfolio/memo"))
@@ -208,8 +233,8 @@ def build_weekly(person: Person, *, market: dict[str, Stock] | None = None, now:
     bits = []
     if spy_week is not None:
         bits.append(f"S&P 500 {kit.pct(spy_week)}")
-    if coming:
-        bits.append(f"{kit.plural(len(coming), 'earnings report')} coming up")
+    if reporting:
+        bits.append(f"{kit.plural(len(reporting), 'earnings report')} coming up")
     preheader = (". ".join(bits) + ".") if bits else f"Five trading days in your {kit.plural(len(stocks), 'stock')}."
     return kit.render(doc, kind="weekly_recap", category="weekly", subject=subject, preheader=preheader,
                       unsubscribe_token=unsubscribe_token, meta={"week_avg": week_avg},

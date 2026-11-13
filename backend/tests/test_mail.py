@@ -300,7 +300,9 @@ def test_daily_opens_on_the_stocks_without_a_summary():
 def test_a_big_mover_keeps_its_earnings_date():
     s = stock("ERN", change_pct=9.0, earnings_date=date(2026, 11, 11), earnings_time="amc")
     e = daily.build_daily(person([s]), now=NOW)
-    assert "Earnings coming up" in e.text and "Reports tomorrow after the close." in e.text and "Nov 11" not in e.text
+    assert "Reports tomorrow after the close." in e.text and "Nov 11" not in e.text
+    # the date rides on its move card: the stock is not carded a second time under "Earnings coming up"
+    assert "Earnings coming up" not in e.text and e.text.count("/stock/ERN") == 1
 
 
 def test_free_note_uses_the_plan_number_and_inclusive_wording():
@@ -331,8 +333,9 @@ def test_weekly_coming_up_is_next_week_only():
     s1 = stock("NXT", week_change_pct=1.0, earnings_date=date(2026, 11, 20))  # next Friday
     s2 = stock("FAR", week_change_pct=1.0, earnings_date=date(2026, 11, 23))  # Monday after
     e = weekly.build_weekly(person([s1, s2]), now=sat)
-    section = e.text.split("Coming up next week")[1]
-    assert "NXT" in section and "FAR" not in section
+    # NXT is a best-week card already, so its date rides on that card rather than a second one (owner rule 1)
+    assert "Reports Friday." in e.text and "Coming up next week" not in e.text
+    assert "Reports Monday" not in e.text and "Nov 23" not in e.text
     assert "1 earnings report coming up" in e.preheader
 
 
@@ -419,7 +422,9 @@ def test_zone_alert_says_the_move_the_close_and_the_buy_more_level():
     p = person([stock("SPCX", name="Space Exploration Technologies Corp.")])
     e = alerts.build_alerts(p, [_zone("SPCX", -4.21, 139.8, 142.07)], now=NOW)
     assert e.subject == "SPCX fell 4.2% to $139.80, below its $142.07 buy-more level"
-    assert "Fell 4.2% to $139.80, below its $142.07 buy-more level." in e.html and "Space Exploration" in e.html
+    # the card shows the close and the move as figures, so its line is only the level it reached
+    assert "Below its $142.07 buy-more level.</div>" in e.html and "Space Exploration" in e.html
+    assert "SPCX fell 4.2% to $139.80, below its $142.07 buy-more level." in e.preheader
     assert "add zone" not in e.text and "Names entering" not in e.text  # the old default name reads in the call's words
     # the close is said once, in words: Nov 9 is the day before this Tuesday's email
     assert "Yesterday's close" in e.text and "Nov 9" not in e.text and "11/09" not in e.text
@@ -569,7 +574,8 @@ def test_sell_some_alert_names_the_company_and_our_price():
     p = person([stock("ORCL", name="Oracle Corporation")])
     e = alerts.build_alerts(p, [_sell("ORCL", 256.10, 255.76)], now=NOW)
     assert e.subject == "Oracle reached our sell-some price, $255.76"
-    assert "Rose 3.0% to $256.10, above its $255.76 sell-some level." in e.html and "Oracle" in e.html
+    # the card shows the close and the move as figures; its line is the level it passed
+    assert "Above its $255.76 sell-some level.</div>" in e.html and "$256.10" in e.html and "Oracle" in e.html
 
 
 def test_call_change_alert_says_the_new_call_in_plain_words():
@@ -765,7 +771,7 @@ def test_a_level_and_its_report_read_as_one_line():
     from dataclasses import replace
 
     text = alerts.build_alerts(person([]), [replace(f[0], job_name="Morning check"), f[1]], now=NOW).text
-    assert "level., " not in text and "below its $10.00 buy-more level, reports tomorrow after the close." in text
+    assert "level., " not in text and "Below its $10.00 buy-more level, reports tomorrow after the close." in text
 
 
 def test_price_alerts_do_not_use_up_the_agent_alert_cap():
@@ -975,3 +981,127 @@ def test_a_live_alert_moves_from_the_previous_sessions_stored_close():
     assert alert_price(s, now)[1] is None
     e = alerts.build_price_alert(s, _alert(), now=now)
     assert "At $133.00, below your $142 alert." in e.html and "−9.9%" not in e.html
+
+
+# ------------------------------------------------------------- no number twice (owner rule 1, Nov 13)
+
+from backend.mail.repeats import repeats_in  # noqa: E402
+
+
+def test_new_facts_keeps_only_what_the_figures_do_not_say():
+    shown = kit.figures("$50.77 −1.8% Buy more under $50.79")
+    # every figure is already on the card, and what's left only restates the call pill
+    assert kit.new_facts("Fell 1.8% to $50.77.", shown) == ""
+    assert kit.new_facts("Fell 1.8% to $50.77, below its $50.79 buy-more level.", shown) == "Below its $50.79 buy-more level."
+    # a new figure stays, and so does a sentence with no shown figure
+    assert kit.new_facts("Up 2.4% before the open this morning.", shown) == "Up 2.4% before the open this morning."
+    assert kit.new_facts("Down 8.8% over the last 20 sessions.", shown) == "Down 8.8% over the last 20 sessions."
+    # a reason keeps its cause without the move the card already shows
+    assert kit.new_facts("Sandisk surges 12.3% as AI trade revives.", kit.figures("+12.3%")) == "Sandisk surges as AI trade revives."
+    assert kit.new_facts("Rose 32.9% to $35.87, at its $35.87 sell-some level.",
+                         kit.figures("$35.87 +32.9%")) == "At its $35.87 sell-some level."
+    # $1,431 and $1,431.00 are one price; the sign of a move is its colour
+    assert kit.new_facts("Closed at $1,431.00.", kit.figures("$1,431")) == ""
+    assert kit.new_facts("Its biggest day was Tuesday, −3.0%.", kit.figures("−3.0%")) == "Its biggest day was Tuesday."
+    # a move written with its own sign is a different move when the sign differs
+    assert kit.new_facts("Its biggest day was Thursday, +0.5%.", kit.figures("−0.5%")) == "Its biggest day was Thursday, +0.5%."
+    # a figure that measures something else stays, even when its value matches the card's (QA, Nov 13)
+    for line, shown_text in (("A normal day moves it 4.2%.", "4.2%"), ("Now 3.0% over our sell-some price.", "3.0%"),
+                             ("Up 1.8% over the last 20 sessions.", "−1.8%"), ("About 3.1x its usual daily move.", "3.1x"),
+                             ("S&P 500 fell 1.8%, the stock held up.", "1.8%"), ("Up 1.8% before the open this morning.", "1.8%")):
+        assert kit.new_facts(line, kit.figures(shown_text)) == line
+    # "U.S." is not the end of a sentence, and a semicolon stays a semicolon
+    assert kit.new_facts("U.S. stocks fell 1.8% as yields rose.", kit.figures("1.8%")) == "U.S. stocks fell as yields rose."
+    assert kit.new_facts("Fell 4.3% to $166.19; below your $168 alert.", kit.figures("$166.19 −4.3%")) == "Below your $168 alert."
+
+
+def test_daily_level_card_says_no_figure_twice():
+    s = stock("CGNX", name="Cognex Corporation", price=50.77, prev_close=51.7, change_pct=-1.8, stance="accumulate",
+              add_below=50.79)
+    s.calls = calls("accumulate", "accumulate", trigger=("price_below", 50.79))
+    s.calls[-1].day = "2026-11-08"
+    e = daily.build_daily(person([s]), now=NOW)
+    assert e is not None and "At our buy-more price" in e.text
+    assert repeats_in(e.html) == []
+    assert "Fell 1.8% to $50.77" not in e.html.split("</h1>", 1)[1]  # the headline may say it; the card does not
+
+
+def test_daily_level_card_keeps_a_morning_move_it_does_not_show():
+    s = stock("OUST", price=36.6, prev_close=38.3, change_pct=-4.2, stance="accumulate", add_below=38.22)
+    s.calls = calls("accumulate", "accumulate", trigger=("price_below", 38.22))
+    s.calls[-1].day = "2026-11-08"
+    s.premarket_pct = 1.8
+    e = daily.build_daily(person([s]), now=NOW)
+    assert "Up 1.8% before the open this morning." in e.text and repeats_in(e.html) == []
+
+
+def test_zone_and_sell_alert_cards_say_no_figure_twice():
+    e = alerts.build_alerts(person([stock("SPCX")]), [_zone("SPCX", -4.21, 139.8, 142.07)], now=NOW)
+    assert repeats_in(e.html) == []
+    sell = alerts.Finding("When to sell some", "SMCI", "SMCI rose 32.9% to $35.87, at its $35.87 sell-some level", "",
+                          alerts.PRICE_SOURCE, "2026-11-09", "", kind="level", change_pct=32.9, close=35.87, zone="trim",
+                          level=35.87, run_day="2026-11-09", run_close="2026-11-09")
+    e = alerts.build_alerts(person([stock("SMCI")]), [sell], now=NOW)
+    assert repeats_in(e.html) == [] and "At its sell-some level." in e.text
+
+
+def test_price_alert_card_does_not_repeat_its_headline_or_figures():
+    s = _closed("SPCX", 139.75, 143.04, name="Space Exploration Technologies Corp.")
+    e = alerts.build_price_alert(s, _alert(), now=NOW)
+    assert repeats_in(e.html) == [] and e.text.count("$142") == 1 + e.text.count("Subject")
+
+
+def test_a_level_set_at_the_close_is_not_said_beside_the_same_price():
+    card = kit.Card(ticker="AVGO", name="Broadcom Inc.", price=364.38, move=5.5, period="yesterday",
+                    call=kit.call_pill_text(kit.BUY, 364.38), line="Up 5.8% over the last 20 sessions.")
+    d = kit.Doc().cards([card])
+    assert "[Buy more]" in d.text_body() and "under $364.38" not in d.html_body()
+    assert repeats_in(d.html_body()) == []
+
+
+def test_weekly_call_change_rides_on_its_best_week_card():
+    up = stock("UPP", week_change_pct=12.0, stance="hold")
+    # settled on Sell some well before the week, then Keep during it (the helper's closes end on Oct 20)
+    up.calls = calls("trim", "trim", "trim", last_day="2026-10-03") + calls("hold", last_day="2026-10-16")
+    down = stock("DWN", week_change_pct=-6.0)
+    e = weekly.build_weekly(person([up, down]), now=NOW)
+    assert "Sell some → Keep" in e.text and "Calls we changed" not in e.text
+    assert repeats_in(e.html) == []
+
+
+def test_rebalance_headings_do_not_count_the_stocks_again():
+    from backend.mail import rebalance
+
+    rec = {"slug": "dip", "name": "Buy the dip", "date": "2026-11-09", "previously_held": 3,
+           "added": [{"symbol": "AAA", "weight": 0.5}, {"symbol": "BBB", "weight": 0.5}],
+           "removed": [{"symbol": "CCC"}, {"symbol": "DDD"}]}
+    e = rebalance.build_note([rec], now=NOW)
+    assert "swapped 2 of its 3 stocks" in e.text and "Bought 2" not in e.text and "Sold 2" not in e.text
+
+
+def test_a_carded_stock_that_reports_later_says_when_on_its_card():
+    # QA, Nov 13: a level card for a stock reporting next week used to come back under "Earnings coming up"
+    s = stock("CGNX", name="Cognex Corporation", price=50.77, prev_close=51.7, change_pct=-1.8, stance="accumulate",
+              add_below=50.79, earnings_date=date(2026, 11, 18), earnings_time="amc")
+    s.calls = calls("accumulate", "accumulate", trigger=("price_below", 50.79))
+    s.calls[-1].day = "2026-11-08"
+    e = daily.build_daily(person([s]), now=NOW)
+    assert "Earnings coming up" not in e.text and e.text.count("/stock/CGNX") == 1
+    assert "Reports Wednesday, Nov 18 after the close." in e.text and repeats_in(e.html) == []
+
+
+def test_weekly_pick_that_reports_next_week_is_carded_once():
+    sat = datetime(2026, 11, 14, 14, 0, tzinfo=timezone.utc)
+    up = stock("UPP", week_change_pct=12.0, earnings_date=date(2026, 11, 18), earnings_time="bmo")
+    e = weekly.build_weekly(person([up, stock("DWN", week_change_pct=-6.0)]), now=sat)
+    assert e.text.count("/stock/UPP") == 1 and "Reports Wednesday before the open." in e.text
+    assert repeats_in(e.html) == []
+
+
+def test_rebalance_heading_counts_when_the_title_does_not():
+    from backend.mail import rebalance
+
+    rec = {"slug": "dip", "name": "Buy the dip", "date": "2026-11-09", "previously_held": 2, "market_ok": False,
+           "added": [], "removed": [{"symbol": "CCC"}, {"symbol": "DDD"}]}
+    e = rebalance.build_note([rec], now=NOW)
+    assert "sold everything" in e.text and "Sold 2" in e.text

@@ -1,5 +1,6 @@
 import { todayET } from "@/lib/calendar-shared";
-import { saysSameDevelopment, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+import { lineRepeatsRow, saysSameDevelopment, weekChange, type StockTimelineItem } from "@/lib/stock-timeline";
+
 import { caseWireHeadlines } from "@/lib/wire-casing";
 
 import { StockLogo } from "@/components/stock-logo";
@@ -12,6 +13,9 @@ import { NO_EXTRAS, toSectionData } from "./section-data";
 import { sectionAvailability } from "./sections";
 import type { ReportData, ReportExtras } from "./types";
 import type { StockSignals } from "@/lib/stock-signals";
+
+/** The rows the "What changed" box shows in view before anyone scrolls it (it is about seven rows tall with its day headings). */
+const FIRST_ROWS = 5;
 
 /** At most this many entries go to the browser, all in the list's inner scroll (changed-timeline.tsx). */
 const TIMELINE_MAX = 40;
@@ -47,13 +51,18 @@ export function StockReportBelow({ data, extras, signals = null }: { data: Repor
   const weekLine = weekChange(extras.timeline.items, { ticker: stock.ticker, companyName: stock.name, now: nowDate });
   // The brief above already leads with the development, so the list does not say it again (owner rules 1 and 7).
   const briefLead = data.readState === "ready" ? briefLeadOf(data.read).lead : "";
-  const changeLine = saysSameDevelopment(weekLine, briefLead, { ticker: stock.ticker, companyName: stock.name }) ? null : weekLine;
   // Headlines and move titles in sentence case, through the wire's shared casing (owner rule 8: no Scraped Title Case).
   const timelineItems = caseTimeline(
     extras.timeline.items.slice(0, TIMELINE_MAX).map((item) => (item.kind === "news" && item.detail ? { ...item, detail: undefined } : item)),
     stock.ticker,
     stock.name,
   );
+  // Nor a line that is one of the first rows right under it, said again (owner rule 1, Nov 13); a row further down
+  // the scrolling list keeps the line, so the fact stays in view.
+  const changeLine =
+    saysSameDevelopment(weekLine, briefLead, { ticker: stock.ticker, companyName: stock.name }) || lineRepeatsRow(weekLine, timelineItems.slice(0, FIRST_ROWS))
+      ? null
+      : weekLine;
 
   return (
     <>

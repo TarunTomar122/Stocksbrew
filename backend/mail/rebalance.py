@@ -10,6 +10,7 @@ link. Off unless ``STRATEGY_REBALANCE_NOTES=1`` is set for the mail jobs.
 from __future__ import annotations
 
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -202,7 +203,10 @@ def _section(doc: kit.Doc, record: dict[str, Any], tracked: set[str], quotes: di
         shown = _picks(others, set(), "weight" if bought else "previous_weight", n)
         weights = {_weight(i.get("weight")) for i in items} if bought else set()
         same = len(weights) == 1 and "" not in weights
-        doc.h2(f"{word} {len(items)}", aside=f"{weights.pop()} each" if same else None)
+        # the strategy's title above says how many came in and left ("swapped 18 of its 20 stocks"): the heading
+        # counts them only when the title doesn't ("sold everything and moved to cash")
+        counted = re.search(rf"\b{len(items)}\b", title(record))
+        doc.h2(word if counted else f"{word} {len(items)}", aside=f"{weights.pop()} each" if same else None)
         before = len(doc.text)
         doc.cards([card(i, bought=bought) for i in shown])
         del doc.text[before:]  # the plain text lists every stock instead of the cards

@@ -15,7 +15,9 @@ import {
   biggestMoves,
   buildMarketsOverview,
   classHref,
+  putCallReading,
   structureReading,
+  vixReading,
   yieldCurveShiftReading,
   type MarketAsset,
   type MarketsData,
@@ -39,7 +41,7 @@ export function MarketsMovedSection({ data, overview = buildMarketsOverview(data
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
       <MarketReadings readings={overview.readings} asOf={data.as_of} />
-      <AssetClassCard title="Biggest moves" icon="movers" assets={movers} limit={7} note={moversTakeaway(movers)} emptyText="No moves to rank yet." />
+      <AssetClassCard title="Biggest moves" icon="movers" assets={movers} limit={7} note={moversTakeaway(movers, { figures: false })} emptyText="No moves to rank yet." />
     </div>
   );
 }
@@ -56,15 +58,15 @@ export function StocksAndFundsSection({ data, sectors = true, label = true }: { 
     <>
       {label ? <SectionLabel aside="US indices and funds">Stocks and funds</SectionLabel> : null}
       <div className={`grid gap-3 md:grid-cols-2 ${sectors ? "xl:grid-cols-3" : ""}`}>
-        <AssetClassCard title="Indices" icon="markets" href={classHref("indices")} assets={ofClass(data, "index")} limit={5} note={vix ? assetReading(vix) : null} noteVerdict={vix ? vixWord(vix.price) : null} />
-        {sectors ? <SectorHeatGrid assets={etfs} takeaway={sectorTakeaway(etfs)} /> : null}
+        <AssetClassCard title="Indices" icon="markets" href={classHref("indices")} assets={ofClass(data, "index")} limit={5} note={vix ? indicesNote(vix, ofClass(data, "index").slice(0, 5)) : null} noteVerdict={vix ? vixWord(vix.price) : null} />
+        {sectors ? <SectorHeatGrid assets={etfs} takeaway={sectorTakeaway(etfs, { figures: false })} /> : null}
         <AssetClassCard
           title="Themes"
           icon="themes"
           href={classHref("etfs")}
           assets={themes}
           limit={5}
-          note={listTakeaway(themes, "theme funds")}
+          note={listTakeaway(themes, "theme funds", themes.slice(0, 5))}
         />
       </div>
     </>
@@ -105,7 +107,7 @@ export function CommoditiesCurrenciesCryptoSection({ data, label = true }: { dat
           href={classHref("crypto")}
           assets={crypto}
           limit={6}
-          note={listTakeaway(crypto, "coins") ?? (btcReading ? `Bitcoin: ${btcReading}` : null)}
+          note={listTakeaway(crypto, "coins", crypto.slice(0, 6)) ?? (btcReading ? `Bitcoin: ${btcReading}` : null)}
         />
       </div>
     </>
@@ -117,12 +119,21 @@ function commoditiesNote(commodities: MarketAsset[]): string | null {
   return commodities.map((asset) => structureReading(asset, asset.name)).find(Boolean) ?? null;
 }
 
+/** The VIX line over the indices: without the VIX level when its own row on the card shows it (owner rule 1). */
+function indicesNote(vix: MarketAsset, shown: MarketAsset[]): string | null {
+  return shown.some((asset) => asset.id === vix.id) ? vixReading(vix.price, { figures: false }) : assetReading(vix);
+}
+
 /** Put/call ratios and the volatility indices. */
 export function OptionsSection({ data, label = true }: { data: MarketsData; label?: boolean }) {
   const options = ofClass(data, "option");
   const putCall = options.filter((asset) => asset.group === "put_call");
   const equityPutCall = putCall.find((asset) => asset.id === "pc-equity");
-  const equityReading = equityPutCall ? assetReading(equityPutCall) : null;
+  // The card's rows show today's ratio; its note says it again only when that row is not on the card.
+  const equityShown = putCall.slice(0, 4).some((asset) => asset.id === "pc-equity");
+  const equityReading = equityPutCall
+    ? (equityShown ? putCallReading(equityPutCall, { figures: false }) : null) ?? assetReading(equityPutCall)
+    : null;
   return (
     <>
       {label ? <SectionLabel aside="Put/call and volatility">Options</SectionLabel> : null}

@@ -116,12 +116,27 @@ export function ownLevel(position: Pick<BriefingPosition, "stance" | "price" | "
  * One percent and no dollar figures (owner, Nov 12: never "At $128.43, under the buy-more price of $128.43"):
  * "2.1% under the buy-more price", "3.0% below the sell-some price", "At the buy-more price".
  */
-export function levelLine(level: OwnLevel): string {
+export function levelLine(level: OwnLevel, pct?: number | null): string {
   const away = Math.abs(level.gapPct);
   const name = level.call === "Buy more" ? "buy-more" : "sell-some";
   if (away < 0.05) return `At the ${name} price`;
   const side = level.gapPct < 0 ? "under" : "over";
+  // A level set at the last close is as far away as the day's move beside it: "1.9% under" would say −1.9% twice
+  // (owner rule 1, Nov 13), so the line says where the level came from instead.
+  if (levelSetAtClose(level, pct)) return `${side === "under" ? "Under" : "Over"} the ${name} price set at the last close`;
   return `${away.toFixed(1)}% ${side} the ${name} price`;
+}
+
+/**
+ * True when the level is the last close (a call that set its price there), so its distance from the price prints as
+ * the day's move `pct` itself: within 0.1% of that close, and the same to one decimal.
+ */
+export function levelSetAtClose(level: Pick<OwnLevel, "level" | "gapPct">, pct: number | null | undefined): boolean {
+  if (!fin(pct) || Math.abs(pct) < 0.05 || pct <= -100) return false;
+  if (Math.abs(level.gapPct).toFixed(1) !== Math.abs(pct).toFixed(1)) return false;
+  const price = level.level * (1 + level.gapPct / 100);
+  const close = price / (1 + pct / 100);
+  return Math.abs(close - level.level) / level.level < 0.001;
 }
 
 /* ── the strip: you vs the S&P 500 ─────────────────────────────────────── */
@@ -468,7 +483,7 @@ export function doToday(input: {
         const level = position ? ownLevel(position) : null;
         // A zone the stock's own call does not name is no decision (Keep has no level).
         if (!level || !level.crossed) continue;
-        line = levelLine(level);
+        line = levelLine(level, position?.day_change_pct);
         break;
       }
       case "alert_triggered": {
@@ -820,7 +835,7 @@ export function atYourLevels(
       call: level.call,
       href: `/stock/${encodeURIComponent(ticker)}`,
       level,
-      line: levelLine(level),
+      line: levelLine(level, shownPct(position, null, premarket)),
       held: position.relation === "holding",
     });
   }

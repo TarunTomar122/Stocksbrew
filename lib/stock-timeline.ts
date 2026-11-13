@@ -834,6 +834,24 @@ export function developmentSentence(
 }
 
 /**
+ * True when the week's line only says again a row of the list right under it ("Cerebras shares fell 3.24% after
+ * results." over the row with that headline; "Our call moved to Keep on Nov 9." over the "Our call moved to Keep"
+ * row). Compared without case, punctuation or the trailing day the line adds. The line then goes: the row says it,
+ * with its day and source (owner rule 1, Nov 13: no number or sentence twice in one block).
+ */
+export function lineRepeatsRow(line: string | null | undefined, rows: ReadonlyArray<Pick<StockTimelineItem, "title">>): boolean {
+  if (!line) return false;
+  const bare = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/\s+on\s+(?:[a-z]{3,9}\s+\d{1,2}|today|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\.?\s*$/, "")
+      .replace(/[^a-z0-9%$]+/g, " ")
+      .trim();
+  const said = bare(line);
+  return said.length > 0 && rows.some((row) => bare(row.title) === said);
+}
+
+/**
  * One line that says what changed for the stock in the past week, built from the timeline rows the page already
  * has (no model call): a results report; else the development behind the subject most of the week's stories share,
  * said from its strongest headline ("JPMorgan partnered with OpenAI on Nov 11."); else our call moving. Null when the

@@ -167,6 +167,144 @@ def fits(text: str, words: int = 15) -> bool:
     return bool(text) and word_count(text) <= words
 
 
+# ------------------------------------------------------------ no number twice
+
+# A figure as a reader sees it: a price ($50.77, $1,431), a move (−1.8%, 1.8%: the sign is the colour, so both are
+# the same figure) or a multiple (3.1x). lib/no-repeat.ts reads figures the same way for the app.
+_FIGURE = re.compile(r"\$\s?(?P<money>\d[\d,]*(?:\.\d+)?)|(?P<sign>[+−-])?(?P<pct>\d+(?:\.\d+)?)\s?%|\b(?P<times>\d+(?:\.\d+)?)x\b")
+_FIG = r"(?:\$\s?\d[\d,]*(?:\.\d+)?|\d+(?:\.\d+)?\s?%|\b\d+(?:\.\d+)?x\b)"
+# A figure is only cut where the move or the close itself states it: right after a move word ("fell 1.8%", "surges
+# 12%", "up about 3%") or as the price it went to or closed at ("to $50.77", "at $50.77").
+_MOVE_FIGURE = re.compile(
+    r"(\b(?:rose|rises|rising|fell|falls|falling|up|down|gained|gains|lost|loses|dropped|drops|jumped|jumps|slid|slides|"
+    r"climbed|climbs|sank|sinks|surged|surges|soared|soars|tumbled|tumbles|plunged|plunges|rallied|rallies|spiked|"
+    r"spikes|popped|pops|slipped|slips|moved|moves)\b)(\s+(?:about|nearly|almost|over|more than)?\s*[+−-]?" + _FIG + ")",
+    re.I,
+)
+_PRICE_FIGURE = re.compile(r"\s+\b(?:to|at)\s+\$\s?\d[\d,]*(?:\.\d+)?")
+# A clause about another measure keeps its figures even when one matches the card's: a stretch ("over the last 20
+# sessions"), a usual or normal day, the market or an index, our levels, analysts, the morning's move.
+_OTHER_MEASURE = re.compile(
+    r"over the last|this week|since|before the open|this morning|so far|a year|normal day|usual|typical|s&p|index|"
+    r"market|analyst|target|upside|our |points?\b|pts\b",
+    re.I,
+)
+# what is left of a clause once its repeated figures are gone, when it says nothing: "Fell", "Rose to", "Up yesterday"
+_EMPTY_WORDS = set("""
+rose fell up down closed closes close moved moves move gained lost dropped jumped slid climbed sank is was are now
+it its the a an and to at of by from on in this that yesterday today morning week session sessions last day
+before after open so far stock shares price
+""".split())
+# a sentence ends at . ! or ? after a small letter, a digit, % or a bracket: "U.S. stocks" is not two sentences
+_SENTENCE_END = re.compile(r"(?<=[a-z0-9%)][.!?])\s+")
+_CLAUSE_SEP = re.compile(r"(,\s+|;\s+|:\s+|\s+—\s+)")
+
+
+def _figure_keys(m: re.Match) -> tuple[tuple[str, float], tuple[str, float] | None]:
+    """A figure's key ("%", 1.8) and, for a move written with its sign, its signed key ("%-", 1.8)."""
+    kind = "$" if m.group("money") else "%" if m.group("pct") else "x"
+    raw = m.group("money") or m.group("pct") or m.group("times")
+    value = round(float(raw.replace(",", "")), 2)
+    sign = m.group("sign")
+    return (kind, value), (("%-" if sign in "−-" else "%+"), value) if sign else None
+
+
+def figures(text: str) -> set[tuple[str, float]]:
+    """Every figure in a piece of text, as (kind, value): ("$", 50.77), ("%", 1.8), ("x", 3.1). A move written with
+    its sign also gives its signed key, ("%-", 1.8) for "−1.8%"."""
+    out: set[tuple[str, float]] = set()
+    for m in _FIGURE.finditer(text or ""):
+        try:
+            key, signed = _figure_keys(m)
+        except ValueError:
+            continue
+        out.add(key)
+        if signed:
+            out.add(signed)
+    return out
+
+
+def repeats(text: str, shown: set[tuple[str, float]]) -> bool:
+    """True when `text` says a figure in `shown`. "fell 1.8%" repeats a card's −1.8% (the sign is its colour), but a
+    move written with its own sign only repeats the same signed move: "+0.5%" for Thursday is not "−0.5%" yesterday."""
+    for m in _FIGURE.finditer(text or ""):
+        try:
+            key, signed = _figure_keys(m)
+        except ValueError:
+            continue
+        if (signed in shown) if signed and any(k[0] in ("%-", "%+") and k[1] == key[1] for k in shown) else (key in shown):
+            return True
+    return False
+
+
+def _says_something(clause: str) -> bool:
+    words = [w.lower() for w in re.findall(r"[A-Za-z][A-Za-z'’-]*", clause)]
+    return any(w not in _EMPTY_WORDS for w in words)
+
+
+def _tidy(clause: str) -> str:
+    return re.sub(r"\s{2,}", " ", clause).strip(" ,;:")
+
+
+def _clause_without(clause: str, shown: set[tuple[str, float]]) -> str | None:
+    """The clause without the shown figures its move or close states, the clause unchanged when they measure
+    something else, or None when nothing but shown figures is left of it."""
+    if not repeats(clause, shown):
+        return clause
+    if _OTHER_MEASURE.search(clause):
+        return clause
+    cut = _MOVE_FIGURE.sub(lambda m: m.group(1) if repeats(m.group(2), shown) else m.group(0), clause)
+    cut = _tidy(_PRICE_FIGURE.sub(lambda m: "" if repeats(m.group(0), shown) else m.group(0), cut))
+    if not _says_something(cut):
+        return None
+    if repeats(cut, shown):
+        # a shown figure in another role ("below its $50.79 level"): the clause goes when it is only that figure,
+        # and otherwise stays as it was rather than read broken
+        rest = _tidy(_FIGURE_ANY.sub(lambda m: "" if repeats(m.group(0), shown) else m.group(0), cut))
+        return clause if _says_something(rest) else None
+    return cut
+
+
+_FIGURE_ANY = re.compile(r"[+−-]?" + _FIG)
+
+
+def new_facts(text: str, shown: set[tuple[str, float]]) -> str:
+    """The part of a sentence the figures beside it don't already say (owner rule 1, Nov 13: no number twice in one
+    card, row or email block). A clause that is only the shown move or close goes ("Fell 1.8% to $50.77"); a clause
+    with more keeps that, without the figure ("Sandisk surges 12% as AI trade revives" -> "Sandisk surges as AI trade
+    revives"); a sentence with nothing left goes. A figure that measures something else stays ("Up 1.8% over the last
+    20 sessions", "A normal day moves it 4.2%"). Text with no shown figure comes back unchanged. lib/no-repeat.ts
+    does the same for the app."""
+    if not text or not shown or not repeats(text, shown):
+        return text
+    out = []
+    for sentence in _SENTENCE_END.split(text.strip()):
+        body = sentence.rstrip(".!?")
+        end = sentence[len(body):] or "."
+        parts = _CLAUSE_SEP.split(body)
+        kept = ""
+        for i in range(0, len(parts), 2):
+            clause = _clause_without(parts[i], shown)
+            if not clause:
+                continue
+            sep = parts[i - 1] if i and kept else ""
+            kept += sep + clause
+        if kept:
+            out.append(sentence if kept == body else cap(kept) + end)
+    return " ".join(out)
+
+
+def card_figures(c: "Card") -> set[tuple[str, float]]:
+    """The figures a card already shows above its line: price, labelled moves, the call's level, the tag."""
+    shown = figures(" ".join(x for x in (c.call, c.tag) if x))
+    if c.price is not None:
+        shown |= figures(money(c.price)) | figures(money(c.price, digits=2))
+    for v in (c.move, c.second[0] if c.second else None):
+        if v is not None:
+            shown |= figures(pct(v))
+    return shown
+
+
 def verdict(word: str, tone: str) -> str:
     """A short good-or-bad word on a soft tint, with an arrow so the colour is never the only signal
     (the app's <Verdict>). tone is "up", "down" or "flat"."""
@@ -386,6 +524,7 @@ class Card:
     fallback: str = ""  # used when the lines above are shared with another card or too long
     own: bool = False  # the line is this stock's own fact (a report date) and stays even when another card says the same
     link: bool = True
+    digits: int | None = None  # the price's decimals: 2 when a level beside it would otherwise read as the same price
 
 
 @dataclass
@@ -502,6 +641,9 @@ class Doc:
     def cards(self, cards: list[Card]) -> "Doc":
         """Stock cards, equal height, every row full: two side by side for an even count, one per row for an odd
         count (no card stretched over a row, no empty slot beside it), and one per row on a phone."""
+        # no number twice in one card (owner rule 1, Nov 13): a call level that is the price itself (a level set at
+        # that close) leaves the pill as the bare call, and each line keeps only what the figures above it don't say
+        cards = [_without_repeats(c) for c in cards]
         # a sentence shared by several cards says nothing about any one of them (owner rule 1): drop it from all,
         # whether it sits in the bold line or under it, and let the card's own fallback fill in
         said = [x for c in cards for x in dict.fromkeys((c.line, c.why, c.fallback, c.meta)) if x]
@@ -516,7 +658,7 @@ class Doc:
             cells.append(_card_html(c))
             self.text.append("")
             moves = "; ".join(f"{pct(v)} {p}".strip() for v, p in ((c.move, c.period), c.second or (None, "")) if v is not None)
-            head = " ".join(x for x in (c.ticker, short_name(c.name, c.ticker), money(c.price) if c.price is not None else "",
+            head = " ".join(x for x in (c.ticker, short_name(c.name, c.ticker), money(c.price, digits=c.digits) if c.price is not None else "",
                                          moves) if x)
             self.text.append(head + (f"  [{c.call}]" if c.call else "") + (f"  ({c.tag})" if c.tag else ""))
             if c.line:
@@ -580,6 +722,21 @@ class Doc:
 
     def text_body(self) -> str:
         return "\n".join(self.text).strip()
+
+
+def _without_repeats(c: Card) -> Card:
+    call, digits = c.call, c.digits
+    if c.price is not None and (m := re.search(r" (?:under|over) (\$[\d,]+(?:\.\d+)?)$", call)) and m.group(1) == money(c.price):
+        call = call[: m.start()]
+    lines = {k: getattr(c, k) for k in ("line", "why", "meta", "fallback")}
+    shown = card_figures(Card(**{**c.__dict__, "call": call}))
+    lines = {k: new_facts(v, shown) for k, v in lines.items()}
+    if c.price is not None and digits is None:
+        # $1,410.60 beside a $1,411.20 level, never $1,411 beside it (money_pair, for a card)
+        near = {v for kind, v in figures(" ".join([call, *lines.values()])) if kind == "$"}
+        if any(money(v) == money(c.price) and v != round(c.price, 2) for v in near):
+            digits = 2
+    return Card(**{**c.__dict__, "call": call, "digits": digits, **lines})
 
 
 def _panel(inner: str, *, pad: str) -> str:
@@ -658,7 +815,7 @@ def _card_html(c: Card) -> str:
     name_html = (f"<div class='sbm' style='margin-top:1px;font-size:{t.TEXT_XS}px;line-height:1.3;color:{t.MUTED}'>{esc(name)}</div>"
                  if name else "")
     price = (f"<span class='sbi' style='display:inline-block;margin-right:10px;font-size:18px;line-height:1.3;font-weight:700;color:{t.INK};"
-             f"font-variant-numeric:tabular-nums;white-space:nowrap'>{esc(money(c.price))}</span>") if c.price is not None else ""
+             f"font-variant-numeric:tabular-nums;white-space:nowrap'>{esc(money(c.price, digits=c.digits))}</span>") if c.price is not None else ""
     moves = _move_html(c.move, c.period) + (_move_html(c.second[0], c.second[1]) if c.second else "")
     head = (
         "<table role='presentation' width='100%' cellpadding='0' cellspacing='0'><tr>"

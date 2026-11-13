@@ -469,7 +469,8 @@ function FundView({
             <Stat
               label="Stocks reported"
               value={fmtUsd(latest.stock_value)}
-              hint={`as of ${fmtDate(latest.period)}`}
+              // the date is in the line above ("for holdings on Jun 30"): said once (owner rule 1)
+              hint="at the quarter's end"
             />
             <Stat
               label="Positions"

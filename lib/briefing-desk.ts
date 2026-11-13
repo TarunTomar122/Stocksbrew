@@ -191,7 +191,7 @@ export function settledFact(position: BriefingPosition, price: number | null): s
   const level = ownLevel({ ...position, price: fin(price) && price > 0 ? price : position.price });
   if (level) {
     if (level.crossed || Math.abs(level.gapPct) < AT_LEVEL_PCT) return null;
-    return levelLine(level);
+    return levelLine(level, position.day_change_pct);
   }
   return `Our call stays ${call}`;
 }

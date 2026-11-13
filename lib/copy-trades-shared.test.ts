@@ -9,6 +9,7 @@ import {
   copyCompanyName,
   copyDescription,
   copyHref,
+  copyLeadLine,
   copyIsIndexable,
   copyTitle,
   copyVerdict,
@@ -142,6 +143,14 @@ describe("copy test pages", () => {
     // "held" once, not "held it, held since".
     expect(read.insights[1]!.soWhat).toBe("The stock was up 356% while the copy held it, since Feb 2020.");
     expect(read.insights[1]!.leadName).toBe("Apple");
+  });
+
+  it("the line over the figure tiles says who did better without their dollars (owner rule 1, Nov 13)", () => {
+    const line = copyLeadLine(record())!;
+    expect(line).toBe("Copying Berkshire Hathaway's filings from Feb 2020 would have trailed the S&P 500.");
+    expect(line.split(/\s+/).length).toBeLessThanOrEqual(15);
+    expect(line).not.toMatch(/\$/);
+    expect(copyLeadLine({ ...record(), empty: true, start_date: null } as unknown as CopyRecordEmpty)).toBeNull();
   });
 
   it("a record that stopped says until when, everywhere it is quoted", () => {

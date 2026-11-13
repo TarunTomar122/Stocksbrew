@@ -5,7 +5,7 @@ import * as React from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import { shortDate, type AgentEvaluation, type AgentJob } from "@/lib/agent-jobs";
-import { presentRun, signedPct, VERDICT_LABEL, type AgentVerdict, type RunView } from "@/lib/agent-jobs-present";
+import { presentRun, runLead, signedPct, VERDICT_LABEL, type AgentVerdict, type RunView } from "@/lib/agent-jobs-present";
 import { AppLink } from "@/components/oa/app-link";
 
 export type RunRow = AgentEvaluation & { key: string; day: string; ran_at?: string };
@@ -108,7 +108,7 @@ export function RunReport({ view, showHeadline = true }: { view: RunView; showHe
     <div className="grid min-w-0 gap-2.5">
       {showHeadline ? (
         <div>
-          <p className="text-pretty text-[15px] font-medium leading-[22px] text-oa-fg">{view.headline}</p>
+          {runLead(view) ? <p className="text-pretty text-[15px] font-medium leading-[22px] text-oa-fg">{runLead(view)}</p> : null}
           <p className="mt-0.5 text-pretty text-[14px] leading-5 text-oa-muted-fg">{view.todo}</p>
         </div>
       ) : null}

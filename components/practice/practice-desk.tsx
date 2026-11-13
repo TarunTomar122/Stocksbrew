@@ -143,17 +143,22 @@ export function PracticeDesk({ initial, mode, ticket = null }: { initial: Practi
               />
             </div>
             <p className="border-t border-oa-border px-4 py-2 text-[12.5px] leading-[18px] text-oa-muted-fg">
-              From {money(view.start_cash, 0)} of paper money on {longDay(bench.start_date)}.{" "}
-              {bench.return !== null && bench.value !== null ? `The same money in ${bench.symbol} would be ${money(bench.value)}.` : ""}
+              {/* An untouched account is its starting money to the dollar: the figures above already say it. */}
+              {money(view.start_cash, 0) === money(view.equity, 0) && view.rows.length === 0
+                ? `Paper money since ${longDay(bench.start_date)}.`
+                : `From ${money(view.start_cash, 0)} of paper money on ${longDay(bench.start_date)}.`}{" "}
+              {/* Not when it is the account value above to the cent (a new account): the figure would be said twice. */}
+              {bench.return !== null && bench.value !== null && money(bench.value) !== money(view.equity) ? `The same money in ${bench.symbol} would be ${money(bench.value)}.` : ""}
             </p>
 
             <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-oa-border bg-oa-bg px-4 py-2">
               <h2 className="oa-label">Positions</h2>
-              {view.price_as_of ? <p className="text-[12.5px] text-oa-muted-fg">valued at the close on {longDay(view.price_as_of)}</p> : null}
+              {/* No positions, nothing valued: the day would only repeat the start date above (owner rule 1). */}
+              {view.price_as_of && view.rows.length > 0 ? <p className="text-[12.5px] text-oa-muted-fg">valued at the close on {longDay(view.price_as_of)}</p> : null}
             </div>
             {view.rows.length === 0 ? (
               <p className="max-w-[70ch] border-t border-oa-border px-4 py-5 text-[14px] leading-[22px] text-oa-muted-fg">
-                No positions yet. The account is {money(view.cash, 0)} of paper cash. Place a first order with the ticket{" "}
+                No positions yet. Place a first order with the ticket{" "}
                 <span className="lg:hidden">below</span>
                 <span className="hidden lg:inline">on the right</span>.
               </p>

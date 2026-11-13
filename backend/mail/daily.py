@@ -221,10 +221,6 @@ def big_move_threshold(s: Stock) -> float:
     return max(floor, typical * BIG_MOVE_TYPICAL_MULT) if typical else floor
 
 
-def _yours(s: Stock) -> str:
-    return "You hold it" if s.position == "holding" else "It's on your watchlist"
-
-
 def _call(s: Stock) -> str:
     return kit.call_label(s.stance, s.call_text)
 
@@ -244,13 +240,13 @@ def items_for(person: Person, now: datetime, spy: Stock | None = None) -> list[I
         crossed_trim = bool(trim_lvl and s.prev_close and s.prev_close < trim_lvl <= s.price
                             and direction(s.stance) != "bullish")
         if crossed_add:
-            why = (f"You hold it. {kit.recent_move(s.closes)}" if s.position == "holding"
-                   else f"On your watchlist. {kit.recent_move(s.closes)}").strip()
+            # the card's one line: the stretch that led here (no "You hold it." on every card, owner rule 1)
+            why = kit.recent_move(s.closes)
             items.append(Item(s, "level_add", 100, kit.level_phrase(s.price, add_lvl, "add") + f" {when}.", why, level=add_lvl))
             continue
         if crossed_trim:
-            why = (f"You hold it. {kit.recent_move(s.closes)}" if s.position == "holding"
-                   else f"On your watchlist. {kit.recent_move(s.closes)}").strip()
+            # the card's one line: the stretch that led here (no "You hold it." on every card, owner rule 1)
+            why = kit.recent_move(s.closes)
             items.append(Item(s, "level_trim", 100, kit.level_phrase(s.price, trim_lvl, "trim") + f" {when}.", why, level=trim_lvl))
             continue
         if (s.previous_stance and s.calls and s.stable_before_change()
@@ -379,15 +375,11 @@ def card_for(i: Item, today: date) -> kit.Card:
     value, period = ((s.premarket_pct, "before the open") if i.kind == "premarket"
                      else (s.change_pct, session_word(s.price_at, today).removeprefix("on ")))
     line, why = i.headline, i.detail
-    if i.kind in ("level_add", "level_trim") and s.price and i.level:
-        # the whole fact in one line, as the alert email says it: the move, the close and the level it reached
-        word = "buy-more" if i.kind == "level_add" else "sell-some"
-        close, lvl = kit.money_pair(s.price, i.level)
-        where = "at" if close == lvl else "below" if s.price < i.level else "above"
-        move = (f"{kit.cap(kit.verb(s.change_pct))} {kit.pct(s.change_pct, signed=False)} to {close}"
-                if s.change_pct is not None and round(s.change_pct, 1) != 0 else f"Closed at {close}")
-        # the same words as the alert email (owner rule 5b)
-        line, why = f"{move}, {where} its {lvl} {word} level.", i.detail
+    if i.kind in ("level_add", "level_trim"):
+        # the card already shows the close, the move and the level (in the call pill), under a section title that
+        # says it reached that level: its line is what those don't say (owner rule 1, Nov 13), never "Fell 1.8% to
+        # $50.77, below its $50.79 buy-more level."
+        line, why = i.detail, ""
     if i.kind == "big_move":
         # the figure already says how much; the card leads with why, when we know it
         line, why = (i.detail, "") if i.detail else (i.headline, "")
@@ -440,13 +432,31 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
     doc.h1(headline_for(items, today))
     # a big move we can't explain is just a number: it goes in the tiles, not a card of its own
     unexplained = [i for i in shown if i.kind in ("big_move", "premarket") and not i.detail]
+    # A stock with a card here that also reports soon says when on that card, so "Earnings coming up" never shows it
+    # a second time with the same price and move (owner rule 1, Nov 13). When the date won't fit in the card's one
+    # line beside what it already says, the stock keeps its card under "Earnings coming up" instead.
+    reporting = {i.stock.id for i in items if i.kind == "earnings"}
+    dated: set[str] = set()  # stocks whose report date is already on a card above
+
+    def with_date(c: kit.Card, s: Stock) -> kit.Card:
+        if s.id in reporting or not s.earnings_date or s.earnings_date < today:
+            return c
+        report = f"Reports {earnings_when(s.earnings_date, s.earnings_time, today)}."
+        # with no line of its own, the card's fallback (its last 20 sessions) stays beside the date when both fit
+        base = c.line or (c.fallback if kit.fits(f"{c.fallback} {report}") else "")
+        line = report if not base else f"{base} {report}" if kit.fits(f"{base} {report}") else ""
+        if not line:
+            return c
+        dated.add(s.id)
+        return kit.Card(**{**c.__dict__, "line": line, "own": True})
+
     for kind, title in SECTIONS:
         group = [i for i in shown if i.kind == kind and i not in unexplained]
         if not group:
             continue
         # no source line: each card says how unusual its own move was
         doc.h2(title)
-        doc.cards([card_for(i, today) for i in group])
+        doc.cards([with_date(card_for(i, today), i.stock) for i in group])
     # the most meaningful of the rest as cards (an even number, so every row is full); the app has the others
     rest = sorted(unexplained + rest, key=lambda i: (-i.score, i.stock.ticker))
     keep = rest[:ALSO_CARDS]  # an odd count goes one per row, so no row is left half empty
@@ -455,14 +465,15 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
         also = []
         for i in keep:
             c = card_for(i, today)
-            # an unexplained move has nothing to say beyond its number and how unusual it was
-            also.append(kit.Card(**{**c.__dict__, "line": "" if i in unexplained else c.line, "why": ""}))
+            # an unexplained move has nothing else to say beyond its number and how unusual it was
+            c = kit.Card(**{**c.__dict__, "line": "" if i in unexplained else c.line, "why": ""})
+            also.append(with_date(c, i.stock))
         doc.cards(also)
 
     # No "rest of your stocks" list: a wall of quiet tickers crowds the email and says nothing (owner, Nov 11).
 
     # every report date that isn't already its own card, so a stock that also moved keeps its date
-    earnings_cards = {i.stock.id for i in items if i.kind == "earnings"}
+    earnings_cards = reporting | dated
     coming = sorted(
         [s for s in person.emailed_stocks()
          if s.earnings_date and s.earnings_date >= today and s.id not in earnings_cards],

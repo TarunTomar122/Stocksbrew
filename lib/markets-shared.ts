@@ -593,8 +593,11 @@ function point(curve: TreasuryCurve, tenor: string): TreasuryCurvePoint | undefi
   return curve.points.find((item) => item.tenor === tenor);
 }
 
-/** The shape of the Treasury curve, from the 2-year and 10-year yields. */
-export function yieldCurveReading(curve: TreasuryCurve | null): string | null {
+/**
+ * The shape of the Treasury curve, from the 2-year and 10-year yields. Under the curve chart, which labels every
+ * yield, `figures: false` says only the spread and the shape (owner rule 1, Nov 13: no number twice in one card).
+ */
+export function yieldCurveReading(curve: TreasuryCurve | null, { figures = true }: { figures?: boolean } = {}): string | null {
   if (!curve) return null;
   const two = point(curve, "2Y");
   const ten = point(curve, "10Y");
@@ -602,6 +605,11 @@ export function yieldCurveReading(curve: TreasuryCurve | null): string | null {
   const spread = Math.round((ten.value - two.value) * 100);
   const twoText = `${two.value.toFixed(2)}%`;
   const tenText = `${ten.value.toFixed(2)}%`;
+  if (!figures) {
+    if (spread < 0) return `The 2-year yields ${Math.abs(spread)} bps more than the 10-year: the curve is inverted.`;
+    if (spread < 10) return "The 2-year and the 10-year yield almost the same: the curve is flat.";
+    return `The 10-year yields ${spread} bps more than the 2-year: the curve slopes upward.`;
+  }
   if (spread < 0) {
     return `The 2-year yields ${twoText}, more than the 10-year at ${tenText}: the curve is inverted by ${Math.abs(spread)} bps.`;
   }
@@ -685,9 +693,11 @@ export function rangeReading(
  * The VIX is an annualised number. Dividing by the square root of 252 trading
  * days turns it into the daily S&P 500 move that options are priced for.
  */
-export function vixReading(level: number): string | null {
+export function vixReading(level: number, { figures = true }: { figures?: boolean } = {}): string | null {
   if (!isNumber(level) || level <= 0) return null;
   const daily = level / Math.sqrt(252);
+  // Over a card whose VIX row shows the level, only the daily move it implies is new (owner rule 1, Nov 13).
+  if (!figures) return `The VIX prices in S&P 500 moves of about ${daily.toFixed(1)}% a day.`;
   return `A VIX of ${level.toFixed(1)} prices in S&P 500 moves of about ${daily.toFixed(1)}% a day.`;
 }
 
@@ -722,12 +732,18 @@ function strikeText(value: number, percent: boolean): string {
   return grouped(value, Number.isInteger(value) ? 0 : 1);
 }
 
-/** What a prediction market is saying, in one sentence. */
-export function predictionReading(market: PredictionMarket): string | null {
+/**
+ * What a prediction market is saying, in one sentence. `shown` are the outcome labels whose odds sit right above it:
+ * a sentence that would only say those odds again is left out (owner rule 1, Nov 13); "Even odds sit between 3.7%
+ * and 3.8%" is a new fact and stays.
+ */
+export function predictionReading(market: PredictionMarket, shown: string[] = []): string | null {
   const outcomes = market.outcomes.filter((outcome) => isNumber(outcome.probability));
   if (outcomes.length === 0) return null;
+  const onCard = new Set(shown);
   if (market.kind === "binary") {
     const yes = outcomes.find((outcome) => outcome.label.toLowerCase() === "yes") ?? outcomes[0];
+    if (onCard.has(yes.label)) return null;
     return `Traders put ${formatProbability(yes.probability)} on yes.`;
   }
   if (market.kind === "ladder" && market.implied_range) {
@@ -738,6 +754,7 @@ export function predictionReading(market: PredictionMarket): string | null {
   const ranked = [...outcomes].sort((a, b) => b.probability - a.probability);
   const [top, next] = ranked;
   if (market.kind === "exclusive") {
+    if (onCard.has(top.label) && (!next || next.probability < 0.05 || onCard.has(next.label))) return null;
     const tail = next && next.probability >= 0.05 ? `, then ${formatProbability(next.probability)} on ${next.label}` : "";
     return `Traders put ${formatProbability(top.probability)} on ${top.label}${tail}.`;
   }
@@ -818,13 +835,21 @@ export function sectorReading(assets: MarketAsset[], now: Date = new Date()): st
   return `${count} ${when}. ${name(best)} (${best.symbol}) led at ${formatPct(best.change.d1 ?? 0)}; ${name(worst)} (${worst.symbol}) trailed at ${formatPct(worst.change.d1 ?? 0)}.`;
 }
 
-/** Whether near-term implied volatility is above or below the three-month level. */
-export function volCurveReading(curve: VolCurve | null): string | null {
+/**
+ * Whether near-term implied volatility is above or below the three-month level. Under the chart that labels both,
+ * `figures: false` says the gap without the two levels again (owner rule 1, Nov 13).
+ */
+export function volCurveReading(curve: VolCurve | null, { figures = true }: { figures?: boolean } = {}): string | null {
   if (!curve) return null;
   const near = curve.points.find((item) => item.symbol === "VIX");
   const far = curve.points.find((item) => item.symbol === "VIX3M");
   if (!near || !far) return null;
   const gap = Math.abs(near.value - far.value).toFixed(1);
+  if (!figures) {
+    return near.value > far.value
+      ? `One-month implied volatility is ${gap} points above the three-month level: options price more movement now than later, which usually means stress.`
+      : `One-month implied volatility is ${gap} points below the three-month level: the usual, calmer shape.`;
+  }
   if (near.value > far.value) {
     return `One-month implied volatility (${near.value.toFixed(1)}) is ${gap} points above the three-month level (${far.value.toFixed(1)}): options price more movement now than later, which usually means stress.`;
   }
@@ -832,13 +857,21 @@ export function volCurveReading(curve: VolCurve | null): string | null {
 }
 
 /** A put/call ratio against its own 20-day average. */
-export function putCallReading(asset: Pick<MarketAsset, "price" | "average_20d" | "unit">): string | null {
+export function putCallReading(
+  asset: Pick<MarketAsset, "price" | "average_20d" | "unit">,
+  { figures = true }: { figures?: boolean } = {},
+): string | null {
   if (asset.unit !== "ratio" || !isNumber(asset.price) || !isNumber(asset.average_20d) || asset.average_20d <= 0) {
     return null;
   }
   const diff = asset.price - asset.average_20d;
   const average = asset.average_20d.toFixed(2);
   const now = asset.price.toFixed(2);
+  // Over a card whose row already shows today's ratio, only the usual day is new (owner rule 1, Nov 13).
+  if (!figures) {
+    if (Math.abs(diff) < 0.03) return `Bets on a rise and on a fall traded in their usual mix, about ${average} bets on a fall for each bet on a rise.`;
+    return `${diff > 0 ? "More" : "Fewer"} bets on a fall than usual: a usual day has ${average} for each bet on a rise.`;
+  }
   // Puts are bets on a fall and calls bets on a rise, said as Market today's Options card says them (owner rule 8).
   if (Math.abs(diff) < 0.03) return `Bets on a rise and on a fall traded in their usual mix: ${now} bets on a fall for each bet on a rise, against ${average} on a usual day.`;
   return diff > 0
