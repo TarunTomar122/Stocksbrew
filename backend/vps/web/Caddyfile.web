@@ -8,5 +8,9 @@ stocksbrew.online, www.stocksbrew.online {
 	# Next's build assets are content-hashed, so they can be cached for a year.
 	@static path /_next/static/*
 	header @static Cache-Control "public, max-age=31536000, immutable"
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:3000 {
+		# Next writes absolute redirects from its own bind address (http://localhost:3000/...): point them at the
+		# public address instead.
+		header_down Location "^http://localhost:3000(.*)$" "https://www.stocksbrew.online$1"
+	}
 }

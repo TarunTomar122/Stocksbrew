@@ -9,13 +9,20 @@ REF="${1:-HEAD}"
 WEB_ENV="${WEB_ENV:-$HOME/.config/tikrr/web.env}"
 REPO="$(git rev-parse --show-toplevel)"
 SHA="$(git -C "$REPO" rev-parse --short "$REF")"
-WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+# A dedicated worktree with its own real node_modules: a symlinked node_modules makes Next's standalone file
+# tracing write outside the build folder. Created once: git worktree add --detach ~/.cache/tikrr-web-build main
+# && (cd ~/.cache/tikrr-web-build && npm ci --ignore-scripts).
+WORK="${WEB_BUILD_DIR:-$HOME/.cache/tikrr-web-build}"
 [ -s "$WEB_ENV" ] || { echo "missing $WEB_ENV" >&2; exit 1; }
-git -C "$REPO" archive "$REF" | tar -x -C "$WORK"
-ln -s "$REPO/node_modules" "$WORK/node_modules"
+[ -d "$WORK/node_modules" ] || { echo "missing build worktree $WORK (see the comment above)" >&2; exit 1; }
+git -C "$WORK" checkout -q -f --detach "$(git -C "$REPO" rev-parse "$REF")"
+git -C "$WORK" clean -fdq -e node_modules -e .next
+if ! git -C "$WORK" diff --quiet HEAD -- package-lock.json 2>/dev/null || [ "$WORK/package-lock.json" -nt "$WORK/node_modules/.package-lock.json" ]; then
+  ( cd "$WORK" && npm ci --no-audit --no-fund --ignore-scripts >/dev/null )
+fi
+trap 'rm -f "$WORK/.env.production.local"' EXIT
 cp "$WEB_ENV" "$WORK/.env.production.local"
-( cd "$WORK" && NEXT_OUTPUT=standalone NEXT_PUBLIC_APP_VERSION="$SHA" npx next build )
+( cd "$WORK" && rm -rf .next/standalone && NEXT_OUTPUT=standalone NEXT_PUBLIC_APP_VERSION="$SHA" npx next build )
 rm -f "$WORK/.env.production.local"
 OUT="$WORK/.next/standalone"
 mkdir -p "$OUT/.next" && cp -R "$WORK/.next/static" "$OUT/.next/static"

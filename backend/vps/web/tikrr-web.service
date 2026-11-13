@@ -12,7 +12,9 @@ User=ubuntu
 WorkingDirectory=/opt/tikrr-web/current
 EnvironmentFile=/etc/tikrr/web.env
 Environment=NODE_ENV=production
-Environment=HOSTNAME=127.0.0.1
+# "localhost", not 127.0.0.1: Next builds its own URLs from this name, and a mismatch makes middleware rewrites
+# (the cached signed-out pages) proxy back to itself over https and fail. It still binds to 127.0.0.1 only.
+Environment=HOSTNAME=localhost
 Environment=PORT=3000
 ExecStart=/usr/local/bin/node --max-old-space-size=1024 server.js
 Restart=always
