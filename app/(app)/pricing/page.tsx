@@ -64,11 +64,13 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   stock_call: `Our call on ${CALL_COVERAGE}: buy more, keep or sell some, why, and what would change it`,
   stock_zones: "The full report: the prices where we'd buy more or sell some, the whole brief, and how the call has moved",
   briefing_personal: "A daily briefing on your stocks: what moved, why, and what to look at",
+  reason_watch: "Your reasons checked, with lines like revenue growth over 20% judged the night a report lands",
   portfolio_analytics: "How your money is spread, what reports soon and our calls on what you hold",
   portfolio_analysis_deep: "Inside your funds, what drives the swings, past crashes and what made the money",
   practice_account: "A practice account with $100,000 of pretend money",
   stock_report: "Stock pages: our view, the numbers, earnings, who owns it and the news",
   wire: "News, the calendar, company filings and every market",
+  filing_changes: "The risks each company added or dropped in its latest annual or quarterly filing",
   pre_earnings_read: "A note before each earnings report on what the company needs to show",
   signals: "Signals: big moves with the reason, what Reddit says and the President's posts",
   signals_archive: "How far back you can look at past signals",
@@ -87,7 +89,7 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
   followed_strategies: "Strategies you follow, with a note each time they change",
   backtest: "Test your own rules on past prices",
   backtest_history: "How far back your tests can go",
-  agents: "Agents: things you ask us to watch for, like a price, an earnings date, a big move, or a trade by Congress, insiders or funds",
+  agents: "Agents: a price, an earnings date, a big move, a trade by Congress or insiders, an idea basket or a thesis, counted together",
   price_alerts: "One-tap price alerts by email, from a stock page",
   zone_alerts: "One-tap emails when a stock reaches our buy or sell price, reports earnings, or our call changes",
   email_market: "A daily market email",
@@ -97,16 +99,17 @@ const PLAIN_NAMES: Partial<Record<FeatureId, string>> = {
 };
 
 /** The few differences that decide it, shown under the plan cards; every other row is one tap away. */
-const DIFFERENCES: FeatureId[] = ["covered_stocks", "briefing_personal", "email_briefing", "zone_alerts", "ask", "agents", "backtest_history"];
+const DIFFERENCES: FeatureId[] = ["covered_stocks", "briefing_personal", "reason_watch", "email_briefing", "zone_alerts", "ask", "agents", "backtest_history"];
 
 /** Shorter names for the difference rows, where the full row name would wrap three times on a phone. */
 const DIFF_NAMES: Partial<Record<FeatureId, string>> = {
   covered_stocks: "The full report: the prices where we'd act, the whole brief, how the call has moved",
   briefing_personal: "A daily briefing on what moved in your stocks and why",
+  reason_watch: "Your reasons checked the night a report lands",
   email_briefing: "A morning email when something changed in your stocks",
   zone_alerts: "One-tap emails when a stock reaches our buy or sell price, reports earnings, or our call changes",
   ask: "Questions you can ask about any stock or your portfolio",
-  agents: "Agents that watch for a price, an earnings date, a big move, or a trade by Congress, insiders or funds",
+  agents: "Agents: a price or event to watch, an idea basket or a thesis",
   backtest_history: "Years of past prices you can test your own buying rules on",
 };
 
@@ -116,6 +119,7 @@ const nameOf = (id: FeatureId) => PLAIN_NAMES[id] ?? (FEATURES[id] as Feature).n
 const EVERY_STOCK: Partial<Record<FeatureId, string>> = {
   covered_stocks: "Every stock",
   briefing_personal: "Every stock you own",
+  reason_watch: "Every reason you save",
   email_briefing: "Every stock you follow",
   backtest_history: "Every year we have",
 };
@@ -202,14 +206,17 @@ export default async function PricingPage({ searchParams }: Props) {
     `A daily briefing and morning email on your ${FREE_COVERED_WORD} stocks`,
     `${limitFor("ask", "free")} questions a day about any stock`,
     limitFor("agents", "free") === 1
-      ? "An agent that watches for a price, an earnings date or a big move for you"
-      : `${limitFor("agents", "free")} agents that watch for a price, an earnings date or a big move for you`,
+      ? "An agent: a price or date to watch, an idea basket or a thesis"
+      : `${limitFor("agents", "free")} agents: a price or date to watch, an idea basket or a thesis`,
     "A practice account with $100,000 of pretend money",
+    // Free to read for everyone (lib/entitlements.ts filing_changes).
+    "The risks each company added or dropped in its latest filing",
   ];
   const proPoints = [
     "Everything in Free",
     "The daily briefing and morning email on every stock you follow",
     `${limitFor("ask", "pro")} questions a day and up to ${limitFor("agents", "pro")} agents`,
+    "Every reason you save, checked by the agent",
     "An email when a stock reaches our buy or sell price, reports earnings or gets a new call",
     // Only true on the tighter line, where these agents are Pro-only.
     ...(can("agent_events", "free") ? [] : ["Agents that read every new filing and news turn on your stocks"]),
@@ -299,9 +306,9 @@ export default async function PricingPage({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
-        {/* One plain line on the two words the rows use (lib/entitlements.ts: agents, price_alerts, zone_alerts). */}
+        {/* One plain line on how agents count (lib/basket-agent/data.ts runningAgents) and the free alerts (price_alerts). */}
         <p className="border-t border-oa-border px-4 py-3 text-pretty text-[13.5px] leading-5 text-oa-muted-fg sm:px-5">
-          An agent is something you ask us to watch for, in your own words, like &ldquo;tell me when NVIDIA closes under $150&rdquo; or &ldquo;remind me before Apple reports&rdquo;. Alerts are one-tap emails from a stock page: Free keeps {countWord(limitFor("price_alerts", "free"))} price alerts, and the earnings, call-change and buy-or-sell-price alerts come with Pro.
+          Idea baskets and theses count as agents too. Free also keeps {countWord(limitFor("price_alerts", "free"))} price alerts.
         </p>
       </section>
 

@@ -58,7 +58,7 @@ describe("share images in page metadata", { timeout: 120_000 }, () => {
     const { generateMetadata } = await import("@/app/page");
     const meta = generateMetadata();
     expectShareImage(meta, "");
-    expect(String(meta.openGraph?.title)).toContain("explained every day, with sources");
+    expect(String(meta.openGraph?.title)).toContain("an agent that watches your stocks");
   });
 
   it("stock page has the stock's own card and our call in the description", async () => {

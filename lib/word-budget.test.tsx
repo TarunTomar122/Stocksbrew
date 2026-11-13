@@ -141,7 +141,9 @@ describe("card copy keeps the budget", () => {
     expect(lines.length).toBeGreaterThanOrEqual(5);
     for (const line of lines) expect(countWords(line), line).toBeLessThanOrEqual(12);
     // The agent line is chosen in code; both forms stay in budget.
-    for (const line of plans.match(/"[^"]*agents? that email[^"]*"|`[^`]*agents that email[^`]*`/g) ?? []) expect(countWords(line)).toBeLessThanOrEqual(12);
+    const agentLines = plans.match(/"[^"]*agents? that watch[^"]*"|`[^`]*agents that watch[^`]*`/g) ?? [];
+    expect(agentLines.length).toBe(2);
+    for (const line of agentLines) expect(countWords(line.replace(/\$\{[^}]*\}/g, "X"))).toBeLessThanOrEqual(12);
     // The trial's terms stay beside its button: a required disclosure, not copy under the budget.
     expect(plans).toMatch(/unless you cancel; card required/);
     expect(countWords(HERO_SUBHEAD)).toBeLessThanOrEqual(LINE_WORDS);

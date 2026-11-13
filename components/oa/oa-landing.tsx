@@ -16,22 +16,18 @@ import { pricingMarket } from "@/lib/pricing";
 import { headers } from "next/headers";
 
 import { AgentSequenceGhost, AgentSequenceSection } from "./landing/agent-sequence";
+import { AgentWatchGhost, AgentWatchSection } from "./landing/agent-watch";
+import { HeroCounters, HeroCountersGhost } from "./landing/hero-counters";
 import { HeroDemo, HeroDemoGhost } from "./landing/hero-demo";
-import { MarketTiles, MarketTilesGhost } from "./landing/market-tiles";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
 import { FRAME, SectionHead } from "./landing/shared";
 import { LandingTaste } from "./landing/taste";
-import { TodayMoves } from "./landing/today-moves";
 import Link from "next/link";
 
 // Printed open, never folded (owner rule 2): one line each, only what decides whether to use it (rule 8). The founder
-// note is the last answer.
+// note is the last answer. "What is it" is the page itself, and "not investment advice" is the footer's line.
 const FAQS: { q: string; a: React.ReactNode }[] = [
-  {
-    q: "What is stocksbrew?",
-    a: "Why each US stock moved, and whether to buy more, keep or sell some.",
-  },
   {
     q: "Does it trade for me or hold my money?",
     a: "No. It never sees your account; you place any trade yourself.",
@@ -39,10 +35,6 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   {
     q: "Where does the information come from, and who writes it?",
     a: "Public prices, filings and news, each linked; AI writes the explanations from them.",
-  },
-  {
-    q: "Is this investment advice?",
-    a: "No. It is research for your own decisions.",
   },
   {
     q: "Who makes stocksbrew?",
@@ -90,6 +82,12 @@ export async function OaLanding() {
               </Suspense>
             }
             footnote={HERO_FOOTNOTE}
+            below={
+              // What the agent went through on its last market day, filling the left column beside the demo card (lg+).
+              <Suspense fallback={<HeroCountersGhost />}>
+                <HeroCounters />
+              </Suspense>
+            }
           />
         </section>
 
@@ -100,23 +98,22 @@ export async function OaLanding() {
           <AgentSequenceSection className="mt-8 sm:mt-12" />
         </Suspense>
 
-        {/* Under the hero: the day's check of the whole market as figure tiles, from the jobs' own records. Nothing at
-            all when there are not two checks to show, so no empty box. */}
-        <Suspense fallback={<MarketTilesGhost className="mt-8 sm:mt-12" />}>
-          <MarketTiles className="mt-8 sm:mt-12" />
+        {/* Then what else the agent watches, as small cards on real data: a filing that changed its risks, a reason
+            with a number, a theme's basket replayed, a thesis rolled up. It took the place of the day's market-check
+            tiles (a count of what ran, not what it found). Each card waits at most 2s; the section needs two. */}
+        <Suspense fallback={<AgentWatchGhost className="mt-8 sm:mt-12" />}>
+          <AgentWatchSection className="mt-8 sm:mt-12" />
         </Suspense>
 
         {/* one story below the hero: short proofs with real data, one link each, then the questions answered in the open */}
         <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
-          {/* Renders its own head, and nothing at all on a day with no confirmed reason yet (no empty strip). */}
-          <Suspense fallback={null}>
-            <TodayMoves />
-          </Suspense>
+          {/* "Why stocks moved today" used to open here: the hero's card already shows today's stand-out moves with
+              their reason, so the page spends that room on the agent instead (the section above). */}
 
           <section id="portfolio" className="scroll-mt-24">
+            {/* No line under the title (owner rule 8): "no broker login" is the hero's footnote and the first answer below. */}
             <SectionHead
               title="What we'd do with each stock you own."
-              lede="No broker login, so nothing here can touch your money."
               href="/portfolio"
               hrefLabel="Add your stocks"
             />
@@ -142,8 +139,8 @@ export async function OaLanding() {
 
           <section id="faq" className="scroll-mt-24">
             <h2 className="text-[20px] font-medium tracking-tight text-oa-fg">Questions</h2>
-            {/* Two columns from `md`, each answer one column wide, the last one included (owner rule 4). */}
-            <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">
+            {/* Two columns from `md`, three (one row) from `lg`, each answer one column wide (owner rule 4). */}
+            <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
               {FAQS.map((item) => (
                 <div key={item.q} className="min-w-0">
                   <dt className="text-pretty text-[16px] font-medium leading-6 text-oa-fg">{item.q}</dt>

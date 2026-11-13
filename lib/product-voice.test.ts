@@ -20,9 +20,9 @@ function source(path: string): string {
 
 describe("product language", () => {
   it("keeps the approved first impression exact", () => {
-    expect(HERO_HEADLINE).toBe("Your stocks, explained every day, with sources.");
+    expect(HERO_HEADLINE).toBe("An agent that watches your stocks and shows its work.");
     expect(`${HERO_HEADLINE_LEAD} ${HERO_HEADLINE_EMPHASIS}`).toBe(HERO_HEADLINE);
-    expect(HERO_SUBHEAD).toBe("Buy more, Keep or Sell some on each one: why, and what would change it.");
+    expect(HERO_SUBHEAD).toBe("Each night it reads filings, reports and your reasons, and says what changed.");
     // No promise to tell people what to buy: it overpromises and reads as advice.
     expect(HERO_HEADLINE.toLowerCase()).not.toContain("what to buy");
     const landing = source("components/oa/oa-landing.tsx");

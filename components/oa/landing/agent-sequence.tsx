@@ -10,7 +10,6 @@ import { loadAgentSequence } from "@/lib/agent-sequence-server";
 import type { AgentSequence, SequenceFigure } from "@/lib/agent-sequence";
 import { absoluteDay, dayWords, daysFromToday, etDayOf, etToday, stampWords, weekdayName } from "@/lib/day-words";
 
-import { AgentDoes } from "./agent-does";
 import { SectionHead, fmtPrice } from "./shared";
 
 /**
@@ -18,8 +17,8 @@ import { SectionHead, fmtPrice } from "./shared";
  * today's data (lib/agent-sequence-server.ts), told as five connected steps. What happened, the figures it checked,
  * what it drafted, your decision (the end of the card, not working buttons), and what comes next. A strip from lg,
  * stacked on a phone. Each step is an icon, a few words and one figure or small visual; every figure says when it is
- * from, and its source is the hover title. On a day the engine has nothing to show, the three example agents and what
- * they watch take its place, under their own heading.
+ * from, and its source is the hover title. On a day the engine has nothing to show, the strip is left out: the
+ * section after it (./agent-watch.tsx) shows the example agents' own results.
  */
 
 const HEAD_TITLE = "Our agent at work on real data.";
@@ -268,17 +267,10 @@ function Strip({ sequence }: { sequence: AgentSequence }) {
 
 const SECTION = "scroll-mt-24";
 
-/** The section: the strip under its heading, or, on a day with nothing to show, the example agents and what they watch. */
+/** The section: the strip under its heading, or nothing on a day the engine has nothing to show. */
 export async function AgentSequenceSection({ className = "" }: { className?: string }) {
   const sequence = await loadAgentSequence();
-  if (!sequence) {
-    return (
-      <section id="what-it-does" className={`${SECTION} ${className}`}>
-        <SectionHead title="Three agents watch the example portfolio." href="/agents" hrefLabel="Set one up" />
-        <AgentDoes />
-      </section>
-    );
-  }
+  if (!sequence) return null;
   return (
     <section id="what-it-does" className={`${SECTION} ${className}`}>
       <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />

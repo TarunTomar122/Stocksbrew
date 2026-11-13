@@ -48,12 +48,15 @@ export function LandingTaste({
   lead,
   demo,
   footnote,
+  below = null,
 }: {
   /** The hero's headline and line under it (server-rendered by the landing), above the search. */
   lead: React.ReactNode;
   /** The live demo card (components/oa/landing/hero-demo.tsx) in the right column until someone picks a stock. */
   demo: React.ReactNode;
   footnote: string | null;
+  /** Server-rendered under the search on the left (the hero's counters, ./hero-counters.tsx), beside the demo card. */
+  below?: React.ReactNode;
 }) {
   const { user, initialAuthed } = useUser();
   const signedIn = Boolean(user || initialAuthed);
@@ -398,6 +401,7 @@ export function LandingTaste({
             We don&apos;t cover {listWords(missing)} yet.
           </p>
         ) : null}
+        {below}
 
       </div>
 

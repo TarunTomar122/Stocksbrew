@@ -154,7 +154,9 @@ const TABLE = {
   },
   // The reason watcher (lib/thesis-watch): saving a reason is free on every stock; checking it is the agent's work.
   reason_watch: {
-    name: "Reason watcher: the agent checks why you own each stock and says when the reason weakens or breaks",
+    // Measurable lines on a reason ("Holds if revenue growth > 20%", lib/thesis-watch/conditions.ts) are judged by the
+    // same nightly check (lib/thesis-watch/nightly.ts), so they follow this rule: covered stocks on Free, all on Pro.
+    name: "Reason watcher: the agent checks why you own each stock, including lines like revenue growth over 20%, the night a report lands",
     group: "Your stocks",
     anon: locked,
     free: covered,
@@ -211,6 +213,16 @@ const TABLE = {
   },
   wire: {
     name: "The wire, calendar, filings and every market",
+    group: "Research",
+    anon: open,
+    free: open,
+    pro: open,
+    lock: NO_LOCK,
+  },
+  // How each company's risks changed between its 10-K/10-Q filings (lib/filing-changes): written once for everyone
+  // after the close and read with no gate on the stock page, Ask and the API (doc rule 1: the pipeline's work is free).
+  filing_changes: {
+    name: "Filing changes: the risks each company added or dropped in its latest 10-K or 10-Q",
     group: "Research",
     anon: open,
     free: open,
@@ -408,7 +420,9 @@ const TABLE = {
 
   /* ── Agents and alerts ───────────────────────────────────────────────── */
   agents: {
-    name: "Agents that watch for you, on a schedule, a price, or an event",
+    // One count for every kind that runs (lib/basket-agent/data.ts runningAgents): standing jobs, idea baskets and
+    // theses over holdings (a thesis is a basket with lines), switched on together up to the limit.
+    name: "Agents that watch for you: a schedule, a price, an event, an idea basket or a thesis, counted together",
     group: "Agents and alerts",
     anon: locked,
     free: count(2, "agents"),

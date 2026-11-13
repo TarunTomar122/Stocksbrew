@@ -38,7 +38,8 @@ export function PlansSection({ trialEligible, market = "US" }: { trialEligible: 
             <Line>Our call on {CALL_COVERAGE}, with why</Line>
             <Line>The full report on {coveredWord} stocks you pick</Line>
             <Line>
-              {freeAgents === 1 ? "One agent that emails you when your stocks move" : `${capitalize(countWord(freeAgents))} agents that email you when your stocks move`}
+              {/* Jobs, idea baskets and theses share the one agent count (lib/entitlements.ts agents). */}
+              {freeAgents === 1 ? "One agent that watches a price, an idea or a thesis" : `${capitalize(countWord(freeAgents))} agents that watch a price, an idea or a thesis`}
             </Line>
           </ul>
           <div className="mt-auto pt-6">

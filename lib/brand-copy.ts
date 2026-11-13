@@ -20,11 +20,13 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-export const HERO_HEADLINE = "Your stocks, explained every day, with sources.";
-export const HERO_HEADLINE_LEAD = "Your stocks, explained every day,";
-export const HERO_HEADLINE_EMPHASIS = "with sources.";
+// The agent is the product (Nov 13): the old line ("Your stocks, explained every day, with sources.") sold a daily
+// read; this one says what the page under it shows, an agent at work, each step with its figures and filings.
+export const HERO_HEADLINE = "An agent that watches your stocks and shows its work.";
+export const HERO_HEADLINE_LEAD = "An agent that watches your stocks";
+export const HERO_HEADLINE_EMPHASIS = "and shows its work.";
 
-export const HERO_SUBHEAD = "Buy more, Keep or Sell some on each one: why, and what would change it.";
+export const HERO_SUBHEAD = "Each night it reads filings, reports and your reasons, and says what changed.";
 
 /**
  * How many stocks have our call, in words, for copy that would otherwise promise "every stock". The screener
