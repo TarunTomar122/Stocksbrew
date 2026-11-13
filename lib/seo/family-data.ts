@@ -4,7 +4,9 @@ import { cache } from "react";
 import { benchmarkForDay, quoteDay } from "@/lib/benchmark-day";
 import { todayET } from "@/lib/calendar-shared";
 import type { AnomalyItem } from "@/lib/daily-anomalies";
+import { readAnomalyRefs } from "@/lib/anomaly-refs";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { needsPriceCheck, weekRanges } from "@/lib/follow";
 import { slimInsiderTrade, type WeekRange } from "@/lib/follow-shared";
 import { getMarketsData } from "@/lib/markets";
@@ -226,7 +228,33 @@ export async function getMovesDay(day: string): Promise<ExplainedMove[]> {
 /** `priceAsOf` is when `pct` was measured; `researchedAt` is when the reason was written, often minutes later. */
 export type MoveRef = Pick<ExplainedMove, "ticker" | "name" | "day" | "pct" | "headline" | "researchedAt" | "priceAsOf">;
 
+function recentRefs(docs: Array<{ id: string; data: AnomalyDoc }>, since: string): MoveRef[] {
+  return collectMoves(docs)
+    .filter((move) => move.day >= since)
+    .map(({ ticker, name, day, pct, headline, researchedAt, priceAsOf }) => ({ ticker, name, day, pct, headline, researchedAt, priceAsOf }));
+}
+
+/**
+ * The same answer from the small copies of the day docs (lib/anomaly-refs.ts): the ids from a query that returns
+ * no bodies, then one batch read of the copies and the sources' hashes. Undefined when any copy cannot be proven
+ * current, and the day docs themselves are read.
+ */
+export async function readRecentMovesFromRefs(since: string, includeLatest: boolean): Promise<MoveRef[] | undefined> {
+  if (!localFirestoreFromEnv()) return undefined;
+  const snap = await adminFirestore.collection("tm_daily_anomalies").where("date", ">=", since).select().get();
+  // Another market's docs never count (collectMoves keeps US ids only), so they need no copy.
+  const dated = snap.docs.map((doc) => doc.id).filter((id) => id !== "US__latest" && id.startsWith("US__"));
+  const docs = await readAnomalyRefs(dated, includeLatest ? "US__latest" : null);
+  return docs ? recentRefs(docs, since) : undefined;
+}
+
 async function readRecentMoves(since: string, includeLatest: boolean): Promise<MoveRef[]> {
+  const fromRefs = await readRecentMovesFromRefs(since, includeLatest).catch(() => undefined);
+  return fromRefs ?? readRecentMovesFromSources(since, includeLatest);
+}
+
+/** The explained moves since `since` from the day docs themselves (~70 KB a day). */
+export async function readRecentMovesFromSources(since: string, includeLatest: boolean): Promise<MoveRef[]> {
   const collection = adminFirestore.collection("tm_daily_anomalies");
   const [snap, latest] = await Promise.all([
     collection.where("date", ">=", since).get(),
@@ -235,9 +263,7 @@ async function readRecentMoves(since: string, includeLatest: boolean): Promise<M
   // The dated documents only: `US__latest` also carries a date and is added below when wanted.
   const docs = snap.docs.filter((doc) => doc.id !== "US__latest").map((doc) => ({ id: doc.id, data: doc.data() as AnomalyDoc }));
   if (latest?.exists) docs.push({ id: latest.id, data: latest.data() as AnomalyDoc });
-  return collectMoves(docs)
-    .filter((move) => move.day >= since)
-    .map(({ ticker, name, day, pct, headline, researchedAt, priceAsOf }) => ({ ticker, name, day, pct, headline, researchedAt, priceAsOf }));
+  return recentRefs(docs, since);
 }
 
 const getRecentMovesCached = unstable_cache(readRecentMoves, ["explained-moves-recent-v3"], { revalidate: 1800 });

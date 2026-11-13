@@ -149,7 +149,11 @@ class WriteRetryTest(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             self.assertEqual(backtest_strategies.sync_prices(store, series), 2)
         (chunk,), _ = store.set_many.call_args
-        self.assertEqual([path for path, _ in chunk], ["tm_price_history_daily/NEW", "tm_price_history_daily/OLD"])
+        # Each history goes out with its tail, in the same write.
+        self.assertEqual(
+            [path for path, _ in chunk],
+            ["tm_price_history_daily/NEW", "tm_price_history_daily/OLD", "tm_price_tail/NEW", "tm_price_tail/OLD"],
+        )
         self.assertGreaterEqual(backtest_strategies.PRICE_WRITE_BATCH, 25)
 
 

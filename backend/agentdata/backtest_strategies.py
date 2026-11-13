@@ -505,7 +505,22 @@ def sync_prices(store: DocStore, series: dict[str, dict[str, Any]]) -> int:
         f"({kept_series} kept stored closes that only jittered, {sum(c for _, _, c in stale)} changed values)"
     )
     batches = batches_by_changes(stale, max_docs=PRICE_WRITE_BATCH, max_changes=PRICE_WRITE_MAX_CHANGES)
-    return write_batches(store, batches, progress="prices")
+    # Each history goes out with its tail in the same write (prices.with_tails), so a page reading the tail sees it
+    # move with the history; a tail that fails to land is caught by its hash and the page reads the history.
+    write_batches(store, [prices.with_tails(batch) for batch in batches], progress="prices")
+    # Histories left as they were whose tail is missing or was cut from an older copy (a first run, a failed write).
+    # Never fails the job: the histories are written, and a missing tail only costs a page the bigger read.
+    rewritten = {path for path, _, _ in stale}
+    try:
+        repairs = prices.stale_tails(
+            store, {f"{prices.COLLECTION}/{key}": data for key, data in stored_docs.items() if f"{prices.COLLECTION}/{key}" not in rewritten}
+        )
+        if repairs:
+            write_batches(store, [repairs[start : start + PRICE_WRITE_BATCH] for start in range(0, len(repairs), PRICE_WRITE_BATCH)], progress="price tails")
+            log(f"prices: rewrote {len(repairs)} tails of unchanged histories")
+    except Exception as error:  # noqa: BLE001
+        log(f"prices: tail repair skipped: {type(error).__name__}: {str(error)[:160]}")
+    return len(stale)
 
 
 # -- inputs -------------------------------------------------------------------

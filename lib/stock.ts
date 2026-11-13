@@ -517,7 +517,11 @@ export const getStockPageView = unstable_cache(
 export async function getStockPriceHistory(
   instrumentId: string,
 ): Promise<PriceHistoryPoint[]> {
-  const data = await getLatestPriceHistory(instrumentId);
+  return priceHistoryChart(await getLatestPriceHistory(instrumentId));
+}
+
+/** The chart's points from a price doc's window and quote (or a copy of them): getStockPriceHistory without the read. */
+export function priceHistoryChart(data: Parameters<typeof buildPriceHistorySeries>[0]): PriceHistoryPoint[] {
   return buildPriceHistorySeries(data).slice(-PRICE_HISTORY_CHART_MAX);
 }
 

@@ -150,6 +150,17 @@ Full build of all 779 covered stocks: 6,232 parts, 24 MB, largest doc 48.6 KB, 0
 
 Flag on and off render the same page: full-page screenshots of AAPL, AMD and ASTS at 1280 and 390 wide are pixel-identical except 145 px of glyph antialiasing in one button on ASTS at 1280 (same text).
 
+## small copies beside big docs (Nov 13, round 2 of heavy reads)
+
+Two more docs follow the same rule (a copy is used only while it names the store hash of the doc it was cut from, checked in the same batch read through a field mask the source does not have; anything else reads the source):
+
+| copy | source | writers | readers |
+|---|---|---|---|
+| `tm_price_tail/{SYMBOL}`: the last 640 entries of `dates`/`closes` (~14 KB), cut by index | `tm_price_history_daily/{SYMBOL}` (~60 KB) | `backend/agentdata/prices.py` `load_many` and `backtest_strategies.sync_prices` write each tail with its history, in the same write; `sync_prices` also rewrites any tail cut from an older history | `lib/price-tail.ts`: portfolio series, agent prices, the recent screener series (proposals, since-visit, the example agent, call evidence, briefing level reasons), the earnings planner |
+| `tm_daily_anomaly_refs/{id}`: the verified rows, cut to the fields a move reference reads | `tm_daily_anomalies/{id}` (~70 KB a day) | `backend/scripts/build_daily_anomalies.py` (latest feed, dated archive), `research_daily_anomaly_reasons.py` (latest feed), through `backend/anomaly_refs.py` | `lib/anomaly-refs.ts`: `getRecentMoves` (lib/seo/family-data.ts) |
+
+Fill or repair them with `python3 -m backend.agentdata.price_tails` and `python3 -m backend.anomaly_refs` (both additive, `--dry-run`, `--force`). The landing's demo card reads its sparkline from the `snapshot` part (`loadServedSnapshotRows`) and the price doc's quote fields instead of the whole price doc.
+
 ## next
 
 - Earnings dates, Congress, insiders and fund holders as dirty parts (their writers are all in `backend/agentdata`).

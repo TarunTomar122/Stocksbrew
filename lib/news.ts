@@ -178,11 +178,38 @@ async function getNewsFeedUncached(
   market: "US" | "IN",
   limit: number = DEFAULT_LIMIT,
 ): Promise<NewsArticle[]> {
-  const [pipeline, fresh] = await Promise.all([
-    getPipelineNewsFeed(market, limit),
-    loadAgentNewsFeed(market, limit),
-  ]);
+  const [fresh, lastWrite] = await Promise.all([loadAgentNewsFeed(market, limit), pipelineLastWrite(market)]);
+  // The pipeline's feed (tm_news_runs/{market}__{universe}) is the older source: its rows have dated from May for
+  // months and lose every place to the fresh headlines, which number in the thousands. It is skipped when the fresh
+  // feed fills the limit with headlines all newer than the pipeline's last write, since nothing it holds can then
+  // be newer than the last one kept (a headline is never published after it was stored).
+  const freshOnly = mergeNewestFirst([fresh], limit);
+  const cutoff = freshOnly.length >= limit ? Date.parse(freshOnly[limit - 1]!.published_at) : Number.NaN;
+  if (lastWrite !== null && Number.isFinite(cutoff) && lastWrite < cutoff) return freshOnly;
+  const pipeline = await getPipelineNewsFeed(market, limit);
   return mergeNewestFirst([fresh, pipeline], limit);
+}
+
+/** Stamps every pipeline write to the namespace and its headline subcollections bumps (backend/storage.py). */
+const PIPELINE_WRITE_STAMPS = ["updated_at", "last_enriched_at", "last_on_demand_enriched_at"];
+
+/**
+ * When the pipeline last wrote its feed for this market, in ms: the newest of the namespace doc's write stamps, read
+ * alone (the doc is ~1 MB). Null when unknown (no doc, no stamp, a failed read): then the feed is read.
+ */
+async function pipelineLastWrite(market: "US" | "IN"): Promise<number | null> {
+  try {
+    const universe = await getAiUniverse(market);
+    const [doc] = await adminFirestore.getAll(adminFirestore.collection("tm_news_runs").doc(`${market}__${universe}`), {
+      fieldMask: PIPELINE_WRITE_STAMPS,
+    });
+    if (!doc?.exists) return null;
+    const data = (doc.data() ?? {}) as Record<string, unknown>;
+    const times = PIPELINE_WRITE_STAMPS.map((field) => (typeof data[field] === "string" ? Date.parse(data[field] as string) : Number.NaN)).filter(Number.isFinite);
+    return times.length > 0 ? Math.max(...times) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function getPipelineNewsFeed(
@@ -191,7 +218,10 @@ async function getPipelineNewsFeed(
 ): Promise<NewsArticle[]> {
   const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
-  const namespaceDoc = await adminFirestore.collection("tm_news_runs").doc(ns).get();
+  // Only the two home-feed fields: the doc also carries ~1 MB of source health the feed never reads.
+  const [namespaceDoc] = await adminFirestore.getAll(adminFirestore.collection("tm_news_runs").doc(ns), {
+    fieldMask: ["home_feed_enrichments", "home_feed_articles"],
+  });
   if (namespaceDoc.exists) {
     const data = namespaceDoc.data() as {
       home_feed_enrichments?: RawEnrichedArticle[];

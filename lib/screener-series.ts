@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { adminFirestore } from "@/lib/firebase-admin";
+import { readPriceTail } from "@/lib/price-tail";
 import { cleanSeries, type ChartPoint } from "@/lib/stock-chart";
 
 /**
@@ -47,6 +48,50 @@ export type DailySeriesSet = {
 };
 
 /**
+ * How many sessions the recent read keeps: enough for the readers that use it (a year of closes for the 52-week
+ * high, 60 sessions of daily moves, the last few weeks of crossings), with room to spare.
+ */
+export const RECENT_SESSIONS = 400;
+
+/** The last `count` points of a compact series (the series itself when it is that short). */
+export function lastPoints(series: CompactSeries, count: number): CompactSeries {
+  if (series.dates.length <= count) return series;
+  return { ...series, dates: series.dates.slice(-count), closes: series.closes.slice(-count) };
+}
+
+/**
+ * One symbol's last RECENT_SESSIONS points, exactly the end of what readSeries returns. From the small tail
+ * (lib/price-tail.ts) when it holds the whole history, or holds at least that many points of a history whose dates
+ * all run forward (then cleaning the tail gives the end of cleaning the history); else from the history itself.
+ */
+async function readRecentSeries(symbol: string): Promise<CompactSeries | null> {
+  const tail = await readPriceTail(symbol);
+  if (tail === null) return null;
+  if (tail) {
+    const compact = compactSeriesFromRaw({
+      dates: tail.dates as string[],
+      closes: tail.closes as number[],
+      source: tail.source as string | undefined,
+      fetched_at: tail.fetchedAt as string | undefined,
+    });
+    if (tail.from === 0) return compact ? lastPoints(compact, RECENT_SESSIONS) : null;
+    if (tail.ordered && compact && compact.dates.length >= RECENT_SESSIONS) return lastPoints(compact, RECENT_SESSIONS);
+  }
+  const full = await getSeriesCached(symbol);
+  return full ? lastPoints(full, RECENT_SESSIONS) : null;
+}
+
+const getRecentSeriesCached = unstable_cache(readRecentSeries, ["screener-recent-series-v1"], { revalidate: 3 * 3600 });
+
+/**
+ * getDailySeries, cut to each symbol's last RECENT_SESSIONS points, for readers that never look further back.
+ * Reads the ~14 KB tails instead of the ~60 KB histories.
+ */
+export async function getRecentDailySeries(symbols: readonly string[]): Promise<DailySeriesSet> {
+  return dailySeriesSet(symbols, (symbol) => getRecentSeriesCached(symbol).catch(() => null));
+}
+
+/**
  * `preloaded` holds series the caller already has (the stock page's serving doc), by upper-case symbol; those are not
  * read again. A null there means "read it as usual".
  */
@@ -54,10 +99,15 @@ export async function getDailySeries(
   symbols: readonly string[],
   preloaded?: Readonly<Record<string, CompactSeries | null | undefined>>,
 ): Promise<DailySeriesSet> {
+  return dailySeriesSet(symbols, (symbol) => preloaded?.[symbol] ?? getSeriesCached(symbol).catch(() => null));
+}
+
+async function dailySeriesSet(
+  symbols: readonly string[],
+  load: (symbol: string) => CompactSeries | null | Promise<CompactSeries | null>,
+): Promise<DailySeriesSet> {
   const unique = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))].slice(0, 40);
-  const loaded = await Promise.all(
-    unique.map((symbol) => preloaded?.[symbol] ?? getSeriesCached(symbol).catch(() => null)),
-  );
+  const loaded = await Promise.all(unique.map(load));
   const series: Record<string, ChartPoint[]> = {};
   let source = "Price history";
   let lastDate: string | null = null;

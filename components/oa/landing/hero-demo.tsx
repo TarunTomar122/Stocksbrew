@@ -9,7 +9,10 @@ import { shortCompanyName } from "@/lib/plain-copy";
 import { getScreenerRows } from "@/lib/screener";
 import { FEATURED_STOCK_TICKERS } from "@/lib/seo/stock-pages";
 import { sharedCache } from "@/lib/shared-cache";
-import { getStockIntelligenceDoc, getStockPriceHistory, getStockSummary } from "@/lib/stock";
+import { getLatestPriceQuotes } from "@/lib/firestore";
+import { loadServedSnapshotRows } from "@/lib/serve/stock-serve";
+import { historyWindowFromRows } from "@/lib/serve/stock-serve-shared";
+import { getStockIntelligenceDoc, getStockPriceHistory, getStockSummary, priceHistoryChart } from "@/lib/stock";
 import { buildStockRead } from "@/lib/stock-read";
 
 import { HeroDemoCard } from "./hero-demo-card";
@@ -30,13 +33,29 @@ const READ = 5;
 type Loaded = { stock: HeroDemoStock; lines: TasteLine[] };
 
 /**
+ * getStockPriceHistory from the stock's served price window (lib/serve, ~8 KB) and the price doc's quote fields
+ * (~0.3 KB), instead of the whole ~120 KB price doc; the whole doc when the window is not served fresh.
+ */
+async function recentCloses(ticker: string, instrumentId: string) {
+  const [rows, quotes] = await Promise.all([loadServedSnapshotRows(ticker, instrumentId), quoteFields(instrumentId)]);
+  const quote = quotes?.get(instrumentId);
+  if (rows && quote) return priceHistoryChart({ ...quote, history_window: historyWindowFromRows(rows) as never });
+  return getStockPriceHistory(instrumentId);
+}
+
+/** The price doc's quote fields alone (lib/firestore.ts LATEST_PRICE_QUOTE_FIELDS); null when the read fails. */
+async function quoteFields(instrumentId: string) {
+  return getLatestPriceQuotes([instrumentId]).catch(() => null);
+}
+
+/**
  * One stock, or null when it has no current call or price. A failed read throws rather than returning less: the
  * result is shared for everyone (sharedCache), and a blip must not leave a card with one stock and no chart cached.
  */
 async function loadStock(ticker: string): Promise<Loaded | null> {
   const [card, stock] = await Promise.all([getTasteCard(ticker), getStockSummary(ticker, "US")]);
   if (!card?.call || !stock || !(typeof stock.price === "number" && stock.price > 0)) return null;
-  const [intelligence, history] = await Promise.all([getStockIntelligenceDoc(stock.instrument_id, "US"), getStockPriceHistory(stock.instrument_id)]);
+  const [intelligence, history] = await Promise.all([getStockIntelligenceDoc(stock.instrument_id, "US"), recentCloses(ticker, stock.instrument_id)]);
   const zones = buildStockRead(intelligence)?.zones ?? null;
   const own = zones ? ownCallLevel(card.call, zones) : null;
   const shown: HeroDemoStock = {

@@ -54,7 +54,7 @@ import {
   UNVERIFIED,
 } from "@/lib/proposals";
 import { resultsFor } from "@/lib/results/server";
-import { getDailySeries } from "@/lib/screener-series";
+import { getRecentDailySeries } from "@/lib/screener-series";
 import { filingLine } from "@/lib/since-visit-server";
 import { figureText, isConditionMetric, METRICS, type ConditionRecord } from "@/lib/thesis-watch/conditions";
 import { CHECKS_COLLECTION, checkDocId, lastChange, readStoredCheck } from "@/lib/thesis-watch/store";
@@ -200,7 +200,8 @@ async function readAlerts(uid: string): Promise<ProposalAlert[]> {
 async function readSeries(tickers: string[]): Promise<NonNullable<ProposalInputs["series"]>> {
   const chunks: string[][] = [];
   for (let index = 0; index < tickers.length; index += SERIES_CHUNK) chunks.push(tickers.slice(index, index + SERIES_CHUNK));
-  const sets = await Promise.all(chunks.map((chunk) => getDailySeries(chunk)));
+  // The rules read at most the last 60 sessions (lib/proposals.ts), so the recent cut is the same answer.
+  const sets = await Promise.all(chunks.map((chunk) => getRecentDailySeries(chunk)));
   return Object.assign({}, ...sets.map((set) => set.series));
 }
 

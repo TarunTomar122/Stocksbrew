@@ -14,9 +14,8 @@
 import { levelFact, type LevelCandidate, type LevelFact } from "@/lib/briefing-face";
 import { within } from "@/lib/briefing-premarket-server";
 import { buildCallEvidence, type CalendarReport, type CallEvidenceInput, type EvidenceLine, type ResultsReport } from "@/lib/call-evidence";
-import { callEvidenceInput, getResultsReports } from "@/lib/call-evidence-data";
+import { callEvidenceInput, evidenceSeries, getResultsReports } from "@/lib/call-evidence-data";
 import { getScreenerSymbolContext } from "@/lib/screener";
-import { getDailySeries } from "@/lib/screener-series";
 import { sharedCache } from "@/lib/shared-cache";
 import { getStockFacts } from "@/lib/stock";
 import { getStockEarningsDates } from "@/lib/stock-events";
@@ -58,7 +57,8 @@ const levelFacts = sharedCache(
       getStockFacts(instrumentId),
       getResultsReports(ticker).catch(() => [] as ResultsReport[]),
       getStockEarningsDates("US", ticker).catch(() => []),
-      getDailySeries([ticker, "SPY"]).catch(() => null),
+      // The same lines from the recent closes (~14 KB tails) as from the whole histories (lib/call-evidence-data.ts).
+      evidenceSeries(ticker).catch(() => null),
       getScreenerSymbolContext(ticker).catch(() => null),
     ]);
     const row = context?.row ?? null;

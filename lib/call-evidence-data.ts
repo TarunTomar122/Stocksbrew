@@ -3,7 +3,7 @@ import { buildCallEvidence, type CalendarReport, type CallEvidence, type CallEvi
 import { todayET } from "@/lib/calendar-shared";
 import { getScreenerSymbolContext } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
-import { getDailySeries } from "@/lib/screener-series";
+import { RECENT_SESSIONS, getDailySeries, getRecentDailySeries, type DailySeriesSet } from "@/lib/screener-series";
 import { sharedCache } from "@/lib/shared-cache";
 import { getStockFacts, type StockFacts } from "@/lib/stock";
 import { livePe } from "@/lib/stock-header-facts";
@@ -115,6 +115,21 @@ export function callEvidenceInput(parts: {
   };
 }
 
+/**
+ * The stock's and the S&P 500's closes for the evidence lines. They read at most the last 252 sessions of the stock
+ * (the 52-week high), its last 60 daily moves against SPY and its last month, and look SPY up only on the stock's
+ * own days; so the recent cut (lib/screener-series.ts, ~14 KB tails instead of ~60 KB histories) gives the same lines
+ * whenever SPY's cut starts no later than the stock's. A stock whose closes stopped long ago fails that and reads
+ * the whole histories.
+ */
+export async function evidenceSeries(ticker: string): Promise<DailySeriesSet> {
+  const recent = await getRecentDailySeries([ticker, "SPY"]);
+  const stock = recent.series[ticker.trim().toUpperCase()];
+  const spy = recent.series.SPY;
+  if (!stock?.length || !spy?.length || spy.length < RECENT_SESSIONS || spy[0]!.date <= stock[0]!.date) return recent;
+  return getDailySeries([ticker, "SPY"]);
+}
+
 /** Everything for one US stock, for Ask. Any read that fails leaves its lines out. */
 export async function loadCallEvidence(input: {
   ticker: string;
@@ -130,7 +145,7 @@ export async function loadCallEvidence(input: {
     getStockFacts(input.instrumentId).catch(() => null),
     getResultsReports(ticker).catch(() => [] as ResultsReport[]),
     getStockEarningsDates("US", ticker).catch(() => []),
-    getDailySeries([ticker, "SPY"]).catch(() => null),
+    evidenceSeries(ticker).catch(() => null),
     getScreenerSymbolContext(ticker).catch(() => null),
     steadySince ? getStockCallHistory(input.instrumentId).catch(() => []) : Promise.resolve([]),
   ]);

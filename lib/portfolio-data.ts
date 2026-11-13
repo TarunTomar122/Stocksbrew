@@ -6,6 +6,7 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { getMarketsData } from "@/lib/markets";
 import { datedPrice, onOneDay, type DatedPrice } from "@/lib/portfolio-prices";
+import { lastEntries, readPriceTail, validSeries } from "@/lib/price-tail";
 import { getScreenerRows } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import {
@@ -33,22 +34,14 @@ const SERIES_POINTS = 400;
 type RawSeries = { dates?: unknown; closes?: unknown };
 
 async function loadSeriesUncached(symbol: string): Promise<DailySeries | null> {
+  // The ~14 KB tail when it is proven to be the history's current last entries (lib/price-tail.ts), else the history.
+  const tail = await readPriceTail(symbol);
+  if (tail === null) return null;
+  const recent = tail ? lastEntries(tail, SERIES_POINTS) : undefined;
+  if (recent) return validSeries(recent, SERIES_POINTS);
   const doc = await adminFirestore.collection("tm_price_history_daily").doc(symbol).get();
   if (!doc.exists) return null;
-  const raw = doc.data() as RawSeries;
-  const dates = Array.isArray(raw.dates) ? raw.dates : [];
-  const closes = Array.isArray(raw.closes) ? raw.closes : [];
-  const n = Math.min(dates.length, closes.length);
-  const out: DailySeries = { dates: [], closes: [] };
-  for (let i = Math.max(0, n - SERIES_POINTS); i < n; i++) {
-    const date = dates[i];
-    const close = closes[i];
-    if (typeof date === "string" && typeof close === "number" && Number.isFinite(close) && close > 0) {
-      out.dates.push(date);
-      out.closes.push(close);
-    }
-  }
-  return out.dates.length > 1 ? out : null;
+  return validSeries(doc.data() as RawSeries, SERIES_POINTS);
 }
 
 // The series gains one point a day.

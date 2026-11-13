@@ -117,6 +117,8 @@ export async function readStockCallHistory(instrumentId: string): Promise<CallRe
     .collection("calls")
     .orderBy("generated_at", "desc")
     .limit(400)
+    // Only what the records carry: a stored call also holds its rationale, triggers and stability notes (~60% of it).
+    .select("generated_at", "stance", "text", "price_at_call")
     .get();
   return snap.docs
     .map((doc) => {

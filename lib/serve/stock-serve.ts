@@ -10,6 +10,7 @@ import {
   SERVE_ALL_DOC,
   SERVE_COLLECTION,
   SERVE_PART_NAMES,
+  dirtyField,
   hashSourcePaths,
   newsInWindow,
   partField,
@@ -23,6 +24,7 @@ import {
   type PartVerdict,
   type SeriesPartData,
   type ServePart,
+  type SnapshotRow,
   type ServePartName,
   type ServeStockDoc,
   type SnapshotPartData,
@@ -133,6 +135,31 @@ async function loadServedStockUncached(ticker: string, instrumentId: string): Pr
     console.log(`[serve] ${id} ${SERVE_PART_NAMES.map((name) => `${name}=${verdicts[name]}`).join(" ")}`);
   }
   return out;
+}
+
+/**
+ * Only the served price window (the `snapshot` part) of one stock: a masked read of its serve doc and the `_all`
+ * stamps, ~8 KB instead of the ~120 KB price doc. For pages that show a stock's recent closes without the rest of
+ * the stock page (the landing's demo card). The rows still need today's quote on their end, from the price doc's
+ * own quote fields. Undefined when serving is off, the part cannot be proven fresh (partVerdict), or a read fails.
+ */
+export async function loadServedSnapshotRows(ticker: string, instrumentId: string): Promise<SnapshotRow[] | undefined> {
+  const id = serveDocIdFor(instrumentId);
+  if (!serveDocsOn() || !id || !serveDocId(ticker) || !localFirestoreFromEnv()) return undefined;
+  try {
+    const docPath = `${SERVE_COLLECTION}/${id}`;
+    const allPath = `${SERVE_COLLECTION}/${SERVE_ALL_DOC}`;
+    const docs = await batchGet([docPath, allPath], ["schema", "instrument_id", partField("snapshot"), dirtyField("snapshot")]);
+    const serve = (docs.find((row) => row.path === docPath)?.data ?? null) as ServeStockDoc | null;
+    const all = (docs.find((row) => row.path === allPath)?.data ?? null) as ServeStockDoc | null;
+    if (!serve || serve.instrument_id !== instrumentId) return undefined;
+    // A "dirty" part: no source hashes to check, only the age and the writers' stamps.
+    if (partVerdict(serve, "snapshot", Date.now(), null, undefined, all) !== "fresh") return undefined;
+    const rows = (serve[partField("snapshot")] as ServePart<SnapshotPartData>).data?.rows;
+    return Array.isArray(rows) ? rows : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // React's request cache only exists in the server-components build; elsewhere (tests, scripts) read each time.

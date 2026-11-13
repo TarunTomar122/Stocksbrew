@@ -46,6 +46,10 @@ WRITABLE_PREFIXES = (
     "tm_strategies",
     "tm_backtest_",
     "tm_price_history_daily",
+    # The last 640 closes of each price history, stamped with that history's hash (prices.py tail_doc).
+    "tm_price_tail",
+    # A small copy of each explained-moves doc, stamped with its hash (backend/anomaly_refs.py).
+    "tm_daily_anomaly_refs",
     "tm_market_assets",
     "tm_markets_",
     "tm_prediction_",
@@ -189,6 +193,36 @@ class DocStore:
                 if isinstance(document, dict) and isinstance(document.get("data"), dict):
                     out[document["path"]] = document["data"]
         return out
+
+    def read_with_hashes(self, paths: list[str], select: list[str] | None = None) -> dict[str, dict[str, Any]]:
+        """Documents by path with the store's hash of each: ``{path: {"data", "hash"}}``, missing ones left out.
+
+        ``select`` is a field mask (plain dotted names); ``[]`` reads the hashes alone, no bodies.
+        """
+        out: dict[str, dict[str, Any]] = {}
+        # A field no document has: every server answers it with the hash and an empty body.
+        if select is not None and len(select) == 0:
+            select = ["__hash_only__"]
+        for start in range(0, len(paths), 400):
+            chunk = paths[start : start + 400]
+            if self._db is not None:
+                rows = self._db._store.get_many(chunk, select=select)
+            else:
+                body: dict[str, Any] = {"paths": chunk}
+                if select is not None:
+                    body["select"] = select
+                rows = (self._request("POST", "/documents:batchGet", body) or {}).get("documents", [])
+            for row in rows:
+                if isinstance(row, dict) and isinstance(row.get("path"), str):
+                    out[row["path"]] = {"data": row.get("data") if isinstance(row.get("data"), dict) else {}, "hash": row.get("hash")}
+        return out
+
+    def list_paths(self, collection: str, limit: int = 10000) -> list[str]:
+        """Paths of the documents directly inside a top-level collection, without reading their bodies."""
+        if self._db is not None:
+            return [f"{collection}/{snapshot.id}" for snapshot in self._db.collection(collection).select(["__name__"]).limit(limit).stream()]
+        payload = self._request("POST", "/query", {"collection": collection, "filters": [], "orders": [], "select": ["__name__"], "limit": limit}) or {}
+        return [document["path"] for document in payload.get("documents", []) if isinstance(document, dict) and "path" in document]
 
     def list(self, collection: str, limit: int = 1000) -> list[tuple[str, dict[str, Any]]]:
         """Documents directly inside a top-level collection, as (path, data)."""

@@ -210,6 +210,28 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~14:15 ET: Codex judge91 on the live site: overall 7.4 (was 7.1)
+- Scores (scratchpad/judge91/codex.md): UI 7.0 (rubric cap), UX 7.5, usability 7.0, wording 7.0, agent feel 8.3,
+  similarity 7.4, sell 6.9, overall 7.4.
+- Breaks: landing example cards (price, one line), repeated buy-more trigger on /agent, per-agent rows in the agent
+  status, bars on checked cards and the thesis line, headlines over 10 words (scraped prefixes, ticker parentheses),
+  filing risks behind "Read them", mechanics copy on backtest and AMD, an 18-word Ask suggestion, the footer.
+- Its bold pick was the thesis agent we already have: it isn't visible enough. Its #1: a landing that sells the
+  loop (watch this → evidence → decision → outcome) with one real example.
+- In flight: judge91 sweep (all breaks), treemaps + sector movers, heavy reads 2, real-user speed. Next free slot:
+  the landing loop rework.
+
+### 2026-11-13 ~13:30 ET: calendar centred on today live (a1229de2)
+- Owner: "this used to have a bit more info that i liked" + "current day in center". Rows lost the company name and
+  the second figure over several commits, and 2d04c157 folded every day to the quietest day's height. Now every
+  non-today row is two lines (ticker + main figure; name + beat/miss or "last report"), today keeps its wide row.
+- Week = 5 trading days centred on today (2 either side; weekend/holiday anchors on the next trading day), arrows move
+  a week, `w=` takes any day as the centre (old Monday links still open). Dense weeks end level via a client measure
+  (components/calendar/week-grid.tsx + level.ts), SSR fold as fallback; sparse filters spread days across the row.
+- Council: BLOCK x7 on balance nits, the last two contradicting each other (content-height cards vs level ends);
+  lead shipped on the owner's two asks being met. QA x2: confirmed items fixed. 4481/4481 tests both ways.
+- Open: loading skeleton always draws today wide (shifts a little on weekends).
+
 ### 2026-11-13 ~12:30 ET: briefing desk live (9c4820c1)
 - /briefing opens on the agent's desk: "Needs you" (one row of compact proposal cards, Accept/Dismiss, "Show N more"
   folding inside ProposalCards so heading, bell and queue counts stay equal), "You decided" (up to 3 lines),

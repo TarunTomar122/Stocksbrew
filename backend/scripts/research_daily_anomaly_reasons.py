@@ -27,6 +27,7 @@ from backend.llm_client import (
 )
 from backend.news_finnhub import fetch_finnhub_news_for_tickers
 from backend.news_av import fetch_av_news_for_tickers
+from backend.anomaly_refs import write_refs as write_anomaly_refs
 from backend.scripts.build_daily_anomalies import (
     ANOMALY_REVALIDATE_PATHS,
     OPENAI_DEFAULT_MODEL,
@@ -949,6 +950,7 @@ def main() -> None:
     updated["reasoned_at"] = now_iso
     updated["reasoned_count"] = reasoned
     feed_ref.set(updated)
+    write_anomaly_refs(store.db, f"tm_daily_anomalies/{args.market}__latest", updated)
     _write_ticker_read_models(store, args.market, updated)
     # The dated archive behind the "why it moved" pages. Never fail the job over it.
     try:

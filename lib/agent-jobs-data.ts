@@ -19,6 +19,7 @@ import { earningsDayHref, toneOfGuidance, toneOfVerdict } from "@/lib/earnings-d
 import { limitFor, systemPlanOf, type Plan } from "@/lib/entitlements";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { isCovered, viewerFromUserDoc } from "@/lib/entitlements-server";
+import { entriesBefore, readPriceTails } from "@/lib/price-tail";
 import { callWord } from "@/lib/stock-chart";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { readStoredWatchlistView } from "@/lib/watchlist-view-read";
@@ -408,16 +409,30 @@ export async function resolveScope(
 }
 
 async function loadPrices(tickers: string[], end: string): Promise<{ prices: AgentFacts["prices"]; calendar: string[] }> {
-  // Price documents are large, so they are read a few at a time.
   const symbols = [...new Set([...tickers, CALENDAR_SYMBOL])];
   const prices: AgentFacts["prices"] = {};
   let calendar: string[] = [];
   if (symbols.length === 0) return { prices, calendar };
+  const found = new Map<string, { dates: string[]; closes: number[] }>();
+  const keep = (symbol: string, series: { dates: string[]; closes: number[] }) => found.set(symbol, series);
+  // The small tails first (lib/price-tail.ts): one read for every symbol, used where it is proven current and
+  // reaches back far enough; a missing history (null) is skipped as before.
+  const tails = await readPriceTails(symbols);
+  const rest: string[] = [];
+  for (const symbol of symbols) {
+    // Only a symbol already in its doc id's form, so the tail is of the very doc the history read below would get.
+    const tail = symbol === symbol.trim().toUpperCase() ? tails.get(symbol) : undefined;
+    if (tail === null) continue;
+    const window = tail ? entriesBefore(tail, end, HISTORY_SESSIONS) : undefined;
+    if (window) keep(symbol, window as { dates: string[]; closes: number[] });
+    else rest.push(symbol);
+  }
+  // Price documents are large, so the rest are read a few at a time.
   const snaps = [];
-  for (let start = 0; start < symbols.length; start += 20) {
+  for (let start = 0; start < rest.length; start += 20) {
     snaps.push(
       ...(await adminFirestore.getAll(
-        ...symbols.slice(start, start + 20).map((symbol) => adminFirestore.collection("tm_price_history_daily").doc(symbol)),
+        ...rest.slice(start, start + 20).map((symbol) => adminFirestore.collection("tm_price_history_daily").doc(symbol)),
       )),
     );
   }
@@ -430,11 +445,15 @@ async function loadPrices(tickers: string[], end: string): Promise<{ prices: Age
     let last = size;
     while (last > 0 && dates[last - 1] > end) last -= 1;
     const start = Math.max(0, last - HISTORY_SESSIONS);
-    const series = { dates: dates.slice(start, last), closes: closes.slice(start, last) };
-    const symbol = symbols[index];
+    keep(rest[index]!, { dates: dates.slice(start, last), closes: closes.slice(start, last) });
+  });
+  // In the symbols' order, as when every one was read from the history.
+  for (const symbol of symbols) {
+    const series = found.get(symbol);
+    if (!series) continue;
     if (symbol === CALENDAR_SYMBOL) calendar = series.dates;
     if (tickers.includes(symbol)) prices[symbol] = series;
-  });
+  }
   return { prices, calendar };
 }
 

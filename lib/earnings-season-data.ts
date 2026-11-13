@@ -14,6 +14,7 @@ import { getInstrumentLabels } from "@/lib/instrument-resolver";
 import type { TheRead } from "@/lib/insights";
 import { FUNDS_SECTOR, loadDatedPrices, loadExamplePortfolio, newYorkToday } from "@/lib/portfolio-data";
 import { onOneDay } from "@/lib/portfolio-prices";
+import { readPriceTail } from "@/lib/price-tail";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 import type { UserDoc } from "@/lib/watchlist";
@@ -58,10 +59,30 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/** The closes (valid ones, as days) and whether it is a fund, from a price history or its tail. */
+function pricesFrom(raw: { dates?: unknown; closes?: unknown; instrument_type?: unknown }): {
+  series: { dates: string[]; closes: number[] };
+  fund: boolean;
+} {
+  const dates = Array.isArray(raw.dates) ? raw.dates : [];
+  const closes = Array.isArray(raw.closes) ? raw.closes : [];
+  const n = Math.min(dates.length, closes.length);
+  const series: { dates: string[]; closes: number[] } = { dates: [], closes: [] };
+  for (let i = 0; i < n; i++) {
+    const date = dates[i];
+    const close = closes[i];
+    if (typeof date === "string" && typeof close === "number" && Number.isFinite(close) && close > 0) {
+      series.dates.push(date.slice(0, 10));
+      series.closes.push(close);
+    }
+  }
+  return { series, fund: raw.instrument_type === "ETF" || raw.instrument_type === "MUTUALFUND" };
+}
+
 async function readTickerUncached(ticker: string, today: string): Promise<TickerEarnings> {
   // The calendar and the closes must both read, or nothing is cached: a failed read would
   // otherwise be served to everyone as "no dates" or "no history" for half an hour.
-  const [eventSnap, reactionSnap, filingSnap, historySnap, priceSnap] = await Promise.all([
+  const [eventSnap, reactionSnap, filingSnap, historySnap, tail] = await Promise.all([
     adminFirestore.collection(EARNINGS).where("ticker", "==", ticker).get(),
     adminFirestore.collection(REACTIONS).where("ticker", "==", ticker).get().catch(() => null),
     adminFirestore
@@ -76,7 +97,8 @@ async function readTickerUncached(ticker: string, today: string): Promise<Ticker
       .doc(ticker.replace(/\//g, "-"))
       .get()
       .catch(() => null),
-    adminFirestore.collection(PRICES).doc(ticker.replace(/\//g, "-")).get(),
+    // The ~14 KB tail of the closes when it is proven current (lib/price-tail.ts); the history below otherwise.
+    readPriceTail(ticker),
   ]);
 
   const events: CalendarRow[] = [];
@@ -137,30 +159,34 @@ async function readTickerUncached(ticker: string, today: string): Promise<Ticker
   for (const accession of notReleases) byAccession.delete(accession);
   const filings = [...byAccession.values()];
 
-  let series: { dates: string[]; closes: number[] } | null = null;
-  let fund = false;
-  if (priceSnap.exists) {
-    const raw = priceSnap.data() as RawDoc;
-    const dates = Array.isArray(raw.dates) ? raw.dates : [];
-    const closes = Array.isArray(raw.closes) ? raw.closes : [];
-    const n = Math.min(dates.length, closes.length);
-    series = { dates: [], closes: [] };
-    for (let i = 0; i < n; i++) {
-      const date = dates[i];
-      const close = closes[i];
-      if (typeof date === "string" && typeof close === "number" && Number.isFinite(close) && close > 0) {
-        series.dates.push(date.slice(0, 10));
-        series.closes.push(close);
-      }
-    }
-    fund = raw.instrument_type === "ETF" || raw.instrument_type === "MUTUALFUND";
+  const historyFrom = (prices: ReturnType<typeof pricesFrom> | null) =>
+    buildHistory({ events, reactions, filings, series: prices?.series ?? null }, today);
+  let prices: ReturnType<typeof pricesFrom> | null = null;
+  let history: StockHistory | null = null;
+  if (tail === null) {
+    history = historyFrom(null);
+  } else if (tail) {
+    prices = pricesFrom({ dates: tail.dates, closes: tail.closes, instrument_type: tail.instrumentType });
+    const built = historyFrom(prices);
+    // A report's move is measured from the session before it, so a part of the closes answers the same as all of
+    // them while every report kept has a session before it inside that part (the dates run forward, so it is the
+    // very session the whole history would use). The second date, not the first: the first may stand for a day
+    // the whole history holds twice. The normal day is the last 121 closes, so those must be in the part too.
+    const second = prices.series.dates[1];
+    const enough = prices.series.closes.length > 122;
+    if (tail.from === 0 || (tail.ordered && enough && second !== undefined && built.past.every((report) => second < report.date))) history = built;
+  }
+  if (!history) {
+    const priceSnap = await adminFirestore.collection(PRICES).doc(ticker.replace(/\//g, "-")).get();
+    prices = priceSnap.exists ? pricesFrom(priceSnap.data() as RawDoc) : null;
+    history = historyFrom(prices);
   }
 
   return {
     ticker,
     company: company?.name ?? null,
-    fund,
-    history: buildHistory({ events, reactions, filings, series }, today),
+    fund: prices?.fund ?? false,
+    history,
     asOf: asOf || null,
   };
 }

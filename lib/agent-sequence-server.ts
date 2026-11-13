@@ -21,7 +21,7 @@ import { firstSequence, type AgentSequence } from "@/lib/agent-sequence";
 import { candidates, type ProposalInputs, type ProposalStock } from "@/lib/proposals";
 import { readQuotes } from "@/lib/proposals-server";
 import { resultsFor } from "@/lib/results/server";
-import { getDailySeries } from "@/lib/screener-series";
+import { getRecentDailySeries } from "@/lib/screener-series";
 import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { sharedCache } from "@/lib/shared-cache";
 import { filingLine } from "@/lib/since-visit-server";
@@ -123,7 +123,8 @@ export async function loadExampleInputs(now: Date = new Date()): Promise<{
     // example's uid, so a user doc under it could not unlock Pro levels for every visitor.
     within(resolveScope(null, { kind: "tickers", tickers }, { calls: true }), READ_MS, "calls"),
     within(readPublicLevels(tickers), READ_MS, "levels"),
-    within(getDailySeries(tickers), READ_MS, "series"),
+    // The proposal rules read at most the last 60 sessions: the recent cut is the same answer.
+    within(getRecentDailySeries(tickers), READ_MS, "series"),
     within(readQuotes(stocks), READ_MS, "quotes"),
     within(readResults(tickers, today), READ_MS, "results"),
     within(readFilings(new Set(tickers), now), READ_MS, "filings"),

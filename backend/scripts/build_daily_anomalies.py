@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from backend.anomaly_refs import write_refs as write_anomaly_refs
 from backend.context_search import context_search_enabled, search_context_articles_for_ticker
 from backend.llm_enrichment import OpenAIArticleEnricher
 from backend.llm_client import (
@@ -510,17 +511,17 @@ def archive_explained_day(store: TraceMoneyStore, market: str, payload: dict[str
     rows, added = merge_explained_day(existing, current)
     if not rows:
         return []
-    ref.set(
-        {
-            "market": market_key,
-            "date": day,
-            "archived": True,
-            "generated_at": payload.get("generated_at"),
-            "reasoned_at": payload.get("reasoned_at"),
-            "anomalies": rows,
-            "anomaly_count": len(rows),
-        }
-    )
+    archived = {
+        "market": market_key,
+        "date": day,
+        "archived": True,
+        "generated_at": payload.get("generated_at"),
+        "reasoned_at": payload.get("reasoned_at"),
+        "anomalies": rows,
+        "anomaly_count": len(rows),
+    }
+    ref.set(archived)
+    write_anomaly_refs(store.db, f"tm_daily_anomalies/{market_key}__{day}", archived)
     confirmed = {str(row.get("ticker") or "").strip().upper() for row in rows if is_confirmed_move(row)}
     return [ticker for ticker in added if ticker in confirmed]
 
@@ -1690,6 +1691,7 @@ def main() -> None:
         )
         return
     feed_ref.set(payload)
+    write_anomaly_refs(store.db, f"tm_daily_anomalies/{args.market}__latest", payload)
     _write_ticker_read_models(store, args.market, payload)
     carry_metadata = (
         {"carried_reason_count": len(carried_tickers), "carried_reason_tickers": carried_tickers[:50]}

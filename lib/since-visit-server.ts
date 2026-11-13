@@ -14,7 +14,7 @@ import { getFilingsSince } from "@/lib/filings";
 import { getInsiderTrades } from "@/lib/follow";
 import { resultsFor } from "@/lib/results/server";
 import { resultFact } from "@/lib/results/words";
-import { getDailySeries } from "@/lib/screener-series";
+import { getRecentDailySeries } from "@/lib/screener-series";
 import {
   readVisits,
   sinceWindow,
@@ -164,7 +164,8 @@ async function readFilings(tickers: Set<string>, from: number, now: Date): Promi
 async function readSeries(tickers: string[]): Promise<SinceInputs["series"]> {
   const chunks: string[][] = [];
   for (let index = 0; index < tickers.length; index += SERIES_CHUNK) chunks.push(tickers.slice(index, index + SERIES_CHUNK));
-  const sets = await Promise.all(chunks.map((chunk) => getDailySeries(chunk)));
+  // windowMove reads 60 sessions before a visit at most 14 days back, well inside the recent cut.
+  const sets = await Promise.all(chunks.map((chunk) => getRecentDailySeries(chunk)));
   return Object.assign({}, ...sets.map((set) => set.series));
 }
 
