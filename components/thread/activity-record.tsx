@@ -12,7 +12,6 @@ const TONE = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "te
 const TAG_TONE: Record<string, string> = {
   Done: "text-signal-bullish bg-[color-mix(in_srgb,var(--signal-bullish)_10%,transparent)]",
   Dismissed: "text-oa-muted-fg bg-oa-accent",
-  Expired: "text-oa-muted-fg bg-oa-accent",
 };
 
 /** The agent's own lines (the day's move) carry its mark; a stock's line its logo. */

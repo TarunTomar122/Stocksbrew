@@ -10,6 +10,9 @@ import { filingSource } from "@/lib/filing-changes/server";
 import { inboxStocks, loadExampleInbox, loadUserInbox, windowStart, type InboxResult } from "@/lib/inbox/server";
 import type { InboxItem } from "@/lib/inbox/types";
 import { etDay } from "@/lib/insight-format";
+import { overnightStrip } from "@/lib/briefing-overnight";
+import { getExtendedQuotes } from "@/lib/extended-quotes-server";
+import type { ExtendedQuote } from "@/lib/extended-quotes";
 import { BENCHMARK_SYMBOL, EXAMPLE_STOCK_TICKERS, loadDailySeries } from "@/lib/portfolio-data";
 import { callsFrom } from "@/lib/portfolio-home/stocks-server";
 import { PLAIN_CALL, callLevel } from "@/lib/portfolio-home/stocks";
@@ -18,6 +21,7 @@ import { getScreenerRows } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import type { UserDoc } from "@/lib/watchlist";
 
+import { threadBiggest } from "./biggest";
 import { basketsByTicker, buildThread, sessionMoves, THREAD_DAYS, type CallLine, type MorningRead } from "./build";
 import type { Thread } from "./types";
 
@@ -106,12 +110,15 @@ type Common = {
   levels: (ticker: string) => boolean;
 };
 
-async function sideReads(common: Common): Promise<{ rows: Map<string, ScreenerRow>; series: Map<string, DailySeries> }> {
-  const [rows, series] = await Promise.all([
+async function sideReads(common: Common): Promise<{ rows: Map<string, ScreenerRow>; series: Map<string, DailySeries>; quotes: Map<string, ExtendedQuote> }> {
+  const [rows, series, quotes] = await Promise.all([
     within(getScreenerRows(common.tickers), SIDE_TIMEOUT_MS, new Map<string, ScreenerRow>(), "calls"),
     within(loadDailySeries([...common.group.tickers, BENCHMARK_SYMBOL]), SIDE_TIMEOUT_MS, new Map<string, DailySeries>(), "closes"),
+    // The after-hours and pre-market prints for "Biggest things": the same shared cache entry (same stocks, same key,
+    // a minute) the inbox's own extended source reads, so it is at most one small batched read a minute.
+    within(getExtendedQuotes(common.tickers), SIDE_TIMEOUT_MS, new Map<string, ExtendedQuote>(), "extended quotes"),
   ]);
-  return { rows, series };
+  return { rows, series, quotes };
 }
 
 function assemble(
@@ -122,6 +129,7 @@ function assemble(
     briefing: BriefingPageData | null;
     rows: Map<string, ScreenerRow>;
     series: Map<string, DailySeries>;
+    quotes?: Map<string, ExtendedQuote>;
     /** Filing notes on stocks only the person's idea baskets hold (the inbox has the ones they track). */
     basketFilings?: InboxItem[];
     baskets?: Record<string, string[]>;
@@ -130,7 +138,7 @@ function assemble(
   const morning = morningFrom(input.briefing, common.now);
   const sessions = sessionMoves({ series: input.series, tickers: common.group.tickers, benchmark: input.series.get(BENCHMARK_SYMBOL) ?? null, today: common.today, count: THREAD_DAYS });
   const nothing = !input.inbox && !morning && sessions.length === 0;
-  return buildThread({
+  const thread = buildThread({
     status: nothing ? "unavailable" : "ready",
     example: input.example,
     today: common.today,
@@ -145,6 +153,21 @@ function assemble(
     baskets: input.baskets,
     stocks: common.tickers.length,
   });
+  return { ...thread, biggest: biggestOf(common, input) };
+}
+
+/** "Biggest things" (lib/thread/biggest.ts) from the inbox's items and the after-hours and pre-market prints. */
+function biggestOf(common: Common, input: { inbox: InboxResult | null; rows: Map<string, ScreenerRow>; quotes?: Map<string, ExtendedQuote> }) {
+  const names: Record<string, string> = {};
+  const dayPcts: Record<string, number> = {};
+  for (const [ticker, row] of input.rows) {
+    if (row.name) names[ticker] = row.name;
+    if (typeof row.day_pct === "number" && Number.isFinite(row.day_pct)) dayPcts[ticker] = row.day_pct;
+  }
+  const holding = new Set(common.group.holdings ? common.group.tickers : []);
+  const positions = common.tickers.map((ticker) => ({ ticker, name: names[ticker] ?? ticker, relation: holding.has(ticker) ? ("holding" as const) : ("watching" as const) }));
+  const overnight = input.quotes && input.quotes.size > 0 ? overnightStrip(positions, input.quotes, common.now.getTime())?.cards ?? [] : [];
+  return threadBiggest({ today: common.today, items: input.inbox?.items ?? [], holding, names, prices: pricesFrom(input.rows), dayPcts, levels: common.levels, overnight });
 }
 
 /**

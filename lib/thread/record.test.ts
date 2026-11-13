@@ -51,7 +51,7 @@ const outcome = (patch: Partial<ProposalOutcome>): ProposalOutcome => ({ id: "p1
 
 describe("the activity record", () => {
   it("reads newest day first, with each day's answered proposals before the agent's notes", () => {
-    const days = buildRecord(thread, [outcome({}), outcome({ id: "p2", status: "dismissed", ticker: "META", title: "Try buying META in your practice account", message: null, at: "2026-11-12T16:00:00.000Z" })], TODAY);
+    const days = buildRecord(thread, [outcome({}), outcome({ id: "p2", status: "dismissed", ticker: "META", title: "Get a reminder the day before META reports", message: null, at: "2026-11-12T16:00:00.000Z" })], TODAY);
     expect(days.map((day) => day.label)).toEqual(["Today", "Yesterday", "Tuesday"]);
     // Answered proposals, then the day's move, then findings, then today's "found nothing".
     expect(days[0]!.items.map((item) => [item.kind, item.tag, item.ticker])).toEqual([
@@ -72,9 +72,20 @@ describe("the activity record", () => {
     expect(days[0]!.items[0]).toMatchObject({ ticker: null, figure: { value: "−1.2%" } });
   });
 
-  it("notes a proposal that went stale as expired, under the day it expired", () => {
-    const days = buildRecord(null, [outcome({ status: "expired", message: null, at: "2026-11-09T12:00:00.000Z" })], TODAY);
-    expect(days).toEqual([{ day: "2026-11-09", label: "Monday", items: [expect.objectContaining({ kind: "expired", tag: "Expired", text: "Move NVDA's $142 alert down to $131.20." })] }]);
+  // Owner, Nov 13: "what I didn't need was the expired part".
+  it("never lists a proposal that went stale", () => {
+    expect(buildRecord(null, [outcome({ status: "expired", message: null, at: "2026-11-09T12:00:00.000Z" })], TODAY)).toEqual([]);
+    const days = buildRecord(null, [outcome({}), outcome({ id: "p2", status: "expired", message: null, at: "2026-11-11T16:00:00.000Z" })], TODAY);
+    expect(days.flatMap((day) => day.items.map((item) => item.id))).toEqual(["proposal:p1"]);
+  });
+
+  it("leaves out an event the Biggest things cards above already tell", () => {
+    const told: Thread = {
+      ...thread,
+      days: [{ day: TODAY, label: "Today", date: "Nov 12", notes: [note({ id: "big", tickers: ["SMCI"], text: "SMCI fell 11.3% today, about twice a normal day.", figure: { value: "−11.3%", tone: "down" } }), note({ id: "small", tickers: ["AMD"], text: "AMD rose 12.0% today, about three times a normal day.", figure: { value: "+12.0%", tone: "up" } })] }],
+      biggest: [{ ticker: "SMCI", name: "Super Micro", kind: "news", pct: -11.3, session: null, price: 26.98, holding: true, line: "Super Micro fell after DOJ China-smuggling probe.", day: TODAY, source: null, href: "/stock/SMCI", ids: ["big"], score: 20 }],
+    };
+    expect(buildRecord(told, [], TODAY).flatMap((day) => day.items.map((item) => item.id))).toEqual(["note:small"]);
   });
 
   it("cuts at a sentence's end, not inside a figure, an abbreviation or an initial", () => {

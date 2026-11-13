@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 
 import { AskPageHint } from "@/components/ask/ask-page-hint";
+import { BiggestThings } from "@/components/biggest/biggest-things";
 import { BriefingFace, casedMoved, sourceWords } from "@/components/briefing/briefing-face";
 import { Desk } from "@/components/briefing/desk";
 import { BriefingLockedMoves } from "@/components/briefing/locked-moves";
@@ -14,6 +15,7 @@ import { ThesisStrip } from "@/components/thesis-monitor/thesis-strip";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
 import { marketDay, type BriefingPosition } from "@/lib/briefing";
+import { briefingBiggest } from "@/lib/briefing-biggest";
 import { buildDesk, type Desk as DeskData } from "@/lib/briefing-desk";
 import { loadBriefingPage, type BriefingPageData } from "@/lib/briefing-data";
 import { loadExampleBriefing, type ExampleBriefingExtras } from "@/lib/briefing-example";
@@ -57,7 +59,7 @@ import { proposalsBrief } from "@/lib/proposals-brief";
 import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
 import { resultsFor } from "@/lib/results/server";
 import type { ResultRead } from "@/lib/results/types";
-import { briefingResultFact } from "@/lib/results/words";
+import { briefingResultFact, resultSentence } from "@/lib/results/words";
 import { buildSinceVisit, sinceShows, toldElsewhere } from "@/lib/since-visit";
 import { loadSinceVisit, type SinceVisitResult } from "@/lib/since-visit-server";
 import { readStripSource, stripFrom, withinStrip, type StripSource } from "@/lib/thesis-monitor/strip-server";
@@ -176,8 +178,9 @@ async function stripSeries(tickers: string[]): Promise<Record<string, Array<{ da
 }
 
 /**
- * The slot under the header: the agent's desk (what it found and what it did or proposes, lib/briefing-desk.ts), the
- * thesis strip, then the Overnight strip (before the open), then "Since you last looked"; nothing when none shows.
+ * The slot under the header: the biggest things on the person's stocks (lib/briefing-biggest.ts), the agent's desk
+ * (what it proposes and what the person decided, lib/briefing-desk.ts), then the Overnight strip (before the open),
+ * then "Since you last looked"; nothing when none shows.
  */
 function briefingTop(parts: React.ReactNode[]): React.ReactNode {
   const shown = parts.filter(Boolean);
@@ -351,8 +354,32 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         })
       : null;
   for (const card of sinceView?.cards ?? []) shown.add(card.ticker);
-  const moved = explained.filter((card) => !shown.has(card.ticker));
-  for (const card of moved) shown.add(card.ticker);
+  const movedAll = explained.filter((card) => !shown.has(card.ticker));
+  for (const card of movedAll) shown.add(card.ticker);
+
+  // The biggest things lead the page (owner, Nov 13: "I would have just liked the biggest things"), taken from the
+  // Overnight strip, Why it moved and Since you last looked, which then leave those stocks out (a stock shows once).
+  // Today's personal briefing only.
+  const biggest =
+    live && personal
+      ? briefingBiggest({
+          positions,
+          overnight: overnight?.cards ?? [],
+          moved: casedMoved(movedAll),
+          since: sinceView?.cards ?? [],
+          priceDay: priceDay ?? today,
+          sourceOf: sourceWords,
+          // The report in one sentence, its move left to the card's figure.
+          reportDays: pastReportDays(positions, results, today),
+          reports: Object.fromEntries(results.map((read) => [read.ticker.toUpperCase(), resultSentence({ ...read, move: null }, read.ticker.toUpperCase(), today)])),
+        })
+      : [];
+  const big = new Set(biggest.map((thing) => thing.ticker));
+  const moved = movedAll.filter((card) => !big.has(card.ticker.toUpperCase()));
+  const overnightLeft = overnight ? overnight.cards.filter((card) => !big.has(card.ticker.toUpperCase())) : [];
+  const sinceLeft = sinceView ? sinceView.cards.filter((card) => !big.has(card.ticker.toUpperCase())) : [];
+  // quiet_ok ("Nothing changed") already needs no cards, so a view whose cards all went to the top stays hidden.
+  const sinceShown = sinceView ? { ...sinceView, cards: sinceLeft } : null;
   const levels = personal ? atYourLevels(positions, shown, levelFacts, pre, prePrices) : [];
   for (const row of levels) shown.add(row.ticker);
 
@@ -375,7 +402,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
             reportDays: pastReportDays(positions, results, today),
             prices: prePrices,
             moved: casedMoved(moved),
-            overnight: overnight?.cards ?? [],
+            overnight: overnightLeft,
             overnightDropAt: overnight?.dropAt ?? null,
             levels,
             doCards,
@@ -392,7 +419,7 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
   const shownLevels = levels.filter((row) => !taken.has(row.ticker));
   const keptDo = doCards.filter((card) => !taken.has(card.ticker));
   const shownTodo = todo?.kind === "cards" && keptDo.length !== doCards.length ? (keptDo.length > 0 ? { kind: "cards" as const, cards: keptDo } : { kind: "quiet" as const }) : todo;
-  const keptOvernight = overnight ? overnight.cards.filter((card) => !taken.has(card.ticker)) : [];
+  const keptOvernight = overnightLeft.filter((card) => !taken.has(card.ticker));
   const shownOvernight = overnight && keptOvernight.length > 0 ? { ...overnight, cards: keptOvernight } : null;
   const deskView = deskNode(desk, positions, proposals?.watch ?? null, today);
 
@@ -419,9 +446,10 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
         moved={shownMoved}
         week={week}
         top={briefingTop([
+          biggest.length > 0 ? <BiggestThings key="biggest" things={biggest} today={today} /> : null,
           deskView ? <Fragment key="desk">{deskView}</Fragment> : null,
           shownOvernight ? <OvernightStrip key="overnight" strip={shownOvernight} /> : null,
-          sinceShows(sinceView) ? <SinceVisit key="since" view={sinceView} /> : null,
+          sinceShows(sinceShown) ? <SinceVisit key="since" view={sinceShown} /> : null,
         ])}
         afterBand={thesis ? <ThesisStrip strip={thesis} today={today} compact /> : null}
         agentFindings={live ? agentFindingCount([...briefing.needs_you, ...briefing.also_today]) : 0}

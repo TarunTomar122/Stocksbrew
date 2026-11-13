@@ -256,7 +256,7 @@ export type ProposalInputs = {
   runs?: ProposalRun[] | null;
   jobs?: ProposalJob[] | null;
   upcoming?: ProposalUpcoming[] | null;
-  /** Shares held in the practice account, by ticker: a practice sale is only offered for a stock it holds. */
+  /** Shares held in the practice account, by ticker (only to check a stored practice sale; none are proposed now). */
   practice?: Record<string, number> | null;
   /** The person's idea baskets with their recent checks (lib/basket-agent). */
   baskets?: ProposalBasket[] | null;
@@ -663,8 +663,10 @@ function capital(text: string): string {
 }
 
 /**
- * Our call changed: to Buy more, an alert at its buy-more level (or, already under it, a practice buy); to Sell some
- * on a holding, an alert at its sell-some level (or, already over it, a practice sale).
+ * Our call changed: to Buy more, an alert at its buy-more level; to Sell some on a holding, an alert at its sell-some
+ * level. Already through the level, nothing is proposed: the call change itself is on the stock page and the record.
+ * (Practice-account tickets are no longer proposed. Owner, Nov 13: "I don't want the practice account thingy. That one
+ * is useless for me.")
  */
 function callRules(inputs: ProposalInputs): ProposalDraft[] {
   const out: ProposalDraft[] = [];
@@ -706,17 +708,6 @@ function callRules(inputs: ProposalInputs): ProposalDraft[] {
           figures: [...callFigures, { label: "Buy-more level", value: usd(level) }],
           action: alertAction(ticker, stock.instrumentId, "below", level, null),
         });
-      } else {
-        out.push({
-          ...base,
-          idea: `practice:${ticker}:buy`,
-          title: `Try buying ${ticker} in your practice account`,
-          why: [moved, `It's at ${usd(point.price)}, under its ${usd(level)} buy-more level.`],
-          does: `Opens a practice ticket to buy ${ticker}.`,
-          figures: [...callFigures, { label: "Buy-more level", value: usd(level) }],
-          action: { type: "practice_ticket", ticker, side: "buy" },
-          level: { price: level, label: "Buy-more level" },
-        });
       }
     } else if (change.to === "Trim" && stock.position === "holding" && fin(levels.trim_above)) {
       const level = levels.trim_above;
@@ -731,89 +722,8 @@ function callRules(inputs: ProposalInputs): ProposalDraft[] {
           figures: [...callFigures, { label: "Sell-some level", value: usd(level) }],
           action: alertAction(ticker, stock.instrumentId, "above", level, null),
         });
-      } else if (practiceHolds(inputs, ticker)) {
-        out.push({
-          ...base,
-          idea: `practice:${ticker}:sell`,
-          title: `Try selling some ${ticker} in your practice account`,
-          why: [moved, `It's at ${usd(point.price)}, over its ${usd(level)} sell-some level.`],
-          does: `Opens a practice ticket to sell ${ticker}.`,
-          figures: [...callFigures, { label: "Sell-some level", value: usd(level) }],
-          action: { type: "practice_ticket", ticker, side: "sell" },
-          level: { price: level, label: "Sell-some level" },
-        });
       }
     }
-  }
-  return out;
-}
-
-/** Whether the practice account holds this stock: a practice sale is only offered then. */
-function practiceHolds(inputs: ProposalInputs, ticker: string): boolean {
-  return (inputs.practice?.[ticker] ?? 0) > 0;
-}
-
-/** The first close inside the zone after one outside it, within the last EVENT_DAYS sessions. */
-function crossing(series: ReadonlyArray<{ date: string; close: number }>, inside: (close: number) => boolean): { date: string; close: number } | null {
-  const tail = series.slice(-(EVENT_DAYS + 1));
-  if (tail.length < 2 || !inside(tail[tail.length - 1]!.close)) return null;
-  for (let index = tail.length - 1; index > 0; index -= 1) {
-    if (inside(tail[index]!.close) && !inside(tail[index - 1]!.close)) return tail[index]!;
-  }
-  return null;
-}
-
-/** A close crossed into the call's own zone: under the buy-more level on a Buy more call, over the sell-some level on a Sell some holding. */
-function levelRules(inputs: ProposalInputs): ProposalDraft[] {
-  const out: ProposalDraft[] = [];
-  for (const stock of inputs.stocks) {
-    const ticker = stock.ticker;
-    const levels = openLevels(inputs, ticker);
-    const call = inputs.calls?.[ticker]?.call ?? null;
-    const series = inputs.series?.[ticker];
-    if (!levels || !series || !call) continue;
-    const point = latestPrice(inputs, ticker);
-    if (!point) continue;
-    let zone: { side: "buy" | "sell"; level: number; cross: { date: string; close: number } } | null = null;
-    if (call === "Add" && fin(levels.add_below)) {
-      const level = levels.add_below;
-      const cross = crossing(series, (close) => close <= level);
-      if (cross && point.price <= level) zone = { side: "buy", level, cross };
-    } else if (call === "Trim" && stock.position === "holding" && fin(levels.trim_above) && practiceHolds(inputs, ticker)) {
-      const level = levels.trim_above;
-      const cross = crossing(series, (close) => close >= level);
-      if (cross && point.price >= level) zone = { side: "sell", level, cross };
-    }
-    // A stale series can end weeks ago: only a crossing in the last few days is news.
-    if (!zone || !recent(zone.cross.date, inputs.today)) continue;
-    const words = zone.side === "buy" ? "buy-more" : "sell-some";
-    out.push({
-      kind: "level_reached",
-      ticker,
-      instrument_id: stock.instrumentId,
-      event: { key: `level:${ticker}:${zone.side}:${zone.cross.date}`, kind: "level_reached", at: zone.cross.date, refs: [`tm_price_history_daily/${ticker}`] },
-      idea: `practice:${ticker}:${zone.side}`,
-      title: zone.side === "buy" ? `Try buying ${ticker} in your practice account` : `Try selling some ${ticker} in your practice account`,
-      why: [
-        // One trigger line, no figures: the card's marker shows the level and how far the price is from it, and the
-        // run log keeps the close and the level (owner rule 4: no figure said twice beside its visual).
-        usd(zone.cross.close) === usd(zone.level)
-          ? `${ticker} closed at its ${words} level ${onDay(zone.cross.date, inputs.today)}.`
-          : `${ticker} closed ${zone.side === "buy" ? "under" : "over"} its ${words} level ${onDay(zone.cross.date, inputs.today)}.`,
-        `Our call on it is ${CALL_WORD[call]}.`,
-      ],
-      does: `Opens a practice ticket to ${zone.side} ${ticker}.`,
-      read: [{ label: `Our call on ${ticker}`, at: inputs.today, href: stockHref(ticker) }, priceSource(ticker, point), ...seriesSource(inputs, ticker)],
-      figures: [
-        ...priceFigures(ticker, point, inputs),
-        { label: "Close that crossed", value: usd(zone.cross.close) },
-        { label: zone.side === "buy" ? "Buy-more level" : "Sell-some level", value: usd(zone.level) },
-        { label: "Call", value: CALL_WORD[call] },
-      ],
-      action: { type: "practice_ticket", ticker, side: zone.side },
-      level: { price: zone.level, label: zone.side === "buy" ? "Buy-more level" : "Sell-some level" },
-      priority: 70,
-    });
   }
   return out;
 }
@@ -1247,7 +1157,6 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
     ...alertRules(inputs),
     ...resultsRules(inputs),
     ...callRules(inputs),
-    ...levelRules(inputs),
     ...moveRules(inputs),
     ...filingRules(inputs),
     ...filingRiskRules(inputs),
@@ -1297,6 +1206,14 @@ export function fitWords(draft: ProposalDraft): ProposalDraft | null {
 
 /* ── choosing what to store ─────────────────────────────────────────────── */
 
+/**
+ * A kind of proposal the agent no longer makes: a practice-account ticket (owner, Nov 13: "I don't want the practice
+ * account thingy"). Stored ones are kept as they are, but never shown, counted or holding a slot in the queue.
+ */
+export function isRetired(proposal: Pick<Proposal, "action">): boolean {
+  return proposal.action?.type === "practice_ticket";
+}
+
 /** Pending and not past its expiry (an accept left half-way long ago counts as pending again). */
 export function isWaiting(proposal: Pick<Proposal, "status" | "expires_at" | "updated_at">, now: Date): boolean {
   if (Date.parse(proposal.expires_at) <= now.getTime()) return false;
@@ -1310,7 +1227,7 @@ export function isWaiting(proposal: Pick<Proposal, "status" | "expires_at" | "up
  */
 export function pickNew(drafts: ProposalDraft[], existing: Proposal[], now: Date, max = MAX_PENDING): ProposalDraft[] {
   const ids = new Set(existing.map((proposal) => proposal.id));
-  const waiting = existing.filter((proposal) => isWaiting(proposal, now));
+  const waiting = existing.filter((proposal) => isWaiting(proposal, now) && !isRetired(proposal));
   const cooldown = now.getTime() - IDEA_COOLDOWN_DAYS * DAY_MS;
   const ideas = new Set(existing.filter((proposal) => isWaiting(proposal, now) || Date.parse(proposal.created_at) >= cooldown).map((proposal) => proposal.idea));
   const tickers = new Set(waiting.flatMap((proposal) => (proposal.ticker ? [proposal.ticker] : [])));
@@ -1347,7 +1264,7 @@ export function pickProposals(drafts: ProposalDraft[], existing: Proposal[], now
   const ids = new Set(existing.map((proposal) => proposal.id));
   const cooldown = now.getTime() - IDEA_COOLDOWN_DAYS * DAY_MS;
   const ideas = new Set(existing.filter((proposal) => isWaiting(proposal, now) || Date.parse(proposal.created_at) >= cooldown).map((proposal) => proposal.idea));
-  let held = existing.filter((proposal) => isWaiting(proposal, now));
+  let held = existing.filter((proposal) => isWaiting(proposal, now) && !isRetired(proposal));
   const fresh: ProposalDraft[] = [];
   const outranked: Proposal[] = [];
   const movable = (proposal: Proposal) => proposal.status === "pending";
@@ -1427,6 +1344,11 @@ export const UNVERIFIED = "unverified";
 
 /* ── staleness ──────────────────────────────────────────────────────────── */
 
+/** Whether the practice account holds this stock (a stored practice sale is stale once it does not). */
+function practiceHolds(inputs: ProposalInputs, ticker: string): boolean {
+  return (inputs.practice?.[ticker] ?? 0) > 0;
+}
+
 /**
  * Why a waiting proposal no longer fits the facts, or null when it still does (or the read it needs is missing, so
  * nothing can be said). Checked on every sync; accept checks the same before it writes.
@@ -1479,7 +1401,7 @@ export function staleReason(proposal: Proposal, inputs: ProposalInputs): string 
  */
 export type WatchSummary = { stocks: number; alerts: number; agents: number; paused?: number; next?: string | null };
 
-/** A proposal the person answered, or one that went stale: one line of the activity record on /agent. */
+/** A proposal the person answered, or one that went stale (the /agent record lists only the answered ones). */
 export type ProposalOutcome = {
   id: string;
   status: "accepted" | "dismissed" | "expired";
@@ -1537,7 +1459,7 @@ export type ProposalCard = Pick<Proposal, "id" | "kind" | "ticker" | "title" | "
 };
 
 /**
- * Cards that do the same thing share a heading that says the action once ("Try buying in your practice account"), and
+ * Cards that do the same thing share a heading that says the action once ("Set price alerts"), and
  * each card keeps only what differs (owner rule 1). `key` is the shared action; `heading` says it; `short` is the
  * card's own part of the action under that heading, or null when the ticker on the card already says it all.
  */
@@ -1685,8 +1607,8 @@ export function readProposal(data: unknown): Proposal | null {
   };
 }
 
-/** The waiting ones for the cards, strongest first, then newest. */
+/** The waiting ones for the cards, strongest first, then newest (never a retired kind: isRetired). */
 export function waitingOf(proposals: Proposal[], now: Date): Proposal[] {
-  return proposals.filter((proposal) => isWaiting(proposal, now)).sort((a, b) => b.priority - a.priority || b.created_at.localeCompare(a.created_at)).slice(0, MAX_PENDING);
+  return proposals.filter((proposal) => isWaiting(proposal, now) && !isRetired(proposal)).sort((a, b) => b.priority - a.priority || b.created_at.localeCompare(a.created_at)).slice(0, MAX_PENDING);
 }
 

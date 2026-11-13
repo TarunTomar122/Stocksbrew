@@ -13,7 +13,7 @@ const { ProposalCards } = await import("./proposal-cards");
 const NOW = new Date("2026-11-13T15:00:00Z");
 
 function card(ticker: string, index: number) {
-  const action: ProposalAction = { type: "practice_ticket", ticker, side: "buy" };
+  const action: ProposalAction = { type: "alert_price", ticker, instrument_id: `US_${ticker}`, condition: "below", price: 100, replaces: null };
   return toCard(
     newProposal(
       "u1",
@@ -23,7 +23,7 @@ function card(ticker: string, index: number) {
         instrument_id: `US_${ticker}`,
         event: { key: `level:${ticker}`, kind: "level_reached", at: "2026-11-12", refs: [] },
         idea: `i${index}`,
-        title: `Try buying ${ticker} in your practice account`,
+        title: `Set an alert on ${ticker} at $100`,
         why: [`${ticker} closed under its buy-more level yesterday.`],
         does: "",
         read: [],

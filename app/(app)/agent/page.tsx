@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { FirstLookOffer, FirstLookSlot } from "@/components/first-look/panel";
 import { PREVIEW_PARAM } from "@/lib/first-look/state";
+import { BiggestThings } from "@/components/biggest/biggest-things";
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { ProposalsSection } from "@/components/proposals/proposals-section";
 import { ActivityRecord } from "@/components/thread/activity-record";
@@ -41,8 +42,9 @@ const EXAMPLE_TAG = (
 );
 
 /**
- * One column (owner rules 4 and 10: no short side rail): what needs the person (the proposals, with the agent's status
- * beside them), then the dated record of what the agent did, then the box to ask it something.
+ * One column (owner rules 4 and 10: no short side rail): the biggest things on the person's stocks since the last
+ * trading day, then what needs them (the proposals, compact), then the dated record of what the agent did, then the
+ * box to ask it something.
  */
 /**
  * Each stock's latest price for the record's stock-move lines (owner rule 4: the current price beside a move). The
@@ -91,7 +93,8 @@ function Layout({ thread, record, signedIn, lead = null, prices = {} }: { thread
 async function ExampleThread() {
   const thread = await loadExampleThread({ briefing: () => loadExampleBriefing() });
   const record = buildRecord(thread, [], thread.today);
-  return <Layout thread={thread} record={record} signedIn={false} prices={await recordPrices(record)} />;
+  const lead = <BiggestThings things={thread.biggest ?? []} today={thread.today} />;
+  return <Layout thread={thread} record={record} signedIn={false} lead={lead} prices={await recordPrices(record)} />;
 }
 
 /**
@@ -119,8 +122,15 @@ async function MemberThread({ uid }: { uid: string }) {
     loadConditionRecord(viewer, doc, etToday()).catch(() => []),
     agentsQuietLine(uid, etToday()),
   ]);
-  // "Needs you" leads; the record below carries each answered proposal's outcome beside the agent's notes.
-  const lead = <ProposalsSection load={Promise.resolve(loaded)} statusAlone />;
+  // The biggest things lead (owner, Nov 13: "I would have just liked the biggest things"); what needs the person sits
+  // under them, compact, only when something waits. The record below carries each answered proposal's outcome beside
+  // the agent's notes, without the events the top already tells.
+  const lead = (
+    <>
+      <BiggestThings things={thread.biggest ?? []} today={thread.today} />
+      <ProposalsSection load={Promise.resolve(loaded)} />
+    </>
+  );
   const record = buildRecord(thread, loaded?.outcomes ?? [], thread.today, checked, quiet);
   return <Layout thread={thread} record={record} signedIn lead={lead} prices={await recordPrices(record)} />;
 }

@@ -354,7 +354,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
       if (value === null) complete = false;
       return value ?? undefined;
     });
-  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice, baskets, theses] = await Promise.all([
+  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, baskets, theses] = await Promise.all([
     guard(resolveScope(uid, { kind: "watchlist" }, { calls: true })),
     guard(readSeries(tickers)),
     guard(readQuotes(stocks)),
@@ -366,7 +366,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     guard(listRuns(uid, 60)),
     guard(listJobs(uid)),
     guard(reportsSource(inboxStocks(doc, viewer), today)),
-    guard(readPractice(uid)),
+    // No practice-account read: the agent no longer proposes practice tickets (lib/proposals.ts isRetired).
     guard(readBaskets(uid)),
     guard(readProposalTheses(uid, new Set(tickers))),
   ]);
@@ -404,7 +404,6 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     })),
     jobs: jobs?.map((job) => ({ id: job.id, name: job.name, enabled: job.enabled, trigger: job.trigger, scope: job.scope })),
     upcoming: upcoming?.map((report) => ({ ticker: report.ticker, date: report.date, session: report.session, usualPct: report.usualPct })),
-    practice,
     // A failed read is null, not "none": the agent-room check then says there is no room (lib/proposals.ts roomForAgent).
     baskets: baskets === undefined ? null : baskets,
     theses,

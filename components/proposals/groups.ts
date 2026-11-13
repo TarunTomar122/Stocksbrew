@@ -2,7 +2,7 @@ import type { ProposalCard } from "@/lib/proposals";
 
 /**
  * The waiting proposals as blocks: two or more cards that do the same thing (lib/proposals.ts groupOf) sit under one
- * heading that says the action once, so "Try buying X in your practice account" is never printed on four cards
+ * heading that says the action once, so "Get a reminder the day before X reports" is never printed on four cards
  * (owner rule 1). Cards with no partner come first, in one block with no heading, then each group in the order its
  * first card had (the queue is sorted by priority).
  */

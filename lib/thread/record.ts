@@ -1,15 +1,17 @@
 /**
  * The activity record on /agent: what the agent did, day by day, newest day first. One line per item: each proposal
- * the person accepted (with what it did), dismissed, or that went stale, then the agent's notes on the stocks (the
- * day's move, findings, call changes, checks that found nothing) from the thread (lib/thread/build.ts). Coming-up
- * reports are not activity and stay on the briefing and the inbox. Pure: safe on the client.
+ * the person accepted (with what it did) or dismissed, then the agent's notes on the stocks (the day's move, findings,
+ * call changes, checks that found nothing) from the thread (lib/thread/build.ts). A proposal that went stale is not
+ * listed (owner, Nov 13: "what I didn't need was the expired part"), and neither is an event the "Biggest things"
+ * cards above already tell (the record is history; the top is today's biggest). Coming-up reports are not activity and
+ * stay on the briefing and the inbox. Pure: safe on the client.
  */
 
 import { capitalize, dayWords, etDayOf } from "@/lib/day-words";
 import type { ProposalOutcome } from "@/lib/proposals";
 import type { Thread, ThreadFigure, ThreadNote } from "@/lib/thread/types";
 
-export type RecordItemKind = "accepted" | "dismissed" | "expired" | "note" | "quiet";
+export type RecordItemKind = "accepted" | "dismissed" | "note" | "quiet";
 
 export type RecordItem = {
   id: string;
@@ -20,7 +22,7 @@ export type RecordItem = {
   tickers?: string[];
   /** One sentence. */
   text: string;
-  /** "Done", "Dismissed", "Expired": a proposal's outcome, said once per line. */
+  /** "Done", "Dismissed": a proposal's outcome, said once per line. */
   tag: string | null;
   figure: ThreadFigure | null;
   href: string | null;
@@ -125,9 +127,11 @@ function noteItem(note: ThreadNote, day: string, today: string): RecordItem | nu
   };
 }
 
-const OUTCOME_TAG: Record<ProposalOutcome["status"], string> = { accepted: "Done", dismissed: "Dismissed", expired: "Expired" };
+const OUTCOME_TAG = { accepted: "Done", dismissed: "Dismissed" } as const;
 
-function outcomeItem(outcome: ProposalOutcome): RecordItem {
+type AnsweredOutcome = ProposalOutcome & { status: "accepted" | "dismissed" };
+
+function outcomeItem(outcome: AnsweredOutcome): RecordItem {
   const text = outcome.status === "accepted" && outcome.message ? outcome.message : outcome.title;
   return {
     id: `proposal:${outcome.id}`,
@@ -141,7 +145,7 @@ function outcomeItem(outcome: ProposalOutcome): RecordItem {
 }
 
 /**
- * The record's days, newest first: on each day the proposals answered (or gone stale) that day lead, then the day's
+ * The record's days, newest first: on each day the proposals answered that day lead, then the day's
  * move, the findings newest first, and (today only) a check that found nothing. The morning note before the open is
  * filed under the session it tells (`aboutDay`), not under today. A past day with only a move (a chip on the opener)
  * keeps its own line. A day with nothing to say is left out.
@@ -165,11 +169,16 @@ export function buildRecord(
     return entry;
   };
   for (const outcome of outcomes) {
+    // A proposal that went stale is not something the agent or the person did: never a line.
+    if (outcome.status === "expired") continue;
     const day = etDayOf(outcome.at);
-    if (day) slot(day).outcomes.push(outcomeItem(outcome));
+    if (day) slot(day).outcomes.push(outcomeItem(outcome as AnsweredOutcome));
   }
+  // The events the "Biggest things" cards tell are not told again under them.
+  const told = new Set((thread?.biggest ?? []).flatMap((thing) => thing.ids ?? []));
   for (const day of thread?.days ?? []) {
     for (const note of day.notes) {
+      if (told.has(note.id)) continue;
       const at = note.kind === "opener" && note.aboutDay && /^\d{4}-\d{2}-\d{2}$/.test(note.aboutDay) ? note.aboutDay : day.day;
       const item = noteItem(note, at, today);
       if (!item) continue;

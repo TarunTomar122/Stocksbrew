@@ -210,7 +210,6 @@ export function ProposalCards({
   initial,
   watch = null,
   today: todayProp,
-  statusAlone = false,
   recordOnPage = false,
   compact = false,
   fold,
@@ -218,8 +217,6 @@ export function ProposalCards({
   initial: ProposalCard[];
   watch?: WatchSummary | null;
   today?: string;
-  /** With no proposals waiting, still show the status strip (on /agent, where it replaced the side rail). */
-  statusAlone?: boolean;
   /** The page has the record ("What I did", /agent): an answered card leaves at once and its line goes there. */
   recordOnPage?: boolean;
   /**
@@ -320,14 +317,15 @@ export function ProposalCards({
   ) => {
     answeredIds.current.add(card.id);
     if (!leaving) void refreshQueue();
-    if (!recordOnPage) return;
+    // One that went stale is not a line of the record (owner, Nov 13: no expired lines).
+    if (!recordOnPage || status === "expired") return;
     const text = status === "accepted" && message ? message : card.title;
     const item: RecordItem = {
       id: `proposal:${card.id}`,
       kind: status,
       ticker: card.ticker,
       text: /[.!?]$/.test(text) ? text : `${text}.`,
-      tag: status === "accepted" ? "Done" : status === "dismissed" ? "Dismissed" : "Expired",
+      tag: status === "accepted" ? "Done" : "Dismissed",
       figure: null,
       href: card.ticker ? `/stock/${encodeURIComponent(card.ticker)}` : "/agents",
     };
@@ -360,14 +358,9 @@ export function ProposalCards({
         return;
       }
       if (body?.status === "expired") {
-        // The reason the facts changed, in the server's words. With the record on the page the line moves there at once;
-        // elsewhere the card says it and leaves a moment later.
+        // The reason the facts changed, in the server's words: the card says it and leaves a moment later (the record
+        // lists no stale proposals).
         const message = body.result?.message || "The facts changed since, so this one is gone.";
-        if (recordOnPage) {
-          answered(card, "expired", null);
-          setCards((all) => all.filter((entry) => entry.id !== card.id));
-          return;
-        }
         patch(card.id, { busy: null, gone: true, error: message });
         window.setTimeout(() => setCards((all) => all.filter((entry) => entry.id !== card.id)), 2500);
         return;
@@ -401,7 +394,7 @@ export function ProposalCards({
   };
 
   const status = watch && watch.stocks > 0 ? watch : null;
-  if (cards.length === 0) return status && statusAlone ? <AgentStatus watch={status} variant="strip" /> : null;
+  if (cards.length === 0) return null;
 
   // Cards that do the same thing sit under one heading that says it once, laid out two across so every row ends full
   // (components/proposals/groups.ts layoutPlan): a group with an odd count takes a lone card into its last row, else

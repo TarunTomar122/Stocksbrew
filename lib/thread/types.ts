@@ -4,6 +4,8 @@
  * a report coming up); nothing here is stored as a thread item. Types only, safe on the client.
  */
 
+import type { BigThing } from "@/lib/biggest";
+
 export type ThreadTone = "up" | "down" | "flat";
 
 export type PlainCallWord = "Buy more" | "Keep" | "Sell some";
@@ -82,4 +84,6 @@ export type Thread = {
   days: ThreadDay[];
   /** How many stocks the agent follows for this person (0 when unknown). */
   stocks: number;
+  /** The biggest events on the person's stocks since the last trading day, strongest first (lib/thread/biggest.ts). */
+  biggest?: BigThing[];
 };

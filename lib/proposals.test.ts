@@ -22,6 +22,8 @@ import {
   toCard,
   triggerLine,
   waitingOf,
+  isRetired,
+  pickProposals,
   WHY_MAX_WORDS,
   wordCount,
   type ProposalAlert,
@@ -216,7 +218,7 @@ describe("event → proposal", () => {
     expect(draft.action).toMatchObject({ replaces: { alert_id: "a1", price: 120 } });
   });
 
-  it("a call change to Buy more sets an alert at its buy-more level, or a practice buy when already under it", () => {
+  it("a call change to Buy more sets an alert at its buy-more level, and proposes nothing when already under it", () => {
     const calls = { NVDA: { call: "Add" as const, changes: [{ date: "2026-11-11", from: "Hold" as const, to: "Add" as const }] } };
     const levels = { NVDA: { add_below: 142.07, trim_above: 190 } };
     const above = candidates(inputs({ calls, levels, quotes: { NVDA: { price: 150, dayPct: 1, at: null } } }));
@@ -225,10 +227,10 @@ describe("event → proposal", () => {
     expect(alertDraft.title).toBe("Set an alert at NVDA's $142.07 buy-more level");
     expect(alertDraft.action).toMatchObject({ type: "alert_price", condition: "below", price: 142.07 });
     withinBudget(alertDraft);
+    // Owner, Nov 13: no practice-account tickets ("That one is useless for me").
     const under = candidates(inputs({ calls, levels, quotes: { NVDA: { price: 139, dayPct: -2, at: null } } }));
-    const practice = only(under, "call_change");
-    expect(practice.action).toEqual({ type: "practice_ticket", ticker: "NVDA", side: "buy" });
-    withinBudget(practice);
+    expect(under.filter((draft) => draft.kind === "call_change")).toEqual([]);
+    expect(under.some((draft) => draft.action.type === "practice_ticket")).toBe(false);
   });
 
   it("a call change says nothing for a stock the plan does not cover (levels locked)", () => {
@@ -242,15 +244,11 @@ describe("event → proposal", () => {
     expect(list.filter((draft) => draft.kind === "call_change")).toEqual([]);
   });
 
-  it("a practice sale is only offered when the practice account holds the stock", () => {
+  it("never proposes a practice-account ticket: not over a Sell some level, not on a close into the buy-more zone", () => {
     const calls = { NVDA: { call: "Trim" as const, changes: [{ date: "2026-11-11", from: "Hold" as const, to: "Trim" as const }] } };
     const base = { calls, levels: { NVDA: { add_below: 100, trim_above: 190 } }, quotes: { NVDA: { price: 195, dayPct: 1, at: null } } };
-    expect(candidates(inputs({ ...base, practice: {} }))).toEqual([]);
-    expect(only(candidates(inputs({ ...base, practice: { NVDA: 10 } })), "call_change").action).toEqual({ type: "practice_ticket", ticker: "NVDA", side: "sell" });
-  });
-
-  it("a close that crossed into the buy-more zone on a Buy more call opens a practice buy", () => {
-    const list = candidates(
+    expect(candidates(inputs({ ...base, practice: { NVDA: 10 } }))).toEqual([]);
+    const crossed = candidates(
       inputs({
         calls: { NVDA: { call: "Add", changes: [] } },
         levels: { NVDA: { add_below: 142 } },
@@ -258,17 +256,7 @@ describe("event → proposal", () => {
         quotes: { NVDA: { price: 139.5, dayPct: 0.3, at: null } },
       }),
     );
-    const draft = only(list, "level_reached");
-    expect(draft.action).toEqual({ type: "practice_ticket", ticker: "NVDA", side: "buy" });
-    expect(draft.event.key).toBe(`level:NVDA:buy:${shift(TODAY, -1)}`);
-    // A close at the level itself says the figure once.
-    const at = only(candidates(inputs({ calls: { NVDA: { call: "Add", changes: [] } }, levels: { NVDA: { add_below: 142 } }, series: { NVDA: series(142, { tail: [146, 145, 142] }) }, quotes: { NVDA: { price: 141.5, dayPct: 0.3, at: null } } })), "level_reached");
-    expect(at.why[0]).toBe("NVDA closed at its buy-more level yesterday.");
-    // One trigger line: the figures are the marker's and the run log's, never said again in the line.
-    expect(draft.why[0]).toBe("NVDA closed under its buy-more level yesterday.");
-    expect(draft.why[0]).not.toMatch(/\$/);
-    expect(draft.figures.map((figure) => figure.label)).toEqual(expect.arrayContaining(["Close that crossed", "Buy-more level"]));
-    withinBudget(draft);
+    expect(crossed.filter((draft) => draft.kind === "level_reached")).toEqual([]);
   });
 
   it("a big drop an agent found a sourced reason for sets an alert; one without a source makes nothing", () => {
@@ -443,6 +431,24 @@ describe("dedupe and limits", () => {
     expect(isWaiting(stored, later)).toBe(false);
     expect(waitingOf([stored], later)).toEqual([]);
     expect(staleReason(stored, inputs({ now: later }))).toBe("expired");
+  });
+
+  // Owner, Nov 13: "I don't want the practice account thingy." Stored tickets are kept, never shown or counted.
+  it("a stored practice ticket never waits on a page, never counts, and never holds a slot in the queue", () => {
+    const ticket = newProposal("u1", { ...draftFor("META", "p1", "ip"), action: { type: "practice_ticket", ticker: "META", side: "buy" } }, NOW);
+    const alertOne = newProposal("u1", draftFor("NVDA", "e1"), NOW);
+    expect(isRetired(ticket)).toBe(true);
+    expect(isRetired(alertOne)).toBe(false);
+    expect(waitingOf([ticket, alertOne], NOW).map((proposal) => proposal.id)).toEqual([alertOne.id]);
+    // Five stored tickets leave the whole queue free for real proposals.
+    const tickets = ["A", "B", "C", "D", "E"].map((ticker, index) => newProposal("u1", { ...draftFor(ticker, `t${index}`, `it${index}`), action: { type: "practice_ticket", ticker, side: "buy" } }, NOW));
+    const drafts = ["F", "G"].map((ticker, index) => draftFor(ticker, `n${index}`, `in${index}`));
+    expect(pickNew(drafts, tickets, NOW)).toHaveLength(2);
+    expect(pickProposals(drafts, tickets, NOW).fresh).toHaveLength(2);
+    // A new proposal on the same stock as a stored ticket is not blocked by it, and the ticket is left as stored.
+    const picked = pickProposals([draftFor("A", "n9", "in9")], tickets, NOW);
+    expect(picked.fresh).toHaveLength(1);
+    expect(picked.outranked).toEqual([]);
   });
 
   it("an accept stuck mid-way is released after a while", () => {
