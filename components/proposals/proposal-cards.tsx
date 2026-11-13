@@ -10,6 +10,7 @@ import { NavIcon } from "@/components/oa/nav-icon";
 import { cardAction, layoutPlan, planHasTile, proposalBlocks, type PlannedBlock } from "@/components/proposals/groups";
 import { LevelBar, MoveRange } from "@/components/proposals/level-bar";
 import { StockLogo } from "@/components/stock-logo";
+import { trackProposalDecided } from "@/lib/product-analytics";
 import { capitalize, dayWords, etDayOf, etToday } from "@/lib/day-words";
 import {
   type ProposalCard,
@@ -337,6 +338,7 @@ export function ProposalCards({
         result?: ProposalResult | null;
         error?: string;
       } | null;
+      if (body?.ok) trackProposalDecided({ decision: decision === "accept" ? "accepted" : "dismissed" });
       if (decision === "dismiss" && (body?.ok || body?.status === "dismissed" || body?.status === "expired")) {
         answered(card, body?.status === "expired" ? "expired" : "dismissed", null);
         setCards((all) => all.filter((entry) => entry.id !== card.id));

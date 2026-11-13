@@ -21,7 +21,8 @@ Groups and what they keep fresh:
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
-                   fund facts and fund instruments, ETF holdings and stock logo tiles
+                   fund facts and fund instruments, ETF holdings, stock logo tiles and the
+                   analytics' country database (a new file once a month)
 * ``earnings_day`` the report on each covered stock that filed earnings today
                    (every 10 minutes on weekdays; the job itself stays off until
                    ``EARNINGS_DAY_ENABLED=1``)
@@ -127,6 +128,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # tm_stock_logos for /api/logo. Logos 30+ days old are fetched again; a failed fetch never
         # replaces a stored tile. Needs Pillow on the host.
         ("stock logos", ["backend.agentdata.stock_logos"]),
+        # db-ip.com's monthly IP-to-country file for the first-party analytics (/admin/analytics), into
+        # /srv/tikrr-data/geo. A stat call unless a new month's file is out; the web app picks it up by mtime.
+        ("geo database", ["backend.agentdata.geo_db"]),
     ],
     # Minutes after a company files its earnings release (8-K Item 2.02). Cheap when
     # nobody reports: one store read. Today and yesterday, so an evening release
@@ -166,6 +170,8 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     # [~50 funds, two or three Yahoo requests each, ~1 min]
     ("weekly", "fund facts"): 15 * 60,
     ("weekly", "fund instruments"): 10 * 60,
+    # [one ~4 MB download a month, seconds]
+    ("weekly", "geo database"): 5 * 60,
 }
 
 

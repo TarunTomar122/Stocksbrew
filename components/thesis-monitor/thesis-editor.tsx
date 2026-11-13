@@ -9,6 +9,7 @@ import { StockLogo } from "@/components/stock-logo";
 import { ConditionsPicker, draftOf, parseDrafts, type DraftCondition } from "@/components/thesis/conditions-picker";
 import { instrumentIdOf } from "@/lib/basket-agent/model";
 import { shortCompanyName } from "@/lib/plain-copy";
+import { trackThesisCreated } from "@/lib/product-analytics";
 import { MAX_COMPANIES, MAX_NAME, MAX_STATEMENT, MIN_HOLDINGS, type ThesisLine } from "@/lib/thesis-monitor/model";
 
 const FIELD =
@@ -74,6 +75,7 @@ export function ThesisEditor({
         setError(body?.error || "That didn't save. Try again in a minute.");
         return;
       }
+      if (!basketId) trackThesisCreated();
       router.push(body.href);
       router.refresh();
     } catch {

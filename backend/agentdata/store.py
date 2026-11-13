@@ -68,6 +68,8 @@ WRITABLE_PREFIXES = (
     "tm_stock_logos",
     # What changed in each company's risk factors (scripts/run-filing-changes.ts writes it from TypeScript).
     "tm_filing_changes",
+    # First-party analytics (lib/analytics/db.ts writes it from the web app): event chunks, daily rollups, the day's salt.
+    "tm_analytics_",
 )
 
 

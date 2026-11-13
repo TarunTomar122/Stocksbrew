@@ -57,7 +57,7 @@ export function shouldSendServerEvents(env: {
  * masks every piece of text on them (lib/posthog.ts), so recordings never
  * carry portfolio values or share counts.
  */
-const PRIVATE_PATHS = /^\/(watchlist|portfolio|practice|profile|account)(\/|$)/;
+const PRIVATE_PATHS = /^\/(watchlist|portfolio|practice|profile|account|admin)(\/|$)/;
 
 export function isPrivatePath(pathname: string | null | undefined): boolean {
   return PRIVATE_PATHS.test(pathname ?? "");

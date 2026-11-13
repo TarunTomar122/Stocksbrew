@@ -2,6 +2,7 @@
 
 import type { PostHog } from "posthog-js";
 
+import { beaconSignedIn, beaconTrack } from "@/lib/analytics/beacon";
 import {
   ANALYTICS_DEBUG_KEY,
   analyticsEnvironment,
@@ -138,8 +139,9 @@ function posthogConfig(base: Record<string, unknown>) {
     },
     // Autocaptured clicks (and rage/dead clicks, copies) carry the element's
     // text, which on a portfolio page can be a value or a share count: drop them there.
+    // Nothing at all is sent from the owner's /admin pages (autocapture, page leave, exceptions included).
     before_send: (event: { event: string } | null) =>
-      event && ELEMENT_TEXT_EVENTS.has(event.event) && isPrivatePath(window.location.pathname) ? null : event,
+      !event || onAdminPage() || (ELEMENT_TEXT_EVENTS.has(event.event) && isPrivatePath(window.location.pathname)) ? null : event,
     loaded: (loaded: PostHog) => {
       loaded.register(base);
     },
@@ -250,8 +252,21 @@ function debugLog(kind: string, name: string, properties?: Record<string, unknow
   }
 }
 
+/** The owner's /admin pages are never counted, by PostHog or by our own beacon. */
+function onAdminPage(): boolean {
+  try {
+    return /^\/admin(\/|$)/.test(window.location.pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function captureEvent(name: string, properties?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+  if (onAdminPage()) return;
+  // Our own first-party analytics (/admin/analytics) gets the pageviews and key events in every environment;
+  // it keeps only what lib/analytics/beacon.ts allows, and never throws.
+  beaconTrack(name, properties);
   try {
     initPostHog();
     const props = compactProps(properties);
@@ -279,6 +294,7 @@ export function captureEvent(name: string, properties?: Record<string, unknown>)
 /** Properties sent with every later event (plan, signed_in). Persisted by PostHog across visits. */
 export function registerSuperProperties(properties: Record<string, string | number | boolean | null>) {
   if (typeof window === "undefined") return;
+  if (typeof properties.signed_in === "boolean") beaconSignedIn(properties.signed_in);
   try {
     initPostHog();
     Object.assign(superProps, properties);

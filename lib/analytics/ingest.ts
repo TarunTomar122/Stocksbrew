@@ -1,0 +1,386 @@
+import { createHash } from "crypto";
+import fs from "fs";
+import os from "os";
+import path from "path";
+
+import { analyticsDb, analyticsNamespace } from "@/lib/analytics/db";
+import { pruneRawChunks } from "@/lib/analytics/retention";
+import { countryOf, ensureGeo } from "@/lib/analytics/geo";
+import {
+  cleanPath,
+  cleanProps,
+  cleanUtm,
+  isExcludedPath,
+  keyEventFor,
+  referrerHost,
+  routeOf,
+  storedPath,
+  type EventProps,
+  type KeyEventName,
+} from "@/lib/analytics/normalize";
+import type { EventChunk, StoredEvent } from "@/lib/analytics/rollup";
+import { browserFamily, deviceClass, screenBucket } from "@/lib/analytics/ua";
+import { SaltKeeper, utcDay, visitorHash } from "@/lib/analytics/visitor";
+
+/**
+ * The beacon's server side: parse what the browser sent, hold it in memory for
+ * a few seconds, then write one chunk per flush. A request only parses and
+ * pushes onto an array (well under a millisecond); the address and the
+ * User-Agent wait in this process's memory until the flush turns them into a
+ * country and a daily visitor hash, and are then dropped. They are never
+ * written anywhere.
+ *
+ * Production runs two Next instances behind Varnish, so each has its own
+ * buffer and writes its own chunks; nothing here relies on seeing every event.
+ */
+
+export const FLUSH_MS = 5_000;
+export const FLUSH_AT = 50;
+/** If the store is down, keep at most this many events waiting (oldest dropped first). */
+export const MAX_BUFFER = 5_000;
+export const MAX_EVENTS_PER_REQUEST = 20;
+/** How old an event the browser held on to may be (a tab that queued it and was closed later). */
+const MAX_AGE_MS = 10 * 60 * 1000;
+
+export type ParsedEvent = {
+  n: KeyEventName;
+  p: string;
+  r: string;
+  ref: string | null;
+  us: string | null;
+  um: string | null;
+  uc: string | null;
+  props: EventProps;
+  /** How long ago the browser saw it, ms. */
+  age: number;
+};
+
+export type ParsedBeacon = { sid: string; sw: string | null; swPx: number | null; si: boolean | null; events: ParsedEvent[] };
+
+/** The beacon body (lib/analytics/beacon.ts), validated and cleaned. Null when it is not one. */
+export function parseBeacon(raw: unknown, ownHosts: readonly string[]): ParsedBeacon | null {
+  if (!raw || typeof raw !== "object") return null;
+  const body = raw as Record<string, unknown>;
+  const sid = typeof body.sid === "string" && /^[a-z0-9]{8,32}$/i.test(body.sid) ? body.sid : null;
+  if (!sid || !Array.isArray(body.e)) return null;
+  const swPx = typeof body.sw === "number" && Number.isFinite(body.sw) ? Math.round(body.sw) : null;
+  const events: ParsedEvent[] = [];
+  for (const item of body.e.slice(0, MAX_EVENTS_PER_REQUEST)) {
+    if (!item || typeof item !== "object") continue;
+    const e = item as Record<string, unknown>;
+    const n = typeof e.n === "string" ? keyEventFor(e.n) : null;
+    const cleaned = cleanPath(e.p);
+    if (!n || !cleaned || isExcludedPath(cleaned)) continue;
+    const p = storedPath(cleaned);
+    const utm = e.u && typeof e.u === "object" ? (e.u as Record<string, unknown>) : {};
+    const age = typeof e.a === "number" && Number.isFinite(e.a) ? Math.min(MAX_AGE_MS, Math.max(0, e.a)) : 0;
+    events.push({
+      n,
+      p,
+      r: routeOf(p),
+      ref: n === "pageview" ? referrerHost(e.r, ownHosts) : null,
+      us: n === "pageview" ? cleanUtm(utm.s) : null,
+      um: n === "pageview" ? cleanUtm(utm.m) : null,
+      uc: n === "pageview" ? cleanUtm(utm.c) : null,
+      props: cleanProps(n, e.x),
+      age,
+    });
+  }
+  return { sid, sw: screenBucket(swPx), swPx, si: typeof body.si === "boolean" ? body.si : null, events };
+}
+
+/** `cc`: Cloudflare's country for the request, when it sent one (better than our lookup, and free). */
+type Pending = { ns: string; host: string; ip: string; ua: string; cc: string | null; t: number; sid: string; sw: string | null; swPx: number | null; si: boolean | null; e: ParsedEvent };
+
+/** A chunk ready to write: events already hashed, nothing identifying left. Kept as-is until the write lands. */
+type Ready = { ns: string; id: string; chunk: EventChunk };
+
+type IngestState = {
+  buffer: Pending[];
+  ready: Ready[];
+  timer: ReturnType<typeof setTimeout> | null;
+  flushing: Promise<void> | null;
+  keepers: Map<string, SaltKeeper>;
+  failures: number;
+  shutdownHooked: boolean;
+  spoolRead: boolean;
+};
+
+const globalKey = "__sbAnalyticsIngest" as const;
+type GlobalWithIngest = typeof globalThis & { [globalKey]?: IngestState };
+
+function state(): IngestState {
+  const g = globalThis as GlobalWithIngest;
+  if (!g[globalKey]) {
+    g[globalKey] = { buffer: [], ready: [], timer: null, flushing: null, keepers: new Map(), failures: 0, shutdownHooked: false, spoolRead: false };
+  }
+  return g[globalKey]!;
+}
+
+/** Queue a parsed beacon. Never waits on the store. */
+export function enqueue(beacon: ParsedBeacon, request: { host: string; ip: string; ua: string; country?: string | null; now?: number }) {
+  if (beacon.events.length === 0) return;
+  const s = state();
+  hookShutdown(s);
+  const now = request.now ?? Date.now();
+  const ns = analyticsNamespace(request.host);
+  for (const e of beacon.events) {
+    s.buffer.push({ ns, host: request.host, ip: request.ip, ua: request.ua, cc: request.country ?? null, t: now - e.age, sid: beacon.sid, sw: beacon.sw, swPx: beacon.swPx, si: beacon.si, e });
+  }
+  if (s.buffer.length > MAX_BUFFER) s.buffer.splice(0, s.buffer.length - MAX_BUFFER);
+  schedule(s.buffer.length >= FLUSH_AT ? 0 : FLUSH_MS);
+}
+
+function schedule(delay: number) {
+  const s = state();
+  if (s.timer && delay > 0) return;
+  if (s.timer) clearTimeout(s.timer);
+  s.timer = setTimeout(() => {
+    s.timer = null;
+    void flush();
+  }, delay);
+  (s.timer as { unref?: () => void }).unref?.();
+}
+
+function keeperFor(ns: string): SaltKeeper {
+  const s = state();
+  let keeper = s.keepers.get(ns);
+  if (!keeper) s.keepers.set(ns, (keeper = new SaltKeeper(analyticsDb().salts(ns))));
+  return keeper;
+}
+
+/**
+ * A chunk's id comes from its content, so writing the same chunk twice (a write
+ * that landed but timed out, a spool replayed after a restart) is one document.
+ */
+export function chunkId(chunk: EventChunk): string {
+  const digest = createHash("sha256").update(JSON.stringify(chunk.events)).digest("hex").slice(0, 20);
+  return `${chunk.first_ts.toString(36)}_${digest}`;
+}
+
+/**
+ * Events about an account (a sign-up, a checkout, an agent or basket made) keep
+ * only the minute and no session id, so they can't be lined up against the
+ * account records' exact times or tied to a visit's pages.
+ */
+export const ACCOUNT_EVENTS: ReadonlySet<KeyEventName> = new Set<KeyEventName>([
+  "signin_completed",
+  "signup_completed",
+  "stocks_added",
+  "agent_on",
+  "basket_created",
+  "thesis_created",
+  "proposal_decided",
+  "checkout_started",
+]);
+
+function storedEvent(item: Pending, salt: string): StoredEvent {
+  const e = item.e;
+  const account = ACCOUNT_EVENTS.has(e.n);
+  const stored: StoredEvent = {
+    t: account ? Math.floor(item.t / 60_000) * 60_000 : item.t,
+    n: e.n,
+    sid: account ? "" : item.sid,
+    vid: visitorHash(salt, item.host, item.ip, item.ua),
+    p: e.p,
+    r: e.r,
+    si: item.si,
+    ...e.props,
+  };
+  if (e.n === "pageview") {
+    stored.ref = e.ref;
+    stored.us = e.us;
+    stored.um = e.um;
+    stored.uc = e.uc;
+    stored.dev = deviceClass(item.ua, item.swPx);
+    stored.br = browserFamily(item.ua);
+    stored.sw = item.sw;
+    stored.cc = item.cc ?? countryOf(item.ip);
+  }
+  return stored;
+}
+
+/** Turn queued events into stored ones: country and visitor hash in, address and User-Agent out. */
+export async function toStored(items: readonly Pending[]): Promise<StoredEvent[]> {
+  await ensureGeo();
+  const out: StoredEvent[] = [];
+  for (const item of items) out.push(storedEvent(item, await keeperFor(item.ns).saltFor(item.t)));
+  return out;
+}
+
+export function chunkOf(events: StoredEvent[], now: number): EventChunk {
+  const ts = events.map((e) => e.t);
+  return {
+    days: Array.from(new Set(events.map((e) => utcDay(e.t)))).sort(),
+    first_ts: Math.min(...ts),
+    last_ts: Math.max(...ts),
+    count: events.length,
+    events,
+    created_at: new Date(now).toISOString(),
+  };
+}
+
+/** Hash what is queued into ready chunks (one per namespace). On a failure (the salt could not be read) the events wait. */
+async function prepare(s: IngestState): Promise<void> {
+  if (s.buffer.length === 0) return;
+  const taken = s.buffer.splice(0, 1000);
+  const byNs = new Map<string, Pending[]>();
+  for (const item of taken) {
+    const list = byNs.get(item.ns) ?? [];
+    list.push(item);
+    byNs.set(item.ns, list);
+  }
+  for (const [ns, items] of byNs) {
+    try {
+      const chunk = chunkOf(await toStored(items), Date.now());
+      s.ready.push({ ns, id: chunkId(chunk), chunk });
+    } catch (error) {
+      s.failures += 1;
+      s.buffer.unshift(...items);
+      if (s.buffer.length > MAX_BUFFER) s.buffer.splice(0, s.buffer.length - MAX_BUFFER);
+      if (s.failures === 1 || s.failures % 20 === 0) console.warn(`[analytics] could not prepare events (${s.failures}x):`, (error as Error)?.message);
+    }
+  }
+}
+
+/** Write everything queued. Safe to call any time; one flush runs at a time. */
+export async function flush(): Promise<void> {
+  const s = state();
+  if (s.flushing) return s.flushing;
+  readSpool(s);
+  if (s.buffer.length === 0 && s.ready.length === 0) return;
+  s.flushing = (async () => {
+    await prepare(s);
+    while (s.ready.length > 0) {
+      const next = s.ready[0]!;
+      try {
+        await analyticsDb().writeChunk(next.ns, next.id, next.chunk);
+        s.ready.shift();
+        s.failures = 0;
+        maybePrune(next.ns);
+      } catch (error) {
+        // Kept as it is (same id), so the retry can't double count; say what failed, never what was in it.
+        s.failures += 1;
+        if (s.failures === 1 || s.failures % 20 === 0) console.warn(`[analytics] flush failed (${s.failures}x):`, (error as Error)?.message);
+        break;
+      }
+    }
+    // A long outage: keep the newest chunks within the cap.
+    const readyEvents = s.ready.reduce((n, r) => n + r.chunk.count, 0);
+    if (readyEvents > MAX_BUFFER) s.ready.splice(0, Math.max(1, Math.floor(s.ready.length / 4)));
+  })().finally(() => {
+    s.flushing = null;
+    // More arrived meanwhile, or a failure is waiting: back off up to a minute.
+    const waiting = s.buffer.length + s.ready.length;
+    if (waiting > 0) schedule(s.failures > 0 ? Math.min(60_000, FLUSH_MS * 2 ** Math.min(4, s.failures)) : s.buffer.length >= FLUSH_AT ? 0 : FLUSH_MS);
+  });
+  return s.flushing;
+}
+
+/* ── retention: raw chunks go a few days after their day is final ───────── */
+
+const PRUNE_EVERY_MS = 6 * 60 * 60 * 1000;
+const pruneKey = "__sbAnalyticsPrunedAt" as const;
+type GlobalWithPrune = typeof globalThis & { [pruneKey]?: Map<string, number> };
+
+function maybePrune(ns: string) {
+  const g = globalThis as GlobalWithPrune;
+  const last = (g[pruneKey] ??= new Map());
+  const now = Date.now();
+  if (now - (last.get(ns) ?? 0) < PRUNE_EVERY_MS) return;
+  last.set(ns, now);
+  void pruneRawChunks(ns, now).catch((error) => console.warn("[analytics] raw clean-up failed:", (error as Error)?.message));
+}
+
+/* ── shutdown: a rolling restart must not drop the last few seconds ─────── */
+
+function spoolDir(): string {
+  return process.env.ANALYTICS_SPOOL_DIR?.trim() || os.tmpdir();
+}
+
+function spoolPrefix(): string {
+  return `sb-analytics-spool-${(process.env.PORT || "dev").replace(/[^0-9a-z]/gi, "")}-`;
+}
+
+/**
+ * On SIGTERM/SIGINT, write what is waiting to a small local file, synchronously
+ * (Next exits straight after its own signal handler, so nothing async would
+ * finish). Only hashed, ready-to-store events go in it: queued events whose
+ * day's salt is not in memory are dropped rather than spooled with an address.
+ * The next process on the same port sends the file and deletes it.
+ */
+export function spoolNow(s: IngestState = state()) {
+  try {
+    const ready = [...s.ready];
+    const byNs = new Map<string, StoredEvent[]>();
+    for (const item of s.buffer) {
+      const salt = s.keepers.get(item.ns)?.cachedSaltFor(item.t);
+      if (!salt) continue;
+      const list = byNs.get(item.ns) ?? [];
+      list.push(storedEvent(item, salt));
+      byNs.set(item.ns, list);
+    }
+    for (const [ns, events] of byNs) {
+      const chunk = chunkOf(events, Date.now());
+      ready.push({ ns, id: chunkId(chunk), chunk });
+    }
+    s.buffer = [];
+    s.ready = [];
+    if (ready.length === 0) return;
+    const file = path.join(spoolDir(), `${spoolPrefix()}${Date.now()}.json`);
+    fs.writeFileSync(file, JSON.stringify(ready), { mode: 0o600 });
+  } catch {
+    // shutting down: nothing more to do
+  }
+}
+
+function hookShutdown(s: IngestState) {
+  if (s.shutdownHooked || typeof process === "undefined" || typeof process.prependListener !== "function") return;
+  s.shutdownHooked = true;
+  // prepend: Next's own handlers call process.exit, so ours must run first.
+  process.prependListener("SIGTERM", () => spoolNow());
+  process.prependListener("SIGINT", () => spoolNow());
+}
+
+/** Pick up what an earlier process on this port spooled at shutdown. Once per process. */
+function readSpool(s: IngestState) {
+  if (s.spoolRead) return;
+  s.spoolRead = true;
+  try {
+    const dir = spoolDir();
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.startsWith(spoolPrefix()) || !name.endsWith(".json")) continue;
+      const file = path.join(dir, name);
+      try {
+        const items = JSON.parse(fs.readFileSync(file, "utf8")) as Ready[];
+        for (const item of Array.isArray(items) ? items : []) {
+          if (item && typeof item.ns === "string" && item.ns.startsWith("tm_analytics") && typeof item.id === "string" && item.chunk && Array.isArray(item.chunk.events)) {
+            s.ready.push(item);
+          }
+        }
+      } catch {
+        // a torn file: dropped
+      }
+      fs.rmSync(file, { force: true });
+    }
+  } catch {
+    // no spool folder: nothing to pick up
+  }
+}
+
+/** Tests only: what is waiting, and a clean slate. */
+export function ingestStateForTests() {
+  return state();
+}
+
+export function resetIngestForTests() {
+  const s = state();
+  if (s.timer) clearTimeout(s.timer);
+  s.buffer = [];
+  s.ready = [];
+  s.spoolRead = true;
+  s.timer = null;
+  s.flushing = null;
+  s.keepers = new Map();
+  s.failures = 0;
+}

@@ -82,6 +82,9 @@ leaves the browser. Remove the key to stop.
 | `portfolio_viewed` | `state` (`signed_out`/`empty`/`active`), `tracked_count`, `subscribed` | `components/radar-page-analytics.tsx` on `/watchlist` | Empty vs active portfolios |
 | `agent_previewed` | `template`, `ok` | `components/agents-jobs/jobs-workspace.tsx` | Agent interest |
 | `agent_switched_on` / `agent_paused` | `template`, `via` (`create`/`quick_start`/`toggle`) | same | Agents activation |
+| `basket_created` | `kind` (the basket's source: `theme`/`ask`/`own`/`holdings`), `page` | `components/basket-agent/basket-editor.tsx`, after a new basket saves | Idea baskets made |
+| `thesis_created` | `page` | `components/thesis-monitor/thesis-editor.tsx`, after a new thesis saves (never its text) | Written theses made |
+| `proposal_decided` | `decision` (`accepted`/`dismissed`), `page` | `components/proposals/proposal-cards.tsx` | Do people act on what their agents propose |
 | `onboarding_*` | path, ticker | `components/post-signup-onboarding.tsx` | Post-signup onboarding (unchanged) |
 
 Activation funnel (14-day window): `$pageview` → `signin_started` →
@@ -203,3 +206,14 @@ on `identify`.
 
 Both read `POSTHOG_TOKEN` (or `POSTHOG_PERSONAL_API_KEY`) and
 `POSTHOG_PROJECT_ID` from the environment or `.env.local`, and never print them.
+
+## First-party analytics (/admin/analytics)
+
+Besides PostHog, `lib/posthog.ts` `captureEvent` hands every event to our own
+beacon (`lib/analytics/beacon.ts`), in every environment. It keeps only
+pageviews and the key events in `lib/analytics/normalize.ts` `KEY_EVENTS`, with
+a few safe properties, and posts them to `/api/a`. No cookie, no uid, no email,
+no IP stored: the visitor id is a daily-salted hash made on the server, the
+session id is random per tab, and signed in is a yes/no flag. The owner's
+dashboard is `/admin/analytics` behind `ANALYTICS_PASSWORD`; the data model is
+in `lib/analytics/db.ts`. `/admin` itself is never tracked by either.

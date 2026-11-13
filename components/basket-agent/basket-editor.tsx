@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
 import { StockLogo } from "@/components/stock-logo";
+import { trackBasketCreated } from "@/lib/product-analytics";
 import {
   ASK_HANDOFF_KEY,
   KIND_WORDS,
@@ -363,6 +364,7 @@ export function BasketEditor({
         router.refresh();
         return;
       }
+      trackBasketCreated({ kind: initial.source.kind });
       // Saved paused at the plan's limit: the basket's page says why, with the plan's lock card.
       router.push(`/agents/baskets/${encodeURIComponent(body.basket!.id)}`);
     } catch (failure) {

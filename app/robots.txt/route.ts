@@ -5,7 +5,8 @@ Allow: /api/og
 Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist
-Disallow: /dev/`;
+Disallow: /dev/
+Disallow: /admin`;
   const body = `# Search and answer engines that can cite Stocksbrew pages.
 User-agent: OAI-SearchBot
 User-agent: ChatGPT-User
@@ -23,6 +24,7 @@ Disallow: /api/
 Disallow: /profile
 Disallow: /watchlist
 Disallow: /dev/
+Disallow: /admin
 
 Sitemap: https://www.stocksbrew.online/sitemap.xml
 # Plain-text site guide: https://www.stocksbrew.online/llms.txt

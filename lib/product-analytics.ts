@@ -357,6 +357,21 @@ export function trackAgentSwitchedOn(props: { template: string; via: "create" | 
   captureEvent(props.enabled ? "agent_switched_on" : "agent_paused", { template: props.template, via: props.via });
 }
 
+/** A new idea basket was saved (components/basket-agent/basket-editor.tsx). The ideas themselves are never sent. */
+export function trackBasketCreated(props: { kind?: string | null } = {}) {
+  captureEvent("basket_created", { kind: props.kind ?? undefined, page: currentArea() });
+}
+
+/** A new written thesis was saved (components/thesis-monitor/thesis-editor.tsx). Never its text. */
+export function trackThesisCreated() {
+  captureEvent("thesis_created", { page: currentArea() });
+}
+
+/** An agent proposal was accepted or dismissed (components/proposals/proposal-cards.tsx). */
+export function trackProposalDecided(props: { decision: "accepted" | "dismissed" }) {
+  captureEvent("proposal_decided", { decision: props.decision, page: currentArea() });
+}
+
 export function trackAgentReportOpened(props: { template: string; has_report: boolean }) {
   captureEvent("agent_report_opened", props);
 }
