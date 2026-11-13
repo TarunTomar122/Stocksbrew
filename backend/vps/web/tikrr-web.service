@@ -1,0 +1,26 @@
+# The stocksbrew web app, self-hosted (moved off Vercel on 2026-11-13).
+# Runs the Next.js standalone build in /opt/tikrr-web/current, bound to localhost; Caddy serves it as
+# stocksbrew.online. Secrets live in /etc/tikrr/web.env (mode 600, never committed).
+[Unit]
+Description=stocksbrew web (Next.js standalone)
+After=network-online.target tikrr-localdb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/tikrr-web/current
+EnvironmentFile=/etc/tikrr/web.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/local/bin/node --max-old-space-size=1024 server.js
+Restart=always
+RestartSec=3
+# The box also runs LocalDB, the data jobs and Firecrawl: keep the web app from crowding them out.
+MemoryHigh=1G
+MemoryMax=1536M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

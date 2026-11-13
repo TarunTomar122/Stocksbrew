@@ -1,0 +1,12 @@
+# stocksbrew.online, self-hosted: Caddy gets and renews the certificate itself once DNS points here.
+stocksbrew.online, www.stocksbrew.online {
+	bind 144.217.6.112
+	# The app's own address is www (NEXT_PUBLIC_APP_URL): the bare domain sends people there.
+	@apex host stocksbrew.online
+	redir @apex https://www.stocksbrew.online{uri} permanent
+	encode zstd gzip
+	# Next's build assets are content-hashed, so they can be cached for a year.
+	@static path /_next/static/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	reverse_proxy 127.0.0.1:3000
+}

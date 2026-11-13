@@ -2,6 +2,9 @@
 const nextConfig = {
   // A second dev server can build into its own folder (NEXT_DIST_DIR=.next-8009) so it never shares .next with another.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Self-hosting on the VPS (backend/vps/web/): NEXT_OUTPUT=standalone builds a server.js with only the modules it
+  // needs. Unset elsewhere, so a Vercel build stays exactly as it was.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" } : {}),
   async redirects() {
     return [
       // ── The 2026-11 rebuild: old routes land on the surface that replaced them.
