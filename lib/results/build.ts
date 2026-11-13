@@ -98,6 +98,13 @@ export type ResultEvent = {
   session: Session;
   eps: ResultEps | null;
   capturedAt: string | null;
+  /** The calendar's own estimate (`eps_estimate`), kept to check a release's EPS pair is on the same basis. */
+  calendarEstimate?: number | null;
+  /**
+   * The row has its actual (`reported_eps`), even when `eps` is null because the two estimates disagree: then no EPS
+   * pair from the release stands in for it either.
+   */
+  reported?: boolean;
 };
 
 /**
@@ -156,7 +163,33 @@ export function eventFromDoc(raw: Record<string, unknown>): ResultEvent | null {
     session: time === "bmo" ? "bmo" : time === "amc" ? "amc" : "unknown",
     eps,
     capturedAt,
+    calendarEstimate,
+    reported: actual !== null,
   };
+}
+
+/**
+ * The EPS pair the earnings day job stored with the release (`eps`: the calendar's actual and estimate, read the
+ * evening of the report), for the hours before the actual reaches `tm_earnings_events` (the actuals job fills it the
+ * next evening). Only a pair from one provider, on the calendar's basis (basisClash against its own estimate), and
+ * never a profit or loss the release does not report.
+ */
+export function releaseEps(doc: Record<string, unknown> | null, calendarEstimate: number | null): ResultEps | null {
+  const raw = doc && doc.eps && typeof doc.eps === "object" ? (doc.eps as Record<string, unknown>) : null;
+  if (!raw) return null;
+  const actual = num(raw.actual);
+  const expected = num(raw.estimate);
+  const source = str(raw.actual_source);
+  if (actual === null || expected === null || !source || source !== str(raw.estimate_source)) return null;
+  if (basisClash(expected, calendarEstimate)) return null;
+  // A profit the release itself does not show: the provider's "actual" is its own adjusted figure (CBRS, Nov 12: the
+  // calendar's $0.13 against a GAAP loss of $0.67 and no adjusted EPS in the release), so it is not said.
+  const gaap = raw.gaap && typeof raw.gaap === "object" ? num((raw.gaap as Record<string, unknown>).value) : null;
+  const adjusted = raw.adjusted && typeof raw.adjusted === "object" ? num((raw.adjusted as Record<string, unknown>).value) : num(raw.adjusted);
+  if (adjusted === null && gaap !== null && Math.sign(gaap) !== Math.sign(actual)) return null;
+  const filing = doc!.filing && typeof doc!.filing === "object" ? (doc!.filing as Record<string, unknown>) : {};
+  const asOf = str(doc!.generated_at) || str(filing.filed_at) || null;
+  return { actual, expected, ...epsResult(actual, expected), source, asOf };
 }
 
 /* ── the move ───────────────────────────────────────────────────────────── */
@@ -166,8 +199,12 @@ const LAST_SNAPSHOT_HOUR = 15;
 const LAST_SNAPSHOT_MINUTE = 55;
 
 export type PriceMeta = { lastDate: string | null; fetchedAt: string | null };
-export type LiveQuote = { pct: number; capturedAt: string };
-export type PremarketQuote = { pct: number; date: string; at: string | null };
+export type LiveQuote = { pct: number; capturedAt: string; price?: number | null };
+export type PremarketQuote = { pct: number; date: string; at: string | null; price?: number | null };
+
+/** After the open on the reaction day, the pre-market print still stands until the session's first quote, up to 10:30. */
+const OPEN_GRACE_HOUR = 10;
+const OPEN_GRACE_MINUTE = 30;
 
 /**
  * How the stock took the results:
@@ -218,26 +255,31 @@ export function pickMove(input: {
     const final = at >= etMs(endDay, 16, 0) || (over && at >= etMs(endDay, LAST_SNAPSHOT_HOUR, LAST_SNAPSHOT_MINUTE));
     const started = at >= etMs(endDay, 9, 30);
     if (started && (final || endDay === today)) {
-      return { pct: quote.pct, kind: final ? "day" : "today", day: endDay, nextDay: session === "amc", source: final ? "last price of the session" : "live price", asOf: quote.capturedAt };
+      return { pct: quote.pct, kind: final ? "day" : "today", day: endDay, nextDay: session === "amc", source: final ? "last price of the session" : "live price", asOf: quote.capturedAt, price: quote.price ?? null };
     }
   }
   const premarket = input.premarket;
   const beforeOpen = endDay === today && now.getTime() < etMs(today, 9, 30);
-  const movers = beforeOpen && premarket && premarket.date === today && Number.isFinite(premarket.pct) ? premarket : null;
-  const extended = input.extended && isExtendedLive(input.extended, now) ? input.extended : null;
+  // Just after the open the session's first quote can be minutes away (the price job's first run): until it is in,
+  // the pre-market print is still how the stock took the results, said as "before the open", never as the session.
+  const openGrace = endDay === today && !beforeOpen && now.getTime() < etMs(today, OPEN_GRACE_HOUR, OPEN_GRACE_MINUTE);
+  const preWindow = beforeOpen || openGrace;
+  const movers = preWindow && premarket && premarket.date === today && Number.isFinite(premarket.pct) ? premarket : null;
+  // The stored quote stops being "live" at the open; in the grace minutes its pre-market print still counts.
+  const extended = input.extended && (openGrace || isExtendedLive(input.extended, now)) ? input.extended : null;
   // A pre-market print counts only when it moved from the close the report came after (amc) or before (bmo).
   const reportClose = session === "amc" ? date : previousTradingDay(endDay);
-  const pre = beforeOpen && extended?.session === "pre" && etDayOf(extended.asOf) === today && etDayOf(extended.regularCloseAt) === reportClose ? extended : null;
+  const pre = preWindow && extended?.session === "pre" && etDayOf(extended.asOf) === today && etDayOf(extended.regularCloseAt) === reportClose ? extended : null;
   if (movers || pre) {
     // The newer of the two pre-market snapshots.
     const useStored = pre && (!movers || !movers.at || Date.parse(pre.asOf) > Date.parse(movers.at));
-    if (useStored) return { pct: pre.changePct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: pre.asOf };
-    return { pct: movers!.pct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: movers!.at };
+    if (useStored) return { pct: pre.changePct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: pre.asOf, price: pre.price };
+    return { pct: movers!.pct, kind: "before_open", day: endDay, nextDay: session === "amc", source: "pre-market price", asOf: movers!.at, price: movers!.price ?? null };
   }
   // After an after-close report, before the reaction session opens: the after-hours print on the report evening.
   const post = session === "amc" ? (extended?.session === "post" ? extended : extended?.lastPost ?? null) : null;
   if (post && etDayOf(post.regularCloseAt) === date && etDayOf(post.asOf) === date && now.getTime() < etMs(endDay, 9, 30)) {
-    return { pct: post.changePct, kind: "after_hours", day: date, nextDay: true, source: "after-hours price", asOf: post.asOf };
+    return { pct: post.changePct, kind: "after_hours", day: date, nextDay: true, source: "after-hours price", asOf: post.asOf, price: post.price };
   }
   return null;
 }
@@ -344,6 +386,9 @@ export function revenueResult(value: number, expected: number | null): Pick<Resu
   return { expected, verdict: pct >= 1 ? "beat" : pct <= -1 ? "miss" : "in_line", surprisePct: pct };
 }
 
+/** A period or headline that is the whole year: "Full year 2026", "Fiscal 2027", "Raises Full-Year Outlook". */
+const FULL_YEAR = /\b(?:full[- ]year|fiscal(?: year)? ?20\d\d|fiscal[- ]year|annual)\b/i;
+
 export function releaseParts(doc: Record<string, unknown> | null): { revenue: ResultRevenue | null; guidance: ResultGuidance | null; period: string | null; href: string | null } {
   if (!doc) return { revenue: null, guidance: null, period: null, href: null };
   const filing = (doc.filing && typeof doc.filing === "object" ? doc.filing : {}) as Record<string, unknown>;
@@ -368,6 +413,7 @@ export function releaseParts(doc: Record<string, unknown> | null): { revenue: Re
           change: change as ResultGuidance["change"],
           first: lead ? rangeWords(lead) : null,
           previous: lead ? bareRange(num(lead.prev_low), num(lead.prev_high), lead.unit) : null,
+          fullYear: FULL_YEAR.test(lead ? str(lead.period) : str(g!.headline_quote)),
           source,
           url,
           asOf: filedAt,
@@ -420,7 +466,9 @@ export function buildResult(input: ResultInput): ResultRead | null {
   // Nasdaq often leaves the time out; the 8-K the company filed that day says when the results came out.
   const session: Session = event.session !== "unknown" ? event.session : own?.session ?? "unknown";
   const { revenue, guidance, period, href } = releaseParts(input.release);
-  if (!event.eps && !revenue && !guidance) return null;
+  // The calendar's pair first; on results night, before the actuals job fills it, the one stored with the release.
+  const eps = event.eps ?? (event.reported ? null : releaseEps(input.release, event.calendarEstimate ?? null));
+  if (!eps && !revenue && !guidance) return null;
 
   const picked =
     pickMove({ date: event.date, session, today, now: input.now, past: own, priceMeta: input.priceMeta, quote: input.quote, premarket: input.premarket, extended: input.extended ?? null }) ??
@@ -431,7 +479,7 @@ export function buildResult(input: ResultInput): ResultRead | null {
   const call = callAfter(input.stability, event.date, session, today);
 
   const sources: ResultSource[] = [];
-  if (event.eps) sources.push({ label: "EPS and estimate", source: event.eps.source, url: null, at: event.eps.asOf });
+  if (eps) sources.push({ label: "EPS and estimate", source: eps.source, url: null, at: eps.asOf });
   if (revenue || guidance) sources.push({ label: revenue && guidance ? "Revenue and outlook" : revenue ? "Revenue" : "Outlook", source: "the company's 8-K", url: (revenue ?? guidance)!.url, at: (revenue ?? guidance)!.asOf });
   if (move) sources.push({ label: "Move", source: move.source, url: null, at: move.asOf });
   // Only a run after the results reviewed the call; a call still waiting for one has no review to date.
@@ -443,7 +491,7 @@ export function buildResult(input: ResultInput): ResultRead | null {
     reportDate: event.date,
     session,
     period,
-    eps: event.eps,
+    eps,
     revenue,
     guidance,
     move,

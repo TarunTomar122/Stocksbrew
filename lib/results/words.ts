@@ -11,7 +11,9 @@ import { fmtEps } from "@/lib/calendar-shared";
 import { dayWords as dayWordsOf, onDayWords } from "@/lib/day-words";
 import { shortDay } from "@/lib/read-format";
 
-import type { ResultCall, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultRevenue, ResultSummary, ResultVerdict } from "./types";
+import type { ResultCall, ResultCardFacts, ResultEps, ResultGuidance, ResultMove, ResultRead, ResultRevenue, ResultSummary, ResultVerdict } from "./types";
+
+export type { ResultCardFacts } from "./types";
 
 const MINUS = "−";
 /** Below this many earlier report moves there is no "usual" move to compare with. */
@@ -64,6 +66,11 @@ export function verdictPhrase(eps: ResultEps): string {
 
 function cap(text: string): string {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/** "$110.31", "$1,427.28". */
+function dollars(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** "$1.50B", "$812M". */
@@ -376,11 +383,13 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
     });
   }
   if (read.move) {
+    // A print outside the session says its own price: the page's price is the last close (owner rule 4).
+    const printPrice = (read.move.kind === "before_open" || read.move.kind === "after_hours") && typeof read.move.price === "number" && read.move.price > 0 ? `, at ${dollars(read.move.price)}` : "";
     const usual = read.move.usualPct !== null && read.move.usualCount >= MIN_USUAL ? `, usually ${pctWords(read.move.usualPct)}` : "";
     cells.push({
       label: "The stock",
       value: signed(read.move.pct),
-      sub: `${cap(moveWhen(read.move, today))}${usual}`,
+      sub: `${cap(moveWhen(read.move, today))}${printPrice}${usual}`,
       title: `${cap(read.move.source)}${read.move.asOf ? `, ${stampWords(read.move.asOf)}` : ""}`,
       tone: flat(read.move.pct) ? "flat" : read.move.pct > 0 ? "up" : "down",
       // The move's size against a usual report's, when there is a usual one to hold it against.
@@ -391,7 +400,7 @@ export function figureCells(read: ResultRead, today: string): FigureCell[] {
               versus: read.move.usualPct,
               labels: ["This time", "Usually"] as [string, string],
               texts: [pctWords(read.move.pct), pctWords(read.move.usualPct)] as [string, string],
-              sub: cap(moveWhen(read.move, today)),
+              sub: `${cap(moveWhen(read.move, today))}${printPrice}`,
             },
           }
         : {}),
@@ -422,4 +431,106 @@ export function summarize(read: ResultRead, name: string, today: string): Result
   const sentence = resultSentence(read, name, today);
   if (!fact || !sentence) return null;
   return { ticker: read.ticker, reportDate: read.reportDate, tone: resultTone(read), fact, sentence, call: read.call ? callLine(read.call, today) : null };
+}
+
+/* ── the "Biggest things" card ──────────────────────────────────────────── */
+
+/** The outlook without its subject: the card names the company right above its line (owner rule 1). */
+const GUIDANCE_CARD: Record<ResultGuidance["change"], string> = {
+  raised: "the {year}outlook was raised",
+  lowered: "the {year}outlook was cut",
+  mixed: "the {year}outlook was raised in part and cut in part",
+  narrowed: "the {year}outlook was narrowed",
+  reaffirmed: "the {year}outlook was kept",
+  issued: "{a} {year}outlook was given",
+};
+
+/** What a card can say about this report; null when the read has no figures. */
+export function resultCardFacts(read: ResultRead): ResultCardFacts | null {
+  const eps = read.eps ? `EPS was ${fmtEps(read.eps.actual)} vs ${fmtEps(read.eps.expected)} expected` : null;
+  const yoy = read.revenue?.yoyPct ?? null;
+  let revenue: string[] | null = null;
+  if (read.revenue && yoy !== null) {
+    const amount = revenueWords(read.revenue.value);
+    revenue = flat(yoy)
+      ? [`revenue was flat at ${amount}`, "revenue was flat"]
+      : [`revenue ${yoy > 0 ? "rose" : "fell"} ${pctWords(yoy)} to ${amount}`, `revenue ${yoy > 0 ? "rose" : "fell"} ${pctWords(yoy)}`];
+  }
+  const fullYear = Boolean(read.guidance?.fullYear);
+  const guidance = read.guidance ? GUIDANCE_CARD[read.guidance.change].replace("{a} ", fullYear ? "a " : "an ").replace("{year}", fullYear ? "full-year " : "") : null;
+  if (!eps && !revenue && !guidance) return null;
+  const move = read.move;
+  const usualPct = move && move.usualPct !== null && move.usualPct > 0 && move.usualCount >= MIN_USUAL ? move.usualPct : null;
+  return { eps, revenue, guidance, usualPct };
+}
+
+/** Each read's card facts by ticker (the briefing's "Biggest things"); a read without figures is left out. */
+export function resultCardsByTicker(reads: readonly ResultRead[]): Record<string, ResultCardFacts> {
+  const out: Record<string, ResultCardFacts> = {};
+  for (const read of reads) {
+    const facts = resultCardFacts(read);
+    if (facts) out[read.ticker.toUpperCase()] = facts;
+  }
+  return out;
+}
+
+/**
+ * The move against the usual move after a report: the move as the card shows it (one decimal) over the usual move,
+ * which the card never shows. Null when either is unknown, the move is flat, or there is no usual move.
+ */
+export function reportRatio(pct: number | null | undefined, usualPct: number | null | undefined): number | null {
+  if (typeof pct !== "number" || !Number.isFinite(pct) || flat(pct) || typeof usualPct !== "number" || !(usualPct > 0)) return null;
+  return Math.round(Math.abs(pct) * 10) / 10 / usualPct;
+}
+
+/** "the move is 3.8× its usual on results", "the move is bigger than usual on results"; null when about the usual size. */
+function reactionCard(pct: number | null, usualPct: number | null): string | null {
+  const ratio = reportRatio(pct, usualPct);
+  if (ratio === null) return null;
+  if (ratio >= 2) return `the move is ${(Math.round(ratio * 10) / 10).toFixed(1).replace(/\.0$/, "")}× its usual on results`;
+  if (ratio >= 1.25) return "the move is bigger than usual on results";
+  if (ratio <= 0.75) return "the move is smaller than usual on results";
+  return null;
+}
+
+/** "a", "a, and b", "a, b, and c": the clauses as one sentence's body. */
+function clauses(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * The card's line, most telling first, for lib/biggest.ts fitLine to take the first that fits in 15 words: one
+ * sentence, what was reported against the estimate first, then the outlook, revenue growth, and how the card's move
+ * (`pct`, which is the after-hours or pre-market print when that is the story) compares with the stock's usual move
+ * after a report. Revenue's amount goes first when words are short, then the reaction, then revenue itself; the EPS
+ * pair and the outlook stay longest. The move's own figure and session are the card's, so they are never said here.
+ * "EPS was $5.06 vs $3.90 expected; the move is 5.2× its usual on results."
+ */
+export function resultCardLines(facts: ResultCardFacts | null | undefined, pct: number | null): string[] {
+  if (!facts) return [];
+  const reaction = reactionCard(pct, facts.usualPct);
+  const revenues = facts.revenue ?? [];
+  const [revLong = null] = revenues;
+  const revShort = revenues[revenues.length - 1] ?? null;
+  const { eps, guidance } = facts;
+  // [clauses, with the reaction]
+  const sets: Array<[Array<string | null>, boolean]> = [
+    [[eps, revLong, guidance], true],
+    [[eps, revShort, guidance], true],
+    [[eps, revLong, guidance], false],
+    [[eps, revShort, guidance], false],
+    [[eps, guidance], true],
+    [[eps, guidance], false],
+    [[eps ?? revShort], true],
+    [[eps ?? revShort ?? guidance], false],
+  ];
+  const out: string[] = [];
+  for (const [parts, withReaction] of sets) {
+    const said = parts.filter((part): part is string => Boolean(part));
+    if (said.length === 0) continue;
+    const line = `${cap(clauses(said))}${withReaction && reaction ? `; ${reaction}` : ""}.`;
+    if (!out.includes(line)) out.push(line);
+  }
+  return out;
 }

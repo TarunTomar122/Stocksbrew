@@ -3,6 +3,7 @@ import type { OvernightCard } from "@/lib/briefing-overnight";
 import { tradingDayBefore } from "@/lib/briefing-face";
 import { etDayOf } from "@/lib/day-words";
 import type { InboxItem } from "@/lib/inbox/types";
+import { resultCardLines } from "@/lib/results/words";
 
 import { withoutLevels } from "./build";
 import { withoutDayWords } from "./record";
@@ -41,6 +42,15 @@ function normalClause(text: string): string | null {
   return match ? `${match[1]!.charAt(0).toUpperCase()}${match[1]!.slice(1)}.` : null;
 }
 
+/**
+ * A report card's line: with results night's figures, EPS against the estimate, revenue growth, the outlook and how the
+ * card's move (`pct`) compares with the usual move after a report; else the read's sentence without its move.
+ */
+function reportLine(item: InboxItem, pct: number | null, said: (text: string | null | undefined) => string | null): string | null {
+  const result = item.result;
+  return fitLine([...resultCardLines(result?.card, pct), said(result?.figures), said(withoutMove(item.text))]);
+}
+
 function candidateOf(item: InboxItem, input: ThreadBigInput): BigCandidate | null {
   const ticker = item.tickers[0]!.toUpperCase();
   const said = (text: string | null | undefined) => {
@@ -63,7 +73,8 @@ function candidateOf(item: InboxItem, input: ThreadBigInput): BigCandidate | nul
     const session = result?.moveSession === "after_hours" ? "post" : result?.moveSession === "pre_market" ? "pre" : null;
     // The day it reported (the item's id carries it), not the day the market took it: "Earnings · Yesterday".
     const reported = /^results:[^:]+:(\d{4}-\d{2}-\d{2})$/.exec(item.id)?.[1] ?? item.day;
-    return { ...base, day: reported, kind: "results", pct: result?.movePct ?? null, session, line: fitLine([said(result?.figures), said(withoutMove(item.text))]) };
+    // The move's own price (today's quote, or the print's), not the screener's older close beside it.
+    return { ...base, price: result?.movePrice ?? base.price, day: reported, kind: "results", pct: result?.movePct ?? null, session, usualPct: result?.card?.usualPct ?? null, line: reportLine(item, result?.movePct ?? null, said) };
   }
   if (item.kind === "agent" && (item.move || item.extended)) {
     // A confirmed reason makes it news (or a rating change) even when it is too long for the card's line.
@@ -102,7 +113,9 @@ export function threadBiggest(input: ThreadBigInput): BigThing[] {
     const print = prints.get(candidate.ticker);
     if (candidate.kind === "results" && print) {
       prints.delete(candidate.ticker);
-      candidates.push({ ...candidate, pct: print.pct, session: print.session, price: print.price });
+      // The print is the card's move, so the line's "against its usual move" is worked out on it.
+      const line = item.result?.card ? fitLine([...resultCardLines(item.result.card, print.pct), candidate.line]) : candidate.line;
+      candidates.push({ ...candidate, pct: print.pct, session: print.session, price: print.price, line });
     } else candidates.push(candidate);
   }
   for (const print of prints.values()) {

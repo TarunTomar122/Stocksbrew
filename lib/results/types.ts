@@ -63,6 +63,8 @@ export type ResultGuidance = {
   first: string | null;
   /** That item's previous range, when the release or the last report states it ("$7.90B to $8.10B"), or null. */
   previous: string | null;
+  /** The outlook is for the full year (the lead item's period, or the release's own headline: "Raises Full-Year Outlook"). */
+  fullYear?: boolean;
   source: string;
   url: string | null;
   asOf: string | null;
@@ -91,6 +93,11 @@ export type ResultMove = {
   usualCount: number;
   source: string;
   asOf: string | null;
+  /**
+   * The price the move ended at, when known: the print's own price for a move outside the session (`before_open`,
+   * `after_hours`), the live or last quote's for a session's move read from the quote.
+   */
+  price?: number | null;
 };
 
 export type ResultCallWord = "Buy more" | "Keep" | "Sell some";
@@ -130,4 +137,20 @@ export type ResultSummary = {
   fact: string;
   sentence: string;
   call: string | null;
+};
+
+/**
+ * The clauses of a report a "Biggest things" card can say (lib/biggest.ts), kept apart so the card can drop the least
+ * telling ones to fit its 15 words, and the reaction can be worked out against the move the card itself shows (an
+ * after-hours or pre-market print can stand in for the read's own move). Plain JSON: it rides on a cached inbox item.
+ */
+export type ResultCardFacts = {
+  /** "EPS was $5.06 vs $3.90 expected"; null without an EPS pair. */
+  eps: string | null;
+  /** Revenue, longest first: "revenue rose 55% to $211M", "revenue rose 55%"; null without a year-ago revenue. */
+  revenue: string[] | null;
+  /** "the full-year outlook was raised"; null when the release states none. */
+  guidance: string | null;
+  /** The stock's usual move after a report (no sign), only with at least MIN_USUAL earlier reports measured. */
+  usualPct: number | null;
 };

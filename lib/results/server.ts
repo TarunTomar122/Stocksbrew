@@ -7,7 +7,7 @@ import { getPremarketMovers } from "@/lib/premarket";
 import { shortCompanyName } from "@/lib/plain-copy";
 import { sharedCache } from "@/lib/shared-cache";
 
-import { buildResult, daysApart, eventFromDoc, isOvernight, previousTradingDay, reactionDay, type LiveQuote, type PremarketQuote, type PriceMeta, type ResultEvent } from "./build";
+import { buildResult, daysApart, eventFromDoc, isOvernight, nyDayOf, previousTradingDay, reactionDay, type LiveQuote, type PremarketQuote, type PriceMeta, type ResultEvent } from "./build";
 import { RESULTS_DAYS, type ResultRead, type ResultSummary } from "./types";
 import { briefingResultFact, summarize } from "./words";
 
@@ -73,7 +73,7 @@ async function readRecentEventsUncached(since: string, today: string): Promise<R
   return [...byKey.values()].sort((a, b) => b.date.localeCompare(a.date) || a.ticker.localeCompare(b.ticker));
 }
 
-const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v3"], { revalidate: 600 });
+const recentEventsCached = sharedCache(readRecentEventsUncached, ["results-recent-events-v4"], { revalidate: 600 });
 
 /**
  * Results night is switched on by RESULTS_NIGHT=1 (set in Vercel Production). Without it every loader answers empty,
@@ -106,6 +106,8 @@ function nyClock(now: Date): number {
   return get("hour") * 100 + get("minute");
 }
 
+const positive = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null);
+
 /* ── one stock ──────────────────────────────────────────────────────────── */
 
 async function readResultUncached(ticker: string, date: string, today: string): Promise<ResultRead | null> {
@@ -118,7 +120,7 @@ async function readResultUncached(ticker: string, date: string, today: string): 
     readSelected(
       [`tm_price_history_daily/${key}`, `tm_latest_prices/US_${key}`, `tm_call_stability/US_${key}`, `tm_earnings_day/${key}__${date}`, `tm_extended_quotes/${key}`],
       // The last eight are the extended quote's (tm_extended_quotes): the after-hours or pre-market move before the open.
-      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read", "reaction", "price", "change_pct", "regular_close", "regular_close_at", "as_of", "post", "pre", "earnings"],
+      ["last_date", "fetched_at", "quote", "captured_at", "call", "session", "changes", "updated_at", "ticker", "event_date", "revenue", "guidance", "filing", "period", "read", "reaction", "eps", "generated_at", "price", "change_pct", "regular_close", "regular_close_at", "as_of", "post", "pre", "earnings"],
     ),
     getPremarketMovers("US").catch((error: unknown) => ({ failed: error }) as const),
   ]);
@@ -130,21 +132,31 @@ async function readResultUncached(ticker: string, date: string, today: string): 
   const priceMeta: PriceMeta | null = priceDoc
     ? { lastDate: typeof priceDoc.last_date === "string" ? priceDoc.last_date : null, fetchedAt: typeof priceDoc.fetched_at === "string" ? priceDoc.fetched_at : null }
     : null;
-  const quoteDoc = quoteSnap?.exists ? (quoteSnap.data() as { quote?: { day_change_pct?: unknown; captured_at?: unknown }; captured_at?: unknown }) : null;
+  const quoteDoc = quoteSnap?.exists ? (quoteSnap.data() as { quote?: { day_change_pct?: unknown; captured_at?: unknown; current?: unknown }; captured_at?: unknown }) : null;
   const pct = quoteDoc?.quote?.day_change_pct;
   const capturedAt = quoteDoc?.captured_at ?? quoteDoc?.quote?.captured_at;
-  const quote: LiveQuote | null = typeof pct === "number" && Number.isFinite(pct) && typeof capturedAt === "string" ? { pct, capturedAt } : null;
+  const quote: LiveQuote | null = typeof pct === "number" && Number.isFinite(pct) && typeof capturedAt === "string" ? { pct, capturedAt, price: positive(quoteDoc?.quote?.current) } : null;
+  const extended = extendedSnap?.exists ? parseExtendedDoc(extendedSnap.data()) : null;
+  let needsMove = false;
   if (premarket && "failed" in premarket) {
     // The pre-market quote is the move only before the open on the reaction day; then a failed read must not be
-    // cached for everyone as a read with no move. Any other time the read does not use it.
+    // cached for everyone as a read with no move. Any other time the read does not use it, and neither does it when
+    // the stored extended quote already has this morning's pre-market print (pickMove takes the newer of the two):
+    // the stock is not dropped from the briefing on the very morning after its report.
     const now = new Date();
-    if (event.session !== "unknown" && reactionDay(event.date, event.session) === today && nyClock(now) < 930) throw new Error(`results: pre-market read failed for ${ticker}`);
+    if (event.session !== "unknown" && reactionDay(event.date, event.session) === today && nyClock(now) < 930) {
+      if (!(extended?.session === "pre" && nyDayOf(extended.asOf) === today)) throw new Error(`results: pre-market read failed for ${ticker}`);
+      // The stored print stands in for it; buildResult still decides whether that print fits (below).
+      needsMove = true;
+    }
   }
   const pre = premarket && !("failed" in premarket) ? premarket : null;
   const prePct = pre?.by_ticker?.[ticker]?.pre_market_change_pct;
   const premarketQuote: PremarketQuote | null =
-    pre && typeof prePct === "number" && Number.isFinite(prePct) ? { pct: prePct, date: String(pre.date ?? "").slice(0, 10), at: pre.generated_at ?? null } : null;
-  return buildResult({
+    pre && typeof prePct === "number" && Number.isFinite(prePct)
+      ? { pct: prePct, date: String(pre.date ?? "").slice(0, 10), at: pre.generated_at ?? null, price: positive(pre.by_ticker?.[ticker]?.pre_market_price) }
+      : null;
+  const read = buildResult({
     event,
     today,
     now: new Date(),
@@ -152,13 +164,16 @@ async function readResultUncached(ticker: string, date: string, today: string): 
     priceMeta,
     quote,
     premarket: premarketQuote,
-    extended: extendedSnap?.exists ? parseExtendedDoc(extendedSnap.data()) : null,
+    extended,
     stability: stabilitySnap?.exists ? (stabilitySnap.data() as Record<string, unknown>) : null,
     release: releaseSnap?.exists ? (releaseSnap.data() as Record<string, unknown>) : null,
   });
+  // The stored print did not fit this report (another close, a stale clock): no moveless read cached for everyone.
+  if (needsMove && read && !read.move) throw new Error(`results: pre-market read failed for ${ticker}`);
+  return read;
 }
 
-const readResultCached = sharedCache(readResultUncached, ["results-read-v3"], { revalidate: 120 });
+const readResultCached = sharedCache(readResultUncached, ["results-read-v4"], { revalidate: 120 });
 
 /** One stock's read for one report, or null. Throws when a store read fails. */
 export function readResult(ticker: string, date: string, today: string = todayET()): Promise<ResultRead | null> {

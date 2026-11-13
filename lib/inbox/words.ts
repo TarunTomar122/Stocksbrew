@@ -4,7 +4,7 @@ import { sessionDayOf } from "@/lib/session-label";
 import { sessionWords, vsDayWords, whenWords as reportWhen } from "@/lib/earnings-season";
 import { isNyseHoliday } from "@/lib/market-session";
 import type { ResultRead } from "@/lib/results/types";
-import { moveShort, resultHeadline, resultLine, resultSentence, resultTone } from "@/lib/results/words";
+import { moveShort, resultCardFacts, resultHeadline, resultLine, resultSentence, resultTone } from "@/lib/results/words";
 import { findingClose } from "@/lib/portfolio-home/example-check";
 
 import type { InboxItem, InboxMove, UpcomingReport } from "./types";
@@ -916,6 +916,8 @@ export function resultsItem(read: ResultRead, position: Position, mode: Mode, to
       moveSession: read.move?.kind === "after_hours" ? "after_hours" : read.move?.kind === "before_open" ? "pre_market" : null,
       moveWords: read.move ? moveShort(read.move, today) : null,
       call,
+      card: resultCardFacts(read),
+      movePrice: read.move?.price ?? null,
     },
   });
 }

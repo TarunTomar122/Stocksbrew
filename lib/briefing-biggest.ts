@@ -3,6 +3,9 @@ import type { BriefingPosition } from "@/lib/briefing";
 import type { MovedCard } from "@/lib/briefing-face";
 import type { OvernightCard } from "@/lib/briefing-overnight";
 import { etDayOf } from "@/lib/day-words";
+import { isOvernight } from "@/lib/results/build";
+import type { ResultCardFacts, ResultRead } from "@/lib/results/types";
+import { resultCardLines } from "@/lib/results/words";
 import type { SinceCard } from "@/lib/since-visit";
 
 /**
@@ -28,6 +31,19 @@ export type BriefingBigInput = {
   reports?: Readonly<Record<string, string>>;
   /** Each stock's report day this week: a report card says when it reported, not when its print traded. */
   reportDays?: Readonly<Record<string, string>>;
+  /**
+   * Results night's reads (empty unless RESULTS_NIGHT is on), with `today`: a report from overnight that none of the
+   * modules carries (the Overnight strip ends at the open, before Why it moved has the session's move) is still a card,
+   * with the read's own move.
+   */
+  reads?: readonly ResultRead[];
+  today?: string;
+  /**
+   * Results night's figures for each stock's report this week (lib/results/words.ts resultCardFacts), only when
+   * RESULTS_NIGHT is on: a report card then says EPS against the estimate, revenue growth, the outlook and its move
+   * against the usual move after a report, and ranks by that usual move. Without them, `reports` and the module's line.
+   */
+  cards?: Readonly<Record<string, ResultCardFacts>>;
 };
 
 export function briefingBiggest(input: BriefingBigInput): BigThing[] {
@@ -37,6 +53,11 @@ export function briefingBiggest(input: BriefingBigInput): BigThing[] {
   const report = (ticker: string) => {
     const said = input.reports?.[ticker];
     return said ? withoutTicker(said, ticker) : null;
+  };
+  /** A report card's line and its usual move after a report, from results night's figures when there are any. */
+  const reportCard = (ticker: string, pct: number | null, ...fallback: Array<string | null>) => {
+    const facts = input.cards?.[ticker] ?? null;
+    return { line: fitLine([...resultCardLines(facts, pct), report(ticker), ...fallback]), usualPct: facts?.usualPct ?? null };
   };
   const candidates: BigCandidate[] = [];
   for (const card of input.overnight) {
@@ -50,7 +71,7 @@ export function briefingBiggest(input: BriefingBigInput): BigThing[] {
       session: card.session,
       price: card.price,
       holding: card.holding,
-      line: reported ? fitLine([report(ticker), card.line]) : null,
+      ...(reported ? reportCard(ticker, card.pct, card.line) : { line: null }),
       day: (reported ? input.reportDays?.[ticker] : null) ?? etDayOf(card.asOf),
       source: null,
       href: href(ticker),
@@ -68,7 +89,7 @@ export function briefingBiggest(input: BriefingBigInput): BigThing[] {
       session: null,
       price: card.price,
       holding: holding(ticker),
-      line: card.kind === "results" ? fitLine([report(ticker), card.line]) : fitLine([card.line]),
+      ...(card.kind === "results" ? reportCard(ticker, card.pct, card.line) : { line: fitLine([card.line]) }),
       day: (card.kind === "results" ? input.reportDays?.[ticker] : null) ?? input.priceDay,
       source: input.sourceOf?.(card) ?? null,
       href: card.href || href(ticker),
@@ -77,9 +98,34 @@ export function briefingBiggest(input: BriefingBigInput): BigThing[] {
   for (const card of input.since) {
     const ticker = card.ticker.toUpperCase();
     const base = { ticker, name: card.name || ticker, session: null, price: card.price, holding: holding(ticker), line: fitLine([card.line]), day: null, source: null, href: card.href || href(ticker) };
-    if (card.kind === "results") candidates.push({ ...base, kind: "results", pct: card.pct });
+    if (card.kind === "results") candidates.push({ ...base, kind: "results", pct: card.pct, ...(input.cards?.[ticker] ? reportCard(ticker, card.pct, card.line) : {}) });
     // Buys only: Since you last looked also lists insider sales, which are not "Insider buy".
     else if (card.kind === "insider" && /\bbought\b/i.test(card.line)) candidates.push({ ...base, kind: "insider", pct: card.pct, amount: dollarsIn(card.line) });
+  }
+  if (input.today) {
+    const told = new Set(candidates.filter((candidate) => candidate.kind === "results").map((candidate) => candidate.ticker));
+    for (const read of input.reads ?? []) {
+      const ticker = read.ticker.toUpperCase();
+      const position = byTicker.get(ticker);
+      if (!position || told.has(ticker) || !isOvernight(read.reportDate, read.session, input.today)) continue;
+      const move = read.move;
+      const session = move?.kind === "before_open" ? "pre" : move?.kind === "after_hours" ? "post" : null;
+      // The move's own price (a print's beside its session), else the stock's price for a session's move.
+      const price = move?.price ?? (session ? null : (position.price ?? null));
+      candidates.push({
+        ticker,
+        name: position.name || read.company || ticker,
+        kind: "results",
+        pct: move?.pct ?? null,
+        session: price ? session : null,
+        price,
+        holding: holding(ticker),
+        ...reportCard(ticker, move?.pct ?? null),
+        day: read.reportDate,
+        source: null,
+        href: href(ticker),
+      });
+    }
   }
   return biggestThings(candidates);
 }

@@ -16,6 +16,9 @@
  *   buy 1.0, a move with no confirmed reason 0.7 (an upgrade behind a 6% move outranks a 6% move nobody explained).
  * - normal-day factor (moves only, when the stock's normal day is known): half the move's multiple of a normal day,
  *   held between 0.6 and 1.5, so a 6% move on a stock that moves 5% a day ranks under a 5% move on one that moves 2%.
+ * - report factor (results only, when the stock's usual move after a report is known, which only results night's reads
+ *   give): the move's multiple of that usual move, held between 0.6 and 1.5, so a 10% move on a stock that usually
+ *   moves 2% on results outranks a 12% move on one that usually moves 17%. 1 without it.
  * - holding weight: 1.25 for a stock the person owns, 1 for one they watch.
  * - Not big enough to list: a move without a reason under 5% or under 1.5 times the stock's normal day, a news or
  *   analyst move under 3%, an insider buy under $250K. Ties go to the stock owned, then the bigger move, then the ticker.
@@ -37,6 +40,8 @@ export type BigCandidate = {
   price: number | null;
   /** The stock's normal day (its average absolute daily move), percent, when known. */
   normalPct?: number | null;
+  /** Results only: the stock's usual move after a report (no sign), percent, when results night's read knows it. */
+  usualPct?: number | null;
   holding: boolean;
   /** What happened, one sentence of at most 15 words that does not repeat the move's figure; null when only the move says it. */
   line: string | null;
@@ -102,12 +107,18 @@ export function normalFactor(pct: number | null, normalPct: number | null | unde
   return Math.min(1.5, Math.max(0.6, Math.abs(pct) / normalPct / 2));
 }
 
+/** The report factor: the move's multiple of the stock's usual move after a report, between 0.6 and 1.5; 1 when either is unknown. */
+export function reportFactor(pct: number | null, usualPct: number | null | undefined): number {
+  if (!fin(pct) || !fin(usualPct) || usualPct <= 0) return 1;
+  return Math.min(1.5, Math.max(0.6, Math.abs(pct) / usualPct));
+}
+
 /** The candidate's score, or null when it is not big enough to list. */
 export function bigScore(candidate: BigCandidate): number | null {
   const size = bigSize(candidate);
   if (size === null) return null;
   const moveKind = candidate.kind === "move" || candidate.kind === "news" || candidate.kind === "analyst";
-  const factor = moveKind ? normalFactor(candidate.pct, candidate.normalPct) : 1;
+  const factor = moveKind ? normalFactor(candidate.pct, candidate.normalPct) : candidate.kind === "results" ? reportFactor(candidate.pct, candidate.usualPct) : 1;
   const score = size * KIND_WEIGHT[candidate.kind] * factor * (candidate.holding ? HOLDING_WEIGHT : 1);
   // Rounded, so the order never hangs on floating-point noise.
   return Math.round(score * 1000) / 1000;

@@ -1,3 +1,5 @@
+import type { ResultCardFacts } from "@/lib/results/types";
+
 /**
  * The inbox: one list of what happened for a person while they were away,
  * merged from the stores that already record it (agent runs, call changes,
@@ -87,6 +89,10 @@ export type InboxResult = {
   moveSession?: "after_hours" | "pre_market" | null;
   moveWords: string | null;
   call: { status: "changed" | "held"; call: string } | null;
+  /** The price the move ended at (the print's for an after-hours or pre-market move), when the read knows it. */
+  movePrice?: number | null;
+  /** What a "Biggest things" card says about the report (lib/results/words.ts resultCardFacts); absent on older items. */
+  card?: ResultCardFacts | null;
 };
 
 /** `close`: the price the move ended at, when the finding said it, so the read can end on it (judges, ship 50). */

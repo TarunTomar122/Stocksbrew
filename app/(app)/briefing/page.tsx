@@ -59,7 +59,7 @@ import { proposalsBrief } from "@/lib/proposals-brief";
 import { etDayOfStamp, etClock, newestStamp, oldestStamp } from "@/lib/quote-time";
 import { resultsFor } from "@/lib/results/server";
 import type { ResultRead } from "@/lib/results/types";
-import { briefingResultFact, resultSentence } from "@/lib/results/words";
+import { briefingResultFact, resultCardsByTicker, resultSentence } from "@/lib/results/words";
 import { buildSinceVisit, sinceShows, toldElsewhere } from "@/lib/since-visit";
 import { loadSinceVisit, type SinceVisitResult } from "@/lib/since-visit-server";
 import { readStripSource, stripFrom, withinStrip, type StripSource } from "@/lib/thesis-monitor/strip-server";
@@ -372,6 +372,10 @@ export default async function BriefingPage({ searchParams }: { searchParams?: { 
           // The report in one sentence, its move left to the card's figure.
           reportDays: pastReportDays(positions, results, today),
           reports: Object.fromEntries(results.map((read) => [read.ticker.toUpperCase(), resultSentence({ ...read, move: null }, read.ticker.toUpperCase(), today)])),
+          // Results night's figures (empty unless RESULTS_NIGHT is on): EPS, revenue, the outlook and the usual move.
+          cards: resultCardsByTicker(results),
+          reads: results,
+          today,
         })
       : [];
   const big = new Set(biggest.map((thing) => thing.ticker));
