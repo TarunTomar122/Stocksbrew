@@ -38,7 +38,7 @@ export const ASK_SUGGESTIONS: AskSuggestion[] = [
   { label: "A stock", icon: "research", question: "What changed for Nvidia this week, and when does it report next?" },
   { label: "A comparison", icon: "compare", question: "Compare Microsoft, Alphabet and Amazon on valuation and one-year return." },
   { label: "An idea", icon: "themes", question: "Build me a basket of companies that benefit from power grid spending." },
-  { label: "A backtest", icon: "backtest", question: "How would an equal mix of AAPL, MSFT and NVDA have done against the S&P 500 since 2019?" },
+  { label: "A backtest", icon: "backtest", question: "Backtest AAPL, MSFT and NVDA vs the S&P" },
   { label: "Smart money", icon: "follow", question: "What did Berkshire Hathaway buy and sell in its latest 13F?" },
   { label: "My week", icon: "portfolio", question: "How is my portfolio doing this week?", needsAccount: true },
   { label: "My reasons", icon: "agents", question: "Which of my reasons for owning a stock are weaker now?", needsAccount: true },

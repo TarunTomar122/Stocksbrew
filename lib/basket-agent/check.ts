@@ -85,6 +85,21 @@ function signedWords(value: number): string {
   return `${rounded > 0 ? "+" : rounded < 0 ? "−" : ""}${Math.abs(rounded)}%`;
 }
 
+/**
+ * The middle of the basket on one figure, said the way that figure's own cards say it ("+42%"): what each company's
+ * bar is held against on the basket page (owner rule 5: a bar compares). Null with fewer than three companies, where
+ * a middle says nothing a pair of bars does not.
+ */
+export function basketMedian(label: string, values: readonly number[]): { value: number; text: string } | null {
+  const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (sorted.length < 3) return null;
+  const middle = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+  const text =
+    label === "Dividend yield" ? `${value.toFixed(1)}%` : label === "Cheaper than its own past" ? `${Math.round(value)}%` : signedWords(value);
+  return { value, text };
+}
+
 /** The figure a basket compares companies on for this kind of reason, or null when the facts do not have it. */
 export function metricOf(
   kind: ThesisKind,

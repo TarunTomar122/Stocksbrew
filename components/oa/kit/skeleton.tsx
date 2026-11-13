@@ -8,9 +8,9 @@ import { interTight } from "@/components/oa/font";
  * gutters from sm up. It lives here, not in ./index, so a loading file does
  * not pull in the whole kit; AppPage imports it from here.
  */
-export const PAGE_PAD = "oa-page-frame px-2 pb-[72px] pt-3 sm:px-6 sm:pt-4 lg:pb-12 lg:pt-6";
+export const PAGE_PAD = "oa-page-frame px-2 pb-10 pt-3 sm:px-6 sm:pt-4 lg:pb-8 lg:pt-6";
 /** The frame for a page of prose (docs, about, an article): nothing is a card, so the text keeps a 16px gutter on a phone. */
-export const PAGE_PAD_PROSE = "oa-page-prose px-4 pb-[72px] pt-3 sm:px-6 sm:pt-4 lg:pb-12 lg:pt-6";
+export const PAGE_PAD_PROSE = "oa-page-prose px-4 pb-10 pt-3 sm:px-6 sm:pt-4 lg:pb-8 lg:pt-6";
 
 /**
  * What a page shows the instant it is clicked, before its data arrives.

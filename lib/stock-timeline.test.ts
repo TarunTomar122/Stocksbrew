@@ -137,7 +137,7 @@ describe("buildStockTimeline", () => {
         { event_id: "b", timestamp: "2026-08-25T12:00:00Z", title: "JPMorgan Chase (JPM) Takes Lead Role In A Major AI IPO", source_name: "Yahoo Finance" },
       ] as TimelineEvent[],
     });
-    expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase (JPM) takes lead role in a major AI IPO"]);
+    expect(items.map((item) => item.title)).toEqual(["JPMorgan Chase takes lead role in a major AI IPO"]);
   });
 
   it("tells a bait headline by its plain summary when it names the stock, or leaves it out", () => {

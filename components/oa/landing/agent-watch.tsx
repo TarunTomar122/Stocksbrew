@@ -80,13 +80,19 @@ function Head({ icon, children, aside }: { icon: NavIconName; children?: React.R
   );
 }
 
-function Ticker({ ticker }: { ticker: string }) {
+/** The stock: logo, ticker and its current price (rule 4: a stock card shows the price beside its figure). */
+function Ticker({ ticker, price }: { ticker: string; price?: number }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <StockLogo ticker={ticker} size={20} circle atOnce />
       <span className="oa-mono text-[14px] font-semibold text-oa-fg">{ticker}</span>
+      {typeof price === "number" ? <span className="oa-mono truncate text-[13px] tabular-nums text-oa-muted-fg">{formatUsd(price)}</span> : null}
     </span>
   );
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** The card: the whole card opens `href` (a link stretched over it, with the source as its hover title). */
@@ -110,12 +116,12 @@ function signedPct(pct: number): string {
   return `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct).toFixed(2)}%`;
 }
 
-function EarningsView({ card, today }: { card: EarningsCard; today: string }) {
+function EarningsView({ card, today, price }: { card: EarningsCard; today: string; price?: number }) {
   const days = daysFromToday(card.date, today) ?? 0;
   return (
     <Card href="/calendar" label={`${card.ticker} reports ${dayWords(card.date, today)}`} title={`${card.ticker} reports ${absoluteDay(card.date, today)}`} ask={askOf(card)}>
       <Head icon="calendar">
-        <Ticker ticker={card.ticker} />
+        <Ticker ticker={card.ticker} price={price} />
       </Head>
       <p className={FIGURE_ROW}>
         <span className={`${FIGURE} text-oa-fg`}>{days <= 0 ? "Today" : days}</span>
@@ -126,22 +132,22 @@ function EarningsView({ card, today }: { card: EarningsCard; today: string }) {
   );
 }
 
-function MoveView({ card, today }: { card: MoveCard; today: string }) {
+function MoveView({ card, today, price }: { card: MoveCard; today: string; price?: number }) {
   return (
     <Card href={`/stock/${encodeURIComponent(card.ticker)}`} label={`${card.headline}, ${dayWords(card.day, today)}`} title="From daily closing prices" ask={askOf(card)}>
       <Head icon="movers" aside={capitalize(dayWords(card.day, today))}>
-        <Ticker ticker={card.ticker} />
+        <Ticker ticker={card.ticker} price={price} />
       </Head>
       <p className={FIGURE_ROW}>
         <span className={`${FIGURE} ${card.pct < 0 ? "text-signal-bearish" : "text-signal-bullish"}`}>{signedPct(card.pct)}</span>
         <span className={SMALL}>in a day</span>
       </p>
-      <p className={LINE}>The agent flagged it in its check {onDayWords(card.ranOn, today)}.</p>
+      <p className={LINE}>Flagged in its check {onDayWords(card.ranOn, today)}.</p>
     </Card>
   );
 }
 
-function FilingView({ card, today }: { card: FilingCard; today: string }) {
+function FilingView({ card, today, price }: { card: FilingCard; today: string; price?: number }) {
   const filed = absoluteDay(card.filed, today);
   const what = card.op === "added" ? (card.count === 1 ? "new risk" : "new risks") : card.count === 1 ? "risk dropped" : "risks dropped";
   return (
@@ -160,7 +166,7 @@ function FilingView({ card, today }: { card: FilingCard; today: string }) {
           </a>
         }
       >
-        <Ticker ticker={card.ticker} />
+        <Ticker ticker={card.ticker} price={price} />
       </Head>
       <p className={FIGURE_ROW}>
         <span className={`${FIGURE} text-oa-fg`}>
@@ -194,14 +200,14 @@ function LineBar({ card }: { card: LineCard }) {
   );
 }
 
-function LineView({ card }: { card: LineCard }) {
+function LineView({ card, price }: { card: LineCard; price?: number }) {
   const { condition } = card;
-  // The figure and the line are in the bar and the request: the sentence says what happens next.
-  const said = card.holds ? "Still holds. It's checked again the night the next report lands." : "It broke, so the agent flagged it the night the report landed.";
+  // The figure and the line are in the bar and the request: the one line says what happens next.
+  const said = card.holds ? "Checked again the night the next report lands." : "Broke, so it was flagged the night of the report.";
   return (
     <Card href="/portfolio" label={`${card.ticker}: ${card.holdsIf}, now ${card.nowText}`} title={card.source} ask={askOf(card)}>
       <Head icon="portfolio" aside={card.when}>
-        <Ticker ticker={card.ticker} />
+        <Ticker ticker={card.ticker} price={price} />
       </Head>
       <div className={FIGURE_ROW}>
         <span className={`${FIGURE} ${card.holds ? "text-signal-bullish" : "text-signal-bearish"}`}>{card.nowText}</span>
@@ -218,7 +224,8 @@ function ReplayView({ card }: { card: ReplayCard }) {
     <Card
       href={`/themes/${encodeURIComponent(card.slug)}`}
       label={`${card.name} replayed over 4 weeks: it would have proposed a change on ${card.changeDays} of ${card.checked} days`}
-      title="A replay with the figures each day had, not a record"
+      // The reason behind the first change is the hover; the card keeps one line (owner rule 8).
+      title={card.why ? `${card.why} A replay with the figures each day had, not a record.` : "A replay with the figures each day had, not a record"}
       ask={askOf(card)}
     >
       <Head icon="themes" aside={span}>
@@ -272,16 +279,16 @@ function ThesisView({ card }: { card: ThesisCard }) {
   );
 }
 
-function CardView({ card, today }: { card: WatchCard; today: string }) {
+function CardView({ card, today, prices }: { card: WatchCard; today: string; prices: Record<string, number> }) {
   switch (card.kind) {
     case "earnings":
-      return <EarningsView card={card} today={today} />;
+      return <EarningsView card={card} today={today} price={prices[card.ticker]} />;
     case "move":
-      return <MoveView card={card} today={today} />;
+      return <MoveView card={card} today={today} price={prices[card.ticker]} />;
     case "filing":
-      return <FilingView card={card} today={today} />;
+      return <FilingView card={card} today={today} price={prices[card.ticker]} />;
     case "line":
-      return <LineView card={card} />;
+      return <LineView card={card} price={prices[card.ticker]} />;
     case "replay":
       return <ReplayView card={card} />;
     case "thesis":
@@ -321,7 +328,7 @@ export async function AgentWatchSection({ className = "" }: { className?: string
         {/* Four on a phone, the rest behind one quiet "Show more" (kit ShowMoreGrid); all of them from sm. */}
         <ShowMoreGrid count={cards.length} label="What people ask their agent, and what it sent" className={grid}>
           {cards.map((card) => (
-            <CardView key={card.kind} card={card} today={watch.today} />
+            <CardView key={card.kind} card={card} today={watch.today} prices={watch.prices} />
           ))}
         </ShowMoreGrid>
         <p className="mt-3 text-[13px] leading-5 text-oa-muted-fg">{EXAMPLE_NOTE}</p>

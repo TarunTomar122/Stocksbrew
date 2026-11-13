@@ -14,12 +14,13 @@
 
 import { capitalize, dayWords } from "@/lib/day-words";
 import { newsJunk, newsRank } from "@/lib/briefing-news";
+import { fitsHeadline, HEADLINE_MAX_WORDS, headlineWordCount, newsHeadline } from "@/lib/headline-short";
 import { withoutSourceTag } from "@/lib/plain-copy";
 import { better, isForeignLanguage, namesPastYear, titleKey } from "@/lib/wire-companies";
 import type { WireItem } from "@/lib/wire-shared";
 
-/** A headline on a card is at most this many words. */
-export const TOP_HEADLINE_WORDS = 12;
+/** A headline on a card is at most this many words (owner rule 8). */
+export const TOP_HEADLINE_WORDS = HEADLINE_MAX_WORDS;
 /** The line under it is at most this many. */
 export const TOP_WHY_WORDS = 15;
 /** How many stories the section shows; with fewer it is not shown (no half-empty row). */
@@ -88,8 +89,9 @@ export function bigDollars(value: number): string {
 const WRAP_PREFIX = /^(?:stock market (?:news )?today|stocks? today|markets? (?:wrap|today))\s*[:\-–]\s*/i;
 
 /**
- * The headline as a card shows it: no desk tag, no "- Reuters" tail, no roundup prefix, one line of whitespace.
- * Null when it runs past the word budget: a long headline is never cut short.
+ * The headline as a card shows it: no desk tag, no "- Reuters" tail, no roundup prefix or bracketed ticker, in
+ * sentence case, and cut at a clause boundary to the word budget (lib/headline-short.ts). Null when no clean cut fits:
+ * a long headline is never cut mid-phrase, and the section picks another story.
  */
 export function cardHeadline(title: string): string | null {
   const clean = withoutSourceTag(title)
@@ -97,8 +99,10 @@ export function cardHeadline(title: string): string | null {
     .replace(WRAP_PREFIX, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!clean || wordCount(clean) > TOP_HEADLINE_WORDS) return null;
-  return capitalize(clean);
+  if (!clean || !fitsHeadline(clean, TOP_HEADLINE_WORDS)) return null;
+  const shown = newsHeadline(clean, { max: TOP_HEADLINE_WORDS });
+  // Counted the way the shortener counts (a standalone dash is not a word), so the two never disagree.
+  return shown && headlineWordCount(shown) <= TOP_HEADLINE_WORDS ? capitalize(shown) : null;
 }
 
 /* ── macro events ──────────────────────────────────────────────────────── */

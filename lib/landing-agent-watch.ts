@@ -98,6 +98,8 @@ export type ReplayCard = {
   /** The changes it would have proposed, each once, in order. */
   changes: Array<{ op: "drop" | "add"; ticker: string }>;
   line: string;
+  /** The first change's reason ("Revenue growth slowed to 71%, from 114%."), for the card's hover; null without one. */
+  why: string | null;
 };
 
 export type ThesisCardStatus = "holds" | "strain" | "broken" | "waiting";
@@ -313,18 +315,19 @@ export function replayCard(name: string, slug: string, replay: ReplayLike): Repl
     .map((proposal) => ({ op: proposal.op, ticker: proposal.ticker }));
   // A replay, said as one: what it would have said, never as today's advice.
   let line: string;
+  const reason = replay.proposals[0]?.line.trim() ?? "";
+  const why = reason ? `${capital(reason.replace(/\.$/, ""))}.` : null;
   if (changes.length === 0) line = `No change proposed in ${days.filter((run) => run.decision !== "could_not_check").length} market days.`;
   else {
     const said = changes
       .slice(0, 3)
       .map((change) => `${change.op} ${change.ticker}`)
       .join(", ");
-    const why = replay.proposals[0]?.line.trim() ?? "";
-    const both = why ? `Would have said: ${said}. ${capital(why.replace(/\.$/, ""))}.` : `Would have said: ${said}.`;
-    line = fits(both) ? both : `Would have said: ${said}.`;
+    // One line (owner rule 8, judge 91): what it would have said. The first change's reason is the card's hover.
+    line = `Would have said: ${said}.`;
   }
   const checked = days.filter((run) => run.decision !== "could_not_check").length;
-  return { kind: "replay", name, slug, from: days[0]!.day, to: days[days.length - 1]!.day, marks, checked, changeDays: marks.filter(Boolean).length, changes, line };
+  return { kind: "replay", name, slug, from: days[0]!.day, to: days[days.length - 1]!.day, marks, checked, changeDays: marks.filter(Boolean).length, changes, line, why };
 }
 
 /* ── the thesis ─────────────────────────────────────────────────────────── */

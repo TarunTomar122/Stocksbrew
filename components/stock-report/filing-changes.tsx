@@ -2,8 +2,8 @@ import { absoluteDay, etToday } from "@/lib/day-words";
 import { topicOptions } from "@/lib/filing-changes/lines";
 import { getFilingChangesView } from "@/lib/filing-changes/server";
 import type { FilingChangesView } from "@/lib/filing-changes/store";
-import { topicChips, type TopicChip, type TopicIcon } from "@/lib/filing-changes/topics";
-import { changesTitle, filingWords, quietNote } from "@/lib/filing-changes/words";
+import { topicChips, topicOf, type TopicChip, type TopicIcon, type TopicOptions } from "@/lib/filing-changes/topics";
+import { changesTitle, filingWords, quietNote, quote } from "@/lib/filing-changes/words";
 
 import { NUM, Panel } from "./primitives";
 
@@ -12,10 +12,59 @@ import { NUM, Panel } from "./primitives";
  * much text"): one header line with the filing link and the counts, then each risk as a topic chip of one to three
  * words with its icon (lib/filing-changes/topics.ts, plain rules), new ones in the plain tone and dropped ones dimmed
  * and struck. Serious topics (a material weakness, going concern, delisting, a restatement, a government
- * investigation) lead in the warning tone. A chip opens the filing and carries the heading as filed in its title; the
- * sentences themselves sit behind one quiet "Read them" toggle. No section when there is no readable comparison with
+ * investigation) lead in the warning tone. A chip opens the filing and carries the heading as filed in its title.
+ * Under the chips, the material changes are said directly as short lines (owner rule 2: no toggle hiding the useful
+ * sentence): the new risks, serious first, each cut to a whole clause; only the long tail (more of them, the dropped
+ * ones, rewordings) waits behind one quiet "Read N more" toggle. No section when there is no readable comparison with
  * a change. Server only; it loads its own data, so it can sit in a Suspense boundary of its own.
  */
+
+/** How many changes are said directly under the chips; the rest wait behind the toggle. */
+const DIRECT_LINES = 3;
+
+type DirectLine = { heading: string; text: string; icon: TopicIcon; serious: boolean };
+
+/**
+ * The changes said directly: the new risks (and those still new since the 10-K), serious ones first, as short lines
+ * (a whole clause within the card budget, lib/filing-changes/words.ts quote). Only new risks: a dropped one is history,
+ * its chip says enough, and its words wait in the toggle. A heading with no clause short enough stays there too, whole.
+ */
+export function directLines(input: { added: readonly string[]; repeated: readonly string[] }, options: TopicOptions): DirectLine[] {
+  return [...input.added, ...input.repeated]
+    .map((heading, index) => {
+      const topic = topicOf(heading, options);
+      const said = quote(heading);
+      return said.fits ? { heading, text: said.text, icon: topic.icon, serious: topic.serious, index } : null;
+    })
+    .filter((line): line is DirectLine & { index: number } => line !== null)
+    .sort((a, b) => Number(b.serious) - Number(a.serious) || a.index - b.index)
+    .slice(0, DIRECT_LINES)
+    .map(({ index: _index, ...line }) => line);
+}
+
+function DirectList({ lines, href }: { lines: DirectLine[]; href: string }) {
+  if (lines.length === 0) return null;
+  return (
+    <ul aria-label="New risks in its words" className="flex flex-col gap-1.5 border-t border-oa-border pt-3">
+      {lines.map((line) => (
+        <li key={line.heading} className="flex min-w-0 items-start gap-2">
+          <span className={`mt-[3px] ${line.serious ? "text-signal-bearish" : "text-oa-muted-fg"}`}>
+            <Icon name={line.icon} />
+          </span>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={line.heading}
+            className={`min-w-0 text-pretty rounded text-[14px] leading-5 text-oa-fg hover:underline ${FOCUS}`}
+          >
+            {line.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export async function FilingChanges({ ticker }: { ticker: string }) {
   let view: FilingChangesView | null = null;
@@ -123,14 +172,18 @@ function ChipGroup({ label, chips, href, dropped }: { label: string; chips: Topi
   );
 }
 
-/** The sentences as filed, behind one quiet toggle (owner rule 2 allows one, as with "Your words" on the reason card). */
+/**
+ * The long tail as filed, behind one quiet toggle (owner rule 2 allows one, as with "Your words" on the reason card):
+ * everything not already said directly above it.
+ */
 function ReadThem({ groups }: { groups: Array<{ label: string; lines: Array<{ text: string; was?: string }>; muted?: boolean }> }) {
   const shown = groups.filter((group) => group.lines.length > 0);
   if (shown.length === 0) return null;
+  const count = shown.reduce((sum, group) => sum + group.lines.length, 0);
   return (
     <details className="group border-t border-oa-border px-3.5 py-2.5 sm:px-4">
       <summary className={`inline-flex cursor-pointer list-none items-center gap-1 rounded text-[13px] leading-5 text-oa-muted-fg hover:text-oa-fg [&::-webkit-details-marker]:hidden ${FOCUS}`}>
-        Read them
+        {`Read ${count} more`}
         <svg aria-hidden viewBox="0 0 12 12" className="h-3 w-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M3 4.5 6 7.5 9 4.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -166,6 +219,9 @@ export function FilingChangesPanel({ view, today }: { view: FilingChangesView; t
   const dropped = topicChips(shown.dropped, options);
   const reworded = onlyReworded ? topicChips(shown.reworded.map((pair) => pair.to), options) : [];
   const quietText = quiet ? quietNote(quiet, today) : null;
+  const direct = directLines({ added: shown.added, repeated }, options);
+  const said = new Set(direct.map((line) => line.heading));
+  const rest = (headings: readonly string[]) => headings.filter((heading) => !said.has(heading)).map((text) => ({ text }));
   const counts = [
     shown.added.length ? { icon: "plus" as const, figure: `+${shown.added.length}`, words: "new" } : null,
     repeated.length ? { icon: "plus" as const, figure: String(repeated.length), words: "from an earlier 10-Q" } : null,
@@ -209,13 +265,14 @@ export function FilingChangesPanel({ view, today }: { view: FilingChangesView; t
         <ChipGroup label="Still new" chips={still} href={filing.url} />
         <ChipGroup label="Dropped" chips={dropped} href={base?.url ?? null} dropped />
         <ChipGroup label="Reworded" chips={reworded} href={filing.url} />
+        <DirectList lines={direct} href={filing.url} />
         {quietText ? <p className="text-[13px] leading-4 text-oa-muted-fg">{quietText}</p> : null}
       </div>
       <ReadThem
         groups={[
-          { label: "New", lines: shown.added.map((text) => ({ text })) },
-          { label: "Still new since its 10-K", lines: repeated.map((text) => ({ text })) },
-          { label: "Dropped", lines: shown.dropped.map((text) => ({ text })), muted: true },
+          { label: "New", lines: rest(shown.added) },
+          { label: "Still new since its 10-K", lines: rest(repeated) },
+          { label: "Dropped", lines: rest(shown.dropped), muted: true },
           { label: "Reworded", lines: onlyReworded ? shown.reworded.map((pair) => ({ text: pair.to, was: pair.from })) : [] },
         ]}
       />

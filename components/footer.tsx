@@ -16,7 +16,9 @@ const PILL_CTA =
 
 type Column = {
   title: string;
-  links: { label: string; href: string; external?: boolean }[];
+  /** On a phone the tab bar and its menus already map the product: only the company line shows, in one line. */
+  phone?: boolean;
+  links: { label: string; href: string; external?: boolean; phone?: boolean }[];
 };
 
 /** The product map, as links, by the same names as the sidebar. Keep in step with components/oa/nav-items.ts. */
@@ -58,11 +60,12 @@ const COLUMNS: Column[] = [
   },
   {
     title: "Company",
+    phone: true,
     links: [
       { label: "Pricing", href: "/pricing" },
       { label: "Docs", href: "/docs" },
-      { label: "Developers", href: "/developers" },
-      { label: "Security", href: "/security" },
+      { label: "Developers", href: "/developers", phone: false },
+      { label: "Security", href: "/security", phone: false },
       { label: "About", href: "/about" },
       { label: "Blog", href: "/blog" },
       { label: "Contact", href: "mailto:tomartarun2001@gmail.com", external: true },
@@ -84,9 +87,9 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
   const year = new Date().getFullYear();
   return (
     <footer className={`oa-app ${interTight.variable} border-t border-oa-border text-oa-fg`}>
-      <div className={`${FRAME} pb-10 pt-10`}>
+      <div className={`${FRAME} pb-6 pt-6 lg:pb-8 lg:pt-7`}>
         {!isSubscribed && (
-          <div className="oa-footer-sell oa-surface mb-10 flex flex-col gap-5 border border-oa-border bg-oa-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="oa-footer-sell oa-surface mb-7 flex flex-col gap-5 border border-oa-border bg-oa-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
             <div className="max-w-xl">
               <h2 className="text-balance text-[24px] font-medium leading-tight tracking-tight text-oa-fg sm:text-[28px]">
                 Let the agent do the reading.
@@ -102,41 +105,46 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
-          <div className="col-span-2 flex flex-col gap-3">
+        {/* Compact (judge 91: the footer dominated short pages, most of all on a phone): the brand and the appearance
+            toggle on one side, the map as one line per group. On a phone the tab bar maps the product, so the footer
+            keeps one line of company links. */}
+        <div className="flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-start lg:gap-10">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 lg:w-[16rem] lg:shrink-0 lg:flex-col lg:items-start lg:gap-2">
             <IntentLink href="/" className="w-fit text-oa-fg">
-              <StocksbrewLogo markSize={22} wordmarkClassName="text-[17px] font-medium tracking-tight" />
+              <StocksbrewLogo markSize={20} wordmarkClassName="text-[16px] font-medium tracking-tight" />
             </IntentLink>
-            <p className="max-w-[300px] text-[14px] leading-6 text-oa-muted-fg">{SHORT_DESCRIPTION}</p>
-            <div className="mt-1 flex w-fit items-center gap-3">
+            <p className="hidden max-w-[260px] text-[13px] leading-5 text-oa-muted-fg lg:block">{SHORT_DESCRIPTION}</p>
+            <div className="flex w-fit items-center gap-2.5 lg:mt-1">
               <span className="oa-caption">Appearance</span>
               <ThemeToggle />
             </div>
           </div>
 
-          {COLUMNS.map((col) => (
-            <nav key={col.title} aria-label={col.title} className="flex flex-col gap-2.5">
-              <h3 className="oa-caption">{col.title}</h3>
-              <ul className="flex flex-col gap-1.5">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    {link.external ? (
-                      <a href={link.href} className="text-[14px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
-                        {link.label}
-                      </a>
-                    ) : (
-                      <IntentLink href={link.href} className="text-[14px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
-                        {link.label}
-                      </IntentLink>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5 sm:gap-2">
+            {COLUMNS.map((col) => (
+              <nav key={col.title} aria-label={col.title} className={`min-w-0 flex-col gap-0.5 sm:flex sm:flex-row sm:items-baseline sm:gap-4 ${col.phone ? "flex" : "hidden"}`}>
+                <h3 className="oa-caption hidden shrink-0 sm:block sm:w-[4.5rem]">{col.title}</h3>
+                <ul className="flex min-w-0 flex-wrap gap-x-3.5 gap-y-0.5">
+                  {col.links.map((link) => (
+                    <li key={link.label} className={link.phone === false ? "hidden sm:list-item" : undefined}>
+                      {link.external ? (
+                        <a href={link.href} className="text-[13.5px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
+                          {link.label}
+                        </a>
+                      ) : (
+                        <IntentLink href={link.href} className="text-[13.5px] leading-6 text-oa-muted-fg transition-colors hover:text-oa-fg">
+                          {link.label}
+                        </IntentLink>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-oa-border pt-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mt-5 flex flex-col gap-1.5 border-t border-oa-border pt-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           {/* The year is worked out on the server (UTC) and again in the browser (local time); for a few hours around
               New Year they differ, and the server's is fine to keep. */}
           <p suppressHydrationWarning className="oa-mono text-[11.5px] leading-5 text-oa-muted-fg">

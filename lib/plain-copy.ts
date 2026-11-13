@@ -775,6 +775,7 @@ export function companyFirstMove(reason: string | null | undefined, pct: number 
 const MIXED_COMMON = new Set(
   (
     "board boards oust ousts ousted employee employees staff misconduct investigation investigations allegation allegations " +
+    "steady steadies steadied mixed muted subdued firmer erase erases erased wipe wipes wiped shake shakes logs logged catch catches up " +
     "affair affairs scandal resignation removal remove removes removed replace replaces replaced fire fires fired fraud " +
     "spying sue sues sued like likes unlike bargain bargains cheap cheaper pricey expensive fair holders holder owners owner " +
     "feel feels felt think thinks thought tell tells told put puts let lets lose loses lost won win never ever always often " +
@@ -872,6 +873,9 @@ function placeholderIndex(code: string): number {
   return index - 1;
 }
 
+/** Names made of two ordinary words joined by a hyphen, which keep their capitals. */
+const HYPHEN_NAMES = new Set(["take-two", "rolls-royce", "coca-cola", "mercedes-benz", "hewlett-packard", "t-mobile", "e-mini"]);
+
 /** `mixedCase` without its Title Case gate: lowers the stray common words of any text. */
 function lowerStrays(value: string, companyName: string): string {
   const own = new Set<string>();
@@ -899,15 +903,34 @@ function lowerStrays(value: string, companyName: string): string {
     if (prev && titled(word) && FIRST_NAMES.has(bareOf(prev.word)) && /^[A-Z]/.test(prev.word) && /^\s+$/.test(value.slice(prev.offset + prev.word.length, offset))) return "keep";
     const gapBefore = prev ? value.slice(prev.offset + prev.word.length, offset) : value.slice(0, offset);
     const gapAfter = next ? value.slice(end, next.offset) : "";
+    // A hyphenated pair of ordinary words ("Shake-Up", "Post-Earnings") is no name, unlike "Coca-Cola" or "Rolls-Royce".
+    const pairedWith = gapBefore === "-" ? prev : gapAfter === "-" ? next : undefined;
+    const pair = pairedWith ? (gapBefore === "-" ? `${bareOf(pairedWith.word)}-${bare}` : `${bare}-${bareOf(pairedWith.word)}`) : "";
+    // Both halves are decided together: beside a word that may be a name ("Starbucks Shake-Up"), the pair keeps both
+    // capitals, so it never reads "Shake-up".
+    const first = gapBefore === "-" ? index - 1 : index;
+    const outerPrev = tokens[first - 1];
+    const outerNext = tokens[first + 2];
+    const spaced = (a: { word: string; offset: number } | undefined, b: { word: string; offset: number } | undefined) =>
+      Boolean(a && b) && /^\s+$/.test(value.slice(a!.offset + a!.word.length, b!.offset));
+    const besideName = (spaced(outerPrev, tokens[first]) && unknown(outerPrev?.word)) || (spaced(tokens[first + 1], outerNext) && unknown(outerNext?.word));
+    const ordinaryPair =
+      Boolean(pairedWith) &&
+      !besideName &&
+      !HYPHEN_NAMES.has(pair) &&
+      listed(bare) &&
+      listed(bareOf(pairedWith!.word)) &&
+      !named(bare, word) &&
+      !named(bareOf(pairedWith!.word), pairedWith!.word);
     const keep =
       index === 0 ||
       !titled(word) ||
       /[:.!?(“"‘'—–]\s*$/.test(gapBefore) ||
-      /(?:^|\s)-{1,2}\s*$/.test(gapBefore) ||
+      // A spaced dash (" - ") starts a clause; a hyphen inside a word ("Shake-Up") does not.
+      (gapBefore !== "-" && /(?:^|\s)-{1,2}\s*$/.test(gapBefore)) ||
       /\d$/.test(value.slice(0, offset)) ||
       /^\d/.test(value.slice(end)) ||
-      gapBefore === "-" ||
-      gapAfter === "-" ||
+      ((gapBefore === "-" || gapAfter === "-") && !ordinaryPair) ||
       named(bare, word) ||
       MIXED_NAME_RISK.has(bare);
     if (keep) return "keep";

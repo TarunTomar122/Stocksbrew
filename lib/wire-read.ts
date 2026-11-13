@@ -14,6 +14,7 @@
 
 import { balancePct, pickInsights, sharePct, type Insight, type InsightTone, type TheRead } from "@/lib/insights";
 import { better, isForeignLanguage, labelFor, namesPastYear, plainStory, storyRelevance, storyWeight, titleKey } from "@/lib/wire-companies";
+import { newsHeadline } from "@/lib/headline-short";
 import { headlineCase, shortCompanyName } from "@/lib/plain-copy";
 import { themeKey, wireHref, WIRE_PAGE_SIZE, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -426,7 +427,7 @@ function rose(pct: number): string {
 /** The lead headline as a person would write it, quoted, for "the top story" lines. */
 function topStory(row: StockBuzz, lead = "The top story"): string | null {
   if (!row.lead) return null;
-  const title = headlineCase(row.lead.title, row.name ?? "").replace(/[.!]+$/, "");
+  const title = newsHeadline(row.lead.title, { companyName: row.name ?? "" }).replace(/[.!]+$/, "");
   return title ? `${lead}: “${title}”.` : null;
 }
 

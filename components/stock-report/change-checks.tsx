@@ -11,8 +11,8 @@ import { TONE_COLOR } from "./primitives";
  * "What would change it" as grouped condition cards (owner, Nov 12: the bullet lists were "weird and totally breaks").
  * One group per call it could move to ("Could move to Buy more"), inside it one sub-group per event with its icon and
  * the shared line said once ("Next report · Tuesday", "Compared with the S&P 500"), then one figure-led card per
- * condition: the threshold large, what it is under it. A group of more than one check reads "Any one could move it to
- * Sell some", since its checks are alternatives. The cards are built from the checks' structured fields
+ * condition: the threshold large, what it is under it. A group's heading is only where it would move the call ("→ Keep"):
+ * the cards say the rest. The cards are built from the checks' structured fields
  * (lib/call-evidence.ts `conditionFigure`), never from their sentences. Every source sits behind one "Sources" action
  * for the whole section.
  *
@@ -180,9 +180,11 @@ export function ChangeChecks({ list, today, wide }: { list: ReadonlyArray<Change
             }
             className={`flex flex-col ${CAP_WHEN_WIDE}`}
           >
-            {/* Checks under one heading are alternatives: with more than one, say that any one is enough. */}
-            <h3 className="text-[14px] font-semibold leading-5 text-oa-fg">
-              {group.subs.reduce((count, sub) => count + sub.items.length, 0) > 1 ? "Any one could move it to " : "Could move it to "}
+            {/* Where the checks below would move the call, as the call word alone (judge 91: "Any one could move it to
+                Keep" restated the cards). Screen readers still hear the sentence. */}
+            <h3 className="flex items-center gap-1.5 text-[14px] font-semibold leading-5 text-oa-fg">
+              <span className="sr-only">Could move it to </span>
+              <span aria-hidden="true" className="text-oa-muted-fg">→</span>
               <span style={{ color: DESTINATION_COLOR[group.to] }}>{CALL_PLAIN[group.to]}</span>
             </h3>
             <div className="mt-1.5 flex flex-1 flex-wrap gap-[var(--cg)]">

@@ -157,9 +157,18 @@ function ResultView({ run, example, quotes, today }: { run: BacktestRun; example
       <Panel
         title={`What $10,000 became, ${longDay(run.period.start)} to ${longDay(run.period.end)}`}
         aside={
-          <a href="#mix" className="text-oa-primary underline underline-offset-2 lg:hidden">
-            Change the mix
-          </a>
+          <span className="flex items-center gap-3">
+            {/* What trading cost over the test, as a label beside the result (owner rule 8: no mechanics sentence);
+                nothing when it rounds to nothing. */}
+            {run.costs.total_drag >= 0.0005 ? (
+              <span title="Trading costs over the whole test" className="oa-mono whitespace-nowrap tabular-nums text-oa-muted-fg">
+                Costs {(run.costs.total_drag * 100).toFixed(1)}%
+              </span>
+            ) : null}
+            <a href="#mix" className="text-oa-primary underline underline-offset-2 lg:hidden">
+              Change the mix
+            </a>
+          </span>
         }
       >
         <div className="px-4 py-3">
@@ -190,12 +199,6 @@ function ResultView({ run, example, quotes, today }: { run: BacktestRun; example
 
       <Panel title="What each holding did">
         <HoldingCards run={run} quotes={quotes} />
-        {/* Only what it cost the investor, not how the test traded (owner rule 8); nothing when the cost rounds to nothing. */}
-        {run.costs.total_drag >= 0.0005 ? (
-          <p className="border-t border-oa-border px-3.5 py-2 text-[12.5px] leading-5 text-oa-muted-fg">
-            Trading costs took about {(run.costs.total_drag * 100).toFixed(1)}% of the money over the whole test.
-          </p>
-        ) : null}
       </Panel>
     </div>
   );

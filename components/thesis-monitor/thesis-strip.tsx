@@ -38,7 +38,7 @@ function CompactStrip({ strip, today, className }: { strip: ThesisStripData; tod
     <Link
       href={strip.href}
       prefetch={false}
-      // One line from lg: the changed line's words give way (truncate) before anything wraps.
+      // One line from lg: nothing is cut; the report's day moves to the hover instead.
       className={`oa-surface flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1.5 border border-oa-border bg-oa-card px-3.5 py-2 text-[13px] leading-5 lg:flex-nowrap lg:gap-x-4 ${CARD_HOVER} ${FOCUS} ${className}`}
     >
       <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2.5 gap-y-0.5 lg:shrink-0 lg:flex-nowrap">
@@ -54,12 +54,20 @@ function CompactStrip({ strip, today, className }: { strip: ThesisStripData; tod
         </span>
       </span>
       {line ? (
-        <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 lg:flex-1 lg:flex-nowrap" title={[line.source, capitalize(dayWords(line.day, today))].filter(Boolean).join(", ")}>
+        <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 lg:flex-1 lg:flex-nowrap" title={[basisWords(line, today), line.source].filter(Boolean).join(" · ")}>
           <StockLogo ticker={line.ticker} size={18} eager />
           <span className="oa-mono shrink-0 font-semibold text-oa-fg">{line.ticker}</span>
-          <span className="min-w-0 text-oa-fg lg:truncate">{line.label}</span>
+          {/* The line's words hold the threshold ("> 35%"), so they stay whole; the report's day gives way first. */}
+          <span className="min-w-0 text-oa-fg lg:shrink-0">{line.label}</span>
+          {/* The figure against its line on one small scale (owner rule 4): fill to the figure, tick at the line. */}
+          <ConditionBar metric={line.condition.metric} now={line.now} line={line.condition.value} holds={line.status !== "broken"} ends={false} className="w-14 shrink-0" />
           <span className={`${NUM} shrink-0 font-semibold ${line.status === "broken" ? "text-signal-bearish" : "text-signal-bullish"}`}>{line.nowText}</span>
-          <span className="shrink-0 text-[12.5px] text-oa-muted-fg">{basisWords(line, today)}</span>
+          {/* Never cut: on a phone (wrapping) the report and its day; on one line from xl only the report, whole; between,
+              nothing. The day is always in the hover. */}
+          <span className="min-w-0 text-[12.5px] text-oa-muted-fg lg:hidden">{basisWords(line, today)}</span>
+          {line.report ? (
+            <span className="hidden shrink-0 whitespace-nowrap text-[12.5px] text-oa-muted-fg xl:inline">{line.quarter ? `${line.quarter} report` : "Report"}</span>
+          ) : null}
         </span>
       ) : null}
       {strip.next ? (

@@ -12,6 +12,7 @@ import {
   ReplayView,
   RunRecord,
 } from "@/components/basket-agent/parts";
+import { basketMedian } from "@/lib/basket-agent/check";
 import { shortReasons } from "@/lib/basket-agent/short-reasons";
 import { reviewedReasons } from "@/lib/basket-agent/start";
 import { SignInButton } from "@/components/briefing/sign-in-button";
@@ -158,11 +159,13 @@ export default async function BasketAgentPage({ params }: Props) {
     if (metric) counts.set(metric.label, (counts.get(metric.label) ?? 0) + 1);
   const label =
     [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-  const domain = barDomain(
-    metrics
-      .filter((metric) => metric?.label === label)
-      .map((metric) => metric!.value),
-  );
+  const shared = metrics
+    .filter((metric) => metric?.label === label)
+    .map((metric) => metric!.value);
+  // Each bar is held against the basket's middle (owner rule 5: a bar compares something); with too few companies
+  // for a middle, no bars at all.
+  const median = label ? basketMedian(label, shared) : null;
+  const domain = barDomain([...shared, median?.value ?? 0]);
   const checked = basket.lines.filter(
     (line) =>
       statuses.has(line.ticker) &&
@@ -248,9 +251,13 @@ export default async function BasketAgentPage({ params }: Props) {
                 : `${basket.lines.length} · ${KIND_WORDS[kind].toLowerCase()} reasons`}
             </span>
           </span>
-          {label ? (
-            <span className="text-[12.5px] font-normal text-oa-muted-fg">
-              Bars: {label.toLowerCase()}
+          {label && median ? (
+            <span className="flex items-center gap-1.5 text-[12.5px] font-normal text-oa-muted-fg">
+              {label}
+              <span aria-hidden="true" className="inline-block h-3 w-[2px] rounded-full bg-oa-fg" />
+              <span>
+                median <span className="oa-mono tabular-nums text-oa-fg">{median.text}</span>
+              </span>
             </span>
           ) : null}
         </h2>
@@ -279,8 +286,8 @@ export default async function BasketAgentPage({ params }: Props) {
                   className={foldClass(fold, index)}
                   title={`Your reason: ${line.reason}`}
                   bar={
-                    metric
-                      ? { value: metric.value, text: metric.text, domain }
+                    metric && median
+                      ? { value: metric.value, text: metric.text, domain, mark: median.value }
                       : null
                   }
                   href={`/stock/${encodeURIComponent(line.ticker)}`}

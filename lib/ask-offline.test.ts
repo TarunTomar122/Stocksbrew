@@ -26,6 +26,10 @@ describe("planOffline", () => {
     expect(planOffline("How would an equal mix of AAPL, MSFT and NVDA have done against the S&P 500 since 2019?")).toEqual([
       { tool: "run_backtest", input: { holdings: [{ ticker: "AAPL" }, { ticker: "MSFT" }, { ticker: "NVDA" }], start: "2019-01-01", benchmark: "SPY" } },
     ]);
+    // The suggestion as Ask shows it (judge 91: one line, at most ten words).
+    expect(planOffline("Backtest AAPL, MSFT and NVDA vs the S&P")).toEqual([
+      { tool: "run_backtest", input: { holdings: [{ ticker: "AAPL" }, { ticker: "MSFT" }, { ticker: "NVDA" }], benchmark: "SPY" } },
+    ]);
     expect(planOffline("Build me a basket of companies that benefit from power grid spending.")).toEqual([
       { tool: "build_basket", input: { thesis: "companies that benefit from power grid spending" } },
     ]);

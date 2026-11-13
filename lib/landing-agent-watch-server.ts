@@ -97,7 +97,7 @@ const loadReplay = sharedCache(
     if (card && card.checked * 2 < card.marks.length) throw new Error(`replay checked ${card.checked} of ${card.marks.length} days`);
     return card;
   },
-  ["landing-agent-watch-replay-v3"],
+  ["landing-agent-watch-replay-v4"],
   { revalidate: REVALIDATE_SECONDS },
 );
 
@@ -122,10 +122,20 @@ function within<T>(work: Promise<T>, ms: number, name: string): Promise<T | unde
   });
 }
 
-/** The example's next report, from its cached portfolio (lib/portfolio-data.ts, prices and the earnings calendar). */
-async function loadEarnings(today: string): Promise<EarningsCard | null> {
+type ExampleBits = { earnings: EarningsCard | null; prices: Record<string, number> };
+
+/**
+ * From the example's cached portfolio (lib/portfolio-data.ts, prices and the earnings calendar): its next report, and
+ * each stock's current price, shown beside every single-stock card (rule 4).
+ */
+async function loadExampleBits(today: string): Promise<ExampleBits> {
   const example = await loadExamplePortfolio();
-  return example ? pickEarningsCard(example.portfolio.positions, today) : null;
+  if (!example) return { earnings: null, prices: {} };
+  const prices: Record<string, number> = {};
+  for (const position of example.portfolio.positions) {
+    if (typeof position.price === "number" && Number.isFinite(position.price) && position.price > 0) prices[position.ticker.toUpperCase()] = position.price;
+  }
+  return { earnings: pickEarningsCard(example.portfolio.positions, today), prices };
 }
 
 /** The example big-move agent's newest run that found a move, over its last few market days (its own short cache and limit). */
@@ -141,6 +151,8 @@ async function loadMove(): Promise<MoveCard | null> {
 
 export type AgentWatch = {
   today: string;
+  /** Current price by ticker, for the example's stocks; a ticker without one shows no price. */
+  prices: Record<string, number>;
   earnings: EarningsCard | null;
   move: MoveCard | null;
   filing: FilingCard | null;
@@ -152,12 +164,12 @@ export type AgentWatch = {
 /** The section's cards, each bounded on its own. */
 export async function loadAgentWatch(now: Date = new Date(), ms: number = CARD_TIMEOUT_MS): Promise<AgentWatch> {
   const today = etToday(now);
-  const [earnings, move, filing, lines, replay] = await Promise.all([
-    within(loadEarnings(today), ms, "earnings"),
+  const [bits, move, filing, lines, replay] = await Promise.all([
+    within(loadExampleBits(today), ms, "earnings"),
     within(loadMove(), ms, "move"),
     within(loadFiling(today), ms, "filing"),
     within(loadLines(today), ms, "lines"),
     within(loadReplay(today), ms, "replay"),
   ]);
-  return { today, earnings: earnings ?? null, move: move ?? null, filing: filing ?? null, line: lines?.line ?? null, replay: replay ?? null, thesis: lines?.thesis ?? null };
+  return { today, prices: bits?.prices ?? {}, earnings: bits?.earnings ?? null, move: move ?? null, filing: filing ?? null, line: lines?.line ?? null, replay: replay ?? null, thesis: lines?.thesis ?? null };
 }

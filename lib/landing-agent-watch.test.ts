@@ -130,7 +130,7 @@ describe("replayCard", () => {
       { op: "drop", ticker: "NVDA" },
       { op: "add", ticker: "MOD" },
     ]);
-    expect(card.line).toBe("Would have said: drop NVDA, add MOD. Revenue growth slowed to 71%, from 114%.");
+    expect(card.line).toBe("Would have said: drop NVDA, add MOD.");
     expect(card).toMatchObject({ from: "2026-10-16", to: "2026-10-20" });
   });
 
@@ -207,7 +207,7 @@ describe("the requests", () => {
       { kind: "earnings", ticker: "NVDA", date: "2026-11-17", time: "amc" },
       { kind: "move", ticker: "NVDA", pct: -5.47, day: "2026-11-10", headline: "NVDA fell 5.47% in a day", ranOn: "2026-11-11" },
       { kind: "filing", ticker: "NVDA", form: "10-Q", filed: "2026-08-26", url: "", op: "added", count: 1, quote: "Our debt may hurt us." },
-      { kind: "replay", name: "AI capex", slug: "ai-capex", from: "", to: "", marks: [], checked: 0, changeDays: 0, changes: [], line: "" },
+      { kind: "replay", name: "AI capex", slug: "ai-capex", from: "", to: "", marks: [], checked: 0, changeDays: 0, changes: [], line: "", why: null },
       { kind: "thesis", name: "Big tech keeps growing", status: "holds", lines: 4, holds: 4, broke: 0, companies: [], line: "" },
     ];
     for (const card of cards) expect(wordCount(askOf(card)), askOf(card)).toBeLessThanOrEqual(12);

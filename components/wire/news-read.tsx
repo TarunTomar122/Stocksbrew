@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Delta, FOCUS, NUM, Panel, fmtMoney } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { ToneColumns } from "@/components/wire/tone-columns";
-import { headlineCase } from "@/lib/plain-copy";
+import { newsHeadline } from "@/lib/headline-short";
 import { rowTone, splitByTone, toneLean, toneWord, type StockBuzz, type ToneCounts } from "@/lib/wire-read";
 import { WIRE_PAGE_SIZE, etDay, etTime, wireHref, type WireFilters, type WireItem } from "@/lib/wire-shared";
 
@@ -48,12 +48,13 @@ export function ToneBar({ counts, stories, className = "" }: { counts: ToneCount
 }
 
 /**
- * A source headline as a person would write it (owner rule 8), through the shared `headlineCase`: Scraped Title Case
- * goes to sentence case, and a mixed headline's stray capitals ("Lisa Su just Delivered Fantastic news") are lowered,
- * while names stay ("Jensen Huang", "Best Buy"). A headline already written as a sentence stays as its source wrote it.
+ * A source headline as a person would write it (owner rule 8), through the shared `newsHeadline`: no roundup prefix,
+ * site name or bracketed ticker; Scraped Title Case goes to sentence case, and a mixed headline's stray capitals
+ * ("Lisa Su just Delivered Fantastic news") are lowered, while names stay ("Jensen Huang", "Best Buy"); and at most ten
+ * words, cut only at a clause boundary (lib/headline-short.ts).
  */
 export function headlineWords(title: string, companyName = ""): string {
-  return headlineCase(title, companyName);
+  return newsHeadline(title, { companyName });
 }
 
 /**

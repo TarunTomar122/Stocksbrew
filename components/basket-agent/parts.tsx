@@ -97,7 +97,8 @@ export function CompanyCard({
   verdict?: StatusVerdict | null;
   /** Shown only when it differs from the basket's main kind. */
   kind?: ThesisKind | null;
-  bar?: { value: number; text: string; domain: [number, number] } | null;
+  /** The company's figure on the basket's shared scale, with the basket's median as a tick when there is one. */
+  bar?: { value: number; text: string; domain: [number, number]; mark?: number | null } | null;
   href?: string;
   onSelect?: () => void;
   selected?: boolean;
@@ -188,6 +189,7 @@ export function CompanyCard({
           <SignedBar
             value={bar.value}
             domain={bar.domain}
+            mark={bar.mark ?? null}
             color="var(--oa-primary)"
             className="min-w-0 flex-1"
           />

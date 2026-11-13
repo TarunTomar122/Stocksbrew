@@ -786,8 +786,8 @@ body:has(.oa-landing) .oa-market-tab {
 }
 /* Below lg a tab bar is fixed to the bottom of the screen. Every page clears
    it: the body reserves the bar's height (and the home indicator), so the
-   footer or a form button is never under it, and page frames add 72px of
-   their own (PAGE_PAD) so the last row sits well clear of the bar. */
+   footer or a form button is never under it; page frames add 40px of their
+   own (PAGE_PAD), enough to clear it without a big gap before the footer. */
 @media (max-width: 1023.98px) {
   body:has(.oa-mobile-nav) {
     padding-bottom: calc(60px + env(safe-area-inset-bottom));

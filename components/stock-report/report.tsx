@@ -395,7 +395,7 @@ export function StockReport({
   ];
 
   return (
-    <div data-phone-tab="view" className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] pt-3 sm:px-6 sm:pt-6 lg:pb-10">
+    <div data-phone-tab="view" className="mx-auto w-full max-w-[84rem] px-2 pb-10 pt-3 sm:px-6 sm:pt-6 lg:pb-8">
       <div className="grid grid-cols-1 gap-4">
         {/* ── the lead: price and call, then the chart, across the full width ── */}
         <div className="order-1 min-w-0">

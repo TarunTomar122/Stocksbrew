@@ -16,6 +16,7 @@ import type { NewsArticle } from "@/lib/news";
 import type { PowerTrade } from "@/lib/power-trades";
 import type { StockFacts, TimelineEvent } from "@/lib/stock";
 import { etDay } from "@/lib/insight-format";
+import { cleanHeadline, fitHeadline } from "@/lib/headline-short";
 import { CALL_PLAIN, headlineCase, plainAction, shortCompanyName } from "@/lib/plain-copy";
 import { isBaitTitle, plainExcerpt } from "@/lib/wire-companies";
 
@@ -150,6 +151,15 @@ export function timelineHeadline(title: string, source: string | null | undefine
   if (untagged.trim()) text = untagged.trim();
   // A funding round keeps its letter ("Series A"), which the sentence casing reads as the article "a".
   return headlineCase(text, companyName).replace(/\b(Series) ([a-h])\b(?=\s+(?:round|funding|financing|and|to|led)\b|\s*[,.;]|\s*$)/gi, (_m, word: string, letter: string) => `${word} ${letter.toUpperCase()}`);
+}
+
+/**
+ * The row's headline within the word budget (owner rule 8): no roundup prefix ("Stock market today, Nov. 12:") or
+ * bracketed ticker, and at most ten words, cut only at a clause boundary (lib/headline-short.ts). Run after the bait
+ * test, which reads the whole headline.
+ */
+export function rowHeadline(shown: string): string {
+  return fitHeadline(cleanHeadline(shown));
 }
 
 // A site's own name after a bar at the end of a headline: only known sites, so "Stock market today | Nifty 50 ends
@@ -487,8 +497,10 @@ export function buildStockTimeline(input: StockTimelineInput): {
     const cased = timelineHeadline(article.title, article.source_name, input.companyName ?? "");
     if (isDuplicate(cased, article.url, article.published_at, article.title)) continue;
     remember(cased, article.url, article.published_at, article.title);
-    const shown = sayingHeadline(cased, article.summary, ticker, input.companyName ?? "");
-    if (!shown || staleOptions(shown, article.published_at)) continue;
+    const said = sayingHeadline(cased, article.summary, ticker, input.companyName ?? "");
+    // The stale-options test reads the whole headline; only what is shown is cut.
+    if (!said || staleOptions(said, article.published_at)) continue;
+    const shown = rowHeadline(said);
     const tone = article.sentiment_label === "bullish" ? "up" : article.sentiment_label === "bearish" ? "down" : "flat";
     items.push({
       id: `news-${article.id || article.url}`,
@@ -515,8 +527,10 @@ export function buildStockTimeline(input: StockTimelineInput): {
     const cased = timelineHeadline(title, event.source_name, input.companyName ?? "");
     if (isDuplicate(cased, event.article_url, event.timestamp, title)) continue;
     remember(cased, event.article_url, event.timestamp, title);
-    const shown = sayingHeadline(cased, event.summary, ticker, input.companyName ?? "");
-    if (!shown || staleOptions(shown, event.timestamp)) continue;
+    const said = sayingHeadline(cased, event.summary, ticker, input.companyName ?? "");
+    // The stale-options test reads the whole headline; only what is shown is cut.
+    if (!said || staleOptions(said, event.timestamp)) continue;
+    const shown = rowHeadline(said);
     const label = (event.sentiment_label ?? "").toLowerCase();
     items.push({
       id: `evt-${event.event_id ?? title}`,

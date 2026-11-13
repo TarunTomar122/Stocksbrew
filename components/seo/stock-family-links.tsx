@@ -1,3 +1,4 @@
+import { cleanHeadline, fitHeadline } from "@/lib/headline-short";
 import { CardGrid, NUM, Panel, fmtDay } from "@/components/oa/kit";
 import { StockLogo } from "@/components/stock-logo";
 import { sectorSlug } from "@/lib/screener-shared";
@@ -29,11 +30,12 @@ function Links({ items }: { items: Item[] }) {
     <ul className="flex flex-col">
       {items.map((item) => (
         <li key={item.href} className="border-b border-oa-border last:border-b-0">
-          <AppLink href={item.href} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[14px] leading-5 text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
+          <AppLink href={item.href} className="flex items-start justify-between gap-3 px-4 py-2.5 text-[14px] leading-5 text-oa-fg outline-none hover:bg-oa-accent focus-visible:bg-oa-accent">
             {item.vs ? (
               <PairLabel vs={item.vs} size={18} />
             ) : (
-              <span className="min-w-0 truncate">{item.label}</span>
+              // Whole, never cut with an ellipsis (judge 91): the headline is already within ten words or kept whole.
+              <span className="min-w-0 text-pretty">{item.label}</span>
             )}
             {item.meta ? <span className={`${NUM} shrink-0 text-[12.5px] text-oa-muted-fg`}>{item.meta}</span> : null}
           </AppLink>
@@ -81,7 +83,7 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
       label: "Why it moved",
       items: recent.map((move) => ({
         href: moveHref(upper, move.day),
-        label: move.title,
+        label: fitHeadline(cleanHeadline(move.title)),
         // The day in words (owner rule 4): "Today", "Tuesday", a date only past a week. The session the move was
         // priced in, not the feed's date, which is a UTC day and runs a day ahead after 7 PM New York time.
         meta: `${capitalize(dayWords(sessionDayOf(move.priceAsOf) ?? move.day)) || fmtDay(move.day)} ${move.pct >= 0 ? "+" : "−"}${Math.abs(move.pct).toFixed(1)}%`,
@@ -93,7 +95,7 @@ export async function StockFamilyLinks({ ticker }: { ticker: string }) {
   if (!panels.length) return null;
 
   return (
-    <section aria-label={`More on ${upper}`} className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] sm:px-6 lg:pb-10">
+    <section aria-label={`More on ${upper}`} className="mx-auto w-full max-w-[84rem] px-2 pb-10 sm:px-6 lg:pb-8">
       {/* As many columns as panels, so a lone panel fills the row and two never leave a third empty (owner rule 4). */}
       {panels.length > 1 ? (
         <CardGrid cols={2}>

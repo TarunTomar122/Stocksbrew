@@ -164,7 +164,7 @@ export function FundReport({
   const both = inside.top.length > 0 && Boolean(inside.sectors);
 
   return (
-    <div className="mx-auto w-full max-w-[84rem] px-2 pb-[72px] pt-3 sm:px-6 sm:pt-6 lg:pb-10">
+    <div className="mx-auto w-full max-w-[84rem] px-2 pb-10 pt-3 sm:px-6 sm:pt-6 lg:pb-8">
       <div className="grid grid-cols-1 gap-4">
         <Panel>
           <header className="px-3.5 pb-3 pt-3 sm:px-4 sm:pt-3.5">

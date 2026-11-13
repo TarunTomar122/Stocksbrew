@@ -214,6 +214,25 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-13 ~16:30 ET: treemaps by move, biggest things first, real-user speed, the landing loop (live)
+- bceabf35 treemaps: area = move^0.75, floor 0.1, maps grow a little before small moves flatten. Owner's book at 992:
+  SMR 14.6 → 19.5% of the map, MSFT 8.2 → 2.9%. Sector tiles on /explore show the day's top movers as logo chips.
+  Council APPROVE (UI 8, UX 8, usability 8, wording 9); QA's 3 mediums fixed. Open: phones still flatten the smallest
+  sectors; the screener's desktop market map stays on sqrt.
+- a3121de6 biggest things first (owner: "I don't want the practice account thingy… just the biggest things"): /agent
+  and /briefing open on up to 4 ranked events (size × kind × normal-day factor × 1.25 if held); practice tickets no
+  longer generated or shown; expired lines gone from the record; shown stocks drop out of the sections below. Council
+  BLOCK x4, last on the 3-event layout only (owner has 4 today); QA's 2 bugs fixed. Open: SMCI in both Biggest things
+  and Needs you; done/dismissed practice tickets age out over 14 days.
+- 43de8674 real-user speed: TTFB/FCP/LCP/CLS/INP per route, device, network, cache; ≤2 writes a minute; Speed tab on
+  /admin/analytics; VCL loaded on the VPS (Server-Timing cache;desc=hit arrives through Cloudflare); @vercel/analytics
+  removed (124 404s a day for its script). Council APPROVE 9/10. Caddy baseline: /briefing p75 1.9 s, /news 1.05 s.
+- 884124ac landing loop: "One request, followed all the way through." (asked → watched → found → decided → what
+  happened next) from the example portfolio's stored runs, case picked by a fixed rule that never reads a return
+  (lib/agent-loop.ts pickLoopCase). Today: NVDA −5.47% Tuesday, 2 of 5 days in, NVDA −1.6% vs S&P +1.0%. Codex BLOCK
+  x4 on provenance, each fixed; Cursor APPROVE after. Cold read cost unchanged (5.72 MB).
+- 4567/4567 tests both ways, varnish tests 7/7, deployed, 6 pages 200 in ~0.5 s, no journal errors.
+
 ### 2026-11-13 ~15:00 ET: heavy reads round 2 live (024e4d81)
 - Price tails (tm_price_tail, last 640 closes, hash-checked against the live history, written with each history),
   the pipeline news doc read to two fields or skipped by its write stamp, call history masked, verified anomaly copies
