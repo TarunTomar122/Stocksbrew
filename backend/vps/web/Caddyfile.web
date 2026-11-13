@@ -11,7 +11,17 @@ stocksbrew.online, www.stocksbrew.online {
 			roll_size 50MiB
 			roll_keep 10
 		}
-		format json
+		# No full visitor IPs at rest (the analytics promise): keep only the network part, and drop cookies and auth.
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask 16 32
+				request>client_ip ip_mask 16 32
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>X-Forwarded-For delete
+			}
+		}
 	}
 	encode zstd gzip
 	# Next's build assets are content-hashed, so browsers can keep them for a year.
