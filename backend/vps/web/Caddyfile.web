@@ -4,6 +4,15 @@ stocksbrew.online, www.stocksbrew.online {
 	# The app's own address is www (NEXT_PUBLIC_APP_URL): the bare domain sends people there.
 	@apex host stocksbrew.online
 	redir @apex https://www.stocksbrew.online{uri} permanent
+	# Every request with its status and duration (JSON), for tracing slow or failed pages:
+	#   sudo tail -f /var/log/caddy/stocksbrew.log | jq -c 'select(.status>=500 or .duration>3)'
+	log {
+		output file /var/log/caddy/stocksbrew.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+		format json
+	}
 	encode zstd gzip
 	# Next's build assets are content-hashed, so browsers can keep them for a year.
 	@static path /_next/static/*
