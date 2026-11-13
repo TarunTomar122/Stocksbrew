@@ -36,9 +36,42 @@ for candidate in ".venv/bin/python" "/opt/tikrr/.venv/bin/python"; do
   fi
 done
 
+# After the group, the web app refreshes the cached pages its data shows up on (best effort, never fails the
+# group): backend/scripts/trigger_web_revalidate.py, same token file as run-dispatch.sh.
+WEB_REVALIDATE_TOKEN_FILE="${WEB_REVALIDATE_TOKEN_FILE:-/etc/tikrr/web-revalidate-token}"
+if [[ -z "${WEB_REVALIDATE_TOKEN:-}" && -r "${WEB_REVALIDATE_TOKEN_FILE}" ]]; then
+  WEB_REVALIDATE_TOKEN="$(tr -d '\r\n' < "${WEB_REVALIDATE_TOKEN_FILE}")"
+  export WEB_REVALIDATE_TOKEN
+fi
+if [[ -n "${WEB_REVALIDATE_TOKEN:-}" ]]; then
+  # Straight to Varnish on this box, not out through Cloudflare and back (the route fans out to both instances).
+  export WEB_REVALIDATE_BASE_URL="${WEB_REVALIDATE_BASE_URL:-http://127.0.0.1:6081}"
+fi
+case "${GROUP}" in
+  # Every 30 minutes (news feed, tone, markets).
+  frequent) REVALIDATE_KINDS="news"; REVALIDATE_MIN_INTERVAL=0 ;;
+  hourly) REVALIDATE_KINDS="filings,calendar"; REVALIDATE_MIN_INTERVAL=0 ;;
+  after_close) REVALIDATE_KINDS="prices,earnings,filings"; REVALIDATE_MIN_INTERVAL=0 ;;
+  weekly) REVALIDATE_KINDS="filings"; REVALIDATE_MIN_INTERVAL=0 ;;
+  earnings_day) REVALIDATE_KINDS="earnings"; REVALIDATE_MIN_INTERVAL=0 ;;
+  # Every 10 minutes from 06:00 to 20:00 ET: every stock page at most every 30.
+  extended_hours) REVALIDATE_KINDS="prices"; REVALIDATE_MIN_INTERVAL=1800 ;;
+  *) REVALIDATE_KINDS="" ;;
+esac
+run_group() {
+  local status=0
+  "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}" || status=$?
+  # The group is done: let the next one have the machine-wide lock while the pages refresh.
+  exec 9<&-
+  if [[ -n "${REVALIDATE_KINDS}" ]]; then
+    "${PYTHON_BIN}" -m backend.scripts.trigger_web_revalidate --kinds "${REVALIDATE_KINDS}" --min-interval "${REVALIDATE_MIN_INTERVAL}" || true
+  fi
+  return "${status}"
+}
+
 LOCK_FILE="${TIKRR_AGENTDATA_LOCK:-/tmp/tikrr-agentdata.lock}"
 if command -v flock >/dev/null 2>&1; then
-  # Hold the lock on fd 9, which the exec'd runner keeps until it exits. Say when the group had
+  # Hold the lock on fd 9, which this shell keeps until it exits. Say when the group had
   # to queue and for how long, so the journal shows lock waits apart from slow steps.
   # A read descriptor is enough for flock, and works even when another user owns the file.
   [[ -e "${LOCK_FILE}" ]] || : >>"${LOCK_FILE}"
@@ -52,6 +85,8 @@ if command -v flock >/dev/null 2>&1; then
     fi
     echo "[${GROUP}] started after waiting $(( $(date +%s) - WAIT_STARTED ))s for the lock"
   fi
-  exec "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}"
+  # fd 9 (the lock) stays open in this shell until it exits.
+  run_group
+  exit $?
 fi
-exec "${PYTHON_BIN}" -m backend.agentdata.schedule --group "${GROUP}"
+run_group

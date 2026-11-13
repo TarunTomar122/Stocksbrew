@@ -1,0 +1,37 @@
+varnishtest "max-age, stale-while-revalidate and stale-if-error from Surrogate-Control"
+
+server s1 {
+	rxreq
+	txresp -hdr "Surrogate-Control: max-age=1, stale-while-revalidate=2, stale-if-error=60" -body "v1"
+	# Background refresh within stale-while-revalidate.
+	rxreq
+	txresp -hdr "Surrogate-Control: max-age=1, stale-while-revalidate=2, stale-if-error=60" -body "v2"
+	# Past stale-while-revalidate: a foreground refresh, which fails.
+	rxreq
+	txresp -status 500 -body "boom"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/stock/AAPL"
+	rxresp
+	expect resp.body == "v1"
+	delay 1.5
+	# Stale, served at once; v2 is fetched behind it.
+	txreq -url "/stock/AAPL"
+	rxresp
+	expect resp.body == "v1"
+	expect resp.http.X-Cache == "HIT"
+	delay 0.5
+	txreq -url "/stock/AAPL"
+	rxresp
+	expect resp.body == "v2"
+	# v2 is past max-age + stale-while-revalidate (1 + 2 s): fetched first, the app fails, the old copy is served.
+	delay 3.5
+	txreq -url "/stock/AAPL"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "v2"
+	expect resp.http.X-Cache == "STALE-IF-ERROR"
+} -run

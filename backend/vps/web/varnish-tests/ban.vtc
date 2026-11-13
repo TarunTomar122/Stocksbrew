@@ -1,0 +1,59 @@
+varnishtest "BAN drops the matching pages, and only processes on the box may send one"
+
+server s1 {
+	rxreq
+	expect req.url == "/stock/NVDA"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "nvda v1"
+	rxreq
+	expect req.url == "/news"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "news v1"
+	# After the ban, only /stock/NVDA comes back to the app.
+	rxreq
+	expect req.url == "/stock/NVDA"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "nvda v2"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/stock/NVDA"
+	rxresp
+	txreq -url "/news"
+	rxresp
+
+	# Through Caddy (a forwarded request): refused.
+	txreq -req BAN -url "/" -hdr "X-Ban-Url: ^/" -hdr "X-Forwarded-For: 203.0.113.9"
+	rxresp
+	expect resp.status == 405
+	txreq -req BAN -url "/" -hdr "X-Ban-Url: ^/" -hdr "X-Forwarded-Proto: https"
+	rxresp
+	expect resp.status == 405
+	txreq -req PURGE -url "/" -hdr "X-Ban-Url: ^/" -hdr "X-Forwarded-For: 203.0.113.9"
+	rxresp
+	expect resp.status == 405
+	# Nothing that could break out of the ban expression.
+	txreq -req BAN -url "/" -hdr {X-Ban-Url: ^/ && obj.status ~ .}
+	rxresp
+	expect resp.status == 400
+	txreq -req BAN -url "/"
+	rxresp
+	expect resp.status == 400
+
+	# Still cached after the refused bans.
+	txreq -url "/news"
+	rxresp
+	expect resp.http.X-Cache == "HIT"
+
+	# From the box (the revalidate route): the stock page goes, /news stays.
+	txreq -req BAN -url "/" -hdr "X-Ban-Url: ^(?:(?:/stock/NVDA)(?:[?]|$))"
+	rxresp
+	expect resp.status == 200
+	txreq -url "/stock/NVDA"
+	rxresp
+	expect resp.body == "nvda v2"
+	expect resp.http.X-Cache == "MISS"
+	txreq -url "/news"
+	rxresp
+	expect resp.body == "news v1"
+	expect resp.http.X-Cache == "HIT"
+} -run

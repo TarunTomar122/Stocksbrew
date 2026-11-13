@@ -27,6 +27,7 @@ from backend.price_pipeline_contract import (
 )
 from backend.scripts.materialize_views import materialize_views
 from backend.scripts.run_priority_price_pipeline import _rank_instruments
+from backend.scripts.trigger_web_revalidate import revalidate_after_write
 from backend.search_heat import rank_search_heat_rows
 from backend.storage import TraceMoneyStore
 from backend.subscription_entitlement import has_current_pro_entitlement
@@ -34,6 +35,41 @@ from backend.subscription_entitlement import has_current_pro_entitlement
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
 from backend.cloudrun.orchestrator.run_api import RunJobsClient
 from backend.cloudrun.orchestrator.state import PipelineStateStore, ShardRef
+
+
+# Which kinds of web data each lane writes (lib/revalidate-targets.ts maps a kind to its pages), and the least
+# time between two refreshes of the same kinds. After a lane has run, the web app refreshes those cached pages
+# once (backend/scripts/trigger_web_revalidate.py, best effort): the next visitor gets the new data instead of a
+# copy that waits out its cache time. A lane that is not listed writes nothing a public page shows.
+LANE_REVALIDATE_KINDS: dict[str, tuple[tuple[str, ...], int]] = {
+    "price_core_open": (("prices",), 0),
+    "price_core_intraday": (("prices",), 0),
+    "daily_postclose": (("prices", "briefs"), 0),
+    "tracked_open_briefs": (("briefs",), 0),
+    "tracked_news_prep": (("news",), 0),
+    "open_anomalies": (("briefs",), 0),
+    "contrarian_calls": (("briefs",), 0),
+    # Every 5 minutes: /news and the briefing at most every 10.
+    "on_demand_news": (("news",), 600),
+    "earnings_intel": (("earnings",), 0),
+    "pre_earnings_intel": (("earnings",), 0),
+    "radar_official_sources": (("filings",), 0),
+    "reddit_buzz": (("signals",), 0),
+    "trump_logic": (("signals",), 0),
+    "market_events": (("calendar",), 0),
+    "research_themes": (("themes",), 0),
+}
+
+
+def revalidate_web_after_lane(lane: str, status: str) -> bool:
+    """Refresh the web pages a finished lane's writes show up on. A failed lane may have written part of its
+    data (a price run with one failed shard), so it refreshes too; a dispatched one has not run yet."""
+
+    targets = LANE_REVALIDATE_KINDS.get(lane)
+    if not targets or status == "dispatched":
+        return False
+    kinds, min_interval = targets
+    return revalidate_after_write(kinds, min_interval_seconds=min_interval)
 
 
 def _utc_run_id(lane: str, market: str) -> str:
@@ -1184,6 +1220,7 @@ def main() -> None:
                     },
                 )
         state.mark_run_finished(run_id=run_id, status=status, summary=summary)
+        revalidate_web_after_lane(args.lane, status)
     print(summary)
     if status not in {"success", "dispatched"}:
         raise SystemExit(1)

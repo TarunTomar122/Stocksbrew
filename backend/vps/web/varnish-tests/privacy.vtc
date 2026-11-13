@@ -1,0 +1,169 @@
+varnishtest "Signed-out pages are kept; nothing with a session, a non-analytics cookie or a Set-Cookie ever is"
+
+# One mock app. Requests arrive in this order; a request the cache answers never reaches it, which is what the
+# "expect" lines on the order below prove.
+server s1 {
+	# 1. Signed-out /news with analytics cookies: fetched without any cookie, Accept collapsed to text/html.
+	rxreq
+	expect req.url == "/news"
+	expect req.http.Cookie == <undef>
+	expect req.http.Accept == "text/html"
+	txresp -hdr "Content-Type: text/html; charset=utf-8" -hdr "Cache-Control: s-maxage=60, stale-while-revalidate" -hdr "Surrogate-Control: max-age=300, stale-while-revalidate=900, stale-if-error=86400" -body "signed-out news"
+
+	# 2. A session cookie: passed with the cookie. The app (wrongly) marks it cacheable; it must still not be kept.
+	rxreq
+	expect req.url == "/news"
+	expect req.http.Cookie == "_ga=GA1.1.1; tikrr_session=abc"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "news for abc"
+
+	# 3. An empty session cookie still counts as signed in.
+	rxreq
+	expect req.http.Cookie == "tikrr_session="
+	txresp -body "news, stale session"
+
+	# 4. A cookie that is not analytics (the admin cookie): passed, cookie intact.
+	rxreq
+	expect req.http.Cookie == "sb_admin=x; _ga=1"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "admin news"
+
+	# 5. Authorization: passed.
+	rxreq
+	expect req.http.Authorization == "Bearer t"
+	txresp -body "api caller news"
+
+	# 6. Client-router (RSC) fetch: passed.
+	rxreq
+	expect req.http.RSC == "1"
+	txresp -body "rsc payload"
+
+	# 7. Markdown for an agent: passed (the page itself is not stored as HTML).
+	rxreq
+	expect req.http.Accept == "text/markdown"
+	txresp -body "# news"
+
+	# 8. A signed-out response that sets a cookie: never kept (9 comes to the app again).
+	rxreq
+	expect req.url == "/signals"
+	txresp -hdr "Set-Cookie: x=1" -hdr "Surrogate-Control: max-age=300" -body "signals with cookie"
+	rxreq
+	expect req.url == "/signals"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "signals"
+
+	# 10. A page the app did not mark (no Surrogate-Control): not kept, 11 comes to the app again.
+	rxreq
+	expect req.url == "/portfolio/taxes"
+	expect req.http.Cookie == <undef>
+	txresp -hdr "Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate" -body "sign in to see your taxes"
+	rxreq
+	expect req.url == "/portfolio/taxes"
+	txresp -body "sign in to see your taxes"
+
+	# 12. Marked but private / no-store: not kept, 13 comes to the app again.
+	rxreq
+	expect req.url == "/explore"
+	txresp -hdr "Surrogate-Control: no-store" -body "explore"
+	rxreq
+	expect req.url == "/explore"
+	txresp -body "explore"
+
+	# 14. Spoofed internal markers and a client-sent country are dropped before the app sees them.
+	rxreq
+	expect req.url == "/pricing"
+	expect req.http.X-Vercel-IP-Country == <undef>
+	txresp -hdr "Surrogate-Control: max-age=300" -body "pricing"
+
+	# 15. A redirect is not kept even when marked.
+	rxreq
+	expect req.url == "/agent"
+	txresp -status 307 -hdr "Location: /agents" -hdr "Surrogate-Control: max-age=300"
+	rxreq
+	expect req.url == "/agent"
+	txresp -status 307 -hdr "Location: /agents"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/news" -hdr "Cookie: _ga=GA1.2.3; ph_phc_key_posthog=%7B%7D; _gid=x" -hdr "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "signed-out news"
+	expect resp.http.X-Cache == "MISS"
+	# Internal headers never leave the cache.
+	expect resp.http.Surrogate-Control == <undef>
+	expect resp.http.X-Url == <undef>
+	expect resp.http.X-Swr == <undef>
+	# Cloudflare (in front of Caddy) is told never to keep a page, whatever Cache-Control says.
+	expect resp.http.Cloudflare-CDN-Cache-Control == "no-store"
+
+	# Cached for everyone signed out, whatever their analytics cookies or browser Accept.
+	txreq -url "/news"
+	rxresp
+	expect resp.body == "signed-out news"
+	expect resp.http.X-Cache == "HIT"
+	expect resp.http.Cloudflare-CDN-Cache-Control == "no-store"
+	txreq -url "/news" -hdr "Cookie: _ga=other; _gcl_au=1; _fbp=fb" -hdr "Accept: */*"
+	rxresp
+	expect resp.body == "signed-out news"
+	expect resp.http.X-Cache == "HIT"
+
+	# 2-7: none of these may be answered from the cache, and none may be stored.
+	txreq -url "/news" -hdr "Cookie: _ga=GA1.1.1; tikrr_session=abc"
+	rxresp
+	expect resp.body == "news for abc"
+	txreq -url "/news" -hdr "Cookie: tikrr_session="
+	rxresp
+	expect resp.body == "news, stale session"
+	txreq -url "/news" -hdr "Cookie: sb_admin=x; _ga=1"
+	rxresp
+	expect resp.body == "admin news"
+	txreq -url "/news" -hdr "Authorization: Bearer t"
+	rxresp
+	expect resp.body == "api caller news"
+	txreq -url "/news" -hdr "RSC: 1"
+	rxresp
+	expect resp.body == "rsc payload"
+	txreq -url "/news" -hdr "Accept: text/markdown"
+	rxresp
+	expect resp.body == "# news"
+
+	# The signed-in answers did not replace the signed-out copy.
+	txreq -url "/news"
+	rxresp
+	expect resp.body == "signed-out news"
+	expect resp.http.X-Cache == "HIT"
+
+	txreq -url "/signals"
+	rxresp
+	expect resp.http.Set-Cookie == "x=1"
+	txreq -url "/signals"
+	rxresp
+	expect resp.body == "signals"
+
+	txreq -url "/portfolio/taxes" -hdr "Cookie: _ga=1"
+	rxresp
+	txreq -url "/portfolio/taxes"
+	rxresp
+	expect resp.http.X-Cache == "MISS"
+
+	txreq -url "/explore"
+	rxresp
+	txreq -url "/explore"
+	rxresp
+	expect resp.http.X-Cache == "MISS"
+
+	txreq -url "/pricing" -hdr "X-Vercel-IP-Country: IN" -hdr "X-Varnish-Stale-If-Error: 1"
+	rxresp
+	expect resp.body == "pricing"
+
+	txreq -url "/agent"
+	rxresp
+	expect resp.status == 307
+	txreq -url "/agent"
+	rxresp
+	expect resp.status == 307
+	expect resp.http.X-Cache == "MISS"
+} -run
+
+# The three signed-out /news repeats were the only hits: everything else went to the app (in s1's order).
+varnish v1 -expect cache_hit == 3

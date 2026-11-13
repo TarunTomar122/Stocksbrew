@@ -82,6 +82,17 @@ DELETE /documents/<document-path>
 POST /documents:batchUpsert            body: {"documents": [{"path": "...", "data": {...}, "hash": "..."}]}
 ```
 
+## read metrics
+
+`GET /metrics` (same bearer token; optional `?window=<seconds>` to narrow it) reports what the store was asked for over a rolling in-memory window (`LOCALDB_METRICS_WINDOW_SECONDS`, default 900): totals, then per endpoint (`get`, `list`, `batchGet`, `query`, and the writes) and per collection (with its endpoints), each with request count, documents, response bytes and p50/p95/max latency, largest by bytes first. Collections are labelled with ids replaced by `*` (`users/*/watchlist`), so no user id or ticker is kept. Every 5 minutes (`LOCALDB_METRICS_LOG_SECONDS`, 0 turns it off) the service logs one compact line with the top collections:
+
+```sh
+ssh vps 'journalctl -u tikrr-localdb.service --since -1h | grep "localdb metrics"'
+ssh vps 'set -a; . /etc/tikrr/localdb.env; curl -s -H "Authorization: Bearer $LOCALDB_API_TOKEN" "127.0.0.1:8500/metrics?window=300" | jq ".collections | to_entries[:10]"'
+```
+
+On the web side, `LOCALDB_TRACE=1` logs one line per server request once its store calls go quiet: route, calls (reads and writes), documents, bytes, summed call time and wall span (`lib/localdb-trace.ts`); `LOCALDB_TRACE_FILE=<path>` appends the same as JSON lines. `LOCALDB_READONLY=1` makes the adapter skip every write (logged, never sent), for measuring a local server against the production store. Both are off by default; see docs/edge-cache.md for the per-route table.
+
 `/health` answers `{"ok": true, "service": "localdb", "features": ["select_sql"]}` on a server that applies field masks inside SQLite; an older server omits `features`.
 
 Field masks (`select`) follow Firestore's `select` and `getAll(..., { fieldMask })`: a dotted path returns that value under the same nesting, and a field the document lacks is left out (a stored `null` is kept). On a `select_sql` server the fields are pulled out with `json_extract`, so a large document (a `tm_latest_prices` doc is ~100 KB, nearly all `history_window`) is never decoded in Python or sent; field names that are not plain dotted identifiers fall back to a whole read projected in Python, with the same result. Every server with `/documents:batchGet` has accepted `select` there and on `/query`; older ones project after a whole read, and ignore it on `GET`. The web adapter (`lib/local-firestore.ts`) always sends the mask and projects the answer again, so callers get the same shape from any server version and the app and the store can be deployed in either order.

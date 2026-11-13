@@ -1,0 +1,68 @@
+varnishtest "Public files keep their own Cache-Control; a Next copy being rebuilt is kept for a moment only"
+
+server s1 {
+	rxreq
+	expect req.url == "/api/logo/NVDA"
+	expect req.http.Cookie == <undef>
+	txresp -hdr "Cache-Control: public, s-maxage=3600" -body "logo"
+	rxreq
+	expect req.url == "/stock/TSLA"
+	txresp -hdr "Surrogate-Control: max-age=300, stale-while-revalidate=900" -hdr "x-nextjs-cache: STALE" -body "old copy"
+	rxreq
+	expect req.url == "/stock/TSLA"
+	txresp -hdr "Surrogate-Control: max-age=300, stale-while-revalidate=900" -hdr "x-nextjs-cache: HIT" -body "new copy"
+	# A degraded /anon copy (s-maxage=10 from lib/next-render.ts) is kept 10 s, not 300.
+	rxreq
+	expect req.url == "/briefing"
+	txresp -hdr "Surrogate-Control: max-age=300" -hdr "Cache-Control: s-maxage=1, stale-while-revalidate" -body "degraded"
+	rxreq
+	expect req.url == "/briefing"
+	txresp -hdr "Surrogate-Control: max-age=300" -body "whole"
+	# Signed-in API traffic is never cached.
+	rxreq
+	expect req.url == "/api/watchlist"
+	expect req.http.Cookie == "tikrr_session=abc"
+	txresp -hdr "Cache-Control: public, s-maxage=3600" -body "my list"
+	rxreq
+	expect req.url == "/api/watchlist"
+	txresp -body "my list again"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/api/logo/NVDA" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	txreq -url "/api/logo/NVDA"
+	rxresp
+	expect resp.http.X-Cache == "HIT"
+	# Files keep their own Cache-Control for Cloudflare's edge cache.
+	expect resp.http.Cloudflare-CDN-Cache-Control == <undef>
+
+	txreq -url "/stock/TSLA"
+	rxresp
+	expect resp.body == "old copy"
+	delay 2.5
+	txreq -url "/stock/TSLA"
+	rxresp
+	expect resp.body == "old copy"
+	delay 0.3
+	txreq -url "/stock/TSLA"
+	rxresp
+	expect resp.body == "new copy"
+
+	txreq -url "/briefing"
+	rxresp
+	expect resp.body == "degraded"
+	delay 1.2
+	# Past its 1 s with no stale-while-revalidate: fetched again before anyone sees it.
+	txreq -url "/briefing"
+	rxresp
+	expect resp.body == "whole"
+
+	txreq -url "/api/watchlist" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	txreq -url "/api/watchlist" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	expect resp.body == "my list again"
+} -run

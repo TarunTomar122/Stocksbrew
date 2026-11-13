@@ -1,4 +1,5 @@
 import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from "undici";
+import { describeCall, documentsInResponse, LOCALDB_TRACE_ON, traceLocalDbCall } from "./localdb-trace";
 
 import { noteDegradedRender } from "@/lib/next-render";
 
@@ -44,6 +45,10 @@ function transformValue(value: unknown): unknown {
 const TIMING_FILE = process.env.LOCALDB_TIMING_FILE?.trim() || "";
 const TIMING_ON = process.env.LOCALDB_TIMING === "1" || Boolean(TIMING_FILE);
 let inFlight = 0;
+
+// LOCALDB_READONLY=1: every write is skipped (logged, never sent), for running
+// a local server against the production store to measure it. Reads are untouched.
+const READ_ONLY = process.env.LOCALDB_READONLY === "1";
 
 function describeRequest(path: string, body: unknown): string {
   if (path === "/query") {
@@ -608,8 +613,20 @@ export class LocalFirestore {
     const pending = readsInFlight.get(key);
     if (pending) return pending;
     const started = (async (): Promise<ReadResult> => {
+      const startedAt = LOCALDB_TRACE_ON ? performance.now() : 0;
       const response = await this.request(path, { ...init, retryStale: true });
-      return { status: response.status, ok: response.ok, text: await response.text() };
+      const result = { status: response.status, ok: response.ok, text: await response.text() };
+      if (LOCALDB_TRACE_ON) {
+        traceLocalDbCall({
+          kind: describeCall(init.method || "GET", path, init.body),
+          write: false,
+          docs: documentsInResponse(result.text, result.status),
+          bytes: result.text.length,
+          startedAt,
+          endedAt: performance.now(),
+        });
+      }
+      return result;
     })();
     readsInFlight.set(key, started);
     const forget = () => {
@@ -620,10 +637,19 @@ export class LocalFirestore {
   }
 
   async write(path: string, init: { method: string; body?: unknown }): Promise<void> {
+    if (READ_ONLY) {
+      // Measuring a local server against the production store: never change it.
+      console.warn(`[localdb] LOCALDB_READONLY=1: skipped ${init.method} ${describeCall(init.method, path, init.body)}`);
+      return;
+    }
     // A read that starts after this write must see it, so it may not join a
     // read that was already in flight.
     readsInFlight.clear();
+    const startedAt = LOCALDB_TRACE_ON ? performance.now() : 0;
     const response = await this.request(path, init);
+    if (LOCALDB_TRACE_ON) {
+      traceLocalDbCall({ kind: describeCall(init.method, path, init.body), write: true, docs: 0, bytes: 0, startedAt, endedAt: performance.now() });
+    }
     // And again once it has landed: a read that began while the write was in
     // flight may have been answered from before it.
     readsInFlight.clear();

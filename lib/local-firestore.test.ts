@@ -304,3 +304,26 @@ describe("projectFields", () => {
     expect(projectFields({ a: {} }, ["a.toString", "constructor"])).toEqual({});
   });
 });
+
+describe("LOCALDB_READONLY", () => {
+  it("skips every write and still reads", async () => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load({ LOCALDB_READONLY: "1" });
+    const calls: string[] = [];
+    setLocalDbFetchForTests(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method || "GET"} ${url}`);
+      return new Response(JSON.stringify({ document: { path: "users/u1", data: { a: 1 } } }), { status: 200 });
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const db = new LocalFirestore("http://store", "token");
+    await db.collection("users").doc("u1").set({ a: 2 });
+    const batch = db.batch();
+    batch.set(db.collection("users").doc("u2"), { b: 1 });
+    await batch.commit();
+    const snapshot = await db.collection("users").doc("u1").get();
+    expect(snapshot.data()).toEqual({ a: 1 });
+    expect(calls).toEqual(["GET http://store/documents/users%2Fu1"]);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+    setLocalDbFetchForTests();
+  });
+});

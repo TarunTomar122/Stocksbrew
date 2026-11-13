@@ -88,7 +88,7 @@ The pre-market materialization lane also requires a shared web revalidation
 secret. Keep it outside the repository at `/etc/tikrr/web-revalidate-token`
 (`0600`) and install the same value as the Vercel Production environment
 variable `REVALIDATE_TOKEN`. `run-dispatch.sh` loads the file as
-`WEB_REVALIDATE_TOKEN` and targets `https://www.stocksbrew.online` by default.
+`WEB_REVALIDATE_TOKEN` and targets Varnish on the box (`http://127.0.0.1:6081`) by default.
 The scheduled lane treats a failed final page refresh as a job failure and does
 not proceed to email delivery.
 
@@ -101,6 +101,13 @@ vercel env add REVALIDATE_TOKEN production --force < /etc/tikrr/web-revalidate-t
 ```
 
 Redeploy Vercel after changing `REVALIDATE_TOKEN`.
+
+Self-hosted (backend/vps/web/), the same value goes in `/etc/tikrr/web.env` as
+`REVALIDATE_TOKEN`, next to `REVALIDATE_PEERS=http://localhost:3000,http://localhost:3001`
+and `VARNISH_BAN_URL=http://127.0.0.1:6081`, then restart `tikrr-web@3000` and
+`tikrr-web@3001`. Every lane in `backend/cloudrun/orchestrator/dispatch.py`
+`LANE_REVALIDATE_KINDS` and every agent data group (`run-agentdata.sh`) then
+refreshes the cached pages it writes for; see docs/edge-cache.md.
 
 For this VPS user, use `ubuntu` instead of `tikrr`.
 

@@ -30,7 +30,8 @@ if [[ -z "${WEB_REVALIDATE_TOKEN:-}" && -r "${WEB_REVALIDATE_TOKEN_FILE}" ]]; th
   export WEB_REVALIDATE_TOKEN
 fi
 if [[ -n "${WEB_REVALIDATE_TOKEN:-}" ]]; then
-  export WEB_REVALIDATE_BASE_URL="${WEB_REVALIDATE_BASE_URL:-https://www.stocksbrew.online}"
+  # Straight to Varnish on this box (the web app runs here since Nov 13), not out through Cloudflare and back.
+  export WEB_REVALIDATE_BASE_URL="${WEB_REVALIDATE_BASE_URL:-http://127.0.0.1:6081}"
 fi
 
 if [[ -z "${FIREBASE_SERVICE_ACCOUNT_PATH:-}" && -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then

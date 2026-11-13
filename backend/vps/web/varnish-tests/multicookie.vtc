@@ -1,0 +1,23 @@
+varnishtest "Two Cookie header lines: the session is in the second"
+
+server s1 {
+	rxreq
+	expect req.url == "/news"
+	expect req.http.Cookie == <undef>
+	txresp -hdr "Surrogate-Control: max-age=300" -body "signed-out news"
+	rxreq
+	expect req.url == "/news"
+	txresp -body "second fetch"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/news" -hdr "Cookie: _ga=1"
+	rxresp
+	expect resp.body == "signed-out news"
+	txreq -url "/news" -hdr "Cookie: _ga=1" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	# A signed-in visitor should get the live page (pass), not the signed-out copy.
+	expect resp.http.X-Cache == "MISS"
+} -run

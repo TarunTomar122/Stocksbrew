@@ -22,6 +22,7 @@ from .firestore import (
     _select_data,
     _set_field,
 )
+from .metrics import DEFAULT_WINDOW_SECONDS, StoreMetrics, collection_label, per_collection_sizes, start_summary_logger
 from .paths import validate_collection_name, validate_document_path, validate_path_prefix
 from .query import sql_selectable
 from .store import LocalDocumentStore
@@ -51,6 +52,16 @@ def _read_documents(store: LocalDocumentStore, paths: list[str], select: list[st
     for document in documents:
         document["data"] = _select_data(document["data"], select)
     return documents
+
+
+def _write_counts(paths: Any) -> dict[str, tuple[int, int]]:
+    """Documents written per collection (bytes are not counted for writes)."""
+
+    counts: dict[str, int] = {}
+    for path in paths:
+        label = collection_label(str(path))
+        counts[label] = counts.get(label, 0) + 1
+    return {label: (count, 0) for label, count in counts.items()}
 
 
 def _resolve_value(value: Any, existing: Any = _MISSING) -> Any:
@@ -120,7 +131,32 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
     def parse_request(self) -> bool:
         # Reset per request: one connection now carries many requests.
         self._body_consumed = False
+        self._started = time.monotonic()
         return super().parse_request()
+
+    def _elapsed_ms(self) -> float:
+        return (time.monotonic() - getattr(self, "_started", time.monotonic())) * 1000
+
+    def _record(self, endpoint: str, per_collection: dict[str, tuple[int, int]]) -> None:
+        """One sample per collection for /metrics (never raises)."""
+
+        try:
+            self.server.metrics.record(endpoint, per_collection, self._elapsed_ms())
+        except Exception:
+            pass
+
+    def _send_documents(self, endpoint: str, documents: list[dict[str, Any]], empty_label: str) -> None:
+        """``{"documents": [...], "count": n}``, recorded per collection with each document's encoded size.
+
+        The body is the same bytes ``json.dumps`` would give (same separators and
+        key order); each document is encoded once and its length kept.
+        """
+
+        encoded = [json.dumps(document, ensure_ascii=True, separators=(",", ":")).encode("utf-8") for document in documents]
+        body = b'{"documents":[' + b",".join(encoded) + b'],"count":' + str(len(documents)).encode("ascii") + b"}"
+        self._send_body(body, 200)
+        sizes = per_collection_sizes(documents, (len(item) for item in encoded))
+        self._record(endpoint, sizes or {empty_label: (0, 0)})
 
     def _has_unread_body(self) -> bool:
         if getattr(self, "_body_consumed", False):
@@ -132,8 +168,12 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             return True
 
-    def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+    def _send_json(self, payload: dict[str, Any], status: int = 200) -> int:
         body = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        self._send_body(body, status)
+        return len(body)
+
+    def _send_body(self, body: bytes, status: int) -> None:
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -193,6 +233,14 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
         if not self._require_auth():
             return
         try:
+            if parsed.path == "/metrics":
+                # ?window=<seconds> narrows the rolling window (never widens it).
+                raw_window = parse_qs(parsed.query).get("window", [""])[0] if parsed.query else ""
+                window = float(raw_window) if raw_window else None
+                if window is not None and not (0 < window <= 86_400):
+                    raise ValueError("window is out of range")
+                self._send_json(self.server.metrics.snapshot(window))
+                return
             if parsed.path == "/documents":
                 query = parse_qs(parsed.query, strict_parsing=True)
                 collection = validate_collection_name(query.get("collection", [""])[0])
@@ -206,7 +254,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 if limit < 0 or limit > MAX_LIST_DOCUMENTS:
                     raise ValueError("limit is out of range")
                 documents = self.server.store.list_documents(collection, prefix=prefix, limit=limit)
-                self._send_json({"documents": documents, "count": len(documents)})
+                self._send_documents("list", documents, collection_label(collection))
                 return
             if parsed.path.startswith("/documents/"):
                 path = validate_document_path(unquote(parsed.path[len("/documents/") :]))
@@ -219,8 +267,10 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 document = documents[0] if documents else None
                 if document is None:
                     self._error("document not found", 404)
+                    self._record("get", {collection_label(path): (0, 0)})
                 else:
-                    self._send_json({"document": document})
+                    size = self._send_json({"document": document})
+                    self._record("get", {collection_label(path): (1, size)})
                 return
             self._error("not found", 404)
         except ValueError as error:
@@ -256,6 +306,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 resolve_operation=_resolve_operation,
             )[0]
             self._send_json({"document": document})
+            self._record("put", {collection_label(path): (1, 0)})
         except ValueError as error:
             self._error(str(error), 400)
         except Exception:
@@ -280,7 +331,8 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                         self._error("collection is not allowed", 403)
                         return
                 documents = _read_documents(self.server.store, valid_paths, select)
-                self._send_json({"documents": documents, "count": len(documents)})
+                empty = collection_label(valid_paths[0]) if valid_paths else "-"
+                self._send_documents("batchGet", documents, empty)
             except ValueError as error:
                 self._error(str(error), 400)
             except Exception:
@@ -336,7 +388,8 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     f"rows={len(documents)} ms={elapsed_ms}",
                     flush=True,
                 )
-                self._send_json({"documents": documents, "count": len(documents)})
+                label = f"{collection} (group)" if body.get("collection_group") else collection_label(collection)
+                self._send_documents("query", documents, label)
             except ValueError as error:
                 self._error(str(error), 400)
             except Exception:
@@ -367,6 +420,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     resolve_operation=_resolve_operation,
                 )
                 self._send_json({"count": len(result), "documents": [item for item in result if item]})
+                self._record("commit", _write_counts(operation.get("path", "") for operation in operations))
                 return
             if endpoint == "/documents:batchWrite":
                 operations = body.get("operations") if isinstance(body, dict) else None
@@ -382,6 +436,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     resolve_operation=_resolve_operation,
                 )
                 self._send_json({"count": len(result), "documents": [item for item in result if item]})
+                self._record("batchWrite", _write_counts(operation.get("path", "") for operation in operations))
                 return
             documents = body.get("documents") if isinstance(body, dict) else None
             if not isinstance(documents, list) or len(documents) > MAX_BATCH_DOCUMENTS:
@@ -395,6 +450,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     return
             result = self.server.store.batch_upsert(documents)
             self._send_json({"documents": result, "count": len(result)})
+            self._record("batchUpsert", _write_counts(document.get("path", "") for document in documents))
         except ValueError as error:
             self._error(str(error), 400)
         except RuntimeError as error:
@@ -416,6 +472,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 return
             self.server.store.delete(path)
             self._send_json({"deleted": path})
+            self._record("delete", {collection_label(path): (1, 0)})
         except ValueError as error:
             self._error(str(error), 400)
         except Exception:
@@ -436,7 +493,15 @@ def make_server(
     server.api_token = token
     server.allowed_collections = allowed_collections or set()
     server.query_gate = threading.Semaphore(QUERY_CONCURRENCY)
+    server.metrics = StoreMetrics(window_seconds=_env_seconds("LOCALDB_METRICS_WINDOW_SECONDS", DEFAULT_WINDOW_SECONDS))
     return server
+
+
+def _env_seconds(name: str, default: float) -> float:
+    try:
+        return max(0.0, float(os.getenv(name, "") or default))
+    except ValueError:
+        return default
 
 
 def _env_collections() -> set[str] | None:
@@ -455,6 +520,8 @@ def main() -> None:
     store = LocalDocumentStore(args.db)
     server = make_server(args.host, args.port, store, os.getenv("LOCALDB_API_TOKEN", ""), _env_collections())
     print(f"localdb listening on {args.host}:{args.port}", flush=True)
+    # A compact read summary every 5 minutes (LOCALDB_METRICS_LOG_SECONDS, 0 = off); the full one is GET /metrics.
+    start_summary_logger(server.metrics, _env_seconds("LOCALDB_METRICS_LOG_SECONDS", 300))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

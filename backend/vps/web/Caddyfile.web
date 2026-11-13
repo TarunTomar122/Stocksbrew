@@ -23,6 +23,9 @@ stocksbrew.online, www.stocksbrew.online {
 			}
 		}
 	}
+	# Cache bans are for processes on this box only (varnish.vcl checks too): never from the internet.
+	@cachecontrol method BAN PURGE
+	respond @cachecontrol 405
 	encode zstd gzip
 	# Next's build assets are content-hashed, so browsers can keep them for a year.
 	@static path /_next/static/*

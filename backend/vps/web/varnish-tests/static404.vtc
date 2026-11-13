@@ -1,0 +1,22 @@
+varnishtest "A 404 for a build file (old instance during a rolling deploy) without Cache-Control"
+
+server s1 {
+	rxreq
+	expect req.url == "/_next/static/chunks/app/new-abc123.js"
+	txresp -status 404 -body "not found"
+	rxreq
+	expect req.url == "/_next/static/chunks/app/new-abc123.js"
+	txresp -hdr "Cache-Control: public, max-age=31536000, immutable" -body "js"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/_next/static/chunks/app/new-abc123.js"
+	rxresp
+	expect resp.status == 404
+	delay 1
+	txreq -url "/_next/static/chunks/app/new-abc123.js"
+	rxresp
+	expect resp.status == 200
+} -run
