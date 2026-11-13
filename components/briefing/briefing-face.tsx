@@ -636,13 +636,13 @@ function levelWords(row: LevelRow, mixed: boolean): string {
  * four-column grid short, the cards furthest from their level join the list until the row is whole, so the grid
  * fills the width with no gap (judges, Nov 12), and nothing is dropped.
  */
-function levelCells(rows: LevelRow[]): { cards: Array<LevelRow & { fact: LevelFact }>; listed: LevelRow[] } {
+function levelCells(rows: LevelRow[], listBeside = true): { cards: Array<LevelRow & { fact: LevelFact }>; listed: LevelRow[] } {
   const all = rows.filter((row): row is LevelRow & { fact: LevelFact } => row.fact !== null);
   const repeats = rows.filter((row) => row.fact === null);
   const whole = (cells: number) => cells <= 4 || cells % 3 === 0 || cells % 4 === 0;
   for (let keep = all.length; keep >= Math.min(all.length, 3); keep -= 1) {
     const listed = [...all.slice(keep), ...repeats];
-    if (whole(keep + (listed.length > 0 ? 1 : 0))) return { cards: all.slice(0, keep), listed };
+    if (whole(keep + (listBeside && listed.length > 0 ? 1 : 0))) return { cards: all.slice(0, keep), listed };
   }
   return { cards: all, listed: repeats };
 }
@@ -712,16 +712,22 @@ function LevelRuler({ row, span, mixed, compact = false }: { row: LevelRow; span
 
 function Levels({ rows }: { rows: LevelRow[] }) {
   const mixed = new Set(rows.map((row) => row.level.call)).size > 1;
-  const { cards, listed } = levelCells(rows);
+  // The short list sits beside the cards only while it is about as tall as a card. Longer, it stretched the cards
+  // in its row into mostly empty boxes (owner, Nov 13: "left cards being mostly empty"), so it becomes its own band
+  // under the cards, laid across the width, and the cards fill whole rows on their own.
+  const beside = levelCells(rows, true);
+  const band = beside.listed.length > LIST_BESIDE_MAX;
+  const { cards, listed } = band ? levelCells(rows, false) : beside;
   // One scale for every price-to-level ruler, cards and list alike: the furthest name sets it, never under 1%.
   const gapSpan = Math.max(1, ...[...cards, ...listed].map((row) => Math.abs(row.level.gapPct)));
-  const cells = cards.length + (listed.length > 0 ? 1 : 0);
+  const cells = cards.length + (!band && listed.length > 0 ? 1 : 0);
   // The cells were made to fill three or four columns (levelCells), at every wide size.
   const columns = { sm: 2, lg: gridColumns(cells, [3, 4]), xxl: gridColumns(cells, [3, 4]) };
   const grid = `grid grid-cols-1 gap-3 sm:grid-cols-2 ${LG_COLS[columns.lg]} ${XXL_COLS[columns.xxl]}`;
   return (
     // Only names at or through their own call's price (lib/briefing-face.ts atYourLevels). The call is said once, in
     // the section's title; a card names its own level only when buys and sells are mixed. No two cards say the same.
+    <div className="flex min-w-0 flex-col gap-3">
     <FullRows count={cells} columns={columns} label={levelsTitle(rows)} className={grid}>
       {cards.map((row) => {
         const fact = row.fact;
@@ -756,39 +762,72 @@ function Levels({ rows }: { rows: LevelRow[] }) {
           </li>
         );
       })}
-      {listed.length > 0 ? (
+      {!band && listed.length > 0 ? (
         <li className="min-w-0">
           {/* Two short lines a name: its price and move, then the same labelled ruler as the cards, smaller (judge92).
               Its strongest fact is the hover, so the list stays about as tall as the cards beside it (owner rules 4, 8). */}
           <ul aria-label="Also at their level" className={`${CARD} flex h-full flex-col justify-center divide-y divide-oa-border px-3.5 py-1`}>
             {listed.map((row) => (
-              <li key={row.ticker}>
-                <Link
-                  href={row.href}
-                  prefetch={false}
-                  title={`${levelWords(row, mixed)} · ${(row.fact ?? row.best).figure} ${factWord(row.fact ?? row.best)}`}
-                  className={`${FOCUS} -mx-1.5 flex flex-col gap-1 rounded px-1.5 py-1.5 transition-colors hover:bg-oa-accent`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <StockLogo ticker={row.ticker} size={20} eager />
-                      <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
-                    </span>
-                    <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums">
-                      {sharePrice(row.price) ? <span className="font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
-                      {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
-                    </span>
-                  </span>
-                  {/* The same labelled ruler as the cards, smaller, so every price-and-level pair has its picture. */}
-                  <LevelRuler row={row} span={gapSpan} mixed={mixed} compact />
-                </Link>
-              </li>
+              <ListedLevel key={row.ticker} row={row} span={gapSpan} mixed={mixed} />
             ))}
           </ul>
         </li>
       ) : null}
     </FullRows>
+      {band ? (
+        <ul aria-label="Also at their level" className={`${CARD} grid grid-cols-1 gap-x-6 gap-y-1 px-3.5 py-2 sm:grid-cols-2 ${LG_COLS[bandColumns(listed.length)]} ${XXL_COLS[bandColumns(listed.length)]}`}>
+          {listed.map((row) => (
+            <ListedLevel key={row.ticker} row={row} span={gapSpan} mixed={mixed} withFact />
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
+}
+
+/** A name in the short list: price and move, then the small labelled ruler; its strongest fact is the hover. */
+function ListedLevel({ row, span, mixed, withFact = false }: { row: LevelRow; span: number; mixed: boolean; withFact?: boolean }) {
+  const fact = row.fact ?? row.best;
+  return (
+    <li>
+      <Link
+        href={row.href}
+        prefetch={false}
+        title={`${levelWords(row, mixed)} · ${(row.fact ?? row.best).figure} ${factWord(row.fact ?? row.best)}`}
+        className={`${FOCUS} -mx-1.5 flex flex-col gap-1 rounded px-1.5 py-1.5 transition-colors hover:bg-oa-accent`}
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <StockLogo ticker={row.ticker} size={20} eager />
+            <span className="oa-mono text-[13px] font-semibold text-oa-fg">{row.ticker}</span>
+          </span>
+          <span className="oa-mono flex shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums">
+            {sharePrice(row.price) ? <span className="font-semibold text-oa-fg">{sharePrice(row.price)}</span> : null}
+            {row.pct != null ? <span className={`text-[12.5px] ${toneText(toneOf(row.pct))}`}>{signedPct(row.pct, 1)}</span> : null}
+          </span>
+        </span>
+        {/* The same labelled ruler as the cards, smaller, so every price-and-level pair has its picture. */}
+        <LevelRuler row={row} span={span} mixed={mixed} compact />
+        {/* In the band under the cards every name keeps its one fact in sight (council, Nov 13: a card's fact must not
+            vanish when it moves into the list); beside the cards it stays the hover so the list is no taller than them. */}
+        {withFact ? (
+          <span className="flex min-w-0 items-baseline gap-1.5 text-[12.5px] leading-4">
+            <span className={`oa-mono shrink-0 font-semibold tabular-nums ${toneText(fact.tone)}`}>{fact.figure}</span>
+            <span className="truncate text-oa-muted-fg">{fact.label}</span>
+          </span>
+        ) : null}
+      </Link>
+    </li>
+  );
+}
+
+/** Past this many names the short list leaves the card grid for a band of its own under the cards. */
+const LIST_BESIDE_MAX = 3;
+
+/** The band's columns on a wide screen: three or four, whichever leaves its last row fullest (8 names: two rows of 4). */
+export function bandColumns(count: number): 3 | 4 {
+  const empty = (columns: number) => (columns - (count % columns)) % columns;
+  return empty(4) <= empty(3) ? 4 : 3;
 }
 
 /* ── the week's reports ────────────────────────────────────────────────── */
