@@ -13,7 +13,8 @@
  * - The status rolls up by `rollUp`, whose rules are written down there.
  */
 
-import { quote, recordLine } from "@/lib/filing-changes/words";
+import { recordLine } from "@/lib/filing-changes/lines";
+import { quote } from "@/lib/filing-changes/words";
 import type { Comparison } from "@/lib/filing-changes/diff";
 import type { FilingChangesDoc } from "@/lib/filing-changes/store";
 import {
@@ -243,9 +244,10 @@ function filingEvent(
   entry: Comparison,
   day: string,
   baseline: boolean,
+  company = "",
 ): ThesisEvent | null {
   // "MU's new 10-Q …" is news; what was on file when the thesis started is not new.
-  const line = recordLine(ticker, entry);
+  const line = recordLine(ticker, entry, company);
   const text = fits(
     baseline && line ? line.replace(`${ticker}'s new `, `${ticker}'s `) : line,
   );
@@ -484,10 +486,10 @@ export function checkThesis(input: ThesisCheckInput): ThesisState {
         // Only the newest change on file, and only when it is recent enough to matter.
         if (baselined || age > BASELINE_DAYS) continue;
         baselined = true;
-        const event = filingEvent(doc.ticker, entry, day, true);
+        const event = filingEvent(doc.ticker, entry, day, true, doc.company);
         if (event) events.push(event);
       } else {
-        const event = filingEvent(doc.ticker, entry, day, false);
+        const event = filingEvent(doc.ticker, entry, day, false, doc.company);
         if (event) events.push(event);
       }
     }

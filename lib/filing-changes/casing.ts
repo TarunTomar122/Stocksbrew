@@ -13,6 +13,11 @@ import type { FilingChangesDoc } from "./store";
 
 const COMMON = new Set<string>(HEADING_WORDS as string[]);
 
+/** Whether a lower-case word is one the risk headings of 550 filers use in lower case: an ordinary word, not a name. */
+export function isOrdinaryWord(word: string): boolean {
+  return COMMON.has(word.toLowerCase().replace(/['’]s$/, ""));
+}
+
 /** Most words of four or more letters start with a capital. */
 export function isTitleCase(text: string): boolean {
   const words = text.split(/\s+/).filter((word) => /^[A-Za-z]{4,}/.test(word));

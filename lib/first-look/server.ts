@@ -12,7 +12,7 @@ import { limitFor } from "@/lib/entitlements";
 import { canSeeLevels, viewerFromUserDoc, type Viewer } from "@/lib/entitlements-server";
 import { filingChangesHref } from "@/lib/filing-changes/inbox";
 import { getFilingChangesFor } from "@/lib/filing-changes/server";
-import { recordLine } from "@/lib/filing-changes/words";
+import { recordLine } from "@/lib/filing-changes/lines";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getInsiderBuys, getInsiderTrades } from "@/lib/follow";
 import type { InsiderTrade } from "@/lib/follow-shared";
@@ -225,7 +225,7 @@ async function filings(tickers: string[], today: string): Promise<LookFacts["fil
   for (const doc of await getFilingChangesFor(tickers)) {
     for (const comparison of [doc.latest, ...doc.history]) {
       if (comparison.status !== "changes" || comparison.filing.filed < since) continue;
-      const line = recordLine(doc.ticker, comparison);
+      const line = recordLine(doc.ticker, comparison, doc.company);
       if (!line) continue;
       out.push({
         ticker: doc.ticker,

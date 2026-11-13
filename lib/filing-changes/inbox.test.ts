@@ -27,15 +27,15 @@ function comparison(form: "10-K" | "10-Q", filed: string, patch: Partial<Compari
 const doc = (ticker: string, latest: Comparison, history: Comparison[] = []): FilingChangesDoc => ({ version: 1, ticker, company: ticker, cik: 1, latest, history, updated_at: "", source: "SEC EDGAR" });
 
 describe("filing changes in the inbox", () => {
-  it("says what the filing did, with the first new risk in the company's words", () => {
-    const item = filingItem("AMD", comparison("10-Q", "2026-11-12", { added: ["Export rules on China could limit sales of our data center chips.", "Another."], dropped: ["Old."] }))!;
+  it("says what the filing did by topic, with the dropped topics on the second line", () => {
+    const item = filingItem("AMD", comparison("10-Q", "2026-11-12", { added: ["Export rules on China could limit sales of our data center chips.", "Our indebtedness could hurt us."], dropped: ["We may be subject to securities litigation."] }))!;
     expect(item).toMatchObject({
       id: "filing:AMD:acc-2026-11-12",
       kind: "filing",
       day: "2026-11-12",
       exact: false,
-      text: "AMD's new 10-Q adds 2 risks and drops 1.",
-      detail: "New: “Export rules on China could limit sales of our data center chips.”",
+      text: "AMD's new 10-Q adds 2 risks (China and debt) and drops 1.",
+      detail: "Dropped: litigation.",
       href: "/stock/AMD#filing-changes",
       source: "SEC 10-Q",
       quiet: false,
@@ -54,11 +54,12 @@ describe("filing changes in the inbox", () => {
     expect(filingItem("X", comparison("10-K", "2026-11-12", { reworded: [{ from: "a", to: "b", score: 0.9 }] }))).toBeNull();
   });
 
-  it("lists a 10-Q whose risks are only repeats quietly, linking to the stock page; cuts the quote at a clause", () => {
+  it("lists a 10-Q whose risks are only repeats quietly, linking to the stock page; names a deal by its counterparty", () => {
     const repeat = filingItem("SOFI", comparison("10-Q", "2026-11-05", { scope: "partial", repeated: ["A risk an earlier 10-Q added."] }))!;
     expect(repeat).toMatchObject({ quiet: true, href: "/stock/SOFI", text: "SOFI's new 10-Q repeats 1 risk added after its 10-K." });
     const long = filingItem("AMD", comparison("10-Q", "2026-11-04", { added: ["Our ability to complete the acquisition of ZT Systems is subject to closing conditions, including the receipt of consents and approvals."] }))!;
-    expect(long.detail).toBe("New: “Our ability to complete the acquisition of ZT Systems is subject to closing conditions.”");
+    expect(long.text).toBe("AMD's new 10-Q adds 1 risk: ZT Systems deal.");
+    expect(long.detail).toBeNull();
   });
 
   it("keeps only the person's stocks and filings in the window", () => {
@@ -67,11 +68,11 @@ describe("filing changes in the inbox", () => {
   });
 
   it("becomes a line in the agent's record, with the step to the stock's filing changes", () => {
-    const item = filingItem("AMD", comparison("10-Q", "2026-11-12", { added: ["A new risk.", "Another new one."], dropped: ["Old."] }))!;
+    const item = filingItem("AMD", comparison("10-Q", "2026-11-12", { added: ["Tariffs could hurt us.", "Another new one."], dropped: ["Old."] }))!;
     const thread = buildThread({ status: "ready", example: false, today: TODAY, items: [item], upcoming: [], morning: null, sessions: [], group: { total: 1, holdings: true }, calls: {}, levels: () => true, stocks: 1 });
     const note = thread.days.flatMap((day) => day.notes).find((entry) => entry.id === item.id)!;
     expect(note.step).toEqual({ label: "See what AMD changed in its risks", href: "/stock/AMD#filing-changes" });
     const record = buildRecord(thread, [], TODAY);
-    expect(record[0]).toMatchObject({ label: "Yesterday", items: [{ ticker: "AMD", text: "AMD's new 10-Q adds 2 risks and drops 1.", href: "/stock/AMD#filing-changes" }] });
+    expect(record[0]).toMatchObject({ label: "Yesterday", items: [{ ticker: "AMD", text: "AMD's new 10-Q adds 2 risks (tariffs & trade) and drops 1.", href: "/stock/AMD#filing-changes" }] });
   });
 });

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Comparison } from "./diff";
 import { FILING_CHANGES_VERSION, HISTORY_MAX, hasAnnualComparison, nextDoc, readComparison, readFilingChangesDoc, viewOf, type FilingChangesDoc } from "./store";
-import { changesTitle, droppedLine, filedWhen, quietLine, quote, recordLine } from "./words";
+import { recordLine } from "./lines";
+import { changesTitle, droppedLine, filedWhen, quietLine, quote } from "./words";
 
 function comparison(form: "10-K" | "10-Q", filed: string, patch: Partial<Comparison> = {}): Comparison {
   return {
@@ -186,6 +187,12 @@ describe("words", () => {
 
   it("writes one record line of at most 15 words, from the comparison's figures", () => {
     expect(recordLine("AMD", comparison("10-Q", "2026-11-04", { added: ["a", "b"], dropped: ["c"] }))).toBe("AMD's new 10-Q adds 2 risks and drops 1.");
+    expect(recordLine("SMR", comparison("10-K", "2026-02-26", { added: ["The PMA with ENTRA1 may result in significant cash outlays.", "Our supply base is constrained.", "Changes in tariffs may hurt us."], dropped: ["x"] }))).toBe(
+      "SMR's new 10-K adds 3 risks (ENTRA1 deal and supply chain) and drops 1.",
+    );
+    expect(recordLine("SMR", comparison("10-K", "2026-02-26", { added: ["The PMA with ENTRA1 may result in significant cash outlays.", "Our supply base is constrained.", "Changes in tariffs may hurt us."] }))).toBe(
+      "SMR's new 10-K adds 3 risks: ENTRA1 deal, supply chain and tariffs & trade.",
+    );
     expect(recordLine("SOFI", comparison("10-Q", "2026-11-05", { scope: "partial", added: ["a"] }))).toBe("SOFI's new 10-Q adds 1 risk since its 10-K.");
     expect(recordLine("APP", comparison("10-K", "2026-02-19", { dropped: ["a", "b"] }))).toBe("APP's new 10-K drops 2 risks.");
     expect(recordLine("LLY", comparison("10-Q", "2026-10-29", { status: "no_changes", scope: null }))).toBe("LLY's new 10-Q lists no changes to its risks.");

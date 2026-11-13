@@ -19,7 +19,9 @@ import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
 import { loadWatches } from "@/lib/agent-watch-server";
 import { agentLines } from "@/lib/portfolio-home/agent-lines";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { topicOptions } from "@/lib/filing-changes/lines";
 import { getFilingChangesFor } from "@/lib/filing-changes/server";
+import { topicList } from "@/lib/filing-changes/topics";
 import { getFilingsSince } from "@/lib/filings";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { inboxStocks } from "@/lib/inbox/server";
@@ -258,6 +260,7 @@ async function readFilingChanges(stocks: ProposalStock[]): Promise<NonNullable<P
         dropped: comparison.dropped.length,
         base: base ? { form: base.form, filed: base.filed, url: base.url } : null,
         partial: comparison.scope === "partial",
+        topics: topicList(comparison.added, 3, topicOptions(doc.company)),
       });
     }
   }

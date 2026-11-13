@@ -15,7 +15,7 @@
 import { AGENT_TEMPLATES, planMayRun, type AgentCall, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
 import { daysFromToday, etDayOf, onDayWords, weekdayName } from "@/lib/day-words";
 import { can, limitFor, type Plan } from "@/lib/entitlements";
-import { quote, risks } from "@/lib/filing-changes/words";
+import { andList, risks } from "@/lib/filing-changes/words";
 import { firstSentence } from "@/lib/thread/record";
 import { basketDrafts, basketStale, type ProposalBasket } from "@/lib/basket-agent/proposals";
 import type { BasketChange } from "@/lib/basket-agent/model";
@@ -199,6 +199,8 @@ export type ProposalFilingChange = {
   base: { form: "10-K" | "10-Q"; filed: string; url: string } | null;
   /** A 10-Q that lists only some risks, held against its 10-K. */
   partial?: boolean;
+  /** The new risks' topics, serious first ("tariffs & trade", "ENTRA1 deal"): lib/filing-changes/topics.ts, worked out by the reader. */
+  topics?: string[];
 };
 
 export type ProposalReason = {
@@ -1010,8 +1012,8 @@ function reasonRules(inputs: ProposalInputs): ProposalDraft[] {
 
 /**
  * A holding's new 10-K or 10-Q added risks to its risk factors: an alert under the price at the next level down, so
- * the person hears if the market starts pricing them in. The holding itself is never touched. The new risk is quoted
- * in the company's own words.
+ * the person hears if the market starts pricing them in. The holding itself is never touched. The new risks are named
+ * by topic (lib/filing-changes/topics.ts, worked out by the reader), as many as fit the line.
  */
 function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
   const out: ProposalDraft[] = [];
@@ -1026,9 +1028,18 @@ function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
     const replaces = alertUnder(inputs, ticker, point.price, next);
     if (replaces === false) continue;
     const count = change.added.length;
-    // The new risk in the company's words when they fit the line with "New:" (whole, or cut at a clause), else not quoted.
-    const newRisk = quote(change.added[0]!, WHY_MAX_WORDS - 1);
     const dropped = change.dropped > 0 ? ` and drops ${change.dropped}` : change.partial ? " since its 10-K" : "";
+    // The new risks by topic, as many as keep the line within budget: "NVDA's 10-Q yesterday adds 1 risk: debt."
+    const lead = `${ticker}'s ${change.form} ${onDay(change.filed, inputs.today)} adds ${risks(count)}`;
+    let said = `${lead}${dropped}.`;
+    for (let shown = Math.min(3, change.topics?.length ?? 0); shown > 0; shown -= 1) {
+      const list = andList(change.topics!.slice(0, shown));
+      const line = dropped ? `${lead} (${list})${dropped}.` : `${lead}: ${list}.`;
+      if (wordCount(line) <= WHY_MAX_WORDS) {
+        said = line;
+        break;
+      }
+    }
     out.push({
       kind: "filing_risks",
       ticker,
@@ -1037,8 +1048,7 @@ function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
       idea: `alert:${ticker}:below:${next.price}`,
       title: alertTitle(ticker, next.price, replaces),
       why: [
-        `${ticker}'s ${change.form} ${onDay(change.filed, inputs.today)} adds ${risks(count)}${dropped}.`,
-        ...(newRisk.fits ? [`New: “${newRisk.text}”`] : []),
+        said,
         nextLine(next, "down"),
       ],
       does: alertDoes(ticker, "below", next.price, replaces),

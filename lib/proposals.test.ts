@@ -574,15 +574,16 @@ describe("a holding's filing added risks", () => {
     added: ["Our indebtedness may adversely affect our financial condition and cash flows from operations."],
     dropped: 0,
     base: { form: "10-K" as const, filed: "2026-02-25", url: "https://www.sec.gov/Archives/edgar/data/1045810/x.htm" },
+    topics: ["debt"],
   };
   const priced = { quotes: { NVDA: { price: 150, dayPct: -1.2, at: null } }, series: { NVDA: series(150, { low: 131.2 }) } };
 
-  it("proposes an alert under the price, quoting the new risk as filed, with what it read", () => {
+  it("proposes an alert under the price, naming the new risk's topic, with what it read", () => {
     const draft = only(candidates(inputs({ ...priced, filingChanges: [change] })), "filing_risks");
     expect(draft.title).toBe("Set an alert on NVDA at $131.20");
     expect(wordCount(draft.title)).toBeLessThanOrEqual(TITLE_MAX_WORDS);
-    expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk.");
-    expect(draft.why[1]).toBe("New: “Our indebtedness may adversely affect our financial condition and cash flows from operations.”");
+    expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk: debt.");
+    expect(draft.why[1]).toBe("The next level down is $131.20, its 60-day low.");
     for (const line of draft.why) expect(wordCount(line)).toBeLessThanOrEqual(WHY_MAX_WORDS);
     expect(draft.event).toMatchObject({ key: `filing_risks:NVDA:${change.accession}`, refs: ["tm_filing_changes/NVDA"] });
     expect(draft.read.slice(0, 2).map((source) => source.label)).toEqual(["NVDA 10-Q risk factors", "NVDA 10-K risk factors"]);
@@ -598,14 +599,13 @@ describe("a holding's filing added risks", () => {
     expect(candidates(inputs({ ...priced, alerts: null, filingChanges: [change] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
   });
 
-  it("quotes a long new risk cut at a clause, and leaves out one with no clause that fits", () => {
-    const long = { ...change, added: ["We may fail to realize the anticipated benefits of the merger, and any failure to integrate the businesses may hurt us."] };
-    const draft = only(candidates(inputs({ ...priced, filingChanges: [long] })), "filing_risks");
-    expect(draft.why[1]).toBe("New: “We may fail to realize the anticipated benefits of the merger.”");
-    const unbroken = { ...change, added: ["Our results may suffer because of the many different things that could go wrong with the supply of our products."] };
-    const plain = only(candidates(inputs({ ...priced, filingChanges: [unbroken] })), "filing_risks");
-    expect(plain.why.some((line) => line.startsWith("New:"))).toBe(false);
-    for (const line of [...draft.why, ...plain.why]) expect(line.includes("…")).toBe(false);
+  it("names as many topics as fit the line, in brackets when it also drops risks, and none when it has none", () => {
+    const many = { ...change, added: ["a", "b", "c"], dropped: 2, topics: ["ENTRA1 deal", "supply chain", "tariffs & trade"] };
+    const draft = only(candidates(inputs({ ...priced, filingChanges: [many] })), "filing_risks");
+    expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 3 risks (ENTRA1 deal and supply chain) and drops 2.");
+    expect(wordCount(draft.why[0]!)).toBeLessThanOrEqual(WHY_MAX_WORDS);
+    const bare = only(candidates(inputs({ ...priced, filingChanges: [{ ...change, topics: [] }] })), "filing_risks");
+    expect(bare.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk.");
   });
 
   it("goes stale once the alert is set", () => {

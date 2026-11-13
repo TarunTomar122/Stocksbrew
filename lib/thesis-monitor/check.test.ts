@@ -171,7 +171,7 @@ describe("checkThesis: event detection without double counting", () => {
     const news = state.events.filter((event) => !event.baseline);
     expect(news.map((event) => [event.key, event.text, event.detail])).toEqual([
       ["status:2026-11-20", "Now under strain: VRT filed new risks.", null],
-      ["filing:VRT:vrt-q", "VRT's new 10-Q adds 1 risk.", "New: “Memory pricing could squeeze our margins.”"],
+      ["filing:VRT:vrt-q", "VRT's new 10-Q adds 1 risk: pricing.", "New: “Memory pricing could squeeze our margins.”"],
     ]);
     expect(state.risks).toEqual([expect.objectContaining({ ticker: "VRT", accession: "vrt-q", added: 1 })]);
     expect(state.status).toBe("strain");
@@ -241,7 +241,7 @@ describe("two lines on one report", () => {
       },
     };
     const state = checkThesis(input({ lines, tickers: ["NVDA"], inputs: new Map([["NVDA", both]]), filings: [doc("NVDA", [{ ...filing("10-Q", "nv-q", "2026-08-26", ["Our debt may weigh on cash flow."]), scope: "partial" }])] }));
-    expect(state.events.map((event) => event.text).sort()).toEqual(["NVDA's 10-Q adds 1 risk since its 10-K.", "NVDA's Q2: both lines hold, revenue growth 83% and gross margin 75%."]);
+    expect(state.events.map((event) => event.text).sort()).toEqual(["NVDA's 10-Q adds 1 risk (debt) since its 10-K.", "NVDA's Q2: both lines hold, revenue growth 83% and gross margin 75%."]);
     expect(state.events.find((event) => event.kind === "report")!.source).toBe("Revenue growth 83% after the Q2 report, Aug 26 (SEC 8-K); Gross margin 75% after the Q2 report, Aug 26 (SEC 8-K)");
   });
 });

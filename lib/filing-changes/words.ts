@@ -90,7 +90,7 @@ const WEAK_ENDS = [/,|\s\(/g, /\s(?:and|as well as)\s/g, /\s(?:or)\s/g];
 
 const PRONOUN_START = /^(?:we|it|they|i|us)\b/i;
 
-function wordCount(text: string): number {
+export function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
@@ -185,24 +185,10 @@ export function filedWhen(day: string, today: string): string {
   return `on ${absoluteDay(day, today)}`;
 }
 
-/**
- * One sentence for the inbox and the agent's record, at most 15 words, figures from the comparison:
- * "AMD's new 10-Q adds 2 risks and drops 1.", "LLY's new 10-Q lists no changes to its risks.". Null when there is
- * nothing to say (unreadable, or only rewording).
- */
-export function recordLine(ticker: string, comparison: Comparison): string | null {
-  const form = comparison.filing.form;
-  if (comparison.status === "no_changes") return `${ticker}'s new ${form} lists no changes to its risks.`;
-  if (comparison.status === "none_listed") return `${ticker}'s new ${form} lists no new risks.`;
-  if (comparison.status !== "changes") return null;
-  const added = comparison.added.length;
-  const dropped = comparison.dropped.length;
-  if (added > 0 && dropped > 0) return `${ticker}'s new ${form} adds ${risks(added)} and drops ${dropped}.`;
-  if (added > 0) return `${ticker}'s new ${form} adds ${risks(added)}${comparison.scope === "partial" ? " since its 10-K" : ""}.`;
-  if (dropped > 0) return `${ticker}'s new ${form} drops ${risks(dropped)}.`;
-  const repeated = comparison.repeated?.length ?? 0;
-  if (repeated > 0) return `${ticker}'s new ${form} repeats ${risks(repeated)} added after its 10-K.`;
-  return null;
+/** "a", "a and b", "a, b and c". */
+export function andList(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
 /** "10-Q filed yesterday", "10-K filed Feb 4": a filing named by its form and day (the words of its link). */
@@ -221,4 +207,19 @@ export function quietLine(comparison: Comparison, today: string): string | null 
   if (comparison.status === "none_listed") return `${lead} lists no new risks.`;
   if (comparison.status !== "changes" || comparison.added.length + (comparison.repeated?.length ?? 0) + comparison.dropped.length > 0) return null;
   return `${lead} adds no new risks.`;
+}
+
+/**
+ * The same fact as `quietLine`, short enough for one line under the chips: "Nov 5 10-Q: no changes since.",
+ * "Yesterday's 10-Q: no new risks since.". Null when there is nothing to say.
+ */
+export function quietNote(comparison: Comparison, today: string): string | null {
+  const when = filedWhen(comparison.filing.filed, today).replace(/^on /, "");
+  // "Yesterday's 10-Q", "Monday's 10-Q", "Nov 5 10-Q".
+  const lead = /^[A-Za-z]+$/.test(when) ? `${when.charAt(0).toUpperCase()}${when.slice(1)}'s ${comparison.filing.form}` : `${when} ${comparison.filing.form}`;
+  if (comparison.status === "no_changes") return `${lead}: no changes since.`;
+  if (comparison.status === "none_listed" || (comparison.status === "changes" && comparison.added.length + (comparison.repeated?.length ?? 0) + comparison.dropped.length === 0)) {
+    return `${lead}: no new risks since.`;
+  }
+  return null;
 }
