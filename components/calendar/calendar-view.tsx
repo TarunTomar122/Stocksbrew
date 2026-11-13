@@ -44,7 +44,7 @@ import {
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 import { DayFold } from "@/components/calendar/day-fold";
-import { foldDay, type DayBlock } from "@/components/calendar/fold-day";
+import { foldDay, weekBudget, type DayBlock } from "@/components/calendar/fold-day";
 
 const CHIP =
   "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[14px] transition-colors lg:h-8 " + FOCUS;
@@ -536,11 +536,19 @@ function DividendLine({ item }: { item: DividendItem }) {
 /* ── Week ──────────────────────────────────────────────────────────────── */
 
 /**
- * About how many short rows a day shows before the rest wait behind one "Show N more" (owner rule 4: a card never
- * scrolls inside its own box). Rows are weighed by height (an IPO, its name and fields wrapping in a narrow day, counts three), so a busy day and a quiet
- * one end close to level instead of one running on beside a blank column.
+ * How tall a day may run before the rest waits behind one "Show N more" (owner rule 4: a card never scrolls inside its
+ * own box), in short rows. Every heading and row is weighed by its height (dayBlocks), and the week shares one budget:
+ * the height of its quietest day that has events, kept between DAY_MIN and DAY_MAX, so the busy days fold to the
+ * quiet one's height and the columns end level (judge90) instead of one running on beside a blank column. A day
+ * quieter than DAY_MIN keeps its own short height.
  */
-const DAY_ROWS = 12;
+const DAY_MIN = 8;
+const DAY_MAX = 15;
+/** A heading's line, and a second line under one (its "Expected profit a share", its bars' key, a wrapped title). */
+const HEADING = 1;
+const SUBLINE = 0.6;
+/** The fold counts its own "Show N more" line. */
+const FOLD_HEIGHTS = { button: 1.1 };
 
 /** A day's session heading: the full words, or a short form for a narrow desktop week column. */
 const SESSION_SHORT: Record<Session, string> = { bmo: "Before the open", amc: "After the close", unknown: "Time not set" };
@@ -559,13 +567,101 @@ function More({ count, href }: { count: number; href: string }) {
   );
 }
 
-function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBuckets; today: string; filters: CalendarFilters; hasLead: boolean; mark: boolean }) {
+/**
+ * Every block of a day in order (group headings and rows), each with its rough height in short rows at lg (a heading
+ * counts about one, its "Expected profit a share" or bar key a little more), so the fold can cut whatever mix of reports,
+ * IPOs and dividends the day has, and the week can fold every day to one height (weekBudget).
+ */
+function dayBlocks(bucket: DayBuckets, { today, hasLead, mark }: { today: string; hasLead: boolean; mark: boolean }): DayBlock[] {
   const isToday = bucket.day === today;
   const past = bucket.day < today;
   // With today on screen it leads and the other days run narrow; any other week is five equal days.
   const compact = hasLead && !isToday;
-  const dayHref = calendarHref(filters, today, { view: "list", day: bucket.day });
   const sessions = (["bmo", "amc", "unknown"] as Session[]).filter((session) => bucket.earnings[session].length > 0);
+  const blocks: DayBlock[] = [];
+  if (bucket.total === 0) blocks.push({ node: <p key="none" className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p>, weight: 0, height: 1.8 });
+  if (bucket.economic.length) {
+    blocks.push({ node: <h3 key="eco-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>, weight: 0, height: HEADING });
+    // A title and its time: two lines.
+    for (const item of bucket.economic) blocks.push({ node: <EconomicLine key={item.id} item={item} />, weight: 1.7 });
+  }
+  sessions.forEach((session, sessionIndex) => {
+    const rows = bucket.earnings[session];
+    // "Expected profit a share" once per day, over the first group whose numbers are estimates (owner rule 1).
+    const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
+    // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
+    const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
+    // The reported-vs-expected bars' key, once per day over the first group that draws them. The bars hide where
+    // a row has no room (a narrow desktop column; a small phone beside a move), and the key hides with them.
+    // A passed day in a narrow column (`desktopOnly`) draws its rows without bars on every screen, so no key.
+    const drawsBars = !(past && compact);
+    const paired = (list: EarningsItem[]) => list.filter((item) => hasEpsPair(item.epsActual, item.epsEstimate));
+    const sayKey = drawsBars && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
+    // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
+    const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
+    const keyClass = `${isToday ? "" : "lg:hidden"} ${keyAlways ? "" : "max-[420px]:hidden"}`;
+    blocks.push({
+      node: (
+        <h3 key={`${session}-h`} className={`${SECTION} flex items-baseline justify-between gap-2`}>
+          <span>
+            {/* A narrow desktop column says the session in a few words, on one line ("Time not announced yet"
+                wrapped into the ticker under it); a phone and today's wide column keep the full words. */}
+            {isToday ? (
+              sessionWords(session, past)
+            ) : (
+              <>
+                <span className="lg:hidden">{sessionWords(session, past)}</span>
+                <span className="whitespace-nowrap max-lg:hidden">{sessionWords(session, past, true)}</span>
+              </>
+            )}
+            {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
+            {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
+            {sayKey ? <EpsKey className={`mt-0.5 flex ${keyClass}`} /> : null}
+          </span>
+          <span className={`${NUM} shrink-0`}>{rows.length}</span>
+        </h3>
+      ),
+      weight: 0,
+      // Its own line, plus "Expected profit a share" under it, plus the bars' key where it shows at lg (today only).
+      height: HEADING + (sayExpected ? SUBLINE : 0) + (sayKey && isToday ? SUBLINE : 0),
+    });
+    for (const item of rows) {
+      blocks.push({
+        node: <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />,
+          // Today's wide rows carry a second line (the result bars, the last report) more often than not.
+        weight: isToday ? 1.5 : 1,
+      });
+    }
+  });
+  if (bucket.ipos.length) {
+    blocks.push({ node: <h3 key="ipo-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>, weight: 0, height: HEADING });
+    // A name and its facts: two lines in today's wide column, about three where a narrow one wraps them.
+    for (const item of bucket.ipos) blocks.push({ node: <IpoLine key={item.id} item={item} />, weight: isToday ? 1.75 : 3 });
+  }
+  if (bucket.dividends.length) {
+    blocks.push({
+      node: (
+        <h3 key="div-h" className={`${SECTION} flex items-center justify-between`}>
+          <span className="flex items-center gap-1.5">
+            <KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />
+            Buy before this day to get the dividend
+          </span>
+          <span className={NUM}>{bucket.dividends.length}</span>
+        </h3>
+      ),
+      weight: 0,
+      // "Buy before this day to get the dividend" wraps to two lines in a narrow column.
+      height: isToday ? HEADING : HEADING + SUBLINE,
+    });
+    for (const item of bucket.dividends) blocks.push({ node: <DividendLine key={item.id} item={item} />, weight: 1 });
+  }
+  return blocks;
+}
+
+function DayColumn({ bucket, today, filters, blocks, budget }: { bucket: DayBuckets; today: string; filters: CalendarFilters; blocks: DayBlock[]; budget: number }) {
+  const isToday = bucket.day === today;
+  const past = bucket.day < today;
+  const dayHref = calendarHref(filters, today, { view: "list", day: bucket.day });
   const all = [...bucket.earnings.bmo, ...bucket.earnings.amc, ...bucket.earnings.unknown];
   // A day that has passed counts only the reports whose results are in: the header's "N reported" matches the rows
   // that show a result. A coming day counts every scheduled report.
@@ -624,80 +720,7 @@ function DayColumn({ bucket, today, filters, hasLead, mark }: { bucket: DayBucke
       </AppLink>
 
       {(() => {
-        // Every block of the day in order (group headings and rows), each row with its rough height in short rows, so
-        // the fold can cut after about DAY_ROWS of them whatever mix of reports, IPOs and dividends the day has.
-        const blocks: DayBlock[] = [];
-        if (bucket.total === 0) blocks.push({ node: <p key="none" className="px-3 py-4 text-[14px] text-oa-muted-fg">Nothing scheduled.</p>, weight: 0 });
-        if (bucket.economic.length) {
-          blocks.push({ node: <h3 key="eco-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.economic} className="size-3.5" />Economic</h3>, weight: 0 });
-          for (const item of bucket.economic) blocks.push({ node: <EconomicLine key={item.id} item={item} />, weight: 1.5 });
-        }
-        sessions.forEach((session, sessionIndex) => {
-          const rows = bucket.earnings[session];
-          // "Expected profit a share" once per day, over the first group whose numbers are estimates (owner rule 1).
-          const estimates = (list: EarningsItem[]) => list.some((item) => item.epsActual === null && item.epsEstimate !== null);
-          // A day that has passed shows no estimates (its rows show results or nothing), so it never says it.
-          const sayExpected = !past && estimates(rows) && !sessions.slice(0, sessionIndex).some((earlier) => estimates(bucket.earnings[earlier]));
-          // The reported-vs-expected bars' key, once per day over the first group that draws them. The bars hide where
-          // a row has no room (a narrow desktop column; a small phone beside a move), and the key hides with them.
-          // A passed day in a narrow column (`desktopOnly`) draws its rows without bars on every screen, so no key.
-          const drawsBars = !(past && compact);
-          const paired = (list: EarningsItem[]) => list.filter((item) => hasEpsPair(item.epsActual, item.epsEstimate));
-          const sayKey = drawsBars && paired(rows).length > 0 && !sessions.slice(0, sessionIndex).some((earlier) => paired(bucket.earnings[earlier]).length > 0);
-          // Shown on a small phone when any row of the day keeps its bars there (a row beside a move hides them).
-          const keyAlways = sessions.some((each) => paired(bucket.earnings[each]).some((item) => !item.reaction));
-          const keyClass = `${isToday ? "" : "lg:hidden"} ${keyAlways ? "" : "max-[420px]:hidden"}`;
-          blocks.push({
-            node: (
-              <h3 key={`${session}-h`} className={`${SECTION} flex items-baseline justify-between gap-2`}>
-                <span>
-                  {/* A narrow desktop column says the session in a few words, on one line ("Time not announced yet"
-                      wrapped into the ticker under it); a phone and today's wide column keep the full words. */}
-                  {isToday ? (
-                    sessionWords(session, past)
-                  ) : (
-                    <>
-                      <span className="lg:hidden">{sessionWords(session, past)}</span>
-                      <span className="whitespace-nowrap max-lg:hidden">{sessionWords(session, past, true)}</span>
-                    </>
-                  )}
-                  {/* Once per group, for the numbers on its rows, instead of "expected … a share" on every row. */}
-                  {sayExpected ? <span className="block font-normal">Expected profit a share</span> : null}
-                  {sayKey ? <EpsKey className={`mt-0.5 flex ${keyClass}`} /> : null}
-                </span>
-                <span className={`${NUM} shrink-0`}>{rows.length}</span>
-              </h3>
-            ),
-            weight: 0,
-          });
-          for (const item of rows) {
-            blocks.push({
-              node: <EarningsLine key={item.id} item={item} compact={compact} narrow={!isToday} quiet={past} mark={mark} desktopOnly={past && compact} />,
-              // Today's wide rows carry a second line (the result bars) more often than not.
-              weight: isToday ? 1.4 : 1,
-            });
-          }
-        });
-        if (bucket.ipos.length) {
-          blocks.push({ node: <h3 key="ipo-h" className={SECTION_KIND}><KindIcon name={TYPE_ICON.ipo} className="size-3.5" />IPOs</h3>, weight: 0 });
-          for (const item of bucket.ipos) blocks.push({ node: <IpoLine key={item.id} item={item} />, weight: 3 });
-        }
-        if (bucket.dividends.length) {
-          blocks.push({
-            node: (
-              <h3 key="div-h" className={`${SECTION} flex items-center justify-between`}>
-                <span className="flex items-center gap-1.5">
-                  <KindIcon name={TYPE_ICON.dividend} className="size-3.5 shrink-0" />
-                  Buy before this day to get the dividend
-                </span>
-                <span className={NUM}>{bucket.dividends.length}</span>
-              </h3>
-            ),
-            weight: 0,
-          });
-          for (const item of bucket.dividends) blocks.push({ node: <DividendLine key={item.id} item={item} />, weight: 1 });
-        }
-        const { shown, rest, hidden } = foldDay(blocks, DAY_ROWS);
+        const { shown, rest, hidden } = foldDay(blocks, budget, FOLD_HEIGHTS);
         return (
           <div className={hidden ? "" : "pb-2"}>
             <DayFold shown={shown.map((block) => block.node)} rest={rest.map((block) => block.node)} count={hidden} />
@@ -742,12 +765,21 @@ export function WeekView({
   const hasLead = weekdays.includes(today);
   // Today takes the room; days that have passed give some up.
   const template = weekdays.map((day) => (!hasLead ? "minmax(0,1fr)" : day === today ? "minmax(0,1.8fr)" : day < today ? "minmax(0,0.9fr)" : "minmax(0,1fr)")).join(" ");
+  const columns = weekdays.map((day) => {
+    const bucket = days.get(day) ?? emptyDay(day);
+    return { bucket, blocks: dayBlocks(bucket, { today, hasLead, mark: markPreRead }) };
+  });
+  // One height for the week: the busy days fold to the quietest one's (fold-day.ts weekBudget).
+  const budget = weekBudget(
+    columns.map((column) => column.blocks),
+    { min: DAY_MIN, max: DAY_MAX },
+  );
   return (
     <>
       {/* The days size to their own events, side by side from lg, so no day is padded to match a busier one. */}
       <div className="flex flex-col gap-2 lg:grid lg:items-start lg:[grid-template-columns:var(--cal-cols)]" style={{ "--cal-cols": template } as React.CSSProperties}>
-        {weekdays.map((day) => (
-          <DayColumn key={day} bucket={days.get(day) ?? emptyDay(day)} today={today} filters={filters} hasLead={hasLead} mark={markPreRead} />
+        {columns.map(({ bucket, blocks }) => (
+          <DayColumn key={bucket.day} bucket={bucket} today={today} filters={filters} blocks={blocks} budget={budget} />
         ))}
       </div>
       {weekend.length ? (

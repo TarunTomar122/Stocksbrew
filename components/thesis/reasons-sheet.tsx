@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { StockLogo } from "@/components/stock-logo";
 import { ConditionsPicker, draftOf, parseDrafts, type DraftCondition } from "@/components/thesis/conditions-picker";
 import { ThesisLine } from "@/components/thesis/thesis-line";
+import { reasonsStatus } from "@/components/thesis/reasons-status";
 import { ThesisStep, type ThesisStock } from "@/components/thesis/thesis-step";
 import { getCheck, loadTheses, removeReasons, saveReasons, useAllTheses, useCheck, useStoreVersion } from "@/components/thesis/store";
 import { trackThesisSaved } from "@/lib/product-analytics";
@@ -308,32 +309,18 @@ export function ReasonsStrip({ stocks }: { stocks: ThesisStock[] }) {
     const check = getCheck(stock.instrument_id).check;
     if (check) counts[check.verdict] += 1;
   }
-  const checked = counts.broken + counts.weaker + counts.played_out + counts.holds;
-  const parts = [
-    counts.broken ? `${counts.broken} ${counts.broken === 1 ? "looks" : "look"} broken` : null,
-    counts.weaker ? `${counts.weaker} ${counts.weaker === 1 ? "is" : "are"} weaker` : null,
-    counts.played_out ? `${counts.played_out} ${counts.played_out === 1 ? "has" : "have"} played out` : null,
-  ].filter(Boolean);
-  const found =
-    checked === 0
-      ? ""
-      : parts.length > 0
-        ? ` ${parts.join(", ").replace(/, ([^,]*)$/, " and $1")}.`
-        : ` ${checked === 1 ? (withReason.length === 1 ? "It still holds" : "The one we check still holds") : `All ${checked} we check still hold`}.`;
-  const text =
-    withReason.length === 0
-      ? "Why do you own them? Give each holding a reason and the agent checks it against the company's numbers."
-      : `You gave your own reason for ${withReason.length} of your ${stocks.length} holdings.${found}`;
+  // The status and, when it fits, the thesis count, in at most 12 words (judge90); the button beside it is the action.
+  const status = reasonsStatus({ withReason: withReason.length, total: stocks.length, counts, inThesis: thesis ? inThesis : 0 });
 
   return (
     <div className="flex flex-col gap-2 border-b border-oa-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-pretty text-[13.5px] leading-5 text-oa-fg">
-        {text}
-        {thesis && inThesis > 0 ? (
+        {status.text}
+        {thesis && status.thesis ? (
           <>
             {" "}
             <a href={thesis.href} className="font-medium text-oa-primary hover:underline">
-              {inThesis} {inThesis === 1 ? "is" : "are"} in your thesis.
+              {status.thesis}
             </a>
           </>
         ) : null}

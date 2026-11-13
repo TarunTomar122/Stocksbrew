@@ -9,6 +9,7 @@ import { AskCardView, type CardActions } from "@/components/ask/cards";
 import { ContextPin } from "@/components/ask/context-pin";
 import { AskMarkdown } from "@/components/ask/markdown";
 import { OaButton } from "@/components/oa/button";
+import { NavIcon } from "@/components/oa/nav-icon";
 import { AppLink } from "@/components/oa/app-link";
 import { isActionCard, sourcesOf, splitAnswer, type AnswerSource } from "@/lib/ask-answer";
 import { isAskCard, type AskCard, type AskUIMessage, type NumberAudit } from "@/lib/ask-cards";
@@ -1235,9 +1236,13 @@ export function AskWorkspace({
                       setContext(null);
                       ask(suggestion.question);
                     }}
-                    className={`grid min-h-11 w-full items-baseline gap-x-4 py-2 text-left hover:bg-oa-accent sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:px-2 ${FOCUS}`}
+                    className={`grid min-h-11 w-full items-baseline gap-x-4 py-2 text-left hover:bg-oa-accent sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:px-2 ${FOCUS}`}
                   >
-                    <span className="text-[12.5px] leading-5 text-oa-muted-fg">{suggestion.label}</span>
+                    {/* Each kind with its icon (owner VISUALS CHECK), the same one its own page uses in the nav. */}
+                    <span className="flex items-center gap-1.5 text-[12.5px] leading-5 text-oa-muted-fg">
+                      <NavIcon name={suggestion.icon} className="size-4 shrink-0 self-center" />
+                      {suggestion.label}
+                    </span>
                     <span className="text-pretty text-[15px] leading-[22px] text-oa-fg">{suggestion.question}</span>
                   </button>
                 </li>

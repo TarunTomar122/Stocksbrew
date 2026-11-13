@@ -123,7 +123,7 @@ describe("event notes", () => {
       id: "level:AMD:2026-11-11:add",
       kind: "agent",
       tickers: ["AMD"],
-      text: "AMD closed at $140.10 yesterday, at or below $142.07, where our call says to buy more. It is the lowest close in a month.",
+      text: "AMD closed at $140.10 yesterday, below its $142.07 buy-more level. It is the lowest close in a month.",
       href: "/stock/AMD",
     });
     const shown = eventNote(level, { levels: () => true, today: TODAY }, new Map())!;
@@ -134,7 +134,7 @@ describe("event notes", () => {
   });
 
   it("takes the closes-against-levels line off a gated level finding", () => {
-    const level = item({ id: "level:job:2026-11-11:add", kind: "agent", tickers: ["AMD", "NVDA"], text: "AMD and NVDA closed yesterday at or below the price where our call says to buy more.", detail: "AMD at $140.10 against $142.07, NVDA at $120.00 against $125.00." });
+    const level = item({ id: "level:job:2026-11-11:add", kind: "agent", tickers: ["AMD", "NVDA"], text: "AMD and NVDA closed below their buy-more levels.", detail: "AMD at $140.10 against $142.07, NVDA at $120.00 against $125.00." });
     const note = eventNote(level, { levels: () => false, today: TODAY }, new Map());
     expect(note === null || (!JSON.stringify(note).includes("$142.07") && !JSON.stringify(note).includes("$125.00"))).toBe(true);
   });
@@ -145,7 +145,7 @@ describe("event notes", () => {
   });
 
   it("leaves out a note with nothing left once its levels are taken out", () => {
-    const level = item({ id: "level:AMD", kind: "agent", tickers: ["AMD"], text: "AMD closed at or below $142.07, where our call says to buy more." });
+    const level = item({ id: "level:AMD", kind: "agent", tickers: ["AMD"], text: "AMD closed at or below its $142.07 buy-more level." });
     expect(eventNote(level, { levels: () => false, today: TODAY }, new Map())).toBeNull();
   });
 
@@ -206,7 +206,7 @@ describe("event notes", () => {
     )!;
     const sell = eventNote(zone!, { levels: () => true, today: TODAY, prices: { ORCL: 251.2 } }, new Map())!;
     expect(sell.tickers).toEqual(["ORCL"]);
-    expect(sell.text).toBe("ORCL closed at $251.20 yesterday, at or above $250, where our call says to sell some.");
+    expect(sell.text).toBe("ORCL closed at $251.20 yesterday, above its $250 sell-some level.");
     expect(sell.figure).toEqual({ value: "+3.1%", tone: "up" });
   });
 });

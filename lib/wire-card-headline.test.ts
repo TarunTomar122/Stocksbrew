@@ -38,6 +38,11 @@ describe("headlineClause", () => {
       "Fed holds rates steady",
     );
     expect(headlineClause("Short: then a very long tail of words that keeps going well past the fifteen word cap for sure")).toBeNull();
+    // A decimal point the source spaced out is not a clause end: the AMAT earnings headline cut at its colon instead.
+    expect(headlineClause("Applied Materials Inc (AMAT) (Q4 2026) Earnings Call Highlights: Record $10. 8 Billion Revenue and Strong AI Demand Lift the Outlook")).toBe(
+      "Applied Materials Inc (AMAT) (Q4 2026) Earnings Call Highlights",
+    );
+    expect(headlineClause("Stock slips under $10. Investors weigh a long list of worries about the company and its plans for next year")).toBe("Stock slips under $10");
   });
 });
 

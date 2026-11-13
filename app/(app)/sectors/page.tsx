@@ -29,12 +29,33 @@ function ReturnCell({ value, domain, phone = false }: { value: number | null | u
 }
 
 /**
- * A share of the sector's stocks (rising, our Buy more call) as its figure alone (council, sweep 87: a 0-100% bar
- * beside the percentage only said the number again, with nothing to hold it against).
+ * A share of the sector's stocks (rising, our Buy more call): its figure, and a 0-100% bar with a tick at the share
+ * across every sector (judge90). A bar alone only said the number again (council, sweep 87); the tick gives it
+ * something to hold it against, so a sector reads as above or below the market at a glance.
  */
-function ShareCell({ pct }: { pct: number | null }) {
+function ShareCell({ pct, average }: { pct: number | null; average: number | null }) {
   if (pct === null) return <span className={`${NUM} text-[13.5px] text-oa-muted-fg`}>n/a</span>;
-  return <span className={`${NUM} text-[13.5px]`}>{pct}%</span>;
+  return (
+    <span className="inline-flex items-center justify-end gap-2">
+      <span aria-hidden="true" className="relative block h-1.5 w-10 shrink-0 rounded-full bg-oa-bg max-sm:hidden">
+        <span className="absolute inset-y-0 left-0 rounded-full bg-oa-muted-fg/60" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+        {average !== null ? <span className="absolute -bottom-1 -top-1 w-0.5 -translate-x-1/2 rounded-full bg-oa-fg" style={{ left: `${Math.max(0, Math.min(100, average))}%` }} /> : null}
+      </span>
+      <span className={`${NUM} min-w-[2.25rem] text-right text-[13.5px]`}>{pct}%</span>
+    </span>
+  );
+}
+
+/** The share bars' tick, named once over the table (as the themes list names its S&P 500 tick). */
+function AverageKey({ rising, buyMore }: { rising: number | null; buyMore: number | null }) {
+  if (rising === null && buyMore === null) return null;
+  const title = [rising !== null ? `${rising}% of all stocks rose` : null, buyMore !== null ? `${buyMore}% are Buy more` : null].filter(Boolean).join("; ");
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12.5px] text-oa-muted-fg max-sm:hidden" title={title}>
+      <span aria-hidden="true" className="inline-block h-3 w-0.5 rounded-full bg-oa-fg" />
+      All sectors
+    </span>
+  );
 }
 
 export const revalidate = 900;
@@ -67,8 +88,8 @@ export default async function SectorsPage() {
     { id: "day", label: "Day", align: "right" },
     { id: "m1", label: "1 month", align: "right", hideOnMobile: true },
     { id: "ytd", label: "This year", align: "right" },
-    { id: "adv", label: "Rising", align: "right", hideOnMobile: true, hint: "Share of the sector's stocks that rose in the latest session" },
-    { id: "add", label: "Buy more", align: "right", hideOnMobile: true, hint: "Share of the sector's stocks where our call is Buy more" },
+    { id: "adv", label: "Rising", align: "right", hideOnMobile: true, hint: "Share of the sector's stocks that rose in the latest session; the tick is every sector's" },
+    { id: "add", label: "Buy more", align: "right", hideOnMobile: true, hint: "Share of the sector's stocks where our call is Buy more; the tick is every sector's" },
     { id: "cap", label: "Market value", align: "right", hideOnMobile: true },
   ];
   // One scale per column, so each column of bars reads as one chart.
@@ -77,6 +98,12 @@ export default async function SectorsPage() {
     m1: barDomain(stats.map((stat) => stat.change.ret_1m)),
     ytd: barDomain(stats.map((stat) => stat.change.ret_ytd)),
   };
+  // The ticks on the Rising and Buy more bars: the same shares over every stock in every sector.
+  const everyRow = [...groups.values()].flatMap((group) => group.rows);
+  const dayKnown = everyRow.filter((row) => typeof row.day_pct === "number" && Number.isFinite(row.day_pct));
+  const risingAll = dayKnown.length ? Math.round((dayKnown.filter((row) => (row.day_pct as number) > 0).length / dayKnown.length) * 100) : null;
+  const callsAll = callCounts(everyRow);
+  const buyMoreAll = callsAll.total ? Math.round((callsAll.Add / callsAll.total) * 100) : null;
   const rows: DataRow[] = stats.map((stat) => {
     const calls = callCounts(groups.get(stat.slug)?.rows ?? []);
     const addShare = calls.total ? Math.round((calls.Add / calls.total) * 100) : null;
@@ -93,8 +120,8 @@ export default async function SectorsPage() {
         <ReturnCell key="d" value={stat.change.day_pct} domain={domains.day} />,
         <ReturnCell key="m" value={stat.change.ret_1m} domain={domains.m1} />,
         <ReturnCell key="y" value={stat.change.ret_ytd} domain={domains.ytd} phone />,
-        <ShareCell key="a" pct={stat.advancing === null ? null : Math.round(stat.advancing)} />,
-        <ShareCell key="c" pct={addShare} />,
+        <ShareCell key="a" pct={stat.advancing === null ? null : Math.round(stat.advancing)} average={risingAll} />,
+        <ShareCell key="c" pct={addShare} average={buyMoreAll} />,
         <span key="v" className={`${NUM} text-[13.5px]`}>{fmtCompact(stat.marketCap, "$")}</span>,
       ],
       sort: [stat.name, stat.count, stat.change.day_pct ?? null, stat.change.ret_1m ?? null, stat.change.ret_ytd ?? null, stat.advancing, addShare, stat.marketCap],
@@ -109,9 +136,12 @@ export default async function SectorsPage() {
         title="Stock market sectors"
         meta={<SourceLine source="Prices and company data" asOf={coverage.priceDay ? closeWords(coverage.priceDay, fmtDay(coverage.priceDay, true)) : undefined} />}
         actions={
-          <Link prefetch={false} href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
-            Heat map →
-          </Link>
+          <span className="flex items-center gap-4">
+            <AverageKey rising={risingAll} buyMore={buyMoreAll} />
+            <Link prefetch={false} href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
+              Heat map →
+            </Link>
+          </span>
         }
         note={false}
       />

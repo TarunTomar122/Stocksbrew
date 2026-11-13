@@ -793,10 +793,11 @@ function levelRules(inputs: ProposalInputs): ProposalDraft[] {
       idea: `practice:${ticker}:${zone.side}`,
       title: zone.side === "buy" ? `Try buying ${ticker} in your practice account` : `Try selling some ${ticker} in your practice account`,
       why: [
-        // A close that is the level itself says the figure once.
+        // One trigger line, no figures: the card's marker shows the level and how far the price is from it, and the
+        // run log keeps the close and the level (owner rule 4: no figure said twice beside its visual).
         usd(zone.cross.close) === usd(zone.level)
-          ? `${ticker} closed at its ${usd(zone.level)} ${words} level ${onDay(zone.cross.date, inputs.today)}.`
-          : `${ticker} closed at ${usd(zone.cross.close)} ${onDay(zone.cross.date, inputs.today)}, ${zone.side === "buy" ? "under" : "over"} its ${usd(zone.level)} ${words} level.`,
+          ? `${ticker} closed at its ${words} level ${onDay(zone.cross.date, inputs.today)}.`
+          : `${ticker} closed ${zone.side === "buy" ? "under" : "over"} its ${words} level ${onDay(zone.cross.date, inputs.today)}.`,
         `Our call on it is ${CALL_WORD[call]}.`,
       ],
       does: `Opens a practice ticket to ${zone.side} ${ticker}.`,
@@ -1558,6 +1559,20 @@ export function groupOf(action: ProposalAction): ProposalGroup {
   }
 }
 
+/**
+ * A level card's trigger line without the figures its marker shows: proposals stored before Nov 13 said "LLY closed at
+ * $1,427.28 yesterday, under its $1,433.04 buy-more level."; the card now says "LLY closed under its buy-more level
+ * yesterday." and the marker carries the level. Any other line is returned as it is.
+ */
+export function triggerLine(kind: ProposalKind, line: string): string {
+  if (kind !== "level_reached") return line;
+  const crossed = /^(\S+) closed at \$[\d,.]+ (.+?), (under|over) its \$[\d,.]+ (buy-more|sell-some) level\.$/.exec(line);
+  if (crossed) return `${crossed[1]} closed ${crossed[3]} its ${crossed[4]} level ${crossed[2]}.`;
+  const at = /^(\S+) closed at its \$[\d,.]+ (buy-more|sell-some) level (.+)\.$/.exec(line);
+  if (at) return `${at[1]} closed at its ${at[2]} level ${at[3]}.`;
+  return line;
+}
+
 export function toCard(proposal: Proposal, quote: ProposalQuote | null): ProposalCard {
   // The fresh quote, else the one from the last sync (minutes old), so every card shows a price and its day.
   const shown = quote ?? proposal.quote ?? null;
@@ -1566,7 +1581,7 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     kind: proposal.kind,
     ticker: proposal.ticker,
     title: proposal.title,
-    why: proposal.why,
+    why: proposal.why.map((line, index) => (index === 0 ? triggerLine(proposal.kind, line) : line)),
     read: proposal.read,
     figures: proposal.figures,
     status: proposal.status,

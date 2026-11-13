@@ -43,7 +43,10 @@ const WIRE_ORDINARY = new Set(
     "structural reality prompting prompts me weakness strength spending plans plan warns warned rebound rebounds " +
     "upgrade upgrades upgraded downgrade downgrades downgraded alive revamp revamps revamped potential fallout " +
     // Nov 13, the stock page's What changed: "shares Drawing Fresh AI attention?", "stocks that Explain today's market".
-    "drawing draws drew fresh attention explain explains explained"
+    "drawing draws drew fresh attention explain explains explained " +
+    // Nov 13, the News page: "compute “actually Usable”", "is “Gonna Cost a trillion dollars”", "this tech giant is to
+    // Blame", "(ANET) Guides higher", "3 key Takeaways".
+    "usable gonna cost costs blame guides takeaway takeaways"
   ).split(" "),
 );
 
@@ -244,6 +247,27 @@ export function lowerOrdinaryCapitals(
   return out.join("");
 }
 
+/**
+ * A headline the feed cut short with an ellipsis ("…earnings call highlights: Record $10. ...", the AMAT earnings
+ * headline on Nov 13) ends at its last whole clause, so it never reads as a broken sentence (owner rule 8): a question
+ * or exclamation that ends right before the ellipsis ("Is Nvidia a buy?…") is kept whole, else the text before its
+ * last colon or dash, or up to its last question mark. A headline with no whole clause of three words or more, or with
+ * no ellipsis at its end, is left as it came.
+ */
+export function withoutFeedCut(title: string): string {
+  const text = title.trim();
+  if (!/(?:\.\.\.|…)$/.test(text)) return title;
+  const body = text.replace(/\s*(?:\.\.\.|…)$/, "");
+  const words = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+  if (/[?!]$/.test(body) && words(body) >= 3) return body;
+  let end = -1;
+  for (const match of body.matchAll(/:\s|\s[—–-]\s|[?!]\s/g)) {
+    const at = (match.index ?? 0) + (/^[?!]/.test(match[0]) ? 1 : 0);
+    if (words(body.slice(0, at)) >= 3) end = at;
+  }
+  return end > 0 ? body.slice(0, end).trim() : title;
+}
+
 /** The last few vocabularies learned, by the caller's key for the wire they came from, so a reload does not learn one again. */
 const learned = new Map<string, Set<string>>();
 const LEARNED_KEEP = 8;
@@ -280,7 +304,7 @@ export function caseWireHeadlines<T extends { title: string; tickers: string[]; 
     // which no wire vocabulary can tell from ordinary words: it gets the shared casing only.
     const own = item.sourceKind === "press_release" || item.sourceKind === "official";
     // The day's own vocabulary, then the wire's usual ordinary words (WIRE_ORDINARY) as a second list.
-    const title = own ? first : lowerOrdinaryCapitals(first, lowerWords, pattern, WIRE_ORDINARY);
+    const title = withoutFeedCut(own ? first : lowerOrdinaryCapitals(first, lowerWords, pattern, WIRE_ORDINARY));
     return title === item.title ? item : { ...item, title };
   });
 }

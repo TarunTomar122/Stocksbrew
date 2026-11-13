@@ -19,6 +19,7 @@ import {
   titleCase,
   TITLE_MAX_WORDS,
   toCard,
+  triggerLine,
   waitingOf,
   WHY_MAX_WORDS,
   wordCount,
@@ -261,7 +262,11 @@ describe("event → proposal", () => {
     expect(draft.event.key).toBe(`level:NVDA:buy:${shift(TODAY, -1)}`);
     // A close at the level itself says the figure once.
     const at = only(candidates(inputs({ calls: { NVDA: { call: "Add", changes: [] } }, levels: { NVDA: { add_below: 142 } }, series: { NVDA: series(142, { tail: [146, 145, 142] }) }, quotes: { NVDA: { price: 141.5, dayPct: 0.3, at: null } } })), "level_reached");
-    expect(at.why[0]).toBe("NVDA closed at its $142 buy-more level yesterday.");
+    expect(at.why[0]).toBe("NVDA closed at its buy-more level yesterday.");
+    // One trigger line: the figures are the marker's and the run log's, never said again in the line.
+    expect(draft.why[0]).toBe("NVDA closed under its buy-more level yesterday.");
+    expect(draft.why[0]).not.toMatch(/\$/);
+    expect(draft.figures.map((figure) => figure.label)).toEqual(expect.arrayContaining(["Close that crossed", "Buy-more level"]));
     withinBudget(draft);
   });
 
@@ -607,5 +612,16 @@ describe("a holding's filing added risks", () => {
     const draft = only(candidates(inputs({ ...priced, filingChanges: [change] })), "filing_risks");
     const proposal = newProposal("u1", draft, NOW);
     expect(staleReason(proposal, inputs({ ...priced, alerts: [alert({ price: 131.2 })] }))).toBe("alert_set");
+  });
+});
+
+describe("triggerLine", () => {
+  it("takes the figures out of a level card stored with them, and leaves every other line alone", () => {
+    expect(triggerLine("level_reached", "LLY closed at $1,427.28 yesterday, under its $1,433.04 buy-more level.")).toBe("LLY closed under its buy-more level yesterday.");
+    expect(triggerLine("level_reached", "META closed at $628.77 on Wednesday, under its $641.37 buy-more level.")).toBe("META closed under its buy-more level on Wednesday.");
+    expect(triggerLine("level_reached", "OUST closed at its $38.22 buy-more level on Tuesday.")).toBe("OUST closed at its buy-more level on Tuesday.");
+    expect(triggerLine("level_reached", "ORCL closed at $251.20 yesterday, over its $250 sell-some level.")).toBe("ORCL closed over its sell-some level yesterday.");
+    expect(triggerLine("alert_hit", "LLY closed at $1,427.28 yesterday, under its $1,433.04 buy-more level.")).toBe("LLY closed at $1,427.28 yesterday, under its $1,433.04 buy-more level.");
+    expect(triggerLine("level_reached", "Something else.")).toBe("Something else.");
   });
 });

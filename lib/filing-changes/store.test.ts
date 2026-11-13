@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Comparison } from "./diff";
 import { FILING_CHANGES_VERSION, HISTORY_MAX, hasAnnualComparison, nextDoc, readComparison, readFilingChangesDoc, viewOf, type FilingChangesDoc } from "./store";
-import { changesTitle, filedWhen, quietLine, quote, recordLine } from "./words";
+import { changesTitle, droppedLine, filedWhen, quietLine, quote, recordLine } from "./words";
 
 function comparison(form: "10-K" | "10-Q", filed: string, patch: Partial<Comparison> = {}): Comparison {
   return {
@@ -119,6 +119,58 @@ describe("words", () => {
     for (const heading of ["We depend on a few large customers, Amazon.com Inc., which may cut their orders sharply in any quarter without notice."]) {
       expect(quote(heading).text).not.toMatch(/\.\.$/);
     }
+  });
+
+  it("sums a long dropped risk up in one line of its own words, at most 15, ending cleanly", () => {
+    const cases: Array<[string, string]> = [
+      // The judge's two (24 and 25 words): the subject is what the risk was about.
+      [
+        "Intel Corporation's dominance of the microprocessor market and its aggressive business practices may limit our ability to compete effectively on a level playing field.",
+        "Intel Corporation's dominance of the microprocessor market and its aggressive business practices.",
+      ],
+      [
+        "Nvidia's dominance in the graphics processing unit market and its aggressive business practices may limit our ability to compete effectively on a level playing field.",
+        "Nvidia's dominance in the graphics processing unit market and its aggressive business practices.",
+      ],
+      // A heading of two sentences: the first.
+      [
+        "Our business is subject to various governmental regulations. Compliance with these regulations may cause us to incur significant expense and failure to maintain compliance with applicable regulations could adversely affect our business.",
+        "Our business is subject to various governmental regulations.",
+      ],
+      // "We …": the heading's own topic phrase, in our words for the company.
+      [
+        "We must manage ongoing obligations under our agreement with the Research Foundation for the State University of New York relating to our Gigafactory New York.",
+        "A risk about its Gigafactory New York.",
+      ],
+      [
+        "Our business is subject to global economic, market, public health, and geopolitical conditions as well as to natural disasters beyond our control and could adversely affect our revenue and results of operations.",
+        "A risk about global economic, market, public health, and geopolitical conditions.",
+      ],
+      // A subject with a bracket runs long: cut before it.
+      ["Changes in tax laws (including the OECD's Pillar Two rules, the U.S. Inflation Reduction Act, and others) could hurt our results.", "Changes in tax laws."],
+    ];
+    for (const [heading, line] of cases) {
+      const out = droppedLine(heading);
+      expect(out, heading).toEqual({ text: line, summed: true });
+      expect(out!.text.split(" ").length).toBeLessThanOrEqual(15);
+      expect(out!.text).not.toMatch(/(?:…|\.\.|\b(?:and|or|of|the|to|we)\.)$/);
+    }
+  });
+
+  it("never writes a topic that would need its verb changed", () => {
+    // "relating to which we are a party" would read "it are": such a topic is left out, never rewritten.
+    const out = droppedLine("We have obligations under many agreements and arrangements across the world relating to which we are a party in several countries.");
+    expect(out === null || !/\b(?:we|us|it are)\b/i.test(out.text)).toBe(true);
+  });
+
+  it("keeps a short dropped risk whole and gives up on a bare condition", () => {
+    expect(droppedLine("Holders of our Series B Preferred Stock can exercise significant control over us.")).toEqual({
+      text: "Holders of our Series B Preferred Stock can exercise significant control over us.",
+      summed: false,
+    });
+    expect(
+      droppedLine("If we fail to retain existing users or add new users cost-effectively, or if our users decrease their level of engagement with Apps, our business could suffer."),
+    ).toBeNull();
   });
 
   it("titles the section without promising only additions, within 10 words", () => {

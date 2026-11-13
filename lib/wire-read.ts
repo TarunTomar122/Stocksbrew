@@ -691,7 +691,8 @@ const MIN_CLAUSE_WORDS = 4;
  */
 export function headlineClause(title: string): string | null {
   const text = title.trim().replace(/\s+/g, " ");
-  const strong = /[:;?!]\s|\.\s|\s[—–-]\s/g;
+  // A full stop between two figures is a decimal point the source spaced out ("Record $10. 8 billion"), not a clause end.
+  const strong = /[:;?!]\s|(?<!\d)\.\s|\.\s(?!\d)|\s[—–-]\s/g;
   const weak = /,\s/g;
   const count = (value: string) => value.split(" ").filter(Boolean).length;
   for (const pattern of [strong, weak]) {

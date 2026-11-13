@@ -67,11 +67,19 @@ describe("moves, stock by stock", () => {
   it("says a shared price level once for several stocks, and one stock's level with its own prices", () => {
     const level = (ticker: string, close: number, lvl: number): RunFinding => ({ ticker, headline: `${ticker} closed in its add zone`, detail: "", at: TODAY, kind: "level", change_pct: -2, close, zone: "add", level: lvl });
     const [many] = findingItems(run([level("SPCX", 139.75, 142.07), level("MSFT", 521.13, 530.61)]), "mine", new Map(), TODAY)!;
-    expect(many!.text).toBe("SPCX and MSFT closed today at or below the price where our call says to buy more.");
+    expect(many!.text).toBe("SPCX and MSFT closed below their buy-more levels.");
     expect(many!.detail).toBe("SPCX at $139.75 against $142.07, MSFT at $521.13 against $530.61.");
     expect(many!.tickers).toEqual(["SPCX", "MSFT"]);
     const [one] = findingItems(run([level("SPCX", 139.75, 142.07)]), "mine", new Map(), TODAY)!;
-    expect(one!.text).toBe("SPCX closed at $139.75 today, at or below $142.07, where our call says to buy more.");
+    expect(one!.text).toBe("SPCX closed at $139.75 today, below its $142.07 buy-more level.");
+    // The judge's case, for any three stocks: one short line, the pairs in the detail.
+    const [three] = findingItems(run([level("CGNX", 50.77, 50.79), level("LLY", 1427.28, 1433.04), level("DELL", 371.17, 372.36)]), "mine", new Map(), TODAY)!;
+    expect(three!.text).toBe("CGNX, LLY and DELL closed below their buy-more levels.");
+    // A close that is the level itself is "at"; a mix of at and below is "at or below".
+    const [at] = findingItems(run([level("SPCX", 142.07, 142.07)]), "mine", new Map(), TODAY)!;
+    expect(at!.text).toBe("SPCX closed today at its $142.07 buy-more level.");
+    const [mixed] = findingItems(run([level("SPCX", 142.07, 142.07), level("MSFT", 521.13, 530.61)]), "mine", new Map(), TODAY)!;
+    expect(mixed!.text).toBe("SPCX and MSFT closed at or below their buy-more levels.");
   });
 
   it("falls back to the run's summary when the run has no findings to go on", () => {

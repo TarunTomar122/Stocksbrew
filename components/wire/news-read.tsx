@@ -105,39 +105,46 @@ export function TalkedAbout({ rows, filters, className = "" }: { rows: StockBuzz
   // The tone column once any stock's news has a tone the labels support; then every row says one. With none (the
   // labeller behind), the same "No clear lean" on every row would say nothing many times (owner rule 1).
   const toned = rows.some((row) => toneWord(row.tones, row.count) !== null);
-  // The last column holds the price and the move: wide enough for "$1,234.56 −16.6%" so the rows line up.
-  // On a phone the ticker keeps its width and the tone takes what is left, so the two never run together.
-  const cols = toned
-    ? "grid-cols-[1.25rem_auto_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_minmax(0,1fr)_auto_minmax(8.5rem,auto)]"
-    : "grid-cols-[1.25rem_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_minmax(0,1fr)_minmax(8.5rem,auto)]";
   const rank = new Map(rows.map((row, index) => [row.ticker, index + 1]));
   const item = (row: StockBuzz, index: number) => {
     const place = rank.get(row.ticker) ?? 0;
+    const day = row.priceDay ? <span className="text-[12.5px] text-oa-muted-fg">{row.priceDay}</span> : null;
     return (
-      // Each column is its own list, so the item carries its overall rank for screen readers too.
-      <li key={row.ticker} value={place} className="hover:bg-oa-accent">
+      // Each column is its own list, so the item carries its overall rank for screen readers too. The row is its own
+      // size container: its layout follows the column's width, not the window's.
+      <li key={row.ticker} value={place} className="hover:bg-oa-accent [container-type:inline-size]">
         <Link href={wireHref({ ...filters, limit: WIRE_PAGE_SIZE }, { ticker: row.ticker, theme: null })} prefetch={false} className={`block px-4 py-2 ${FOCUS}`}>
-          <span className={`grid min-h-6 ${cols} items-center gap-x-3`}>
-            <span className={`${NUM} text-[12.5px] text-oa-muted-fg`}>{place}</span>
-            <span className="flex min-w-0 items-center gap-2">
+          {/* Every piece has its own place, so a long ticker, a "68% negative" and a "−16.8%" never run into each
+              other (judge90, 390px): in a narrow column the tone and the price's day go on a second line under the
+              ticker and the price; from 28rem the row is one line, the price and its move lined up in the last column. */}
+          <span
+            className={`grid min-h-6 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-3 [grid-template-areas:'rank_stock_price'_'._tone_day'] ${
+              toned
+                ? "[@container(min-width:28rem)]:grid-cols-[1.25rem_minmax(0,1fr)_auto_minmax(8.5rem,auto)] [@container(min-width:28rem)]:[grid-template-areas:'rank_stock_tone_price']"
+                : "[@container(min-width:28rem)]:grid-cols-[1.25rem_minmax(0,1fr)_minmax(8.5rem,auto)] [@container(min-width:28rem)]:[grid-template-areas:'rank_stock_price']"
+            }`}
+          >
+            <span className={`${NUM} text-[12.5px] text-oa-muted-fg [grid-area:rank]`}>{place}</span>
+            <span className="flex min-w-0 items-center gap-2 [grid-area:stock]">
               <StockLogo ticker={row.ticker} size={18} eager={index < 5} atOnce />
               <span className={`${NUM} text-[14px] font-medium text-oa-fg`}>{row.ticker}</span>
             </span>
             {toned ? (
-              <span className="text-right">
+              <span className="min-w-0 [grid-area:tone] [@container(min-width:28rem)]:text-right">
                 <RowTone counts={row.tones} stories={row.count} />
               </span>
             ) : null}
             {/* Today's price beside its move (owner rule 4), from the stock's latest quote. */}
-            <span className="flex items-baseline justify-end gap-2 whitespace-nowrap">
+            <span className="flex items-baseline justify-end gap-2 whitespace-nowrap [grid-area:price]">
               {row.price != null ? (
                 <span className={`${NUM} text-[14px] text-oa-fg`}>
                   {fmtMoney(row.price)}
                 </span>
               ) : null}
               {row.pct !== null ? <Delta value={row.pct} digits={1} className="text-[14px] font-medium" /> : null}
-              {row.priceDay ? <span className="-ml-1 text-[12.5px] text-oa-muted-fg">{row.priceDay}</span> : null}
+              {day ? <span className="-ml-1 hidden [@container(min-width:28rem)]:inline">{day}</span> : null}
             </span>
+            {day ? <span className="whitespace-nowrap text-right leading-[18px] [grid-area:day] [@container(min-width:28rem)]:hidden">{day}</span> : null}
           </span>
           {/* The top story, whole and in sentence case, so the row says what the talk is about. */}
           {row.lead ? <span className="mt-0.5 block text-pretty pl-[2rem] text-[13px] leading-[19px] text-oa-muted-fg">{buzzHighlight(row)}</span> : null}

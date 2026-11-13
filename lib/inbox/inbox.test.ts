@@ -171,8 +171,22 @@ describe("wording", () => {
       positions,
     );
     expect(items).toHaveLength(1);
-    expect(items[0]!.text).toBe("Scott Angel, director at SMCI, bought $79,941 of SMCI in filings on Nov 10, a stock you watch.");
+    expect(items[0]!.text).toBe("Scott Angel, director at SMCI, bought $79,941 of SMCI on Nov 10.");
     expect(items[0]!.external).toBe(true);
+  });
+
+  it("says several insiders' buys in one short line: how many, the total and who led", () => {
+    const positions = new Map([["COHR", "watchlist" as const]]);
+    const [item] = insiderItems(
+      [
+        { id: "c1", ticker: "COHR", insider: "James Robert Anderson", role: "Chief Executive Officer", value: 900_000, filedAt: "2026-11-12T16:00:00", url: null },
+        { id: "c2", ticker: "COHR", insider: "Enrico Digirolamo", role: "Director", value: 300_000, filedAt: "2026-11-12T17:00:00", url: null },
+      ],
+      positions,
+      "2026-11-13",
+    );
+    expect(item!.text).toBe("2 insiders at COHR bought $1.2 million yesterday, led by James Robert Anderson.");
+    expect(item!.text.split(" ").length).toBeLessThanOrEqual(15);
   });
 
   it("leaves a rebalance's names out on a plan without followed strategies", () => {

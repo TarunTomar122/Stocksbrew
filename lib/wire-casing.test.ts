@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { caseWireHeadlines, learnLowerWords, lowerOrdinaryCapitals } from "@/lib/wire-casing";
+import { caseWireHeadlines, learnLowerWords, lowerOrdinaryCapitals, withoutFeedCut } from "@/lib/wire-casing";
 
 // A day's wire in miniature: the ordinary words show up in lower case elsewhere, the names never do.
 const CORPUS = [
@@ -152,5 +152,35 @@ describe("caseWireHeadlines", () => {
       "Kitchen Sinks maker files for IPO",
       "Bank of America revamps AMD stock price target for 2027",
     ]);
+  });
+
+  it("lowers the News page's strays and ends a headline the feed cut inside a figure (Nov 13)", () => {
+    const out = run([
+      ...CORPUS,
+      "Musk: SpaceX makes compute “actually Usable” in 2 months",
+      "Nebius Group (NBIS) takes a beating — this tech giant is to Blame",
+      "Arista Networks (ANET) Guides higher, is the stock overvalued following earnings?",
+      "Applied Materials Inc (AMAT) (Q4 2026) earnings call highlights: Record $10. ...",
+    ], { AMAT: "Applied Materials, Inc.", ANET: "Arista Networks, Inc." });
+    expect(out.slice(-4)).toEqual([
+      "Musk: SpaceX makes compute “actually usable” in 2 months",
+      "Nebius Group (NBIS) takes a beating — this tech giant is to blame",
+      "Arista Networks (ANET) guides higher, is the stock overvalued following earnings?",
+      "Applied Materials Inc (AMAT) (Q4 2026) earnings call highlights",
+    ]);
+  });
+
+
+  it("ends a headline the feed cut with an ellipsis at its last whole clause, and leaves the rest alone", () => {
+    expect(withoutFeedCut("Q4 call highlights: Record $10. ...")).toBe("Q4 call highlights");
+    expect(withoutFeedCut("Is Nvidia a buy? Analysts weigh the next quarter and the …")).toBe("Is Nvidia a buy?");
+    expect(withoutFeedCut("Is Nvidia still a buy?…")).toBe("Is Nvidia still a buy?");
+    expect(withoutFeedCut("Is Nvidia still a buy? ...")).toBe("Is Nvidia still a buy?");
+    // No whole clause to fall back to: as it came.
+    expect(withoutFeedCut("Nvidia shares slide as the market weighs...")).toBe("Nvidia shares slide as the market weighs...");
+    // Not cut: a figure that ends a sentence, a decimal, a colon.
+    expect(withoutFeedCut("Shares slip below $10.")).toBe("Shares slip below $10.");
+    expect(withoutFeedCut("Recap: revenue tops $10.5 billion")).toBe("Recap: revenue tops $10.5 billion");
+    expect(withoutFeedCut("Results: Record $10.")).toBe("Results: Record $10.");
   });
 });

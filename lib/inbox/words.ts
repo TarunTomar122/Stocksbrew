@@ -419,19 +419,23 @@ function levelItem(
   const first = levels[0];
   if (!first) return null;
   const zone = first.zone;
-  const call = zone === "add" ? "buy more" : "sell some";
-  const side = zone === "add" ? "at or below" : "at or above";
+  const name = zone === "add" ? "buy-more" : "sell-some";
   const days = new Set(levels.map((level) => level.day));
   const when = days.size === 1 ? `${pastWhen(first.day, where.today)}` : "";
+  const side = levelSide(levels);
   let text: string;
   let detail: string | null = null;
   if (levels.length === 1) {
+    // "AMD closed at $140.10 yesterday, below its $142.07 buy-more level." (owner rule 8: one short line).
     text = positive(first.level)
-      ? `${first.ticker} closed ${positive(first.close) ? `at ${price(first.close)} ` : ""}${when}, ${side} ${price(first.level)}, where our call says to ${call}.`
-      : `${first.ticker} closed ${when} where our call says to ${call}.`;
+      ? positive(first.close) && side !== "at"
+        ? `${first.ticker} closed at ${price(first.close)} ${when}, ${side} its ${price(first.level)} ${name} level.`
+        : `${first.ticker} closed ${when} ${side} its ${price(first.level)} ${name} level.`
+      : `${first.ticker} closed ${when} ${side} its ${name} level.`;
   } else {
+    // "CGNX, LLY and DELL closed below their buy-more levels.": the day is the row's own, the pairs are the detail.
     const tickers = levels.map((level) => level.ticker);
-    text = `${listTickers(tickers, 6)} closed ${when ? `${when} ` : ""}${side} the price where our call says to ${call}.`;
+    text = `${listTickers(tickers, 6)} closed ${side} their ${name} levels.`;
     const pairs = levels
       .filter((level) => positive(level.close) && positive(level.level))
       .map((level) => `${level.ticker} at ${price(level.close!)} against ${price(level.level!)}`);
@@ -453,6 +457,21 @@ function levelItem(
     move: levels.length === 1 ? first.move : null,
     dedupeKey: key,
   });
+}
+
+/**
+ * Where the closes sat against their levels, in the fewest true words: "below" (or "above" for the sell-some side) when
+ * every close is known and strictly past its level, "at" when every one is the level itself, else "at or below".
+ */
+function levelSide(levels: LevelFinding[]): string {
+  const add = levels[0]?.zone !== "trim";
+  const past = add ? "below" : "above";
+  const known = levels.every((level) => positive(level.close) && positive(level.level));
+  if (!known) return `at or ${past}`;
+  const cents = (value: number) => Math.round(value * 100);
+  if (levels.every((level) => cents(level.close!) === cents(level.level!))) return "at";
+  if (levels.every((level) => (add ? cents(level.close!) < cents(level.level!) : cents(level.close!) > cents(level.level!)))) return past;
+  return `at or ${past}`;
 }
 
 function capitaliseFirst(text: string): string {
@@ -733,14 +752,18 @@ export function insiderItems(trades: InsiderRecord[], positions: Map<string, Pos
     const sorted = [...list].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     const top = sorted[0]!;
     const ticker = top.ticker;
-    const yours = positions.get(ticker) === "holding" ? "a stock you own" : "a stock you watch";
     const total = sorted.reduce((sum, trade) => sum + (trade.value ?? 0), 0);
     const people = new Set(sorted.map((trade) => trade.insider.trim()));
     const role = roleWords(top.role);
-    const text =
+    // One short line (owner rule 8): who, how much and when. The stock is the person's own, so it is not said again.
+    const when = pastWhen(top.day, today);
+    const text = (
       people.size === 1
-        ? `${top.insider.trim()}, ${role ? `${role} at ${ticker}` : `an insider at ${ticker}`}, bought ${usd(total)} of ${ticker} in ${sorted.length === 1 ? "a filing" : "filings"} ${pastWhen(top.day, today)}, ${yours}.`
-        : `${people.size} insiders at ${ticker} bought ${usd(total)} of the stock in filings ${pastWhen(top.day, today)}, ${yours}, led by ${top.insider.trim()}.`;
+        ? `${top.insider.trim()}, ${role ? `${role} at ${ticker}` : `an insider at ${ticker}`}, bought ${usd(total)} of ${ticker} ${when}.`
+        : `${people.size} insiders at ${ticker} bought ${usd(total)} ${when}, led by ${top.insider.trim()}.`
+    )
+      .replace(/\s+/g, " ")
+      .replace(/ ([.,])/g, "$1");
     const external = Boolean(top.url && /^https:\/\//.test(top.url));
     const latest = sorted.map((trade) => trade.at).sort().pop()!;
     const item = base({

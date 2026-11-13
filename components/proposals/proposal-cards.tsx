@@ -483,7 +483,7 @@ export function ProposalCards({
             </span>
           ) : null}
           {card.level && card.quote ? (
-            <LevelBar now={card.quote.price} level={card.level} />
+            <LevelBar now={card.quote.price} level={card.level} withPrice={card.kind === "level_reached"} />
           ) : card.usualPct && card.quote ? (
             <MoveRange now={card.quote.price} pct={card.usualPct} />
           ) : null}

@@ -10,9 +10,9 @@ function price(value: number): string {
  * The price against the level the proposal is about, as a small bar (owner rule 4: two numbers get a visual). The
  * scale is fixed around the price (at least ±10%, wider for a far level), so the distance between the dot (now) and
  * the tick (the level) reads true from card to card; each label sits on its own mark's side. The figures themselves
- * are in the card's line.
+ * are in the card's line, or with `withPrice` (a level card, whose line has no figures) the level's price is here.
  */
-export function LevelBar({ now, level }: { now: number; level: ProposalLevel }) {
+export function LevelBar({ now, level, withPrice = false }: { now: number; level: ProposalLevel; withPrice?: boolean }) {
   const { nowAt, levelAt, gapPct } = levelScale(now, level.price);
   const gapWords =
     Math.abs(gapPct) < 0.05
@@ -26,7 +26,10 @@ export function LevelBar({ now, level }: { now: number; level: ProposalLevel }) 
   );
   const levelLabel = (
     <span>
-      {level.label} {gapWords}
+      {level.label}
+      {/* A card whose line leaves the figure out (a level crossed) says it here, once, beside how far it is. */}
+      {withPrice ? <span className="oa-mono tabular-nums text-oa-fg">{` ${price(level.price)}`}</span> : null}
+      {withPrice ? `, ${gapWords}` : ` ${gapWords}`}
     </span>
   );
   const levelLeft = levelAt < nowAt;

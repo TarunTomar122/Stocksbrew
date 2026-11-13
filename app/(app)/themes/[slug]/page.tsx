@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AppPage, Delta, NUM, PageHead, Panel, StatStrip, type StatItem } from "@/components/oa/kit";
 import { OverlayChart, type OverlayRange } from "@/components/screener/overlay-chart";
-import { BookHead, BookLine } from "@/components/themes-book/book";
+import { BookHead, BookLine, bookScales } from "@/components/themes-book/book";
 import { ThemeActions } from "@/components/basket-agent/theme-actions";
 import { limitFor } from "@/lib/entitlements";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
@@ -49,6 +49,8 @@ export default async function ThemeBookPage({ params }: Props) {
   const lines = basket.lines.map(gate);
   const alsoWatching = basket.alsoWatching.map(gate);
   const tickers = lines.map((line) => line.ticker);
+  // The book and the names also watched share one scale per column, so every 1M and YTD bar compares.
+  const scales = bookScales([...lines, ...alsoWatching]);
 
   const chart = await getBasketChart(tickers).catch(() => null);
   const ranges: OverlayRange[] = (chart?.ranges ?? []).map((range) => ({
@@ -170,7 +172,7 @@ export default async function ThemeBookPage({ params }: Props) {
         <BookHead />
         <ol>
           {lines.map((line, index) => (
-            <BookLine key={line.ticker} line={line} index={index} />
+            <BookLine key={line.ticker} line={line} index={index} scales={scales} />
           ))}
         </ol>
       </Panel>
@@ -180,7 +182,7 @@ export default async function ThemeBookPage({ params }: Props) {
           <BookHead />
           <ol>
             {alsoWatching.map((line, index) => (
-              <BookLine key={line.ticker} line={line} index={index} />
+              <BookLine key={line.ticker} line={line} index={index} scales={scales} />
             ))}
           </ol>
         </Panel>

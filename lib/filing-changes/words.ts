@@ -1,6 +1,8 @@
 /**
  * The words around a filing comparison. The risks themselves are always the company's own headings, never reworded:
- * a long one is only cut to its opening clause, never mid-clause and never with an ellipsis. Pure: safe on the client.
+ * a long one is only cut (to a sentence, a clause or its subject), never mid-clause and never with an ellipsis; a long
+ * dropped one that no cut fits may be named by its own topic phrase ("A risk about …", droppedLine). Pure: safe on
+ * the client.
  */
 
 import { absoluteDay, daysFromToday, weekdayName } from "@/lib/day-words";
@@ -65,8 +67,104 @@ export function quote(heading: string, max = QUOTE_WORDS): { text: string; cut: 
   return { text: /[.!?]$/.test(text) ? text : `${text}.`, cut: true, fits: true };
 }
 
-/** Dropped risks up to this many words are shown whole; longer ones are cut (and link to the filing that had them). */
-export const WHOLE_WORDS = 25;
+/** Dropped risks up to this many words are shown whole; longer ones are summed up in one line (and link to the filing that had them). */
+export const WHOLE_WORDS = QUOTE_WORDS;
+
+// Where a heading's subject ends: its first verb, or a modal or auxiliary before one ("may", "is", "could").
+const SUBJECT_END = /^(?:is|are|was|were|has|have|had|may|might|could|can|will|would|must|should|does|do|did|continues?|remains?|depends?|rel(?:y|ies)|faces?|requires?|involves?|exposes?|subjects?|affects?|harms?|hurts?|limits?|increases?|decreases?|reduces?|impacts?|creates?|presents?|poses?|results?)$/i;
+
+// Openings that are not a topic on their own: the filer itself ("We", "Our business") or a bare condition ("If we").
+const VAGUE_SUBJECT = /^(?:we|it|they|our (?:business|company|operations|results|results of operations|financial condition|success|future success)|the company|the company's business)$/i;
+
+// A phrase that names what a risk is about: "…relating to our Gigafactory New York", "…with respect to its ESG practices".
+const ABOUT = /\b(?:related to|relating to|regarding|concerning|associated with|with respect to|arising from|in connection with)\s+(.+)$/i;
+
+// What follows "is subject to", "depends on", "we face", "we may have": the thing the risk is about.
+const OBJECT = /\b(?:(?:is|are) subject to|depends? (?:in part )?(?:up)?on|rel(?:y|ies) (?:up)?on|faces?|must manage|(?:may|could) (?:have|experience|incur))\s+(.+)$/i;
+
+// Where a topic phrase surely ends: a clause break, or where the heading turns to what the topic could do.
+const STRONG_END = /;|:|\s[—–]\s|\s(?:which|that|if|as well as|could|may|might|will|would|can)\s/i;
+// Where it may end, when the phrase runs long, tried in this order: a comma or bracket, then "and", then "or" ("real
+// or perceived" is one idea more often than "and" is).
+const WEAK_ENDS = [/,|\s\(/g, /\s(?:and|as well as)\s/g, /\s(?:or)\s/g];
+
+const PRONOUN_START = /^(?:we|it|they|i|us)\b/i;
+
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * "our Apps" as we would say it of the company: "its Apps". Only the possessive is rewritten: a topic that still says
+ * "we" or "us" would need its verb changed too ("we are" is not "it are"), so `fitPhrase`'s caller leaves it out.
+ */
+function asTheirs(text: string): string {
+  return text.replace(/\bour\b/g, "its").replace(/\bOur\b/g, "Its");
+}
+
+const FIRST_PERSON = /\b(?:we|us)\b/i;
+
+function endsClean(text: string): boolean {
+  const last = text.split(/\s+/).pop() ?? "";
+  const open = (text.match(/\(/g)?.length ?? 0) > (text.match(/\)/g)?.length ?? 0);
+  return !open && !DANGLING.test(last.replace(/[^A-Za-z']/g, "")) && !/^(?:we|it|they|us)$/i.test(last.replace(/[^A-Za-z]/g, ""));
+}
+
+/**
+ * A phrase of 2 to `max` words that ends cleanly: `text` up to its first clause break, and when that runs long, its
+ * longest opening that ends before a comma, a bracket, "and" or "or" ("assumptions and estimates to calculate …").
+ */
+function fitPhrase(text: string, max: number): string | null {
+  const strong = text.search(STRONG_END);
+  const head = (strong >= 0 ? text.slice(0, strong) : text).replace(/[\s.,;:]+$/, "").trim();
+  const fits = (phrase: string) => wordCount(phrase) >= 2 && wordCount(phrase) <= max && endsClean(phrase);
+  if (fits(head)) return head;
+  for (const pattern of WEAK_ENDS) {
+    const cuts = [...head.matchAll(pattern)].map((match) => match.index ?? 0).reverse();
+    for (const cut of cuts) {
+      const phrase = head.slice(0, cut).replace(/[\s,;:]+$/, "").trim();
+      if (fits(phrase)) return phrase;
+    }
+  }
+  return null;
+}
+
+/**
+ * A dropped risk as one line of at most `max` words that ends cleanly, made only of the company's own words (owner
+ * rule 8; never reworded, never an ellipsis). In order: the heading whole when it fits; its first sentence; its
+ * opening clause (`quote`); its subject, which is what the risk is about ("Intel Corporation's dominance of the
+ * microprocessor market and its aggressive business practices."); else "A risk about" and the heading's own topic
+ * phrase ("A risk about its Gigafactory New York."). `summed` says the line is not the whole heading (callers link the
+ * filing that has it); null when no line fits, and the caller shows the heading whole.
+ */
+export function droppedLine(heading: string, max = QUOTE_WORDS): { text: string; summed: boolean } | null {
+  const whole = heading.replace(/\s+/g, " ").trim();
+  if (!whole) return null;
+  if (wordCount(whole) <= max) return { text: whole, summed: false };
+  // A heading of two sentences: the first, when it is a sentence of its own ("Our business is subject to … regulations.").
+  const [first] = whole.split(/(?<=[a-z]{2}[.!?])\s+(?=[A-Z])/);
+  if (first && first !== whole && wordCount(first) <= max && wordCount(first) >= 5 && VERB.test(first)) return { text: first, summed: true };
+  const clause = quote(whole, max);
+  if (clause.cut) return { text: clause.text, summed: true };
+  const body = whole.replace(/[.!?]+$/, "");
+  const words = body.split(" ");
+  const lead = words[0]!.replace(/[^A-Za-z]/g, "");
+  if (!SUBORDINATE.test(lead)) {
+    const end = words.findIndex((word, index) => index > 0 && SUBJECT_END.test(word.replace(/[^A-Za-z]/g, "")));
+    if (end > 0) {
+      const subject = fitPhrase(words.slice(0, end).join(" "), max);
+      if (subject && wordCount(subject) >= 3 && !VAGUE_SUBJECT.test(subject) && !PRONOUN_START.test(subject)) return { text: `${subject}.`, summed: true };
+    }
+  }
+  // "A risk about" takes four words of the budget.
+  // The phrase the heading reaches first, then the other.
+  const matches = [ABOUT.exec(body), OBJECT.exec(body)].filter((match): match is RegExpExecArray => match !== null).sort((a, b) => a.index - b.index);
+  for (const match of matches) {
+    const topic = fitPhrase(match[1]!, max - 3);
+    if (topic && !VAGUE_SUBJECT.test(topic) && !FIRST_PERSON.test(topic)) return { text: `A risk about ${asTheirs(topic)}.`, summed: true };
+  }
+  return null;
+}
 
 /** "1 risk", "3 risks". */
 export function risks(count: number): string {

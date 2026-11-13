@@ -2,15 +2,16 @@ import { absoluteDay, etToday } from "@/lib/day-words";
 import type { Comparison } from "@/lib/filing-changes/diff";
 import { getFilingChangesView } from "@/lib/filing-changes/server";
 import type { FilingChangesView } from "@/lib/filing-changes/store";
-import { changesTitle, filingWords, quote, WHOLE_WORDS } from "@/lib/filing-changes/words";
+import { changesTitle, droppedLine, filingWords, WHOLE_WORDS } from "@/lib/filing-changes/words";
 
 import { NUM, Panel } from "./primitives";
 
 /**
  * What a company changed in its risk factors: the newest 10-K or 10-Q that added, dropped or reworded a risk, set
  * against the filing it should be read with (lib/filing-changes). Every risk is the company's own heading (the loader shows a
- * Title Case one as a sentence): new ones whole; dropped ones whole up to WHOLE_WORDS words, longer ones cut to their
- * opening clause (never with an ellipsis; whole when no clause fits) with the row linking to the filing that had them;
+ * Title Case one as a sentence): new ones whole; dropped ones whole up to WHOLE_WORDS words, longer ones as one line of
+ * their own words (droppedLine: a sentence, a clause, the subject or "A risk about …"; never an ellipsis; whole when no
+ * line fits) with the row linking to the filing that had them;
  * reworded ones with their old wording under them. The header is one line: the filing link, its base and the counts. Nothing lives
  * only in a hover title. The counts are words in plain ink, never green and red (those are gains and losses). No
  * section when there is no readable comparison with a change. Server only; it loads its own data, so it can sit in a
@@ -35,7 +36,7 @@ const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 const ROW = "border-b border-oa-border px-3.5 py-2.5 text-pretty text-[14.5px] leading-5 last:border-b-0 sm:px-4";
 
-type Row = { key: string; text: string; was?: string | null; href?: string | null };
+type Row = { key: string; text: string; was?: string | null; href?: string | null; full?: string };
 
 function RiskGroup({ label, rows, muted }: { label: string; rows: Row[]; muted?: boolean }) {
   if (rows.length === 0) return null;
@@ -51,9 +52,12 @@ function RiskGroup({ label, rows, muted }: { label: string; rows: Row[]; muted?:
                 href={row.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                title={row.full}
                 className={`block ${ROW} outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent ${muted ? "text-oa-muted-fg" : "text-oa-fg"}`}
               >
                 {row.text}
+                {/* The heading as filed, for screen readers; the line above is its summary. */}
+                {row.full ? <span className="sr-only">{` Filed as: ${row.full}`}</span> : null}
               </a>
             ) : (
               <div className={`${ROW} ${muted ? "text-oa-muted-fg" : "text-oa-fg"}`}>
@@ -89,9 +93,9 @@ export function FilingChangesPanel({ view, today }: { view: FilingChangesView; t
   const whole = (heading: string): Row => ({ key: heading, text: heading });
   const dropped = shown.dropped.map((heading): Row => {
     if (words(heading) <= WHOLE_WORDS) return { key: heading, text: heading };
-    // Shortened only when the row can open the filing that has it whole.
-    const shownText = quote(heading);
-    return shownText.cut && base?.url ? { key: heading, text: shownText.text, href: base.url } : { key: heading, text: heading };
+    // A long one becomes one line of its own words (droppedLine), only when the row can open the filing that has it whole.
+    const line = droppedLine(heading);
+    return line?.summed && base?.url ? { key: heading, text: line.text, href: base.url, full: heading } : { key: heading, text: heading };
   });
   const reworded = onlyReworded ? shown.reworded.map((pair): Row => ({ key: pair.to, text: pair.to, was: pair.from })) : [];
   return (

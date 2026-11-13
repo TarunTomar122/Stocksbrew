@@ -3,6 +3,7 @@
  * imports here: the route, the page and the client all read this file.
  */
 
+import type { NavIcon } from "@/components/oa/nav-items";
 import { limitFor } from "@/lib/entitlements";
 
 export type AskPlan = "anonymous" | "free" | "pro";
@@ -29,17 +30,18 @@ export const ASK_CONVERSATIONS_COLLECTION = "tm_agent_conversations";
 export const ASK_MAX_CONVERSATIONS_LISTED = 40;
 export const ASK_MAX_MESSAGES_STORED = 60;
 
-export type AskSuggestion = { label: string; question: string; needsAccount?: boolean };
+/** `icon`: the kind's icon beside its label, the one its own page uses in the nav (components/oa/nav-icon.tsx). */
+export type AskSuggestion = { label: string; question: string; icon: NavIcon; needsAccount?: boolean };
 
 /** Real questions, each one answerable from the tools. */
 export const ASK_SUGGESTIONS: AskSuggestion[] = [
-  { label: "A stock", question: "What changed for Nvidia this week, and when does it report next?" },
-  { label: "A comparison", question: "Compare Microsoft, Alphabet and Amazon on valuation and one-year return." },
-  { label: "An idea", question: "Build me a basket of companies that benefit from power grid spending." },
-  { label: "A backtest", question: "How would an equal mix of AAPL, MSFT and NVDA have done against the S&P 500 since 2019?" },
-  { label: "Smart money", question: "What did Berkshire Hathaway buy and sell in its latest 13F?" },
-  { label: "My week", question: "How is my portfolio doing this week?", needsAccount: true },
-  { label: "My reasons", question: "Which of my reasons for owning a stock are weaker now?", needsAccount: true },
+  { label: "A stock", icon: "research", question: "What changed for Nvidia this week, and when does it report next?" },
+  { label: "A comparison", icon: "compare", question: "Compare Microsoft, Alphabet and Amazon on valuation and one-year return." },
+  { label: "An idea", icon: "themes", question: "Build me a basket of companies that benefit from power grid spending." },
+  { label: "A backtest", icon: "backtest", question: "How would an equal mix of AAPL, MSFT and NVDA have done against the S&P 500 since 2019?" },
+  { label: "Smart money", icon: "follow", question: "What did Berkshire Hathaway buy and sell in its latest 13F?" },
+  { label: "My week", icon: "portfolio", question: "How is my portfolio doing this week?", needsAccount: true },
+  { label: "My reasons", icon: "agents", question: "Which of my reasons for owning a stock are weaker now?", needsAccount: true },
 ];
 
 export const EXPLORE_SUGGESTIONS: string[] = [

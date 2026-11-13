@@ -38,7 +38,7 @@ const HEAD_TITLE = "Tell it what to watch, in plain English.";
 const HEAD_HREF = "/agents";
 const HEAD_LINK = "Create your agent";
 /** Said once under the cards: which parts are made up. */
-const EXAMPLE_NOTE = "Results from the example portfolio. Its lines and thesis are made up; every figure is real.";
+const EXAMPLE_NOTE = "Example portfolio with made-up reasons and thesis; every figure is real.";
 
 /**
  * Fixed parts from sm, so cards side by side end level and the ghost holds their place: 28px padding, a 2px border, the

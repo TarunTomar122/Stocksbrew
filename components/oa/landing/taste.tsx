@@ -384,7 +384,9 @@ export function LandingTaste({
             {SUGGESTED.map((ticker, i) => (
               <span key={ticker}>
                 {i === 0 ? "" : i === SUGGESTED.length - 1 ? " or " : ", "}
-                <Link prefetch={false} href={`/stock/${ticker}`} className="font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+                {/* Each suggested ticker with its logo (owner VISUALS CHECK), kept on one line with it. */}
+                <Link prefetch={false} href={`/stock/${ticker}`} className="inline-flex items-baseline gap-1.5 whitespace-nowrap font-medium text-oa-fg underline decoration-oa-border underline-offset-4 hover:decoration-oa-fg">
+                  <StockLogo ticker={ticker} size={18} circle eager className="self-center" />
                   {ticker}
                 </Link>
               </span>
