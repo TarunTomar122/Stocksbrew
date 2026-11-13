@@ -40,14 +40,18 @@ export type StockPriceSeries = {
   longReturns: Array<{ label: string; pct: number; fromDate: string }>;
 };
 
-type RawDailyDoc = { dates?: string[]; closes?: number[]; source?: string; fetched_at?: string; adjusted?: boolean };
+export type RawDailyDoc = { dates?: string[]; closes?: number[]; source?: string; fetched_at?: string; adjusted?: boolean };
 
 async function loadLongSeries(symbol: string): Promise<StockPriceSeries | null> {
   const upper = symbol.trim().toUpperCase();
   if (!upper) return null;
   const doc = await adminFirestore.collection("tm_price_history_daily").doc(upper).get();
   if (!doc.exists) return null;
-  const raw = doc.data() as RawDailyDoc;
+  return longSeriesFromRaw(doc.data() as RawDailyDoc, upper);
+}
+
+/** The page's series from a raw `tm_price_history_daily` doc. Pure: the serving doc (lib/serve) runs it on its copy. */
+export function longSeriesFromRaw(raw: RawDailyDoc, upper: string): StockPriceSeries | null {
   const summary = summarizeLongHistory(raw, upper);
   if (!summary) return null;
   const dates = raw.dates ?? [];
@@ -83,48 +87,54 @@ export type StockSnapshotHistory = {
   multiple: MultipleHistory | null;
 };
 
+/** The snapshot history from the price doc's window and quote. Pure: the serving doc runs it on its copy of the window. */
+export function snapshotFromPriceData(data: Parameters<typeof buildPriceHistorySeries>[0]): StockSnapshotHistory {
+  return {
+    closes: buildPriceHistorySeries(data),
+    multiple: buildMultipleHistory(
+      data?.history_window as Array<{ captured_at?: string; fundamentals?: { pe_ttm?: number | null } }> | undefined,
+    ),
+  };
+}
+
 /** The rolling window inside `tm_latest_prices`: recent closes and the P/E we stored on each of those days. */
 export const getStockSnapshotHistory = unstable_cache(
   async (instrumentId: string): Promise<StockSnapshotHistory> => {
     const data = await getLatestPriceHistory(instrumentId).catch(() => null);
-    return {
-      closes: buildPriceHistorySeries(data),
-      multiple: buildMultipleHistory(
-        data?.history_window as Array<{ captured_at?: string; fundamentals?: { pe_ttm?: number | null } }> | undefined,
-      ),
-    };
+    return snapshotFromPriceData(data);
   },
   ["stock-snapshot-history-v1"],
   { revalidate: 300 },
 );
 
-/** Every day we wrote a call for this stock, oldest first. */
+/** Every day we wrote a call for this stock, oldest first. Throws when the read fails (the serving doc's builder). */
+export async function readStockCallHistory(instrumentId: string): Promise<CallRecord[]> {
+  const docId = instrumentId.trim().toUpperCase();
+  if (!docId) return [];
+  const snap = await adminFirestore
+    .collection("tm_directive_history")
+    .doc(docId)
+    .collection("calls")
+    .orderBy("generated_at", "desc")
+    .limit(400)
+    .get();
+  return snap.docs
+    .map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const price = data.price_at_call;
+      return {
+        date: String(data.generated_at || doc.id).slice(0, 10),
+        stance: String(data.stance || ""),
+        text: typeof data.text === "string" ? data.text : null,
+        priceAtCall: typeof price === "number" && Number.isFinite(price) ? price : null,
+      };
+    })
+    .reverse();
+}
+
+/** Every day we wrote a call for this stock, oldest first; empty when the read fails. */
 export const getStockCallHistory = unstable_cache(
-  async (instrumentId: string): Promise<CallRecord[]> => {
-    const docId = instrumentId.trim().toUpperCase();
-    if (!docId) return [];
-    const snap = await adminFirestore
-      .collection("tm_directive_history")
-      .doc(docId)
-      .collection("calls")
-      .orderBy("generated_at", "desc")
-      .limit(400)
-      .get()
-      .catch(() => null);
-    if (!snap) return [];
-    return snap.docs
-      .map((doc) => {
-        const data = doc.data() as Record<string, unknown>;
-        const price = data.price_at_call;
-        return {
-          date: String(data.generated_at || doc.id).slice(0, 10),
-          stance: String(data.stance || ""),
-          text: typeof data.text === "string" ? data.text : null,
-          priceAtCall: typeof price === "number" && Number.isFinite(price) ? price : null,
-        };
-      })
-      .reverse();
-  },
+  async (instrumentId: string): Promise<CallRecord[]> => readStockCallHistory(instrumentId).catch(() => []),
   ["stock-call-history-v1"],
   { revalidate: 900 },
 );

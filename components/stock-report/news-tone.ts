@@ -62,6 +62,24 @@ export function fallbackTone(article: Pick<NewsArticle, "title" | "tickers" | "s
 }
 
 export async function toneNews(articles: NewsArticle[], ticker: string, name: string | null | undefined): Promise<TonedArticle[]> {
-  const labelled = await modelTones(articles.map((article) => article.id));
-  return articles.map((article) => ({ ...article, tone: labelled[article.id] ?? fallbackTone(article, ticker, name) }));
+  return applyTones(articles, await modelTones(articles.map((article) => article.id)), ticker, name);
+}
+
+/** Each headline with the model's label when it has one, else its fallback. Pure: the serving doc stores the labels. */
+export function applyTones(
+  articles: NewsArticle[],
+  labelled: Readonly<Record<string, string>>,
+  ticker: string,
+  name: string | null | undefined,
+): TonedArticle[] {
+  return articles.map((article) => ({
+    ...article,
+    tone: (TONES.has(labelled[article.id] as HeadlineTone) ? (labelled[article.id] as HeadlineTone) : null) ?? fallbackTone(article, ticker, name),
+  }));
+}
+
+/** The model's labels for these headlines, read now and uncached; throws when the read fails (the serving doc's builder). */
+export async function readToneLabelsStrict(articles: NewsArticle[]): Promise<Record<string, HeadlineTone>> {
+  const usable = [...new Set(articles.map((article) => article.id))].filter((id) => id && !id.includes("/")).sort();
+  return usable.length ? readTones(usable) : {};
 }

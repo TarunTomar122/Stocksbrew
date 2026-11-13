@@ -11,6 +11,7 @@ from backend.env import load_backend_env, resolve_backend_path
 from backend.jev_qa import gate_brief
 from backend.localdb.firestore import LocalFirestoreClient
 from backend.stock_page_view import merge_stock_view_sections
+from backend import serve_docs
 from backend.price_history import latest_price_history
 
 load_backend_env()
@@ -494,7 +495,16 @@ class TraceMoneyStore:
             history_limit=self.PRICE_HISTORY_WINDOW_MAX,
         )
 
+        # The stock page's serving doc keeps its own copy of the window (backend/serve_docs.py): stale before the
+        # write, refreshed after it.
+        window_changed = "history_window" in latest_payload and serve_docs.us_ticker(instrument_id)
+        if window_changed:
+            serve_docs.mark_dirty(self.db, [serve_docs.us_ticker(instrument_id)], ["snapshot"])
         latest_ref.set(latest_payload, merge=True)
+        if window_changed:
+            serve_part = serve_docs.snapshot_part_write(instrument_id, latest_payload, serve_docs.now_iso())
+            if serve_part:
+                serve_docs.write_merges(self.db, [serve_part])
         self._refresh_near_52_week_view(str(latest_payload.get("market") or payload.get("market") or ""), [latest_payload])
 
     def rebuild_near_52_week_view(self, market: str) -> int:
@@ -581,6 +591,15 @@ class TraceMoneyStore:
             pending.append((latest_collection.document(instrument_id), latest_payload))
             latest_payloads.append(latest_payload)
 
+        # The serving doc's copy of each window this write changes: stale before, refreshed after (backend/serve_docs.py).
+        window_changed = [
+            str(payload.get("instrument_id") or "")
+            for payload in latest_payloads
+            if "history_window" in payload and serve_docs.us_ticker(payload.get("instrument_id"))
+        ]
+        if window_changed:
+            serve_docs.mark_dirty(self.db, [serve_docs.us_ticker(item) for item in window_changed], ["snapshot"])
+
         saved = 0
         write_batches = _firestore_write_batches(pending)
         for write_batch in write_batches:
@@ -594,6 +613,18 @@ class TraceMoneyStore:
                 f"[price storage] committed {saved} rolling price docs "
                 f"in {len(write_batches)} size-bounded batches"
             )
+        if window_changed:
+            stamp = serve_docs.now_iso()
+            serve_writes = [
+                write
+                for write in (
+                    serve_docs.snapshot_part_write(payload.get("instrument_id"), payload, stamp)
+                    for payload in latest_payloads
+                    if "history_window" in payload
+                )
+                if write
+            ]
+            serve_docs.write_merges(self.db, serve_writes)
         for market in {str(payload.get("market") or "") for payload in latest_payloads}:
             self._refresh_near_52_week_view(
                 market,
@@ -616,12 +647,20 @@ class TraceMoneyStore:
         serialized = [_serialize(row) or {} for row in rows]
         capped = serialized[-self.PRICE_HISTORY_WINDOW_MAX:]
         latest = capped[-1]
-        self.db.collection("tm_latest_prices").document(instrument_id).set({
+        ticker = serve_docs.us_ticker(instrument_id)
+        if ticker:
+            serve_docs.mark_dirty(self.db, [ticker], ["snapshot"])
+        payload = {
             **latest,
             "history_window": capped,
             "history_window_size": len(capped),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, merge=True)
+        }
+        self.db.collection("tm_latest_prices").document(instrument_id).set(payload, merge=True)
+        if ticker:
+            serve_part = serve_docs.snapshot_part_write(instrument_id, payload, serve_docs.now_iso())
+            if serve_part:
+                serve_docs.write_merges(self.db, [serve_part])
 
     def save_market_price_snapshot(self, market: str, rows: list[dict[str, Any]], shard_size: int = 64) -> None:
         market_key = str(market).upper()
@@ -1274,7 +1313,24 @@ class TraceMoneyStore:
                 pending = []
         commit_batch(pending)
 
+    def _stamp_news(self, market: str, articles: list[dict[str, Any]] | None) -> None:
+        """The stock page's served headlines (backend/serve_docs.py): every stock for a whole replace, else the named ones."""
+        if str(market or "").strip().upper() != "US":
+            return
+        if articles is None:
+            serve_docs.mark_all_dirty(self.db, ["news"])
+        else:
+            serve_docs.mark_dirty(self.db, serve_docs.news_tickers(articles), ["news"])
+
     def save_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
+        # A whole replace can drop any stock's headlines, so every stock's served headlines are stale (before and after).
+        self._stamp_news(market, None)
+        try:
+            self._save_news_articles(market, universe_id, articles, source_health)
+        finally:
+            self._stamp_news(market, None)
+
+    def _save_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
         namespace = self._news_namespace(market, universe_id)
         namespace.set({
             "market": market,
@@ -1291,6 +1347,13 @@ class TraceMoneyStore:
         self._replace_subcollection(namespace, "articles", articles, "id")
 
     def upsert_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
+        self._stamp_news(market, articles)
+        try:
+            self._upsert_news_articles(market, universe_id, articles, source_health)
+        finally:
+            self._stamp_news(market, articles)
+
+    def _upsert_news_articles(self, market: str, universe_id: str, articles: list[dict[str, Any]], source_health: list[dict[str, Any]] | None = None) -> None:
         namespace = self._news_namespace(market, universe_id)
         namespace.set({
             "market": market,
@@ -1319,6 +1382,13 @@ class TraceMoneyStore:
         return rows
 
     def save_article_enrichments(self, market: str, universe_id: str, articles: list[dict[str, Any]]) -> None:
+        self._stamp_news(market, None)
+        try:
+            self._save_article_enrichments(market, universe_id, articles)
+        finally:
+            self._stamp_news(market, None)
+
+    def _save_article_enrichments(self, market: str, universe_id: str, articles: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
         self._replace_subcollection(namespace, "enrichments", articles, "id")
         namespace.set({
@@ -1334,6 +1404,13 @@ class TraceMoneyStore:
         }, merge=True)
 
     def upsert_article_enrichments(self, market: str, universe_id: str, articles: list[dict[str, Any]]) -> None:
+        self._stamp_news(market, articles)
+        try:
+            self._upsert_article_enrichments(market, universe_id, articles)
+        finally:
+            self._stamp_news(market, articles)
+
+    def _upsert_article_enrichments(self, market: str, universe_id: str, articles: list[dict[str, Any]]) -> None:
         namespace = self._news_namespace(market, universe_id)
         for article in articles:
             article_id = str(article.get("id") or "")
@@ -1430,6 +1507,18 @@ class TraceMoneyStore:
         history, so we can later score "stocksbrew said ACCUMULATE @ $X, now +Y%".
         Keyed by trading date so a same-day re-run is idempotent (one call/day/stock)."""
         market_up = str(market or "").strip().upper()
+        # The stock page's served call history (backend/serve_docs.py): stale before the write and after it.
+        served = [serve_docs.us_ticker(payload.get("instrument_id")) for payload in docs_payload if isinstance(payload, dict)]
+        served = [ticker for ticker in served if ticker]
+        if served:
+            serve_docs.mark_dirty(self.db, served, ["calls"])
+        try:
+            self._append_directive_history(market_up, docs_payload)
+        finally:
+            if served:
+                serve_docs.mark_dirty(self.db, served, ["calls"])
+
+    def _append_directive_history(self, market_up: str, docs_payload: list[dict[str, Any]]) -> None:
         for payload in docs_payload:
             directive = payload.get("directive_v2")
             instrument_id = str(payload.get("instrument_id") or "").strip().upper()

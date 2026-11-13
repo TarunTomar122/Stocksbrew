@@ -39,6 +39,7 @@ import {
   getStockBusinessQuestions,
   type SectorPeerRow,
   type SectorPeerPick,
+  type StockPageDocBundle,
   getStockSummary,
   normalizeStockSymbolParam,
   type StockIntelligenceDoc,
@@ -90,6 +91,11 @@ import { getDailySeries } from "@/lib/screener-series";
 import { getScreenerSymbolContext } from "@/lib/screener";
 import { buildCallEvidence, type CalendarReport, type ResultsReport } from "@/lib/call-evidence";
 import { callEvidenceInput, getResultsReports, lastStepOn } from "@/lib/call-evidence-data";
+import { getServedStock, serveDocsOn, type ServedStock } from "@/lib/serve/stock-serve";
+import { NEWS_DAYS, NEWS_LIMIT, historyWindowFromRows, type SnapshotRow } from "@/lib/serve/stock-serve-shared";
+import { longSeriesFromRaw, snapshotFromPriceData, type RawDailyDoc, type StockSnapshotHistory } from "@/lib/stock-events";
+import { compactSeriesFromRaw } from "@/lib/screener-series";
+import { applyTones } from "@/components/stock-report/news-tone";
 
 export const revalidate = 60;
 
@@ -231,6 +237,20 @@ async function PriorityNotice({
  */
 function startStockReads(market: "US" | "IN", instrumentId: string, ticker: string) {
   const isUS = market === "US";
+  // The stock's serving doc (lib/serve, SERVE_DOCS=1, US only): each part that proves it is current replaces one of
+  // the reads below; any other part, or a failed serve read, reads the old way. Never wrong, never empty.
+  const servedPromise: Promise<ServedStock | null> = isUS && serveDocsOn() ? getServedStock(ticker, instrumentId) : Promise.resolve(null);
+  // A served value that fails to turn into the page's shape reads the old way too.
+  const served = <T,>(pick: (s: ServedStock) => T | Promise<T> | undefined, otherwise: () => Promise<T>): Promise<T> =>
+    servedPromise.then((s) => {
+      let value: T | Promise<T> | undefined;
+      try {
+        value = s ? pick(s) : undefined;
+      } catch {
+        value = undefined;
+      }
+      return value === undefined ? otherwise() : Promise.resolve(value).catch(() => otherwise());
+    });
   const viewPromise = getStockPageView(market, instrumentId).catch(() => null);
   const instrumentMetaPromise = getInstrument(instrumentId).catch(() => null);
   const resolvedViewPromise = viewPromise.then((view) => resolveStockPageViewSections(view, Date.now(), instrumentId));
@@ -247,7 +267,19 @@ function startStockReads(market: "US" | "IN", instrumentId: string, ticker: stri
   // The pre-earnings read is fetched whatever the plan, so this batch need not wait for the viewer; it is
   // dropped below unless the viewer may see levels on this stock, so it never reaches anyone else's browser.
   const docBundlePromise = resolvedViewPromise.then(({ directNeeded }) =>
-    getStockPageDocBundle(market, instrumentId, ticker, {
+    // The served bundle holds the two docs every render reads; only the page-view sections that are stale are read.
+    served(
+      (s) => {
+        if (!s.bundle) return undefined;
+        const servedDocs = {
+          onDemandJob: s.bundle.onDemandJob as StockPageDocBundle["onDemandJob"],
+          callStability: isUS ? (s.bundle.callStability as StockPageDocBundle["callStability"]) : null,
+        };
+        const rest = { facts: directNeeded.facts, technicals: directNeeded.technicals, earningsIntel: directNeeded.earnings_intel, preEarnings: directNeeded.pre_earnings };
+        if (!Object.values(rest).some(Boolean)) return Promise.resolve({ facts: null, technicals: null, earningsIntel: null, preEarnings: null, ...servedDocs });
+        return getStockPageDocBundle(market, instrumentId, ticker, rest).then((bundle) => ({ ...bundle, ...servedDocs }));
+      },
+      () => getStockPageDocBundle(market, instrumentId, ticker, {
       facts: directNeeded.facts,
       technicals: directNeeded.technicals,
       onDemandJob: true,
@@ -256,12 +288,14 @@ function startStockReads(market: "US" | "IN", instrumentId: string, ticker: stri
       // The steady call's state rides in the same batch: most briefs predate the steady call and carry no
       // `stability`, so this says how long their call has stood (lib/stock-read.ts `stabilityFromState`). US only.
       callStability: isUS,
-    }).catch(() => null),
+    }),
+    ).catch(() => null),
   );
   return {
     market,
     instrumentId,
     ticker,
+    servedPromise,
     instrumentMetaPromise,
     resolvedViewPromise,
     intelligenceDirectPromise,
@@ -271,20 +305,39 @@ function startStockReads(market: "US" | "IN", instrumentId: string, ticker: stri
     // This company's own slice of the screener snapshot: the reason under the call and its as-of day (US only).
     screenerContextPromise: isUS ? getScreenerSymbolContext(ticker).catch(() => null) : Promise.resolve(null),
     // The results reports the call's sales figure is dated by (lib/call-evidence.ts). US only, like the filings.
-    resultsReportsPromise: isUS ? getResultsReports(ticker).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]),
+    resultsReportsPromise: isUS ? served((s) => s.results, () => getResultsReports(ticker)).catch(() => [] as ResultsReport[]) : Promise.resolve([] as ResultsReport[]),
     // Stored closes for the stock and SPY, for the call's evidence and the chart's facts. US only: SPY is the wrong
     // yardstick for an Indian stock.
-    insightBasePromise: isUS ? Promise.all([getDailySeries([ticker, "SPY"]).catch(() => null)]) : Promise.resolve(null),
+    // The stock's own series can come from the serving doc; SPY's is shared by every page and cached.
+    insightBasePromise: isUS
+      ? Promise.all([
+          servedPromise
+            .then((s) => {
+              const own = s?.seriesRaw ? compactSeriesFromRaw(s.seriesRaw as RawDailyDoc) : null;
+              return getDailySeries([ticker, "SPY"], own ? { [ticker.toUpperCase()]: own } : undefined);
+            })
+            .catch(() => null),
+        ])
+      : Promise.resolve(null),
     topReadsPromise: Promise.all([
       instrumentMetaPromise,
-      getStockSnapshotHistory(instrumentId).catch(() => ({ closes: [], multiple: null })),
-      isUS ? getStockLongSeries(ticker).catch(() => null) : Promise.resolve(null),
-      getDailyAnomalyForTicker(market, ticker).catch(() => null),
+      // The served window still needs today's quote on its end, which the page has once the stock resolves.
+      served<StockSnapshotHistory | { rows: SnapshotRow[] }>(
+        (s) => (s.snapshotRows ? { rows: s.snapshotRows } : undefined),
+        () => getStockSnapshotHistory(instrumentId),
+      ).catch(() => ({ closes: [], multiple: null })),
+      isUS
+        ? served(
+            (s) => (s.seriesRaw === undefined ? undefined : s.seriesRaw ? longSeriesFromRaw(s.seriesRaw as RawDailyDoc, ticker.trim().toUpperCase()) : null),
+            () => getStockLongSeries(ticker),
+          ).catch(() => null)
+        : Promise.resolve(null),
+      served((s) => s.anomaly, () => getDailyAnomalyForTicker(market, ticker)).catch(() => null),
       getNextEarningsCalendarEventCached(market, ticker).catch(() => null),
       getStockEarningsDates(market, ticker).catch(() => []),
       isUS ? getPremarketMovers(market).catch(() => null) : Promise.resolve(null),
       isUS ? getStockCongressTrades(ticker).catch(() => []) : Promise.resolve(null),
-      getStockCallHistory(instrumentId).catch(() => []),
+      served((s) => s.callRecords, () => getStockCallHistory(instrumentId)).catch(() => []),
       // Only the slugs: whether a member of Congress has a Follow page to link.
       isUS ? getFollowSlugs().catch(() => [] as string[]) : Promise.resolve([] as string[]),
     ]),
@@ -347,6 +400,7 @@ export async function StockPageStream({ params }: Props) {
       ? early
       : startStockReads(market, stock.instrument_id, stock.ticker);
   const {
+    servedPromise,
     instrumentMetaPromise,
     resolvedViewPromise,
     intelligenceDirectPromise,
@@ -387,16 +441,23 @@ export async function StockPageStream({ params }: Props) {
   // Reads only the lower half uses (what changed, the sections, the priority notice) start now too, but the
   // top of the page (price, call, chart, the read) never waits for them: they stream in under it.
   // Each headline with its tone as /news reads it (components/stock-report/news-tone.ts); no tone read leaves it unset.
-  const newsPromise = getNewsForTicker(market, stock.ticker, { days: 14, limit: 14 })
-    .catch(() => [] as NewsArticle[])
-    // A tone failure keeps the headlines, untoned.
-    .then((rows) => toneNews(rows, stock.ticker, stock.name).catch((): TonedArticle[] => rows.map((row) => ({ ...row, tone: null }))));
-  const redditPromise = getRedditContextForTicker(market, stock.ticker).catch(() => null);
+  const newsPromise = servedPromise.then((served) =>
+    // The served headlines (already cut to today's window) with the stored model labels; else the old reads.
+    served?.news && served.news.days === NEWS_DAYS && served.news.limit === NEWS_LIMIT
+      ? applyTones(served.news.articles, served.news.labels, stock.ticker, stock.name)
+      : getNewsForTicker(market, stock.ticker, { days: NEWS_DAYS, limit: NEWS_LIMIT })
+          .catch(() => [] as NewsArticle[])
+          // A tone failure keeps the headlines, untoned.
+          .then((rows) => toneNews(rows, stock.ticker, stock.name).catch((): TonedArticle[] => rows.map((row) => ({ ...row, tone: null })))),
+  ).catch(() => [] as TonedArticle[]);
+  const redditPromise = servedPromise
+    .then((served) => (served && served.reddit !== undefined ? served.reddit : getRedditContextForTicker(market, stock.ticker)))
+    .catch(() => null);
   const ownershipPromise = getStockOwnership(stock.ticker, market).catch((): StockOwnership => ({ funds: null, insiders: null }));
 
   const [
     instrumentMeta,
-    snapshotHistory,
+    snapshotRead,
     longSeries,
     anomaly,
     calendarEarnings,
@@ -406,6 +467,15 @@ export async function StockPageStream({ params }: Props) {
     callHistory,
     followSlugs,
   ] = await reads.topReadsPromise;
+  // A served window gets today's quote on its end here, exactly as getStockSnapshotHistory puts it on (lib/stock-events).
+  const snapshotHistory: StockSnapshotHistory =
+    "rows" in snapshotRead
+      ? snapshotFromPriceData({
+          history_window: historyWindowFromRows(snapshotRead.rows) as never,
+          quote: { current: stock.price } as never,
+          captured_at: stock.captured_at ?? "",
+        })
+      : snapshotRead;
   const [
     viewer,
     userDoc,

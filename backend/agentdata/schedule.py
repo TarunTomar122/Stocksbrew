@@ -13,11 +13,14 @@ Run it::
 
 Groups and what they keep fresh:
 
-* ``frequent``     the wire (headlines, then their tone and themes) and the markets page (every 30 minutes)
-* ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends
+* ``frequent``     the wire (headlines, then their tone and themes), the stock pages' serving docs and the
+                   markets page (every 30 minutes)
+* ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends, then the
+                   serving docs
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
-                   the reason checks, the filing changes and the thesis checks (TypeScript, see "Node jobs" below)
+                   the reason checks, the filing changes and the thesis checks (TypeScript, see "Node jobs" below),
+                   then the stock pages' serving docs
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
@@ -68,12 +71,17 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         ("news", ["backend.agentdata.news_feed", "--days", "3"]),
         # Tone and theme for each new headline; skips itself without ANTHROPIC_API_KEY.
         ("news tone", ["backend.agentdata.news_tone", "--hours", "50"]),
+        # The stock page's serving docs (docs/serving-docs.md): the headline parts the two steps above stamped stale,
+        # plus any part past its age limit. Only the stale parts are rebuilt; writes only tm_serve_stock.
+        ("serving docs", ["node:scripts/run-serve-docs.ts", "--budget-minutes=8"]),
         ("markets", ["backend.agentdata.markets"]),
     ],
     "hourly": [
         ("sec filings", ["backend.agentdata.sec_filings", "--days", "7"]),
         ("insider trades", ["backend.agentdata.insiders_form4", "--days", "7"]),
         ("calendar events", ["backend.agentdata.calendar_events"]),
+        # Serving docs whose sources changed in the last hour (the pipeline lanes stamp them too), last.
+        ("serving docs", ["node:scripts/run-serve-docs.ts", "--budget-minutes=12"]),
     ],
     "after_close": [
         # Prices first and on their own: every later step reads them from the store. Only the
@@ -102,6 +110,8 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Each thesis's measurable lines judged per report and its companies' new 10-K/10-Q risk changes recorded,
         # stored in tm_agent_thesis_checks (rules only, no model). After the filing changes, so tonight's are seen.
         ("thesis checks", ["node:scripts/run-thesis-checks.ts"]),
+        # Serving docs for tonight's prices, series, calls and reports, last so every writer above has run.
+        ("serving docs", ["node:scripts/run-serve-docs.ts", "--budget-minutes=20"]),
     ],
     "weekly": [
         ("13F funds", ["backend.agentdata.funds_13f"]),
@@ -176,6 +186,11 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     ("after_close", "filing changes"): 25 * 60,
     # [new; a few figure reads per thesis, well under a minute for a handful of theses]
     ("after_close", "thesis checks"): 15 * 60,
+    # [full build of 779 stocks from a laptop through the tunnel, Nov 13: 3.6 min; a stale-only run, seconds]. Each
+    # run stops starting stocks at its --budget-minutes; these limits leave room for the ones in flight.
+    ("frequent", "serving docs"): 10 * 60,
+    ("hourly", "serving docs"): 15 * 60,
+    ("after_close", "serving docs"): 25 * 60,
     # [~50 funds, two or three Yahoo requests each, ~1 min]
     ("weekly", "fund facts"): 15 * 60,
     ("weekly", "fund instruments"): 10 * 60,

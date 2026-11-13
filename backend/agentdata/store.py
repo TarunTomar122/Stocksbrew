@@ -72,6 +72,8 @@ WRITABLE_PREFIXES = (
     "tm_analytics_",
     # After-hours and pre-market quotes (extended_hours.py): one per stock, the newest session's print.
     "tm_extended_quotes",
+    # The stock page's serving docs (scripts/run-serve-docs.ts builds them; writers stamp parts stale, backend/serve_docs.py).
+    "tm_serve_",
 )
 
 

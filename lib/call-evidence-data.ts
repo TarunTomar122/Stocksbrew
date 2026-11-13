@@ -18,29 +18,39 @@ import { callChanges } from "@/lib/stock-chart";
 /** Results reports (8-K item 2.02) from `tm_earnings_history`, newest first. Releases only. */
 export const getResultsReports = sharedCache(
   async (ticker: string): Promise<ResultsReport[]> => {
-    const id = ticker.trim().toUpperCase().replace(/\//g, "-");
+    const id = earningsHistoryDocId(ticker);
     if (!id) return [];
     // A read that fails throws, so it is never cached as "no reports".
     const snap = await adminFirestore.collection("tm_earnings_history").doc(id).get();
     if (!snap.exists) return [];
-    const reports = (snap.data() as { reports?: unknown }).reports;
-    const out: ResultsReport[] = [];
-    for (const raw of Array.isArray(reports) ? reports : []) {
-      if (!raw || typeof raw !== "object") continue;
-      const row = raw as Record<string, unknown>;
-      const date = String(row.date ?? "").slice(0, 10);
-      if (row.release === false || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-      const periodEnd = String(row.period_end ?? "").slice(0, 10);
-      const form = typeof row.periodic_form === "string" && /^10-[QK]$/.test(row.periodic_form) ? row.periodic_form : null;
-      // The results release on SEC EDGAR, linked beside a condition its numbers back (lib/call-evidence.ts).
-      const url = typeof row.url === "string" && /^https:\/\/www\.sec\.gov\//.test(row.url) ? row.url : null;
-      out.push({ date, periodEnd: /^\d{4}-\d{2}-\d{2}$/.test(periodEnd) ? periodEnd : null, form, url });
-    }
-    return out.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+    return resultsReportsFromDoc(snap.data() as { reports?: unknown });
   },
   ["call-evidence-results-reports-v2"],
   { revalidate: 6 * 3600 },
 );
+
+/** The doc id in `tm_earnings_history` for a ticker. */
+export function earningsHistoryDocId(ticker: string): string {
+  return ticker.trim().toUpperCase().replace(/\//g, "-");
+}
+
+/** The releases in a `tm_earnings_history` doc, newest first. Pure: the stock page's serving doc runs it on its copy. */
+export function resultsReportsFromDoc(data: { reports?: unknown } | undefined): ResultsReport[] {
+  const reports = data?.reports;
+  const out: ResultsReport[] = [];
+  for (const raw of Array.isArray(reports) ? reports : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    const date = String(row.date ?? "").slice(0, 10);
+    if (row.release === false || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const periodEnd = String(row.period_end ?? "").slice(0, 10);
+    const form = typeof row.periodic_form === "string" && /^10-[QK]$/.test(row.periodic_form) ? row.periodic_form : null;
+    // The results release on SEC EDGAR, linked beside a condition its numbers back (lib/call-evidence.ts).
+    const url = typeof row.url === "string" && /^https:\/\/www\.sec\.gov\//.test(row.url) ? row.url : null;
+    out.push({ date, periodEnd: /^\d{4}-\d{2}-\d{2}$/.test(periodEnd) ? periodEnd : null, form, url });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+}
 
 /** The input from data the stock page or Ask already holds. */
 export function callEvidenceInput(parts: {

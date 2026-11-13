@@ -12,14 +12,18 @@ import { cleanSeries, type ChartPoint } from "@/lib/stock-chart";
 
 type RawDailyDoc = { dates?: string[]; closes?: number[]; source?: string; fetched_at?: string };
 
-type CompactSeries = { dates: string[]; closes: number[]; source: string; fetchedAt: string | null };
+export type CompactSeries = { dates: string[]; closes: number[]; source: string; fetchedAt: string | null };
 
 const SOURCE_LABELS: Record<string, string> = { yahoo_chart: "Yahoo Finance" };
 
 async function readSeries(symbol: string): Promise<CompactSeries | null> {
   const doc = await adminFirestore.collection("tm_price_history_daily").doc(symbol).get();
   if (!doc.exists) return null;
-  const raw = doc.data() as RawDailyDoc;
+  return compactSeriesFromRaw(doc.data() as RawDailyDoc);
+}
+
+/** One symbol's series from its raw doc. Pure: the stock page's serving doc (lib/serve) runs it on its own copy. */
+export function compactSeriesFromRaw(raw: RawDailyDoc): CompactSeries | null {
   const dates = raw.dates ?? [];
   const closes = raw.closes ?? [];
   const clean = cleanSeries(dates.map((date, index) => ({ date, close: closes[index] })));
@@ -42,9 +46,18 @@ export type DailySeriesSet = {
   lastDate: string | null;
 };
 
-export async function getDailySeries(symbols: readonly string[]): Promise<DailySeriesSet> {
+/**
+ * `preloaded` holds series the caller already has (the stock page's serving doc), by upper-case symbol; those are not
+ * read again. A null there means "read it as usual".
+ */
+export async function getDailySeries(
+  symbols: readonly string[],
+  preloaded?: Readonly<Record<string, CompactSeries | null | undefined>>,
+): Promise<DailySeriesSet> {
   const unique = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))].slice(0, 40);
-  const loaded = await Promise.all(unique.map((symbol) => getSeriesCached(symbol).catch(() => null)));
+  const loaded = await Promise.all(
+    unique.map((symbol) => preloaded?.[symbol] ?? getSeriesCached(symbol).catch(() => null)),
+  );
   const series: Record<string, ChartPoint[]> = {};
   let source = "Price history";
   let lastDate: string | null = null;

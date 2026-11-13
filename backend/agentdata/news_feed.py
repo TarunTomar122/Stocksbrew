@@ -49,6 +49,7 @@ from .feeds_common import (
 from .analyst_firms import BROKERS as _BROKERS
 from .analyst_firms import firm_is_subject
 from .store import DocStore
+from backend.serve_docs import headline_stamp, mark_dirty_in_store, news_tickers, refresh_stamped_pages
 
 COLLECTION = "tm_agent_news"
 META_PATH = "tm_agent_news_meta/US"
@@ -528,7 +529,14 @@ def run(
     newest = max((doc["published_at"] for doc in docs.values()), default=None)
     written = 0
     if not dry_run and writes:
-        written = write_changed(store, WriteLedger("news_feed"), writes, merge=True)
+        # Each changed headline makes its stocks' served headlines stale (backend/serve_docs.py), before and after.
+        written = write_changed(
+            store,
+            WriteLedger("news_feed"),
+            writes,
+            merge=True,
+            around=lambda chunk: headline_stamp(store, chunk),
+        )
         store.set(
             META_PATH,
             {
@@ -545,6 +553,9 @@ def run(
             },
             merge=True,
         )
+    # The stock pages whose headlines changed are dropped from the page cache, after the last write.
+    if not dry_run:
+        refresh_stamped_pages()
     return {
         "headlines": len(docs),
         "market_feed": market_count,
@@ -598,7 +609,14 @@ def retag(*, days: int = 14, dry_run: bool = False) -> dict[str, Any]:
             patch["stock_tickers_previous"] = before
         writes.append((path, patch))
     if not dry_run and writes:
-        store.set_many(writes, merge=True)
+        # A retag moves headlines between stocks: both sides' served headlines are stale (backend/serve_docs.py).
+        touched = news_tickers([*(doc for _, doc in rows), *(patch for _, patch in writes)])
+        mark_dirty_in_store(store, touched, ["news"])
+        try:
+            store.set_many(writes, merge=True)
+        finally:
+            mark_dirty_in_store(store, touched, ["news"])
+        refresh_stamped_pages()
     return {"checked": len(rows), "retagged": len(writes), "tags_removed": removed, "tags_added": added, "written": 0 if dry_run else len(writes)}
 
 

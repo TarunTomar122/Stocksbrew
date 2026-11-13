@@ -18,7 +18,9 @@ class ScheduleTest(unittest.TestCase):
 
     def test_dry_run_prints_the_plan_and_runs_nothing(self):
         out = io.StringIO()
-        code = schedule.run_group("frequent", dry_run=True, out=out)
+        # The frequent group's serving-docs step is a node job: give it the env a VPS unit has.
+        environ = {"LOCALDB_API_TOKEN": "x", "GOOGLE_APPLICATION_CREDENTIALS": "/etc/sa.json"}
+        code = schedule.run_group("frequent", dry_run=True, out=out, environ=environ)
         self.assertEqual(code, 0)
         text = out.getvalue()
         self.assertIn("backend.agentdata.news_feed", text)
@@ -26,9 +28,13 @@ class ScheduleTest(unittest.TestCase):
 
     def test_no_job_appears_in_two_groups(self):
         # The same module may run twice in one group with different flags (prices, then strategies).
+        # The serving-docs builder is the one job meant for several groups: it rebuilds whatever the group's
+        # writers stamped stale (docs/serving-docs.md), and only one group runs at a time (run-agentdata.sh lock).
         seen = {}
         for group, jobs in schedule.GROUPS.items():
             for _, argv in jobs:
+                if argv[0] == "node:scripts/run-serve-docs.ts":
+                    continue
                 first = seen.setdefault(argv[0], group)
                 self.assertEqual(first, group, f"{argv[0]} is in {first} and {group}")
 
@@ -77,7 +83,13 @@ class ScheduleTest(unittest.TestCase):
         self.assertIn("reason checks", labels)
         self.assertEqual(labels.index("reason checks"), labels.index("standing agents") + 1)
         # The filing check only reads SEC and writes tm_filing_changes; the thesis check after it reads what it wrote.
-        self.assertEqual(labels[-3:], ["reason checks", "filing changes", "thesis checks"])
+        self.assertEqual(labels[-4:], ["reason checks", "filing changes", "thesis checks", "serving docs"])
+
+    def test_serving_docs_run_last_after_their_writers(self):
+        for group, after in (("frequent", "news tone"), ("hourly", "calendar events"), ("after_close", "thesis checks")):
+            labels = [label for label, _ in schedule.GROUPS[group]]
+            self.assertEqual(labels.index("serving docs"), labels.index(after) + 1, group)
+            self.assertLessEqual(schedule.timeout_for(group, "serving docs"), schedule.TIMEOUT_SECONDS[group])
 
     def test_thesis_checks_run_after_the_filing_changes_with_their_own_limit(self):
         argv = dict(schedule.GROUPS["after_close"])["thesis checks"]

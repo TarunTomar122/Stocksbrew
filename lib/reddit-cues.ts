@@ -196,7 +196,7 @@ export const getRedditCues = unstable_cache(
   { revalidate: 300 },
 );
 
-type RedditTickerContextDoc = {
+export type RedditTickerContextDoc = {
   market?: string;
   ticker?: string;
   generated_at?: string;
@@ -217,7 +217,11 @@ async function getRedditContextForTickerUncached(
     .doc(`${market}__${upper}`)
     .get();
   if (!doc.exists) return null;
-  const data = doc.data() as RedditTickerContextDoc;
+  return redditContextFromDoc(doc.data() as RedditTickerContextDoc, upper);
+}
+
+/** One ticker's Reddit context from its stored doc. Pure: the stock page's serving doc runs it on its copy. */
+export function redditContextFromDoc(data: RedditTickerContextDoc, upper: string): RedditTickerContext | null {
   const cue = normalizeTicker(data.cue, upper);
   if (!cue) return null;
   return {

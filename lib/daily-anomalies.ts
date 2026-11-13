@@ -313,12 +313,12 @@ async function getDailyAnomalyForTickerUncached(
     .collection("tm_daily_anomaly_tickers")
     .doc(`${market}__${normalized}`)
     .get();
-  if (doc.exists) {
-    const data = doc.data() as DailyAnomalyTickerDoc;
-    if (data.anomaly) return data.anomaly;
-  }
+  return doc.exists ? anomalyFromTickerDoc(doc.data() as DailyAnomalyTickerDoc) : null;
+}
 
-  return null;
+/** The anomaly in a `tm_daily_anomaly_tickers` doc. Pure: the stock page's serving doc runs it on its copy. */
+export function anomalyFromTickerDoc(data: { anomaly?: AnomalyItem | null } | null | undefined): AnomalyItem | null {
+  return data?.anomaly ? data.anomaly : null;
 }
 
 export const getDailyAnomalyForTicker = unstable_cache(

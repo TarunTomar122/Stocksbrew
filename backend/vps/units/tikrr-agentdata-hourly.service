@@ -10,5 +10,8 @@ User=ubuntu
 WorkingDirectory=/opt/tikrr
 Environment=TIKRR_REPO_DIR=/opt/tikrr
 Environment=TIKRR_ENV_FILE=/etc/tikrr/backend.env
+# The serving-docs step (scripts/run-serve-docs.ts, TypeScript) reaches the store over HTTP and needs its token:
+# the same root-only one-line file as the after-close unit (see there for how to make it).
+EnvironmentFile=-/etc/tikrr/agentdata-localdb.env
 MemoryMax=1G
 ExecStart=/opt/tikrr/backend/vps/run-agentdata.sh hourly

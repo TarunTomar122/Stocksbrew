@@ -140,7 +140,7 @@ async function loadAgentNewsFeed(market: "US" | "IN", limit: number): Promise<Ne
   }
 }
 
-async function loadAgentNewsForTicker(market: "US" | "IN", ticker: string): Promise<NewsArticle[]> {
+async function loadAgentNewsForTicker(market: "US" | "IN", ticker: string, strict = false): Promise<NewsArticle[]> {
   if (market !== "US") return [];
   try {
     const scoped = adminFirestore.collection("tm_agent_news").where("stock_tickers", "array-contains", ticker);
@@ -148,13 +148,15 @@ async function loadAgentNewsForTicker(market: "US" | "IN", ticker: string): Prom
     try {
       // Newest first, so the cap keeps the recent headlines as the collection grows.
       snap = await scoped.orderBy("published_at", "desc").limit(TICKER_NEWS_TARGET_LIMIT).get();
-    } catch {
+    } catch (err) {
+      if (strict) throw err;
       snap = await scoped.limit(TICKER_NEWS_TARGET_LIMIT).get();
     }
     return snap.docs
       .map((doc) => normalizeAgentArticle(doc.data() as RawEnrichedArticle, market))
       .filter((article): article is NewsArticle => article !== null);
   } catch (err) {
+    if (strict) throw err;
     console.warn("[news] tm_agent_news ticker read failed:", err);
     return [];
   }
@@ -254,6 +256,7 @@ async function loadEnrichedArticlesForTicker(
   market: "US" | "IN",
   ticker: string,
   limit: number,
+  strict = false,
 ): Promise<RawEnrichedArticle[]> {
   const universe = await getAiUniverse(market);
   const ns = `${market}__${universe}`;
@@ -271,6 +274,7 @@ async function loadEnrichedArticlesForTicker(
           .sort((a, b) => String(b.published_at ?? "").localeCompare(String(a.published_at ?? "")));
       }
     } catch (err) {
+      if (strict) throw err;
       console.warn(`[news] targeted ${name} query failed, falling back to limited scan:`, err);
       break;
     }
@@ -282,6 +286,7 @@ async function loadEnrichedArticlesForTicker(
     try {
       snap = await collection.orderBy("published_at", "desc").limit(limit).get();
     } catch (err) {
+      if (strict) throw err;
       console.warn(`[news] ordered ${name} query failed, falling back to limited scan:`, err);
       snap = await collection.limit(limit).get();
     }
@@ -329,12 +334,13 @@ async function getNewsForTickerUncached(
   ticker: string,
   days: number = 7,
   limit: number = TICKER_NEWS_DEFAULT_LIMIT,
+  strict = false,
 ): Promise<NewsArticle[]> {
   const upper = ticker.toUpperCase();
   const cutoffMs = Date.now() - days * 86_400_000;
   const [rows, fresh] = await Promise.all([
-    loadEnrichedArticlesForTicker(market, upper, TICKER_NEWS_SCAN_LIMIT),
-    loadAgentNewsForTicker(market, upper),
+    loadEnrichedArticlesForTicker(market, upper, TICKER_NEWS_SCAN_LIMIT, strict),
+    loadAgentNewsForTicker(market, upper, strict),
   ]);
   const freshInWindow = fresh.filter((article) => {
     const publishedMs = new Date(article.published_at).getTime();
@@ -346,8 +352,16 @@ async function getNewsForTickerUncached(
   return mergeNewestFirst([freshInWindow.filter(aboutIt), filterTickerNews(rows, market, upper, cutoffMs, limit * 2).filter(aboutIt)], limit);
 }
 
+/**
+ * The same answer as getNewsForTicker, read now and uncached, and throwing when a read fails instead of answering
+ * with fewer headlines: the stock page's serving doc (lib/serve) must never store a failure as "no news".
+ */
+export function readNewsForTickerStrict(market: "US" | "IN", ticker: string, days: number, limit: number): Promise<NewsArticle[]> {
+  return getNewsForTickerUncached(market, ticker.toUpperCase(), days, limit, true);
+}
+
 const getNewsForTickerCached = unstable_cache(
-  getNewsForTickerUncached,
+  (market: "US" | "IN", ticker: string, days?: number, limit?: number) => getNewsForTickerUncached(market, ticker, days, limit),
   ["news-for-ticker-v4"],
   { revalidate: 120 },
 );

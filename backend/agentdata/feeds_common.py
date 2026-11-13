@@ -19,7 +19,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from .store import DocStore
 
@@ -262,11 +262,21 @@ def write_changed(
     *,
     merge: bool = False,
     chunk: int = 1000,
+    around: Callable[[list[tuple[str, dict[str, Any]]]], None] | None = None,
 ) -> int:
-    """Write only what differs from the last run. Returns how many were sent."""
+    """Write only what differs from the last run. Returns how many were sent.
+
+    ``around`` is called with each chunk just before it is written and again just after (the serving-doc stamps,
+    backend/serve_docs.py), so it sees exactly what changed."""
     pending = ledger.changed(docs)
     for start in range(0, len(pending), chunk):
         part = pending[start : start + chunk]
-        store.set_many(part, merge=merge)
+        if around:
+            around(part)
+        try:
+            store.set_many(part, merge=merge)
+        finally:
+            if around:
+                around(part)
         ledger.record(part)
     return len(pending)

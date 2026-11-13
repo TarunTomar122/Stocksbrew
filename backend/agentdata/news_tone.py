@@ -37,6 +37,7 @@ from typing import Any, Iterable
 
 from .feeds_common import iso_now, query, utc_now
 from .store import DocStore
+from backend.serve_docs import mark_dirty_in_store, news_tickers, refresh_stamped_pages
 
 SOURCE = "tm_agent_news"
 COLLECTION = "tm_agent_news_tone"
@@ -293,9 +294,19 @@ def run(*, hours: int = 48, limit: int | None = None, dry_run: bool = False, mod
                 )
             )
         if writes and not dry_run:
-            store.set_many(writes, merge=True)
+            # A new label changes the tone on its stocks' pages (backend/serve_docs.py): stale before and after.
+            toned = news_tickers(row for row in rows if labels.get(str(row["id"])))
+            mark_dirty_in_store(store, toned, ["news"])
+            try:
+                store.set_many(writes, merge=True)
+            finally:
+                mark_dirty_in_store(store, toned, ["news"])
         written += len(writes)
         print(f"[news_tone] batch {start // BATCH + 1}: {len(writes)}/{len(rows)} labelled", flush=True)
+
+    # The stock pages whose headline tone changed are dropped from the page cache (backend/serve_docs.py).
+    if not dry_run:
+        refresh_stamped_pages()
 
     # Fold duplicate story names together across the whole window, labelled earlier or now.
     merged = 0
