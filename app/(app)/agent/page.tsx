@@ -41,7 +41,8 @@ const EXAMPLE_TAG = (
 function Layout({ thread, record, signedIn, lead = null }: { thread: Thread; record: RecordDay[]; signedIn: boolean; lead?: React.ReactNode }) {
   // A thread with nothing to say (no stocks yet, still reading, could not read) keeps the agent's one note saying why;
   // the record still shows what was answered (it comes from the proposals, not the thread), and takes new answers.
-  const noteOnly = thread.status !== "ready" || thread.days.length === 0;
+  // Ready with nothing listed (only reports coming up, or past checks that found nothing): the record says so itself.
+  const noteOnly = thread.status !== "ready";
   return (
     // On a phone the reply box and the tab bar sit over the page's foot: the column ends clear of both.
     <div className="flex min-w-0 flex-col gap-5 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
@@ -53,7 +54,7 @@ function Layout({ thread, record, signedIn, lead = null }: { thread: Thread; rec
       ) : null}
       {lead}
       {noteOnly ? <ThreadView thread={thread} /> : null}
-      <ActivityRecord days={record} today={thread.today} />
+      <ActivityRecord days={record} today={thread.today} empty={noteOnly ? null : "Nothing to report yet. I'll add a line here after my next check."} />
       <ThreadComposer signedIn={signedIn} example={thread.example} suggestions={threadSuggestions(thread)} />
     </div>
   );

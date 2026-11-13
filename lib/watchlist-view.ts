@@ -1,7 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { localFirestoreFromEnv } from "@/lib/local-firestore";
-import { getLatestPriceQuotes, getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
+import { batchGetRefs, getLatestPriceQuotes, getMarketMovers, getMarketSnapshot } from "@/lib/firestore";
 import { INVESTMENT_THEMES } from "@/lib/investment-themes";
 import { plainRuleChange } from "@/lib/rule-copy";
 import { LLM_BRIEF_SOURCE, type BriefSource, isLlmBriefSource } from "@/lib/brief-source";
@@ -396,7 +395,7 @@ export async function overlayLatestPrices(rows: WatchlistRow[]): Promise<Watchli
 /**
  * Lightweight market data for arbitrary instruments (e.g. suggestion ideas that
  * aren't in the user's book). Reads live prices + analyst facts and computes the
- * analyst target runway. Batched: two `getDocsById` reads regardless of count.
+ * analyst target runway. Batched: two batched reads regardless of count.
  */
 export async function getIdeaMarketData(
   instrumentIds: string[],
@@ -417,7 +416,7 @@ export async function getIdeaMarketData(
     getLatestPriceQuotes(ids),
     // Idea cards only need the analyst block; field-select it so LocalDB does
     // not ship the full facts doc (financial history, holders, events) per idea.
-    getDocsByIdSelected<Record<string, unknown>>(
+    getDocsById<Record<string, unknown>>(
       adminFirestore.collection("tm_stock_facts"),
       ids,
       ["analyst"],
@@ -495,51 +494,36 @@ async function getActiveUniverses(): Promise<ActiveUniverses> {
   };
 }
 
+/** Documents by id; with `fields`, only those fields are read (Firestore's getAll fieldMask, on either backend). */
 async function getDocsById<T>(
   collection: FirebaseFirestore.CollectionReference,
   ids: string[],
+  fields?: readonly string[],
 ): Promise<Map<string, T>> {
-  if (ids.length === 0) return new Map();
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
-  const out = new Map<string, T>();
-  for (let start = 0; start < uniqueIds.length; start += 100) {
-    const refs = uniqueIds.slice(start, start + 100).map((id) => collection.doc(id));
-    const snaps = await adminFirestore.getAll(...refs);
-    for (const snap of snaps) {
-      if (snap.exists) out.set(snap.id, snap.data() as T);
-    }
-  }
-  return out;
+  if (uniqueIds.length === 0) return new Map();
+  return batchGetRefs<T>(uniqueIds.map((id) => collection.doc(id)), fields);
 }
 
-async function getDocsByIdSelected<T>(
-  collection: FirebaseFirestore.CollectionReference,
-  ids: string[],
-  fields: string[],
-): Promise<Map<string, T>> {
-  if (ids.length === 0) return new Map();
-  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
-  const out = new Map<string, T>();
-  const local = localFirestoreFromEnv();
-  if (local) {
-    const snaps = await local.getAllSelected(
-      uniqueIds.map((id) => local.collection(collection.path).doc(id)),
-      fields,
-    );
-    for (const snap of snaps) {
-      if (snap.exists) out.set(snap.id, snap.data() as T);
-    }
-    return out;
-  }
-  for (let start = 0; start < uniqueIds.length; start += 100) {
-    const refs = uniqueIds.slice(start, start + 100).map((id) => collection.doc(id));
-    const snaps = await adminFirestore.getAll(...refs);
-    for (const snap of snaps) {
-      if (snap.exists) out.set(snap.id, snap.data() as T);
-    }
-  }
-  return out;
-}
+/**
+ * What a watchlist row reads from a stock's brief (tm_news_runs/.../stock_intelligence,
+ * ~20 KB whole) and its facts doc (~6 KB whole, most of it history the row
+ * never shows). rowFromDocs reads nothing else of either; the test in
+ * lib/watchlist-view-fields.test.ts records every field it touches against these lists.
+ */
+export const WATCHLIST_BRIEF_FIELDS = [
+  "visual_summary.what_changed",
+  "today_brief",
+  "body",
+  "thesis",
+  "headline",
+  "overall_label",
+  "source",
+  "coverage_type",
+  "directive_v2",
+] as const;
+
+export const WATCHLIST_FACTS_FIELDS = ["analyst", "returns", "quick_stats", "financials", "institutions", "events"] as const;
 
 function metricValue(intel: Record<string, unknown>, pillar: string, label: string): number | null {  const pillars = (intel.pillars as Record<string, unknown>) || {};
   const pillarDoc = (pillars[pillar] as Record<string, unknown>) || {};
@@ -1004,7 +988,8 @@ async function loadAlertsByInstrument(uid: string): Promise<Record<string, Recor
   return out;
 }
 
-function rowFromDocs(
+/** One watchlist row from a stock's documents. Exported for the field-mask test. */
+export function rowFromDocs(
   instrumentId: string,
   positionType: "holding" | "watchlist",
   holdingRaw: Record<string, unknown> | null,
@@ -1183,7 +1168,7 @@ async function buildRows(
   const [latestById, instrumentsById, factsById, technicalsById, mentionsById] = await Promise.all([
     getLatestPriceQuotes(ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_instruments"), ids),
-    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids),
+    getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_facts"), ids, WATCHLIST_FACTS_FIELDS),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_stock_technicals_latest"), ids),
     getDocsById<Record<string, unknown>>(adminFirestore.collection("tm_mention_stats"), ids),
   ]);
@@ -1216,6 +1201,7 @@ async function buildRows(
         .doc(`${market}__${aiUniverse}`)
         .collection("stock_intelligence"),
       marketIds,
+      WATCHLIST_BRIEF_FIELDS,
     );
     for (const [instrumentId, doc] of briefDocs.entries()) {
       stockBriefById.set(instrumentId, doc);

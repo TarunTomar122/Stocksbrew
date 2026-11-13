@@ -3,8 +3,7 @@
 import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { currentFirebaseUser, signedInNow, signInWithGoogle } from "@/lib/sign-in";
 import type { AuthSurface } from "@/lib/product-analytics";
 
 /**
@@ -41,7 +40,7 @@ export function StartFreeButton({
         setLoading(true);
         try {
           // Already signed in? Skip the popup.
-          if (!getFirebaseAuth().currentUser) {
+          if (!(signedInNow() ?? Boolean(await currentFirebaseUser()))) {
             await signInWithGoogle({ surface });
           }
           window.location.href = next;

@@ -70,6 +70,18 @@ describe("perUserCache", () => {
     expect(cache.size()).toBe(1);
   });
 
+  it("says whether one person has an entry inside the window, under any key", async () => {
+    const time = clock();
+    const cache = perUserCache<string>({ ttlMs: 60_000, max: 10, now: time.now });
+    expect(cache.has("alice")).toBe(false);
+    await cache.get("alice", "k1", async () => "x");
+    expect(cache.has("alice")).toBe(true);
+    expect(cache.has("bob")).toBe(false);
+    expect(cache.has("")).toBe(false);
+    time.advance(60_000);
+    expect(cache.has("alice")).toBe(false);
+  });
+
   it("drops the oldest entry past the cap", async () => {
     const cache = perUserCache<string>({ ttlMs: 60_000, max: 2 });
     await cache.get("a", "k", async () => "a");

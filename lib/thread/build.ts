@@ -246,6 +246,8 @@ export function eventStep(item: InboxItem, reportsAhead: ReadonlyMap<string, str
       return { label: item.external ? "Open the filing" : "See the trades", href: item.href, external: item.external };
     case "insider":
       return { label: item.external ? "Read the Form 4" : "See the trade", href: item.href, external: item.external };
+    case "filing":
+      return one ? { label: `See what ${one} changed in its risks`, href: item.href } : null;
     case "strategy":
       return { label: "See the rebalance", href: item.href, external: item.external };
     case "memo":
@@ -368,6 +370,7 @@ function morningNote(morning: MorningRead, session: SessionMove | null, input: T
     figure: figureMove !== null && Number.isFinite(figureMove) ? { value: signedPct(figureMove), tone: toneOf(figureMove) } : null,
     step: { label: input.example ? "Open the example's briefing" : "Open today's briefing", href: "/briefing" },
     morning: true,
+    aboutDay: morning.sessionDay,
   });
 }
 

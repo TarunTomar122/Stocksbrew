@@ -4,8 +4,7 @@ import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { currentFirebaseUser, signedInNow, signInWithGoogle } from "@/lib/sign-in";
 import Link from "next/link";
 
 /** Saves the strategy to the signed-in user's own list through /api/strategies/track. */
@@ -29,7 +28,7 @@ export function TrackStrategyButton({
     setBusy(true);
     setError(null);
     try {
-      if (!signedIn && !getFirebaseAuth().currentUser) await signInWithGoogle({ surface: "unknown" });
+      if (!signedIn && !(signedInNow() ?? Boolean(await currentFirebaseUser()))) await signInWithGoogle({ surface: "unknown" });
       const next = !tracked;
       const response = await fetch("/api/strategies/track", {
         method: "POST",

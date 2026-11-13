@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { currentFirebaseUser } from "@/lib/sign-in";
 import {
   SUPPORT_EMAIL,
   syncReasonMessage,
@@ -27,7 +27,7 @@ type Props = {
 };
 
 async function callSync(subscriptionId?: string | null): Promise<SyncResult> {
-  const user = getFirebaseAuth().currentUser;
+  const user = await currentFirebaseUser();
   if (!user) return { subscribed: false, reason: "no_subscription_id" };
   const idToken = await user.getIdToken();
   const res = await fetch("/api/subscription/sync", {

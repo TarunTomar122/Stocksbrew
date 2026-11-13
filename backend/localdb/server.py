@@ -23,6 +23,7 @@ from .firestore import (
     _set_field,
 )
 from .paths import validate_collection_name, validate_document_path, validate_path_prefix
+from .query import sql_selectable
 from .store import LocalDocumentStore
 
 MAX_BODY_BYTES = 16 * 1024 * 1024
@@ -31,6 +32,25 @@ MAX_BATCH_GET_DOCUMENTS = 500
 MAX_LIST_DOCUMENTS = 5_000
 MAX_QUERY_DOCUMENTS = 10_000
 QUERY_CONCURRENCY = 4
+# What this server can do beyond the original API, listed in /health so an
+# operator (or a client) can tell which code is deployed. "select_sql": a
+# `select` field mask on GET /documents/<path>, /documents:batchGet and /query
+# is applied inside SQLite, so the unselected part of a document is never
+# decoded or sent. Older servers already accepted `select` on batchGet and
+# /query (projected in Python after a whole read) and ignore it on GET.
+FEATURES = ("select_sql",)
+
+
+def _read_documents(store: LocalDocumentStore, paths: list[str], select: list[str] | None) -> list[dict[str, Any]]:
+    """Documents by path, projected to ``select`` when given (same shape either way)."""
+
+    if select is None or sql_selectable(select):
+        return store.get_many(paths, select=select)
+    # A field path SQLite's JSON path cannot address: read whole, project here.
+    documents = store.get_many(paths)
+    for document in documents:
+        document["data"] = _select_data(document["data"], select)
+    return documents
 
 
 def _resolve_value(value: Any, existing: Any = _MISSING) -> Any:
@@ -166,7 +186,7 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
         parsed = urlsplit(self.path)
         if parsed.path == "/health":
             try:
-                self._send_json({"ok": self.server.store.health(), "service": "localdb"})
+                self._send_json({"ok": self.server.store.health(), "service": "localdb", "features": list(FEATURES)})
             except Exception:
                 self._send_json({"ok": False, "service": "localdb"}, 503)
             return
@@ -193,7 +213,10 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                 if not self._allowed(path):
                     self._error("collection is not allowed", 403)
                     return
-                document = self.server.store.get(path)
+                # ?select=a&select=b.c: only those fields. Absent: the whole document.
+                select = parse_qs(parsed.query).get("select") if parsed.query else None
+                documents = _read_documents(self.server.store, [path], select)
+                document = documents[0] if documents else None
                 if document is None:
                     self._error("document not found", 404)
                 else:
@@ -256,19 +279,8 @@ class LocalDBRequestHandler(BaseHTTPRequestHandler):
                     if not self._allowed(path):
                         self._error("collection is not allowed", 403)
                         return
-                documents = self.server.store.get_many(valid_paths)
-                payload = []
-                for document in documents:
-                    data = document["data"]
-                    if select is not None:
-                        data = _select_data(data, select)
-                    payload.append({
-                        "path": document["path"],
-                        "data": data,
-                        "hash": document["hash"],
-                        "updated_at": document["updated_at"],
-                    })
-                self._send_json({"documents": payload, "count": len(payload)})
+                documents = _read_documents(self.server.store, valid_paths, select)
+                self._send_json({"documents": documents, "count": len(documents)})
             except ValueError as error:
                 self._error(str(error), 400)
             except Exception:

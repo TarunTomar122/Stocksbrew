@@ -181,7 +181,10 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 - [ ] Site chrome payload trim (~40KB per page) (in progress).
 - [x] Ship 23 + 23.1 live (Nov 11).
 - [ ] Since-your-last-visit briefing: changed calls, material holding moves and agent findings since the last open (judge's top ask; needs a last-visit field on the user doc).
-- [ ] Thesis agents on top of lib/thesis-watch: a checkable reason per holding, monitored nightly, surfaced in the briefing only when it breaks.
+- [x] Thesis agents on top of lib/thesis-watch: a checkable reason per holding, monitored nightly, surfaced in the briefing and as reason_broken proposals.
+- [ ] Idea → watched basket agent: a sourced basket that becomes a standing agent proposing drops/adds for approval, with a no-hindsight replay (in progress, judge87's bold ask).
+- [x] Filing changes: risk factor diffs per 10-K/10-Q (tm_filing_changes, stock page, record, proposals). Open: the partial-10-Q repeat fix and quote length (in progress).
+- [ ] LocalDB field select: code ready (SQLite json_extract); needs the owner's go for a VPS pull + restart of tikrr-localdb.
 - [ ] Judge visuals list: logos on backtest SPY/TLT inputs and AMD "What changed"; comparison bars on compare, themes vs SPY, X-ray mix vs S&P, inbox report moves; prices on inbox report cards and signals rows.
 - [ ] Word budget: the backtest, sectors, AMD overview and insiders intros, the inbox AAPL alert (28 words), the landing FAQ answers.
 - [ ] Delete the dead overview code once ship 72 has been live a day (components/portfolio-home/*.tsx, portfolio-ask-hint, shares-prompt, lib/portfolio-home/{loop,questions,focus}).
@@ -189,6 +192,61 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 ## Log
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
+
+### 2026-11-13 ~01:30: filing changes (new capability), lighter pages, LocalDB field select (all local; batch 87 forming)
+
+- **Filing changes (new, real data):** the agent diffs each company's risk factor headings in its newest 10-K/10-Q against the previous filing. It works by rules only and quotes the company's own words.
+  - Full production run: 553 stocks written to `tm_filing_changes`, 503 with a readable comparison.
+  - Example, AMD 10-K: added a guarantees risk; dropped the Intel and Nvidia dominance risks and the ZT Systems closing risk.
+  - Where it shows: the stock page section "How AMD's risks changed" (after the read), an inbox and record line, and a `filing_risks` proposal for holdings.
+  - Scheduled in schedule.py's after-close group (code only; the VPS is untouched).
+  - Council BLOCK (cut quotes, a red/green bar, a confusing 10-K/10-Q order, a title that overpromised): fixed in r2 and approved by the lead.
+  - QA found 9 issues: the partial-10-Q repeats, hover-only text, Title Case and negation matching go to the builder (in progress); the lead fixed the record and auth ones.
+- **Speed:**
+  - firebase/auth now loads after hydration: stock page first-load JS 250→213 kB, briefing 175→137 kB.
+  - Sign-in reaches the popup with no await once auth is loaded (Safari). Signed-in/out checks wait for Firebase to restore a stored session.
+  - Every caller moved off static `getFirebaseAuth`, except /profile.
+  - Briefing reads start from the small user doc; stock page peers read 8 docs, not 12.
+- **LocalDB field select:** the server extracts masked fields in SQLite (json_extract), with no Python decode of `history_window`.
+  - 41-doc price batchGet: 52→8 ms locally; 8 parallel reads: 332→31 ms per request.
+  - Adapter `getAll(..., {fieldMask})` and variadic `.select()`; callers masked (prices, peers, watchlist rows, briefing state, proposals call/practice reads).
+  - Works with the old server too (projection kept), so deploy order doesn't matter.
+  - **The VPS needs a pull and restart for the server half (owner go):** back up first, then `git pull --ff-only` in /opt/tikrr, restart tikrr-localdb, and check that `/health` shows `features: ["select_sql"]`.
+- **/agent record:** ordinary moves are left out unless 10% or bigger. Multi-stock lines get stacked logos and no single-ticker prefix.
+- **Codex judge87** on local captures (scratchpad/judge87/codex.md):
+
+  | Dimension | Score /10 |
+  |---|---|
+  | UI | 7 (was 6.5) |
+  | UX | 6.5 |
+  | usability | 6.5 (was 6) |
+  | wording | 6 |
+  | agent feel | 7 (was 6) |
+  | volaren similarity | 6.5 (was 6) |
+  | sell | 6.5 |
+  | overall | 6.5 |
+
+  - Asks: a visuals pass (missing bars on market today, signals, news, sectors, insiders, calendar, themes, backtest, portfolio; prices on landing cards and record rows); the queue in one home (/agent, with the inbox pointing to it); long filing quotes; the landing showing one event → proposal → decision sequence.
+  - Bold ask: thesis → watched basket agent.
+- **Started:** the judge87 sweep builder; the thesis-basket agent builder (basket_drop/basket_add proposals, no-hindsight replay).
+
+### 2026-11-13 ~00:30: batch 86 on ship-queue (local); /agent councils; filing changes and speed builders running
+
+- **ship-queue → f970ab4 (86, local, not pushed):**
+  - What it holds: the /agent rework (the Needs-you queue with a price bar and Accept/Dismiss, "How I got here" opening below its card's row, a dated "What I did" record) and the judge85 sweep (signals rows only with a mood, the 1Y chart showing the whole year, comparison bars on results and backtest, briefing balance, a shorter footer).
+  - Checks: tsc and lint clean, 3790/3790 tests both ways, `next build` OK.
+- **QA pass on 86:** 3 bugs, all fixed by the builder, plus copy and accessibility fixes:
+  - the morning opener filed under today with its day word stripped (two opposite moves under Today)
+  - an empty /agent when the record had nothing to list
+  - a router.refresh() whose result was thrown away
+- **Codex councils on /agent:**
+  - Round 4 BLOCK. The lead overruled per-card Accept/Dismiss: each card's own decision, not a repeated decoration.
+  - Fixed after round 4: one sentence per card, only the level a proposal acts on, ordinary moves grouped into one line, and stored move reasons used.
+  - Round 5 running. Shots: scratchpad/proposals/r9/.
+- **New builders:**
+  - **Filing changes:** the risks a company added or dropped in its newest 10-K/10-Q, diffed by rules against the previous filing, written to tm_filing_changes. A stock page section, a record line and a proposal kind.
+  - **Speed:** /briefing and the stock page, measured on a local production build.
+- **Production:** still 402. Nothing pushed or deployed.
 
 ### 2026-11-12 ~23:10: batch 85 queued (local, deploy blocked); Codex judge 6.5 (agent feel 6, similarity 6)
 

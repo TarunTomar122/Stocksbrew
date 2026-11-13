@@ -4,8 +4,7 @@ import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
 import { useUser } from "@/lib/auth-context";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { currentFirebaseUser, signedInNow, signInWithGoogle } from "@/lib/sign-in";
 import Link from "next/link";
 
 /** Follows a plain-English basket through /api/baskets/follow. The server freezes today's members and prices. */
@@ -20,7 +19,7 @@ export function FollowBasketButton({ slug, initialFollowed }: { slug: string; in
     setBusy(true);
     setError(null);
     try {
-      if (!signedIn && !getFirebaseAuth().currentUser) await signInWithGoogle({ surface: "unknown" });
+      if (!signedIn && !(signedInNow() ?? Boolean(await currentFirebaseUser()))) await signInWithGoogle({ surface: "unknown" });
       const next = !followed;
       const response = await fetch("/api/baskets/follow", {
         method: "POST",

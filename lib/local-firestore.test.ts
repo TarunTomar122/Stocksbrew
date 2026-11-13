@@ -172,3 +172,135 @@ describe("getLocalDBDocument", () => {
     expect(seen[0]).toBe("http://store.test/documents/tm_home_view%2FUS");
   });
 });
+
+describe("field masks", () => {
+  const PRICE = {
+    ticker: "AAPL",
+    currency: "USD",
+    captured_at: "2026-11-12T20:59:00+00:00",
+    quote: { current: 173.03, day_change_pct: -2.22, volume: 1296560 },
+    fundamentals: { market_cap: 3.1e12, pe_ttm: 28.4 },
+    history_window: { dates: ["2026-11-11", "2026-11-12"], closes: [176.95, 173.03] },
+    session_phase: null,
+  };
+  const MASK = ["ticker", "quote.current", "quote.day_change_pct", "session_phase", "missing", "fundamentals.missing"];
+  const PROJECTED = { ticker: "AAPL", quote: { current: 173.03, day_change_pct: -2.22 }, session_phase: null };
+
+  /**
+   * A store stand-in. `projects`: the current server, which applies `select` (in SQLite);
+   * otherwise a server that ignores it and answers with whole documents.
+   */
+  function fakeStore(projects: boolean) {
+    const bodies: Array<{ url: string; body: Record<string, unknown> | null }> = [];
+    const docs: Record<string, Record<string, unknown>> = { "tm_latest_prices/US_AAPL": PRICE };
+    const fetch = async (url: string, init: RequestInit) => {
+      const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null;
+      bodies.push({ url, body });
+      const select = projects ? (body?.select as string[] | undefined) : undefined;
+      const shape = (path: string) => ({ path, hash: "h", data: select ? pick(docs[path]!, select) : docs[path] });
+      if (url.endsWith("/documents:batchGet")) {
+        const paths = (body!.paths as string[]).filter((path) => docs[path]);
+        return new Response(JSON.stringify({ documents: paths.map(shape) }), { status: 200 });
+      }
+      if (url.endsWith("/query")) {
+        return new Response(JSON.stringify({ documents: Object.keys(docs).map(shape) }), { status: 200 });
+      }
+      return new Response("{}", { status: 404 });
+    };
+    return { fetch, bodies };
+  }
+
+  function pick(data: Record<string, unknown>, fields: string[]) {
+    const out: Record<string, unknown> = {};
+    for (const field of fields) {
+      const parts = field.split(".");
+      let value: unknown = data;
+      for (const part of parts) value = value && typeof value === "object" ? (value as Record<string, unknown>)[part] : undefined;
+      if (value === undefined) continue;
+      let target = out;
+      for (const part of parts.slice(0, -1)) target = (target[part] ??= {}) as Record<string, unknown>;
+      target[parts.at(-1)!] = value;
+    }
+    return out;
+  }
+
+  it.each([true, false])("getAll(...refs, { fieldMask }) sends the mask and returns only those fields (server projects: %s)", async (projects) => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load();
+    const store = fakeStore(projects);
+    setLocalDbFetchForTests(store.fetch);
+    const db = new LocalFirestore("http://store.test", "token");
+    const prices = db.collection("tm_latest_prices");
+    const [hit, miss] = await db.getAll(prices.doc("US_AAPL"), prices.doc("US_NOPE"), { fieldMask: MASK });
+    expect(hit!.exists).toBe(true);
+    expect(hit!.data()).toEqual(PROJECTED);
+    expect(miss!.exists).toBe(false);
+    expect(store.bodies).toHaveLength(1);
+    expect(store.bodies[0]!.body).toEqual({ paths: ["tm_latest_prices/US_AAPL", "tm_latest_prices/US_NOPE"], select: MASK });
+  });
+
+  it("getAll without options reads whole documents and sends no mask", async () => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load();
+    const store = fakeStore(true);
+    setLocalDbFetchForTests(store.fetch);
+    const db = new LocalFirestore("http://store.test", "token");
+    const [snap] = await db.getAll(db.collection("tm_latest_prices").doc("US_AAPL"));
+    expect(snap!.data()).toEqual(PRICE);
+    expect(store.bodies[0]!.body).toEqual({ paths: ["tm_latest_prices/US_AAPL"] });
+  });
+
+  it("getAllSelected is the same read as a fieldMask", async () => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load();
+    const store = fakeStore(false);
+    setLocalDbFetchForTests(store.fetch);
+    const db = new LocalFirestore("http://store.test", "token");
+    const [snap] = await db.getAllSelected([db.collection("tm_latest_prices").doc("US_AAPL")], MASK);
+    expect(snap!.data()).toEqual(PROJECTED);
+  });
+
+  it.each([true, false])("query select takes Firestore's variadic form and the array form (server projects: %s)", async (projects) => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load();
+    const store = fakeStore(projects);
+    setLocalDbFetchForTests(store.fetch);
+    const db = new LocalFirestore("http://store.test", "token");
+    const variadic = await db.collection("tm_latest_prices").where("market", "==", "US").select(...MASK).get();
+    const array = await db.collection("tm_latest_prices").select(MASK).limit(5).get();
+    expect(variadic.docs[0]!.data()).toEqual(PROJECTED);
+    expect(array.docs[0]!.data()).toEqual(PROJECTED);
+    expect(store.bodies[0]!.body!.select).toEqual(MASK);
+    expect(store.bodies[1]!.body!.select).toEqual(MASK);
+  });
+
+  it("select() with no fields asks for ids only, as Firestore does", async () => {
+    const { LocalFirestore, setLocalDbFetchForTests } = await load();
+    const store = fakeStore(false);
+    setLocalDbFetchForTests(store.fetch);
+    const db = new LocalFirestore("http://store.test", "token");
+    const snap = await db.collection("tm_latest_prices").select().get();
+    expect(store.bodies[0]!.body!.select).toEqual(["__name__"]);
+    expect(snap.docs[0]!.id).toBe("US_AAPL");
+    expect(snap.docs[0]!.data()).toEqual({});
+  });
+
+  it("rejects a select that is not field paths", async () => {
+    const { LocalFirestore } = await load();
+    const db = new LocalFirestore("http://store.test", "token");
+    expect(() => db.collection("a").select("ok", "" as string)).toThrow();
+    expect(() => db.collection("a").select(1 as unknown as string)).toThrow();
+  });
+});
+
+describe("projectFields", () => {
+  it("keeps dotted paths nested and leaves out what is absent", async () => {
+    const { projectFields } = await load();
+    const data = { a: { b: 1, c: [1, 2], d: { e: null } }, f: false, g: [{ h: 1 }] };
+    expect(projectFields(data, ["a.b", "a.d.e", "f", "a.x", "x.y", "g.h", "a.c.0", "__name__"])).toEqual({ a: { b: 1, d: { e: null } }, f: false });
+    expect(projectFields(data, ["a", "a.b"])).toEqual({ a: data.a });
+    expect(projectFields(data, [])).toEqual({});
+    expect(projectFields(undefined, ["a"])).toBeUndefined();
+  });
+
+  it("does not read inherited properties", async () => {
+    const { projectFields } = await load();
+    expect(projectFields({ a: {} }, ["a.toString", "constructor"])).toEqual({});
+  });
+});

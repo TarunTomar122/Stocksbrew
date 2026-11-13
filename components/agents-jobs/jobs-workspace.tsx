@@ -30,8 +30,7 @@ import { draftHref, type LinkedDraft } from "@/lib/agent-jobs-link";
 import { orderJobs, presentRun, type JobStatus } from "@/lib/agent-jobs-present";
 import { sameJob } from "@/lib/agents-plain/save";
 import type { Plan } from "@/lib/entitlements";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
+import { currentFirebaseUser, firebaseUserNow, POST_SIGNUP_ONBOARDING_PENDING, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 
 import { RunList, RunReport, StockNamesContext, VerdictChip, type RunRow } from "./run-list";
 import { checksWhenShort, earningsWhen, tellsShort, watchSummary } from "./summary";
@@ -288,7 +287,8 @@ const SIGN_IN_CANCELLED = new Set(["auth/popup-closed-by-user", "auth/cancelled-
  * save button. A navigation to `href` (not a reload) because the router can rewrite the address after a sign-in.
  */
 async function signInKeepingDraft(href: string) {
-  const user = getFirebaseAuth().currentUser;
+  const known = firebaseUserNow();
+  const user = known !== undefined ? known : await currentFirebaseUser();
   // A browser can still hold a Firebase user after the server session expired: refresh the cookie instead.
   if (user) await syncServerSession(user);
   else await signInWithGoogle({ surface: "agents_save" });

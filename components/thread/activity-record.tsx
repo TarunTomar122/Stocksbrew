@@ -5,7 +5,7 @@ import * as React from "react";
 
 import { StockLogo } from "@/components/stock-logo";
 import { PROPOSAL_ANSWERED_EVENT, type ProposalAnsweredDetail } from "@/lib/proposals-event";
-import { RECORD_LINES, type RecordDay, type RecordItem } from "@/lib/thread/record";
+import { namesTicker, RECORD_LINES, type RecordDay, type RecordItem } from "@/lib/thread/record";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]";
 const TONE = { up: "text-signal-bullish", down: "text-signal-bearish", flat: "text-oa-fg" } as const;
@@ -17,6 +17,18 @@ const TAG_TONE: Record<string, string> = {
 
 /** The agent's own lines (the day's move) carry its mark; a stock's line its logo. */
 function Lead({ item }: { item: RecordItem }) {
+  // Several stocks on one line: the first few logos, overlapped.
+  if (item.tickers && item.tickers.length > 1) {
+    return (
+      <span className="flex shrink-0 -space-x-1.5">
+        {item.tickers.slice(0, 3).map((ticker) => (
+          <span key={ticker} className="rounded-full ring-2 ring-[var(--oa-card)]">
+            <StockLogo ticker={ticker} size={22} circle />
+          </span>
+        ))}
+      </span>
+    );
+  }
   if (item.ticker) return <StockLogo ticker={item.ticker} size={22} />;
   return (
     <span aria-hidden="true" className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-oa-fg text-oa-page">
@@ -34,7 +46,7 @@ function Row({ item }: { item: RecordItem }) {
     <>
       <Lead item={item} />
       <span className={`min-w-0 flex-1 text-pretty text-[14px] leading-5 ${quiet ? "text-oa-muted-fg" : "text-oa-fg"}`}>
-        {item.ticker && !item.text.includes(item.ticker) ? <span className="oa-mono mr-1.5 font-semibold">{item.ticker}</span> : null}
+        {item.ticker && !namesTicker(item.text, item.ticker) ? <span className="oa-mono mr-1.5 font-semibold">{item.ticker}</span> : null}
         {item.text}
       </span>
       {item.tag ? (
@@ -72,7 +84,7 @@ function withAnswered(days: RecordDay[], answered: RecordItem[], today: string):
  * What the agent did, newest day first: one line per proposal answered and per note, under a quiet day label. The
  * first RECORD_LINES lines show; the rest wait behind one "Show N more" (no inner scroll, owner rules 4 and 5).
  */
-export function ActivityRecord({ days: stored, today }: { days: RecordDay[]; today: string }) {
+export function ActivityRecord({ days: stored, today, empty = null }: { days: RecordDay[]; today: string; empty?: string | null }) {
   const [all, setAll] = React.useState(false);
   const headingId = React.useId();
   // A proposal answered on this page shows here at once, under today, until the page's refresh brings the stored line.
@@ -87,7 +99,18 @@ export function ActivityRecord({ days: stored, today }: { days: RecordDay[]; tod
   }, []);
   const days = React.useMemo(() => withAnswered(stored, answered, today), [stored, answered, today]);
   const total = days.reduce((sum, day) => sum + day.items.length, 0);
-  if (total === 0) return null;
+  // Nothing to list yet: one plain line under the heading when the page asks for it (`empty`), else nothing.
+  if (total === 0) {
+    if (!empty) return null;
+    return (
+      <section aria-labelledby={headingId} className="min-w-0">
+        <h2 id={headingId} className="px-1 pb-2 text-[15px] font-semibold leading-6 text-oa-fg">
+          What I did
+        </h2>
+        <p className="oa-surface border border-oa-border bg-oa-card px-3.5 py-3 text-pretty text-[14px] leading-5 text-oa-muted-fg">{empty}</p>
+      </section>
+    );
+  }
   let left = all ? Number.POSITIVE_INFINITY : RECORD_LINES;
   const shown = days
     .map((day) => {

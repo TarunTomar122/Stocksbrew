@@ -167,6 +167,34 @@ def _present_sql(field_path: str) -> str:
     return f"({type_sql} IS NOT NULL AND {type_sql} != 'null')"
 
 
+# Two result columns per selected field; SQLite allows 2,000 by default.
+MAX_SQL_SELECT_FIELDS = 500
+
+
+def sql_selectable(fields: list[str]) -> bool:
+    """Whether every field path can be extracted in SQLite (plain dotted identifiers, not too many)."""
+
+    return len(fields) <= MAX_SQL_SELECT_FIELDS and all(
+        isinstance(item, str) and bool(_FIELD_RE.match(item)) for item in fields
+    )
+
+
+def selection_columns(selected: list[str]) -> str:
+    """Two columns per selected field: its JSON type (NULL when absent) and its value.
+
+    SQLite pulls the fields out of ``data_json``, so a large document (a price
+    doc's ~100KB ``history_window``) is never shipped to or parsed by Python.
+    Decode a row with ``decode_selected``.
+    """
+
+    columns: list[str] = []
+    for index, field_path in enumerate(selected):
+        path = _json_path(field_path)
+        columns.append(f"json_type(data_json, '{path}') AS t{index}")
+        columns.append(f"json_extract(data_json, '{path}') AS s{index}")
+    return ", ".join(columns)
+
+
 def compile_query(spec: QuerySpec) -> CompiledQuery:
     collection_path = validate_path_prefix(spec.collection_path)
     params: list[Any] = []
@@ -190,12 +218,7 @@ def compile_query(spec: QuerySpec) -> CompiledQuery:
     if selected is not None:
         if not selected or not all(isinstance(item, str) and item for item in selected):
             raise ValueError("select must be a list of field paths")
-        columns = ["path", "document_hash", "updated_at"]
-        for index, field_path in enumerate(selected):
-            path = _json_path(field_path)
-            columns.append(f"json_type(data_json, '{path}') AS t{index}")
-            columns.append(f"json_extract(data_json, '{path}') AS s{index}")
-        select_sql = ", ".join(columns)
+        select_sql = "path, document_hash, updated_at, " + selection_columns(selected)
     else:
         select_sql = "path, data_json, document_hash, updated_at"
 
@@ -368,7 +391,7 @@ def decode_query_row(row: Any, selected: list[str] | None) -> dict[str, Any]:
     if selected is None:
         data = denormalise_value(json.loads(row["data_json"]))
     else:
-        data = _decode_selected(row, selected)
+        data = decode_selected(row, selected)
     return {
         "path": path,
         "id": document_id,
@@ -378,7 +401,9 @@ def decode_query_row(row: Any, selected: list[str] | None) -> dict[str, Any]:
     }
 
 
-def _decode_selected(row: Any, selected: list[str]) -> dict[str, Any]:
+def decode_selected(row: Any, selected: list[str]) -> dict[str, Any]:
+    """The data of a row read with ``selection_columns``: only the fields that exist."""
+
     data: dict[str, Any] = {}
     for index, field_path in enumerate(selected):
         json_type = row[f"t{index}"]

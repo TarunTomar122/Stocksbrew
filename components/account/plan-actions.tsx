@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { currentFirebaseUser } from "@/lib/sign-in";
 import { useProCheckout } from "@/lib/use-pro-checkout";
 
 /**
@@ -28,7 +28,7 @@ type ReasonId = (typeof REASONS)[number]["id"];
 const RETENTION_CODE = "XWDPFXVBZHV0UHEY";
 
 async function idToken(): Promise<string> {
-  const user = getFirebaseAuth().currentUser;
+  const user = await currentFirebaseUser();
   if (!user) throw new Error("Your sign-in has expired. Reload the page and sign in again.");
   return user.getIdToken();
 }

@@ -17,8 +17,7 @@ import { ASK_LIMITS, ASK_MAX_QUESTION_CHARS, ASK_SUGGESTIONS, ASK_TOOL_DONE, ASK
 import type { AskLimitReached } from "@/lib/ask-limits";
 import { exampleDay, exampleQuestion, parseExampleSubject, type AskExample, type AskExampleResult } from "@/lib/ask-examples";
 import { ASK_HANDOFF_PARAM, ASK_HANDOFF_VALUE, takeAskHandoff, writeAskHandoff, writeAskReopen } from "@/lib/ask-handoff";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
+import { currentFirebaseUser, firebaseUserNow, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 import { trackAskAnswerFailed, trackAskAnswerReceived, trackAskQuestionAsked, trackLimitHit } from "@/lib/product-analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -733,7 +732,8 @@ export function AskWorkspace({
   const signIn = React.useCallback(async () => {
     try {
       // A browser can still hold a Firebase user after the server session expired: refresh the cookie instead of reloading into the same signed-out page.
-      const user = getFirebaseAuth().currentUser;
+      const known = firebaseUserNow();
+      const user = known !== undefined ? known : await currentFirebaseUser();
       if (user) await syncServerSession(user);
       else await signInWithGoogle();
       // The reload lands on the same page; the panel opens again there with the question that was waiting.

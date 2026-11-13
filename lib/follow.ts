@@ -318,11 +318,11 @@ function moves(list: unknown, useWeight: "weight" | "prev_weight" = "weight"): F
 
 async function loadFundDigests(): Promise<FundDigest[]> {
   // The profiles are large (full portfolios and record curves); read only what the tally needs.
-  // The LocalDB adapter takes the field list as one array, unlike Firebase's spread arguments.
-  const query = adminFirestore.collection("tm_fund_profiles").limit(500) as unknown as {
-    select(fields: string[]): { get(): Promise<{ docs: Array<{ id: string; data(): unknown }> }> };
-  };
-  const snap = await query.select(["slug", "fund", "active", "latest.period", "latest.filed_at", "changes"]).get();
+  const snap = await adminFirestore
+    .collection("tm_fund_profiles")
+    .limit(500)
+    .select("slug", "fund", "active", "latest.period", "latest.filed_at", "changes")
+    .get();
   const out: FundDigest[] = [];
   for (const doc of snap.docs) {
     const data = doc.data() as {

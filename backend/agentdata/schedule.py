@@ -17,7 +17,7 @@ Groups and what they keep fresh:
 * ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
                    dates and reactions, the screener snapshot, then the standing agents
-                   and the reason checks (both TypeScript, see "Node jobs" below)
+                   the reason checks and the filing changes (TypeScript, see "Node jobs" below)
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
                    trade reports (off until ``SENATE_PTR_ENABLED=1``),
                    then the copy tests built from them (off until ``COPY_TRADES_ENABLED=1``),
@@ -90,6 +90,11 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Every saved reason on a tracked stock, checked against tonight's facts and stored in
         # tm_thesis_checks (rules only, no model), so the reason watcher is current without a visit.
         ("reason checks", ["node:scripts/run-reason-checks.ts"]),
+        # What changed in each company's risk factors: a 10-K or 10-Q newer than the stored one is compared with the
+        # filing it should be read against and stored in tm_filing_changes (rules only, no model). One SEC request per
+        # stock on a quiet night, 400ms apart so it and the hourly SEC filings step (:20, ~7 a second) stay under SEC's
+        # 10 a second together; documents only for new filings.
+        ("filing changes", ["node:scripts/run-filing-changes.ts", "--quiet", "--budget-minutes=20"]),
     ],
     "weekly": [
         ("13F funds", ["backend.agentdata.funds_13f"]),
@@ -150,6 +155,9 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     # limits are generous guesses; tighten them once the journal shows a few nights.
     ("after_close", "standing agents"): 20 * 60,
     ("after_close", "reason checks"): 15 * 60,
+    # [first full fill from a laptop, Nov 13: 585 stocks in 6.6 min at 150ms; a quiet night is ~600 SEC list requests,
+    # ~4 min at 400ms]
+    ("after_close", "filing changes"): 25 * 60,
     # [~50 funds, two or three Yahoo requests each, ~1 min]
     ("weekly", "fund facts"): 15 * 60,
     ("weekly", "fund instruments"): 10 * 60,

@@ -19,6 +19,7 @@ import { describeWatch, nextCheckWords } from "@/lib/agent-watch";
 import { loadWatches } from "@/lib/agent-watch-server";
 import { agentLines } from "@/lib/portfolio-home/agent-lines";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { getFilingChangesFor } from "@/lib/filing-changes/server";
 import { getFilingsStream } from "@/lib/filings";
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { inboxStocks } from "@/lib/inbox/server";
@@ -232,10 +233,36 @@ async function readFilings(tickers: Set<string>, now: Date): Promise<NonNullable
   return out;
 }
 
+/** Filings whose risk factors changed, on the person's holdings (tm_filing_changes), every stored comparison with changes. */
+async function readFilingChanges(stocks: ProposalStock[]): Promise<NonNullable<ProposalInputs["filingChanges"]>> {
+  const held = stocks.filter((stock) => stock.position === "holding").map((stock) => stock.ticker);
+  if (held.length === 0) return [];
+  const out: NonNullable<ProposalInputs["filingChanges"]> = [];
+  for (const doc of await getFilingChangesFor(held)) {
+    for (const comparison of [doc.latest, ...doc.history]) {
+      if (comparison.status !== "changes") continue;
+      const { filing, base } = comparison;
+      out.push({
+        ticker: doc.ticker,
+        form: filing.form,
+        accession: filing.accession,
+        filed: filing.filed,
+        url: filing.url,
+        added: comparison.added,
+        dropped: comparison.dropped.length,
+        base: base ? { form: base.form, filed: base.filed, url: base.url } : null,
+        partial: comparison.scope === "partial",
+      });
+    }
+  }
+  return out;
+}
+
 /** Shares held in the person's practice account by ticker (tm_practice_accounts, lib/practice-store.ts). */
 async function readPractice(uid: string): Promise<Record<string, number>> {
-  const snap = await adminFirestore.collection("tm_practice_accounts").doc(uid).get();
-  const positions = snap.exists ? ((snap.data() as Record<string, unknown> | undefined)?.positions as Record<string, { shares?: unknown }> | undefined) : undefined;
+  // Only the positions: the account doc also carries the whole order log.
+  const [snap] = await adminFirestore.getAll(adminFirestore.collection("tm_practice_accounts").doc(uid), { fieldMask: ["positions"] });
+  const positions = snap?.exists ? ((snap.data() as Record<string, unknown> | undefined)?.positions as Record<string, { shares?: unknown }> | undefined) : undefined;
   const out: Record<string, number> = {};
   for (const [symbol, position] of Object.entries(positions ?? {})) {
     const shares = num(position?.shares);
@@ -246,8 +273,8 @@ async function readPractice(uid: string): Promise<Record<string, number>> {
 
 /** Our call on one stock now; a stock with no stored call has a call of null (not a failed read). */
 async function readCall(instrumentId: string): Promise<ProposalCallLog> {
-  const snap = await adminFirestore.collection("tm_call_stability").doc(instrumentId).get();
-  const call = snap.exists ? (snap.data() as Record<string, unknown> | undefined)?.call : null;
+  const [snap] = await adminFirestore.getAll(adminFirestore.collection("tm_call_stability").doc(instrumentId), { fieldMask: ["call"] });
+  const call = snap?.exists ? (snap.data() as Record<string, unknown> | undefined)?.call : null;
   return { call: isAgentCall(call) ? call : null, changes: [] };
 }
 
@@ -282,13 +309,14 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
       if (value === null) complete = false;
       return value ?? undefined;
     });
-  const [scope, series, quotes, alerts, results, filings, reasons, runs, jobs, upcoming, practice] = await Promise.all([
+  const [scope, series, quotes, alerts, results, filings, filingChanges, reasons, runs, jobs, upcoming, practice] = await Promise.all([
     guard(resolveScope(uid, { kind: "watchlist" }, { calls: true })),
     guard(readSeries(tickers)),
     guard(readQuotes(stocks)),
     guard(readAlerts(uid)),
     guard(readResults(tickers, today)),
     guard(readFilings(new Set(tickers), now)),
+    guard(readFilingChanges(stocks)),
     can("reason_watch", plan) ? guard(readReasons(uid, stocks)) : Promise.resolve({}),
     guard(listRuns(uid, 60)),
     guard(listJobs(uid)),
@@ -307,6 +335,7 @@ export async function loadProposalInputs(uid: string, doc: UserDoc | null, now: 
     alerts,
     results,
     filings,
+    filingChanges,
     reasons,
     runs: runs?.map((run) => ({
       id: run.id,
@@ -513,6 +542,10 @@ export type ProposalCardsLoad = { cards: ProposalCard[]; watch: WatchSummary | n
 
 export async function loadProposalCards(uid: string, options: { syncMs?: number; doc?: UserDoc | null; now?: Date } = {}): Promise<ProposalCardsLoad | null> {
   const now = options.now ?? new Date();
+  // The agents' status read starts now, beside the sync, not after it.
+  const agentsRead = agentsStatus(uid, etToday(now));
+  // Marked handled now: the early return below never awaits it, and a rejection there must not go unhandled.
+  agentsRead.catch(() => {});
   const sync = syncProposals(uid, { now, doc: options.doc });
   afterResponse("proposals sync", sync);
   // The store is read beside the sync from the start, so a slow sync still leaves time for the stored ones.
@@ -521,7 +554,7 @@ export async function loadProposalCards(uid: string, options: { syncMs?: number;
   const stored = synced ? null : await storedRead;
   const waiting = synced?.waiting ?? (stored ? waitingOf(stored.proposals, now) : null);
   if (!waiting) return null;
-  const [cards, agents] = await Promise.all([proposalCards(waiting, 1200), agentsStatus(uid, etToday(now))]);
+  const [cards, agents] = await Promise.all([proposalCards(waiting, 1200), agentsRead]);
   const counts = synced?.watch ?? stored?.watch ?? null;
   return {
     cards,

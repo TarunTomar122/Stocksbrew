@@ -66,6 +66,8 @@ WRITABLE_PREFIXES = (
     "tm_etf_",
     # Company logo tiles served by app/api/logo (stock_logos.py), plus a run summary.
     "tm_stock_logos",
+    # What changed in each company's risk factors (scripts/run-filing-changes.ts writes it from TypeScript).
+    "tm_filing_changes",
 )
 
 

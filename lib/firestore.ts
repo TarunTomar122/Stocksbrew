@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { adminFirestore } from "@/lib/firebase-admin";
-import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { sharedCache } from "@/lib/shared-cache";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import type {
@@ -14,14 +13,27 @@ import type {
 } from "@/lib/types";
 
 const FIRESTORE_BATCH_GET_SIZE = 100;
+// With a field mask each document is small, so one read carries more of them
+// (the LocalDB adapter takes up to 500 masked documents per request).
+const FIRESTORE_MASKED_BATCH_GET_SIZE = 500;
 
+/**
+ * Documents by reference, keyed by id. With `fieldMask`, only those fields are
+ * read (Firestore's `getAll(...refs, { fieldMask })`, which the LocalDB adapter
+ * supports too): dotted paths keep their nesting and absent fields are left
+ * out, so `T` should be a Pick of exactly the masked fields.
+ */
 export async function batchGetRefs<T>(
   refs: Array<DocumentReference<DocumentData>>,
+  fieldMask?: readonly string[],
 ): Promise<Map<string, T>> {
   const result = new Map<string, T>();
-  for (let start = 0; start < refs.length; start += FIRESTORE_BATCH_GET_SIZE) {
-    const chunk = refs.slice(start, start + FIRESTORE_BATCH_GET_SIZE);
-    const docs = await adminFirestore.getAll(...chunk);
+  const size = fieldMask ? FIRESTORE_MASKED_BATCH_GET_SIZE : FIRESTORE_BATCH_GET_SIZE;
+  for (let start = 0; start < refs.length; start += size) {
+    const chunk = refs.slice(start, start + size);
+    const docs = fieldMask
+      ? await adminFirestore.getAll(...chunk, { fieldMask: [...fieldMask] })
+      : await adminFirestore.getAll(...chunk);
     for (const doc of docs) {
       if (doc.exists) result.set(doc.id, doc.data() as T);
     }
@@ -145,95 +157,45 @@ export async function getAllStockIntelligence(
 
 // ─── Latest prices ────────────────────────────────────────────────────────────
 
-export async function getLatestPrice(instrumentId: string): Promise<LatestPrice | null> {
-  const doc = await adminFirestore.collection("tm_latest_prices").doc(instrumentId).get();
-  if (!doc.exists) return null;
-  return doc.data() as LatestPrice;
-}
+/**
+ * The field lists below are what each read of `tm_latest_prices` returns, and
+ * each type is a Pick of exactly its list, so a caller reading a field that is
+ * not read back fails to compile instead of seeing undefined. A price doc is
+ * ~100 KB, nearly all of it `history_window`; the lists keep it off the wire.
+ */
+const LATEST_PRICE_HISTORY_FIELDS = ["history_window", "quote", "captured_at", "updated_at"] as const satisfies ReadonlyArray<keyof LatestPrice>;
 
-export async function getLatestPriceHistory(
-  instrumentId: string,
-): Promise<Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at"> | null> {
-  const local = localFirestoreFromEnv();
-  if (!local) return getLatestPrice(instrumentId);
-  const snapshot = (await local.getAllSelected(
-    [local.collection("tm_latest_prices").doc(instrumentId)],
-    ["history_window", "quote", "captured_at", "updated_at"],
-  ))[0];
-  return snapshot?.exists
-    ? snapshot.data() as Pick<LatestPrice, "history_window" | "quote" | "captured_at" | "updated_at">
-    : null;
+export type LatestPriceHistory = Pick<LatestPrice, (typeof LATEST_PRICE_HISTORY_FIELDS)[number]>;
+
+const latestPriceRef = (id: string) => adminFirestore.collection("tm_latest_prices").doc(id);
+
+export async function getLatestPriceHistory(instrumentId: string): Promise<LatestPriceHistory | null> {
+  return (await batchGetRefs<LatestPriceHistory>([latestPriceRef(instrumentId)], LATEST_PRICE_HISTORY_FIELDS)).get(instrumentId) ?? null;
 }
 
 export async function getLatestPrices(instrumentIds: string[]): Promise<Map<string, LatestPrice>> {
-  return batchGetRefs<LatestPrice>(
-    instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
-  );
+  return batchGetRefs<LatestPrice>(instrumentIds.map(latestPriceRef));
 }
 
-export type LatestPriceQuote = Pick<
-  LatestPrice,
-  "ticker" | "currency" | "captured_at" | "updated_at" | "quote"
->;
+export const LATEST_PRICE_QUOTE_FIELDS = ["ticker", "currency", "captured_at", "updated_at", "quote"] as const satisfies ReadonlyArray<keyof LatestPrice>;
 
-const LATEST_PRICE_QUOTE_FIELDS = ["ticker", "currency", "captured_at", "updated_at", "quote"];
+export type LatestPriceQuote = Pick<LatestPrice, (typeof LATEST_PRICE_QUOTE_FIELDS)[number]>;
 
 export async function getLatestPriceQuotes(
   instrumentIds: string[],
 ): Promise<Map<string, LatestPriceQuote>> {
-  const local = localFirestoreFromEnv();
-  if (!local) {
-    return batchGetRefs<LatestPriceQuote>(
-      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
-    );
-  }
-  const snapshots = await local.getAllSelected(
-    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
-    LATEST_PRICE_QUOTE_FIELDS,
-  );
-  const result = new Map<string, LatestPriceQuote>();
-  for (const snapshot of snapshots) {
-    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as LatestPriceQuote);
-  }
-  return result;
+  return batchGetRefs<LatestPriceQuote>(instrumentIds.map(latestPriceRef), LATEST_PRICE_QUOTE_FIELDS);
 }
+
+const LATEST_PRICE_FUNDAMENTALS_FIELDS = ["fundamentals"] as const satisfies ReadonlyArray<keyof LatestPrice>;
 
 export async function getLatestPriceFundamentals(
   instrumentIds: string[],
-): Promise<Map<string, Pick<LatestPrice, "fundamentals">>> {
-  const local = localFirestoreFromEnv();
-  if (!local) {
-    return batchGetRefs<Pick<LatestPrice, "fundamentals">>(
-      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
-    );
-  }
-  const snapshots = await local.getAllSelected(
-    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
-    ["fundamentals"],
-  );
-  const result = new Map<string, Pick<LatestPrice, "fundamentals">>();
-  for (const snapshot of snapshots) {
-    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as Pick<LatestPrice, "fundamentals">);
-  }
-  return result;
+): Promise<Map<string, Pick<LatestPrice, (typeof LATEST_PRICE_FUNDAMENTALS_FIELDS)[number]>>> {
+  return batchGetRefs(instrumentIds.map(latestPriceRef), LATEST_PRICE_FUNDAMENTALS_FIELDS);
 }
 
-export type LatestPriceCore = Pick<
-  LatestPrice,
-  | "instrument_id"
-  | "ticker"
-  | "market"
-  | "currency"
-  | "captured_at"
-  | "updated_at"
-  | "session_phase"
-  | "quote"
-  | "fundamentals"
-  | "analyst_consensus"
-  | "provider_metadata"
->;
-
-const LATEST_PRICE_CORE_FIELDS = [
+export const LATEST_PRICE_CORE_FIELDS = [
   "instrument_id",
   "ticker",
   "market",
@@ -245,26 +207,14 @@ const LATEST_PRICE_CORE_FIELDS = [
   "fundamentals",
   "analyst_consensus",
   "provider_metadata",
-];
+] as const satisfies ReadonlyArray<keyof LatestPrice>;
+
+export type LatestPriceCore = Pick<LatestPrice, (typeof LATEST_PRICE_CORE_FIELDS)[number]>;
 
 export async function getLatestPriceCores(
   instrumentIds: string[],
 ): Promise<Map<string, LatestPriceCore>> {
-  const local = localFirestoreFromEnv();
-  if (!local) {
-    return batchGetRefs<LatestPriceCore>(
-      instrumentIds.map((id) => adminFirestore.collection("tm_latest_prices").doc(id)),
-    );
-  }
-  const snapshots = await local.getAllSelected(
-    instrumentIds.map((id) => local.collection("tm_latest_prices").doc(id)),
-    LATEST_PRICE_CORE_FIELDS,
-  );
-  const result = new Map<string, LatestPriceCore>();
-  for (const snapshot of snapshots) {
-    if (snapshot.exists) result.set(snapshot.id, snapshot.data() as LatestPriceCore);
-  }
-  return result;
+  return batchGetRefs<LatestPriceCore>(instrumentIds.map(latestPriceRef), LATEST_PRICE_CORE_FIELDS);
 }
 
 const getLatestPriceCoreUncached = async (instrumentId: string): Promise<LatestPriceCore | null> => {

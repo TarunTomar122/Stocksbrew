@@ -71,7 +71,7 @@ Use a new checkpoint path for a different selector set or archive. `--fresh` sta
 Start it with `python3 -m backend.localdb.server`. `/health` is an unauthenticated liveness probe. Every data endpoint requires `Authorization: Bearer <LOCALDB_API_TOKEN>`.
 
 ```text
-GET  /documents/<document-path>
+GET  /documents/<document-path>       optional ?select=<field>&select=<a.b>
 GET  /documents?collection=<top-level-collection>&prefix=<optional-path>&limit=1000
 POST /query                           body: collection, filters, orders, select, limit
 POST /documents:batchGet              body: {"paths": ["..."], "select": ["..."]}
@@ -81,6 +81,10 @@ PUT  /documents/<document-path>       body: {"data": {...}, "merge": true}
 DELETE /documents/<document-path>
 POST /documents:batchUpsert            body: {"documents": [{"path": "...", "data": {...}, "hash": "..."}]}
 ```
+
+`/health` answers `{"ok": true, "service": "localdb", "features": ["select_sql"]}` on a server that applies field masks inside SQLite; an older server omits `features`.
+
+Field masks (`select`) follow Firestore's `select` and `getAll(..., { fieldMask })`: a dotted path returns that value under the same nesting, and a field the document lacks is left out (a stored `null` is kept). On a `select_sql` server the fields are pulled out with `json_extract`, so a large document (a `tm_latest_prices` doc is ~100 KB, nearly all `history_window`) is never decoded in Python or sent; field names that are not plain dotted identifiers fall back to a whole read projected in Python, with the same result. Every server with `/documents:batchGet` has accepted `select` there and on `/query`; older ones project after a whole read, and ignore it on `GET`. The web adapter (`lib/local-firestore.ts`) always sends the mask and projects the answer again, so callers get the same shape from any server version and the app and the store can be deployed in either order.
 
 The API supports the application-required document reads, collection queries, selected-field reads, batches, transactions, and transforms. It has no listeners or Firestore security rules; the service is authenticated by `LOCALDB_API_TOKEN` and restricted by `LOCALDB_ALLOWED_COLLECTIONS` when configured.
 

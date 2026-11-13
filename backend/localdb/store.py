@@ -17,7 +17,10 @@ from .query import (
     array_index_rows,
     compile_query,
     decode_query_row,
+    decode_selected,
     document_path_meta,
+    selection_columns,
+    sql_selectable,
 )
 
 
@@ -46,6 +49,11 @@ class LocalDocumentStore:
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(str(self.db_path), timeout=30.0, isolation_level=None)
         connection.row_factory = sqlite3.Row
+        # Stored JSON is ASCII with \u escapes, but json_extract unescapes a
+        # selected string, and a lone surrogate (half an emoji cut by a JS
+        # slice) comes out as bytes strict UTF-8 refuses, failing the whole
+        # read. surrogatepass gives back the same string json.loads would.
+        connection.text_factory = lambda raw: raw.decode("utf-8", "surrogatepass")
         connection.execute("PRAGMA busy_timeout=30000")
         connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA cache_size=-65536")
@@ -328,33 +336,52 @@ class LocalDocumentStore:
             for item in prepared
         ]
 
-    def get(self, path: str) -> dict[str, Any] | None:
-        valid_path = validate_document_path(path)
-        connection = self._connect()
-        try:
-            row = connection.execute(
-                "SELECT path, data_json, document_hash, updated_at FROM documents WHERE path = ?",
-                (valid_path,),
-            ).fetchone()
-            return self._row(row) if row else None
-        finally:
-            connection.close()
+    def get(self, path: str, select: list[str] | None = None) -> dict[str, Any] | None:
+        documents = self.get_many([path], select=select)
+        return documents[0] if documents else None
 
-    def get_many(self, paths: Iterable[str]) -> list[dict[str, Any]]:
+    def get_many(self, paths: Iterable[str], select: list[str] | None = None) -> list[dict[str, Any]]:
+        """Read documents by path, in the order asked, skipping missing ones.
+
+        With ``select``, each document's data holds only those field paths
+        (dotted paths nest, absent fields are left out). SQLite pulls the
+        fields out, so the rest of a large document never reaches Python.
+        ``select`` takes plain dotted identifiers (see ``sql_selectable``).
+        """
+
         valid_paths = list(dict.fromkeys(validate_document_path(path) for path in paths))
         if not valid_paths:
             return []
+        if select is not None and not (isinstance(select, list) and sql_selectable(select)):
+            raise ValueError("select must be a list of plain field paths")
         placeholders = ",".join("?" for _ in valid_paths)
+        if select is None:
+            columns = "path, data_json, document_hash, updated_at"
+        elif select:
+            columns = "path, document_hash, updated_at, " + selection_columns(select)
+        else:
+            columns = "path, document_hash, updated_at"
         connection = self._connect()
         try:
             rows = connection.execute(
-                f"SELECT path, data_json, document_hash, updated_at FROM documents WHERE path IN ({placeholders})",
+                f"SELECT {columns} FROM documents WHERE path IN ({placeholders})",
                 valid_paths,
             ).fetchall()
-            by_path = {row["path"]: self._row(row) for row in rows}
-            return [by_path[path] for path in valid_paths if path in by_path]
         finally:
             connection.close()
+        if select is None:
+            by_path = {row["path"]: self._row(row) for row in rows}
+        else:
+            by_path = {
+                row["path"]: {
+                    "path": row["path"],
+                    "data": decode_selected(row, select),
+                    "hash": row["document_hash"],
+                    "updated_at": row["updated_at"],
+                }
+                for row in rows
+            }
+        return [by_path[path] for path in valid_paths if path in by_path]
 
     def execute_query(self, spec: QuerySpec) -> Iterator[dict[str, Any]]:
         compiled = compile_query(spec)

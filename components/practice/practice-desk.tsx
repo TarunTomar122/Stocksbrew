@@ -8,9 +8,8 @@ import { Panel } from "@/components/backtest/results";
 import { OaButton } from "@/components/oa/button";
 import { PairBar } from "@/components/oa/kit/tone";
 import { StockLogo } from "@/components/stock-logo";
-import { getFirebaseAuth } from "@/lib/firebase-client";
 import type { PracticePayload, PracticeTradeResponse } from "@/lib/practice-store";
-import { signInWithGoogle } from "@/lib/sign-in";
+import { currentFirebaseUser, signedInNow, signInWithGoogle } from "@/lib/sign-in";
 
 const FIELD =
   "h-9 w-full min-w-0 rounded-md border border-oa-border bg-oa-page px-2.5 text-[14px] text-oa-fg outline-none placeholder:text-oa-muted-fg focus:border-oa-primary disabled:opacity-60";
@@ -86,7 +85,7 @@ export function PracticeDesk({ initial, mode, ticket = null }: { initial: Practi
   const signIn = async () => {
     setBusy(true);
     try {
-      if (!getFirebaseAuth().currentUser) await signInWithGoogle({ surface: "unknown" });
+      if (!(signedInNow() ?? Boolean(await currentFirebaseUser()))) await signInWithGoogle({ surface: "unknown" });
       window.location.reload();
     } catch {
       // The sign-in sheet reports its own errors.

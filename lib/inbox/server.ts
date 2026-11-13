@@ -5,6 +5,7 @@ import { can, EXAMPLE_AGENTS_UID } from "@/lib/entitlements";
 import { isCovered, type Viewer } from "@/lib/entitlements-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { normalizeFollowed } from "@/lib/follow-shared";
+import { filingSource } from "@/lib/filing-changes/server";
 import { fingerprint, perUserCache } from "@/lib/per-user-cache";
 import { EXAMPLE_STOCK_TICKERS } from "@/lib/portfolio-data";
 import { readTrackedStrategies } from "@/lib/strategies";
@@ -158,6 +159,7 @@ export async function loadUserInbox(viewer: Viewer, doc: UserDoc | null, now: Da
       { name: "reasons", run: () => (can("reason_watch", viewer.plan) ? reasonSource(uid, stocks, sinceDay) : Promise.resolve([])) },
       { name: "follow", run: () => followSource(followed, stocks, sinceDay) },
       { name: "insiders", run: () => insiderSource(stocks, sinceDay, today) },
+      { name: "filings", run: () => filingSource(stocks, sinceDay) },
       { name: "strategies", run: () => strategySource(strategies, strategiesLocked, sinceDay) },
       { name: "memo", run: () => memoSource(uid, sinceDay) },
       ]),

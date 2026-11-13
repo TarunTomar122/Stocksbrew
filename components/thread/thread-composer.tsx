@@ -14,8 +14,7 @@ import type { PlainSpec } from "@/lib/agents-plain/parse";
 import type { AskUIMessage } from "@/lib/ask-cards";
 import { ASK_MAX_QUESTION_CHARS } from "@/lib/ask-config";
 import type { Plan } from "@/lib/entitlements";
-import { getFirebaseAuth } from "@/lib/firebase-client";
-import { signInWithGoogle, syncServerSession } from "@/lib/sign-in";
+import { currentFirebaseUser, firebaseUserNow, signInWithGoogle, syncServerSession } from "@/lib/sign-in";
 import { replyRoute, savedNote } from "@/lib/thread/reply";
 
 /**
@@ -265,7 +264,8 @@ export function ThreadComposer({ signedIn, example, suggestions }: { signedIn: b
 
   const signIn = React.useCallback(async () => {
     try {
-      const user = getFirebaseAuth().currentUser;
+      const known = firebaseUserNow();
+      const user = known !== undefined ? known : await currentFirebaseUser();
       if (user) await syncServerSession(user);
       else await signInWithGoogle();
       window.location.reload();

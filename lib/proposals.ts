@@ -15,6 +15,8 @@
 import { AGENT_TEMPLATES, planMayRun, type AgentCall, type AgentScope, type AgentTrigger } from "@/lib/agent-jobs";
 import { daysFromToday, etDayOf, onDayWords, weekdayName } from "@/lib/day-words";
 import { can, limitFor, type Plan } from "@/lib/entitlements";
+import { quote, risks } from "@/lib/filing-changes/words";
+import { firstSentence } from "@/lib/thread/record";
 
 export const PROPOSALS_COLLECTION = "tm_agent_proposals";
 export const PROPOSAL_VERSION = 1;
@@ -46,6 +48,7 @@ export type ProposalKind =
   | "level_reached"
   | "big_move"
   | "filing"
+  | "filing_risks"
   | "reason_broken"
   | "earnings_soon"
   | "agent_resume"
@@ -157,6 +160,23 @@ export type ProposalResultRead = {
 
 export type ProposalFiling = { ticker: string; filed_at: string; line: string; url: string | null };
 
+/** A 10-K or 10-Q whose risk factors changed (tm_filing_changes, lib/filing-changes): the company's own headings. */
+export type ProposalFilingChange = {
+  ticker: string;
+  form: "10-K" | "10-Q";
+  accession: string;
+  /** YYYY-MM-DD. */
+  filed: string;
+  url: string;
+  /** New risk headings, as filed. */
+  added: string[];
+  dropped: number;
+  /** What it was compared with. */
+  base: { form: "10-K" | "10-Q"; filed: string; url: string } | null;
+  /** A 10-Q that lists only some risks, held against its 10-K. */
+  partial?: boolean;
+};
+
 export type ProposalReason = {
   verdict: "holds" | "weaker" | "broken" | "played_out";
   /** The day the verdict last changed to what it is now. */
@@ -199,6 +219,8 @@ export type ProposalInputs = {
   alerts?: ProposalAlert[] | null;
   results?: ProposalResultRead[] | null;
   filings?: ProposalFiling[] | null;
+  /** Filings whose risk factors changed, on the person's stocks. */
+  filingChanges?: ProposalFilingChange[] | null;
   reasons?: Record<string, ProposalReason> | null;
   runs?: ProposalRun[] | null;
   jobs?: ProposalJob[] | null;
@@ -388,16 +410,17 @@ function priceFigures(ticker: string, point: PricePoint, inputs: ProposalInputs)
   return out;
 }
 
-function levelFigures(inputs: ProposalInputs, ticker: string): ProposalFigure[] {
+/**
+ * The levels the agent weighed on the side the proposal acts on (owner rule: a call shows only its own level): under
+ * the price, the buy-more level and the 60-day low; over it, the sell-some level and the 60-day high.
+ */
+function levelFigures(inputs: ProposalInputs, ticker: string, side: "below" | "above"): ProposalFigure[] {
   const out: ProposalFigure[] = [];
   const levels = openLevels(inputs, ticker);
-  if (fin(levels?.add_below)) out.push({ label: "Buy-more level", value: usd(levels!.add_below!) });
-  if (fin(levels?.trim_above)) out.push({ label: "Sell-some level", value: usd(levels!.trim_above!) });
+  if (side === "below" && fin(levels?.add_below)) out.push({ label: "Buy-more level", value: usd(levels!.add_below!) });
+  if (side === "above" && fin(levels?.trim_above)) out.push({ label: "Sell-some level", value: usd(levels!.trim_above!) });
   const closes = closesOf(inputs, ticker);
-  if (closes.length >= 20) {
-    out.push({ label: "60-day low", value: usd(Math.min(...closes)) });
-    out.push({ label: "60-day high", value: usd(Math.max(...closes)) });
-  }
+  if (closes.length >= 20) out.push(side === "below" ? { label: "60-day low", value: usd(Math.min(...closes)) } : { label: "60-day high", value: usd(Math.max(...closes)) });
   return out;
 }
 
@@ -478,7 +501,7 @@ function alertRules(inputs: ProposalInputs): ProposalDraft[] {
       figures: [
         ...priceFigures(ticker, point, inputs),
         { label: `Your alert (${alert.condition})`, value: usd(alert.price) },
-        ...levelFigures(inputs, ticker),
+        ...levelFigures(inputs, ticker, alert.condition),
         { label: "New alert", value: usd(next.price) },
       ],
       action: alertAction(ticker, alert.instrumentId, alert.condition, next.price, null),
@@ -509,9 +532,13 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
     const replaces = alertUnder(inputs, ticker, point.price, next);
     if (replaces === false) continue;
     const cause = cut ? "guidance cut" : "results drop";
+    // One sentence (owner rule 8), the earnings surprise folded in: "ASTS reported on Monday, missed on earnings by
+    // 7.3% and fell 8.7%."
+    const surprise = read.epsVerdict === "miss" || read.epsVerdict === "beat" ? read.epsVerdict : null;
     const did = [
       `reported ${onDay(read.reportDate, inputs.today)}`,
       ...(cut ? ["lowered its guidance"] : []),
+      ...(surprise ? [`${surprise === "miss" ? "missed" : "beat"} on earnings${fin(read.epsSurprisePct) ? ` by ${Math.abs(Math.round(read.epsSurprisePct * 10) / 10)}%` : ""}`] : []),
       ...(fin(read.movePct) ? [`${read.movePct < 0 ? "fell" : "rose"} ${Math.abs(Math.round(read.movePct * 10) / 10)}%`] : []),
     ];
     out.push({
@@ -535,7 +562,7 @@ function resultsRules(inputs: ProposalInputs): ProposalDraft[] {
         ...(read.epsVerdict ? [{ label: "Earnings per share", value: `${capital(read.epsVerdict)}${fin(read.epsSurprisePct) ? ` (${signedPct(read.epsSurprisePct)})` : ""}` }] : []),
         ...(read.revenueVerdict ? [{ label: "Revenue", value: capital(read.revenueVerdict) }] : []),
         ...(replaces ? [{ label: "Your alert (below)", value: usd(replaces.price!) }] : []),
-        ...levelFigures(inputs, ticker),
+        ...levelFigures(inputs, ticker, "below"),
         { label: "New alert", value: usd(next.price) },
       ],
       action: alertAction(ticker, stock.instrumentId, "below", next.price, replaces),
@@ -778,7 +805,7 @@ function moveRules(inputs: ProposalInputs): ProposalDraft[] {
           ...priceFigures(ticker, point, inputs),
           { label: "Move", value: signedPct(finding.change_pct) },
           ...(replaces ? [{ label: "Your alert (below)", value: usd(replaces.price!) }] : []),
-          ...levelFigures(inputs, ticker),
+          ...levelFigures(inputs, ticker, "below"),
           { label: "New alert", value: usd(next.price) },
         ],
         action: alertAction(ticker, stock.instrumentId, "below", next.price, replaces),
@@ -912,8 +939,60 @@ function reasonRules(inputs: ProposalInputs): ProposalDraft[] {
       why: [brokeWhen, nextLine(next, "down")],
       does: alertDoes(ticker, "below", next.price, replaces),
       read: [...read, priceSource(ticker, point), ...seriesSource(inputs, ticker)],
-      figures: [...figures, ...priceFigures(ticker, point, inputs), ...levelFigures(inputs, ticker), { label: "New alert", value: usd(next.price) }],
+      figures: [...figures, ...priceFigures(ticker, point, inputs), ...levelFigures(inputs, ticker, "below"), { label: "New alert", value: usd(next.price) }],
       action: alertAction(ticker, stock.instrumentId, "below", next.price, replaces),
+    });
+  }
+  return out;
+}
+
+/**
+ * A holding's new 10-K or 10-Q added risks to its risk factors: an alert under the price at the next level down, so
+ * the person hears if the market starts pricing them in. The holding itself is never touched. The new risk is quoted
+ * in the company's own words.
+ */
+function filingRiskRules(inputs: ProposalInputs): ProposalDraft[] {
+  const out: ProposalDraft[] = [];
+  if (!inputs.alerts) return out;
+  for (const change of inputs.filingChanges ?? []) {
+    const ticker = change.ticker.toUpperCase();
+    const stock = stockOf(inputs, ticker);
+    if (!stock || stock.position !== "holding" || change.added.length === 0 || !recent(change.filed, inputs.today)) continue;
+    const point = latestPrice(inputs, ticker);
+    if (!point) continue;
+    const next = levelBelow(inputs, ticker, point.price);
+    const replaces = alertUnder(inputs, ticker, point.price, next);
+    if (replaces === false) continue;
+    const count = change.added.length;
+    const dropped = change.dropped > 0 ? ` and drops ${change.dropped}` : change.partial ? " since its 10-K" : "";
+    out.push({
+      kind: "filing_risks",
+      ticker,
+      instrument_id: stock.instrumentId,
+      event: { key: `filing_risks:${ticker}:${change.accession}`, kind: "filing_risks", at: change.filed, refs: [`tm_filing_changes/${ticker}`] },
+      idea: `alert:${ticker}:below:${next.price}`,
+      title: `Set an alert at ${usd(next.price)}: ${ticker}'s ${change.form} adds ${risks(count)}`,
+      why: [
+        `${ticker}'s ${change.form} ${onDay(change.filed, inputs.today)} adds ${risks(count)}${dropped}.`,
+        `New: “${quote(change.added[0]!, 11).text}”`,
+        nextLine(next, "down"),
+      ],
+      does: alertDoes(ticker, "below", next.price, replaces),
+      read: [
+        { label: `${ticker} ${change.form} risk factors`, at: change.filed, href: change.url },
+        ...(change.base ? [{ label: `${ticker} ${change.base.form} risk factors`, at: change.base.filed, href: change.base.url }] : []),
+        priceSource(ticker, point),
+        ...seriesSource(inputs, ticker),
+      ],
+      figures: [
+        { label: "Risks added", value: String(count) },
+        ...(change.dropped > 0 ? [{ label: "Risks dropped", value: String(change.dropped) }] : []),
+        ...priceFigures(ticker, point, inputs),
+        ...levelFigures(inputs, ticker, "below"),
+        { label: "New alert", value: usd(next.price) },
+      ],
+      action: alertAction(ticker, stock.instrumentId, "below", next.price, replaces),
+      priority: 55,
     });
   }
   return out;
@@ -1096,6 +1175,7 @@ export function candidates(inputs: ProposalInputs): ProposalDraft[] {
     ...levelRules(inputs),
     ...moveRules(inputs),
     ...filingRules(inputs),
+    ...filingRiskRules(inputs),
     ...earningsRules(inputs),
     ...agentResumeRules(inputs),
     ...flaggedRules(inputs),
@@ -1122,7 +1202,8 @@ function levelOf(action: ProposalAction): ProposalLevel | null {
 /** Holds a draft to the word budgets: a title over budget drops the draft, a why line over budget is dropped. */
 export function fitWords(draft: ProposalDraft): ProposalDraft | null {
   if (wordCount(draft.title) > TITLE_MAX_WORDS) return null;
-  const why = draft.why.filter((line) => line && wordCount(line) <= WHY_MAX_WORDS).slice(0, WHY_MAX_LINES);
+  // Each line one sentence of at most 15 words (owner rule 8): a line that is two sentences is dropped, never shown.
+  const why = draft.why.filter((line) => line && wordCount(line) <= WHY_MAX_WORDS && firstSentence(line) === line.trim()).slice(0, WHY_MAX_LINES);
   if (why.length === 0) return null;
   return { ...draft, why };
 }
@@ -1302,8 +1383,6 @@ export function levelScale(now: number, level: number): { nowAt: number; levelAt
 export type ProposalCard = Pick<Proposal, "id" | "kind" | "ticker" | "title" | "why" | "read" | "figures" | "status" | "result" | "created_at"> & {
   level: ProposalLevel | null;
   usualPct: number | null;
-  /** The one figure the card does not say yet, on the card itself (keyLineOf), or null. */
-  keyLine: string | null;
   /** What accepting does, or null when it would only repeat the title (repeatsTitle). */
   does: string | null;
   actionType: ProposalAction["type"];
@@ -1329,26 +1408,9 @@ export function toCard(proposal: Proposal, quote: ProposalQuote | null): Proposa
     does: repeatsTitle(proposal.title, proposal.does) ? null : proposal.does,
     level: proposal.level ?? levelOf(proposal.action),
     usualPct: proposal.usualPct ?? null,
-    keyLine: keyLineOf(proposal),
   };
 }
 
-/** Figures the card already shows elsewhere: the price and day (under the ticker). */
-const SHOWN_FIGURES = new Set(["Price", "Today"]);
-
-/**
- * The one figure the card does not say yet ("Earnings per share: Miss (−7.3%)"), in at most 8 words, or null: the
- * first figure whose value (sign aside) is not already in the card's title and line. The source count lives in the log.
- */
-export function keyLineOf(proposal: Pick<Proposal, "figures" | "title" | "why" | "usualPct">): string | null {
-  const said = `${proposal.title} ${proposal.why[0] ?? ""}`.toLowerCase();
-  // The usual report move has its own band on the card.
-  const shown = (label: string) => SHOWN_FIGURES.has(label) || (label === "Usual move" && proposal.usualPct != null);
-  const main = proposal.figures.find((figure) => !shown(figure.label) && !said.includes(figure.value.replace(/^[−+-]/, "").toLowerCase()));
-  if (!main) return null;
-  const line = `${main.label}: ${main.value}`;
-  return wordCount(line) <= 8 ? line : null;
-}
 
 /**
  * Whether "what accepting does" only says the title again: the same dollar figure, or mostly the same words. Then the

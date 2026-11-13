@@ -23,6 +23,7 @@ const KIND_ICON: Record<InboxKind, NavIconName> = {
   reason: "portfolio",
   follow: "follow",
   insider: "filings",
+  filing: "filings",
   strategy: "strategies",
   memo: "briefing",
 };

@@ -121,14 +121,8 @@ function day(value: unknown): string | undefined {
 async function stockBuiltDates(): Promise<Map<string, string>> {
   const dates = new Map<string, string>();
   try {
-    // The page documents are large; read only two fields. The LocalDB adapter
-    // (lib/local-firestore.ts) takes the field list as one array, unlike
-    // Firebase's spread arguments. On a Firebase rollback this throws, the catch
-    // below runs and stock pages are listed without dates.
-    const query = adminFirestore.collection("tm_stock_page_views").where("market", "==", "US") as unknown as {
-      select(fields: string[]): { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
-    };
-    const snap = await query.select(["ticker", "built_at"]).get();
+    // The page documents are large; read only two fields.
+    const snap = await adminFirestore.collection("tm_stock_page_views").where("market", "==", "US").select("ticker", "built_at").get();
     for (const doc of snap.docs) {
       const data = doc.data() as { ticker?: unknown; built_at?: unknown };
       const built = day(data.built_at);

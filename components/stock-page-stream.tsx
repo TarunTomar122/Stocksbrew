@@ -373,7 +373,8 @@ export async function StockPageStream({ params }: Props) {
   // names one (lib/sector-slugs.ts), so the instrument doc is only waited for when it does not.
   const sectorPeersPromise = intelProPromise.then(async (intelPro) => {
     const instrumentMeta = sectorSlugForIntel(intelPro, null) ? null : await instrumentMetaPromise;
-    const ranked = await getSectorPeersForStock(stock.instrument_id, market, intelPro, instrumentMeta, 12).catch(
+    // Ranked twelve deep (the cached ranking), and only the eight shown are priced.
+    const ranked = await getSectorPeersForStock(stock.instrument_id, market, intelPro, instrumentMeta, 12, 8).catch(
       () => [] as SectorPeerRow[],
     );
     if (ranked.length > 0) return ranked.slice(0, 8);

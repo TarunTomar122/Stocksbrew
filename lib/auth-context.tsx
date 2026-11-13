@@ -1,6 +1,6 @@
 "use client";
 
-import { User, onIdTokenChanged } from "firebase/auth";
+import type { User } from "firebase/auth";
 import {
   ReactNode,
   createContext,
@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { loadFirebaseAuth } from "@/lib/sign-in";
 import { identifyUser, initPostHog, resetAnalyticsIfIdentified } from "@/lib/posthog";
 import { setAnalyticsPlan } from "@/lib/product-analytics";
 
@@ -42,8 +42,18 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
 
   useEffect(() => {
     initPostHog();
-    const auth = getFirebaseAuth();
-    const unsub = onIdTokenChanged(auth, async (nextUser) => {
+    // firebase/auth loads here, after the page has hydrated, instead of with every page's first JavaScript
+    // (lib/sign-in.ts). Its first callback always came after a read of the browser's stored sign-in anyway.
+    let cancelled = false;
+    let unsub: (() => void) | undefined;
+    loadFirebaseAuth()
+      .then(({ auth, onIdTokenChanged }) => {
+        if (cancelled) return;
+        unsub = onIdTokenChanged(auth, onAuthChange);
+      })
+      // The script could not load (offline, blocked): stop waiting for it; the server's session still decides the page.
+      .catch(() => setLoading(false));
+    async function onAuthChange(nextUser: User | null) {
       setUser(nextUser);
       if (loading) setLoading(false);
       if (nextUser) {
@@ -92,8 +102,11 @@ export function AuthProvider({ children, initialAuthed = false }: AuthProviderPr
           // ignore
         }
       }
-    });
-    return () => unsub();
+    }
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   const value = useMemo(() => ({ user, loading, initialAuthed }), [user, loading, initialAuthed]);

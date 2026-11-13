@@ -3,15 +3,12 @@ import type { DocumentReference, DocumentData } from "firebase-admin/firestore";
 import {
   batchGetRefs,
   getLatestPriceCore,
-  getLatestPriceCores,
-  getLatestPrices,
   getLatestPriceFundamentals,
   getLatestPriceHistory,
   getPriceUniverse,
   type LatestPriceCore,
 } from "@/lib/firestore";
 import { getAiUniverse, getInstrument } from "@/lib/firestore";
-import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { hasSufficientOverallData } from "@/lib/fundamentals-coverage";
 import { buildPriceHistorySeries } from "@/lib/price-history-series";
 import type { PriceHistoryPoint } from "@/lib/price-history-chart";
@@ -1147,8 +1144,8 @@ export type SectorPeerRow = {
 
 function peerFundamentalsFromDocs(
   instrumentId: string,
-  factsById: Map<string, StockFacts>,
-  pricesById: Map<string, LatestPriceCore>,
+  factsById: PeerDocs["factsById"],
+  pricesById: PeerDocs["prices"],
 ): Pick<SectorPeerRow, "market_cap" | "pe_ttm" | "revenue_growth_yoy_pct"> {
   const facts = factsById.get(instrumentId);
   const price = pricesById.get(instrumentId);
@@ -1160,6 +1157,8 @@ function peerFundamentalsFromDocs(
 }
 
 // What a peer row reads from each peer's price, facts and instrument documents.
+// The PeerDocs types below hold exactly these fields, so reading any other
+// field of a peer document fails to compile instead of coming back undefined.
 const PEER_FIELDS = [
   "name",
   "quote.current",
@@ -1169,44 +1168,43 @@ const PEER_FIELDS = [
   "quick_stats.market_cap",
   "quick_stats.pe_ttm",
   "financials.revenue_growth_yoy_pct",
-];
+] as const;
 
 type PeerDocs = {
-  prices: Map<string, LatestPriceCore>;
-  factsById: Map<string, StockFacts>;
-  instrumentsById: Map<string, Instrument>;
+  prices: Map<string, {
+    quote?: Partial<Pick<LatestPriceCore["quote"], "current" | "day_change_pct">>;
+    fundamentals?: Pick<NonNullable<LatestPriceCore["fundamentals"]>, "market_cap" | "pe_ttm">;
+  }>;
+  factsById: Map<string, {
+    quick_stats?: Pick<NonNullable<StockFacts["quick_stats"]>, "market_cap" | "pe_ttm">;
+    financials?: Pick<NonNullable<StockFacts["financials"]>, "revenue_growth_yoy_pct">;
+  }>;
+  instrumentsById: Map<string, Partial<Pick<Instrument, "name">>>;
 };
 
 /**
- * The peers' price, facts and instrument documents. On LocalDB this is one
- * batch read of only the fields a peer row shows (PEER_FIELDS), instead of
- * three reads of whole documents (an instrument carries its description,
- * facts their full history). The maps hold those fields only.
+ * The peers' price, facts and instrument documents: one batch read of only the
+ * fields a peer row shows (PEER_FIELDS), instead of three reads of whole
+ * documents (a price doc carries ~100 KB of history, an instrument its
+ * description, facts their full history). The maps hold those fields only.
  */
 async function loadPeerDocs(ids: string[]): Promise<PeerDocs> {
-  const local = localFirestoreFromEnv();
-  if (!local) {
-    const [prices, factsById, instrumentsById] = await Promise.all([
-      getLatestPriceCores(ids),
-      batchGetRefs<StockFacts>(ids.map((id) => adminFirestore.collection("tm_stock_facts").doc(id))),
-      batchGetRefs<Instrument>(ids.map((id) => adminFirestore.collection("tm_instruments").doc(id))),
-    ]);
-    return { prices, factsById, instrumentsById };
-  }
   const collections = ["tm_latest_prices", "tm_stock_facts", "tm_instruments"] as const;
-  const snapshots = await local.getAllSelected(
-    collections.flatMap((collection) => ids.map((id) => local.collection(collection).doc(id))),
-    PEER_FIELDS,
-  );
+  const snapshots = ids.length
+    ? await adminFirestore.getAll(
+        ...collections.flatMap((collection) => ids.map((id) => adminFirestore.collection(collection).doc(id))),
+        { fieldMask: [...PEER_FIELDS] },
+      )
+    : [];
   const maps = collections.map(() => new Map<string, Record<string, unknown>>());
   snapshots.forEach((snapshot, index) => {
     const data = snapshot.exists ? snapshot.data() : undefined;
     if (data) maps[Math.floor(index / ids.length)]!.set(snapshot.id, data);
   });
   return {
-    prices: maps[0] as unknown as Map<string, LatestPriceCore>,
-    factsById: maps[1] as unknown as Map<string, StockFacts>,
-    instrumentsById: maps[2] as unknown as Map<string, Instrument>,
+    prices: maps[0] as PeerDocs["prices"],
+    factsById: maps[1] as PeerDocs["factsById"],
+    instrumentsById: maps[2] as PeerDocs["instrumentsById"],
   };
 }
 
@@ -1288,8 +1286,10 @@ export async function getSectorPeerRows(
   market: "US" | "IN",
   sectorSlug: string,
   limit = 6,
+  /** How many of the ranked peers are shown: only those get their price, facts and name read. */
+  show = limit,
 ): Promise<SectorPeerRow[]> {
-  const peers = await getCachedSectorPeerRankings(instrumentId, market, sectorSlug, limit);
+  const peers = (await getCachedSectorPeerRankings(instrumentId, market, sectorSlug, limit)).slice(0, show);
   if (peers.length === 0) return [];
 
   try {
@@ -1332,10 +1332,11 @@ export async function getSectorPeersForStock(
   intelPro: StockIntelPro | null,
   instrument?: Instrument | null,
   limit = 6,
+  show = limit,
 ): Promise<SectorPeerRow[]> {
   const sectorSlug = sectorSlugForIntel(intelPro, instrument);
   if (!sectorSlug) return [];
-  return getSectorPeerRows(instrumentId, market, sectorSlug, limit);
+  return getSectorPeerRows(instrumentId, market, sectorSlug, limit, show);
 }
 
 export async function getOnDemandNewsJob(

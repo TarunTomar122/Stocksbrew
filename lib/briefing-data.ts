@@ -9,7 +9,6 @@
  */
 
 import { adminFirestore } from "@/lib/firebase-admin";
-import { localFirestoreFromEnv } from "@/lib/local-firestore";
 import { getSessionUser } from "@/lib/auth-server";
 import {
   BRIEFING_DAY_RE,
@@ -145,13 +144,7 @@ async function loadStateDocs(uid: string, today: string): Promise<Map<string, Br
   const days = briefingWindow(today);
   const out = new Map<string, BriefingStateDoc>();
   if (days.length === 0) return out;
-  const local = localFirestoreFromEnv();
-  const snaps = local
-    ? await local.getAllSelected(
-        days.map((day) => local.collection(BRIEFING_STATE_COLLECTION).doc(`${uid}__${day}`)),
-        STATE_FIELDS,
-      )
-    : await adminFirestore.getAll(...days.map((day) => stateRef(uid, day)));
+  const snaps = await adminFirestore.getAll(...days.map((day) => stateRef(uid, day)), { fieldMask: STATE_FIELDS });
   for (const snap of snaps) {
     if (!snap.exists) continue;
     const data = snap.data() as BriefingStateDoc;
@@ -442,6 +435,47 @@ async function loadEarningsTimes(
   return out;
 }
 
+/** Every read a personal build makes: the ones keyed by the stocks' ids, then the ones keyed by the person alone. */
+function personalReaders(uid: string, ids: string[]) {
+  return {
+    quotes: () => getLatestPriceQuotes(ids),
+    labels: () => getInstrumentLabels(ids),
+    states: () => getRadarStockStates(ids),
+    reports: () => getLatestEarningsIntelForInstruments("US", ids),
+    preEarnings: () => getPreEarningsIntelForInstruments("US", ids),
+    market: () => loadMarketInputs(),
+    news: () => getNewsFeed("US"),
+    alerts: () => loadTriggeredAlerts(uid),
+    lifecycleChanges: () => loadCallChanges(uid),
+    radarView: () => getRadarUserView(uid),
+    agentRuns: () => loadAgentRuns(uid),
+  };
+}
+
+type PersonalReaders = ReturnType<typeof personalReaders>;
+/** The reads keyed by the stocks' ids: started for the tracked list, they are read again for the rows if they fail. */
+const BY_ID = ["quotes", "labels", "states", "reports", "preEarnings"] as const;
+
+/**
+ * Every read a personal build makes, started together. `ids` may hold more stocks than the build ends up showing (the
+ * tracked list, read before the research rows): each result is looked up by a row's id, and the reports are kept only
+ * for the rows' stocks, so an extra id only costs its read. Each promise settles on its own; failures are handled where
+ * they are read (a `guard` there marks the source degraded), and a catch is attached here so one started for a build
+ * that never runs (the person's rows turn out empty) is not an unhandled rejection.
+ */
+function startPersonalReads(uid: string, ids: string[]) {
+  const readers = personalReaders(uid, ids);
+  const reads = {} as { [K in keyof PersonalReaders]: ReturnType<PersonalReaders[K]> };
+  for (const key of Object.keys(readers) as Array<keyof PersonalReaders>) {
+    const read = readers[key]();
+    read.catch(() => {});
+    (reads as Record<string, Promise<unknown>>)[key] = read;
+  }
+  return { ids, reads };
+}
+
+type PersonalReads = ReturnType<typeof startPersonalReads>;
+
 async function buildPersonalBriefing(input: {
   uid: string;
   rows: WatchlistRow[];
@@ -450,10 +484,25 @@ async function buildPersonalBriefing(input: {
   holdings: Record<string, { quantity?: number | null; market_value?: number | null }>;
   /** Whether the agent covers this stock for the account (lib/entitlements: briefing_personal is "covered"). */
   covers: (instrumentId: string) => boolean;
+  /** Reads already started for this person (loadBriefingPage starts them before the rows are in); else started here. */
+  reads?: PersonalReads;
 }): Promise<PersonalBuild> {
   const { uid, rows, now, previous, holdings, covers } = input;
   const today = marketDay(now);
   const ids = rows.map((row) => row.instrument_id);
+  const early = input.reads;
+  let reads = early ? early.reads : startPersonalReads(uid, ids).reads;
+  const earlyIds = new Set(early?.ids ?? []);
+  if (early && (earlyIds.size !== ids.length || ids.some((id) => !earlyIds.has(id)))) {
+    // Started for the tracked list before the rows were known: an id-keyed read that failed is read once more for
+    // the rows alone (a stray id on the list must not cost every row its price), before anything is marked degraded.
+    const again = personalReaders(uid, ids);
+    reads = { ...reads };
+    for (const key of BY_ID) {
+      const retry = again[key] as () => Promise<unknown>;
+      (reads as Record<string, Promise<unknown>>)[key] = (early.reads[key] as Promise<unknown>).catch(() => retry());
+    }
+  }
   const degraded: string[] = [];
   const guard = <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
     promise.catch(() => {
@@ -461,21 +510,24 @@ async function buildPersonalBriefing(input: {
       return fallback;
     });
 
-  const [market, quotes, labels, states, reports, preEarnings, news, alerts, lifecycleChanges, radarView, agentRuns] =
+  const [market, quotes, labels, states, allReports, preEarnings, news, alerts, lifecycleChanges, radarView, agentRuns] =
     await Promise.all([
-      loadMarketInputs(),
-      guard("prices", getLatestPriceQuotes(ids), new Map()),
-      guard("names", getInstrumentLabels(ids), new Map()),
-      guard("earnings dates", getRadarStockStates(ids), {}),
-      guard("earnings reports", getLatestEarningsIntelForInstruments("US", ids), []),
-      guard("earnings previews", getPreEarningsIntelForInstruments("US", ids), []),
-      guard("news", getNewsFeed("US"), []),
-      guard("alerts", loadTriggeredAlerts(uid), []),
-      guard("call changes", loadCallChanges(uid), []),
-      guard("filings", getRadarUserView(uid), null),
-      guard("your jobs", loadAgentRuns(uid), []),
+      reads.market,
+      guard("prices", reads.quotes, new Map()),
+      guard("names", reads.labels, new Map()),
+      guard("earnings dates", reads.states, {}),
+      guard("earnings reports", reads.reports, []),
+      guard("earnings previews", reads.preEarnings, []),
+      guard("news", reads.news, []),
+      guard("alerts", reads.alerts, []),
+      guard("call changes", reads.lifecycleChanges, []),
+      guard("filings", reads.radarView, null),
+      guard("your jobs", reads.agentRuns, []),
     ]);
   degraded.push(...market.degraded);
+  // Only the rows' own stocks: the reads may have been started for a longer tracked list.
+  const rowIds = new Set(ids);
+  const reports = allReports.filter((doc) => rowIds.has(doc.instrument_id));
 
   const preById = new Map(preEarnings.map((doc) => [doc.instrument_id, doc]));
   const draftPositions = rows.map((row) => {
@@ -583,6 +635,13 @@ function isBriefing(value: unknown): value is Briefing {
   );
 }
 
+/** The ids on the person's tracked list, as stored. */
+function trackedIds(userDoc: Awaited<ReturnType<typeof getUserDoc>>): string[] {
+  return Array.isArray(userDoc?.tracked_stocks)
+    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
+    : [];
+}
+
 /**
  * Everything the /briefing page needs for the current request.
  *
@@ -602,16 +661,26 @@ export async function loadBriefingPage(
   }
 
   const uid = session.uid;
+  const userDocRead = getUserDoc(uid).catch(() => null);
+  // A build for today usually needs this person's reads (prices, reports, alerts, ...). They depend only on the uid and
+  // the tracked list, so they start as soon as the small user doc is in, beside the research rows and the saved days
+  // instead of after them. Skipped when this server already holds a build for them from the last minute (it is most
+  // likely reused) and when an earlier day is asked for.
+  const readEarly = (!options.day || options.day === today) && !personalBuilds.has(uid);
+  const earlyReads = readEarly
+    ? userDocRead.then((doc) => {
+        const ids = [...new Set(trackedIds(doc).filter((id) => id.trim().length > 0))];
+        return ids.length > 0 ? startPersonalReads(uid, ids) : undefined;
+      })
+    : Promise.resolve(undefined);
   const [userDoc, view, stateRead] = await Promise.all([
-    getUserDoc(uid).catch(() => null),
+    userDocRead,
     getWatchlistView(uid).catch(() => null),
     loadStateDocs(uid, today).catch(() => null),
   ]);
   // A failed read shows the page without its saved days.
   const stateDocs = stateRead ?? new Map<string, BriefingStateDoc>();
-  const tracked = Array.isArray(userDoc?.tracked_stocks)
-    ? userDoc.tracked_stocks.filter((id): id is string => typeof id === "string")
-    : [];
+  const tracked = trackedIds(userDoc);
 
   const days: BriefingDayLink[] = briefingWindow(today)
     .map((day) => ({ day, available: day === today || hasSavedBriefing(stateDocs.get(day)) }))
@@ -685,6 +754,7 @@ export async function loadBriefingPage(
     covered: coverage.covered,
     previous: previous ? { day: previous.day, seen: previous.doc.seen ?? [], calls: previous.doc.calls ?? {} } : null,
   });
+  const reads = await earlyReads;
   const { briefing, positions, degraded } = await personalBuilds.get(uid, buildKey, () =>
     buildPersonalBriefing({
       uid,
@@ -693,6 +763,7 @@ export async function loadBriefingPage(
       previous,
       holdings,
       covers: (instrumentId) => isCovered(coverage, instrumentId),
+      reads,
     }),
   );
 

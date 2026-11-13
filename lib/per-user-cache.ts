@@ -21,6 +21,8 @@ import { createHash } from "node:crypto";
  */
 export type PerUserCache<T> = {
   get(uid: string, key: string, load: () => Promise<T>): Promise<T>;
+  /** Whether an entry for this uid (under any key) is still inside its window: a `get` for them will likely be a hit. */
+  has(uid: string): boolean;
   /** For tests. */
   size(): number;
 };
@@ -61,6 +63,12 @@ export function perUserCache<T>(options: {
         if (options.keep && !options.keep(result)) drop();
       }, drop);
       return value;
+    },
+    has(uid) {
+      if (!uid) return false;
+      const at = now();
+      for (const entry of entries.values()) if (entry.uid === uid && at - entry.at < options.ttlMs) return true;
+      return false;
     },
     size() {
       return entries.size;

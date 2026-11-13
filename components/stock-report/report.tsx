@@ -19,6 +19,7 @@ import { AlertControls, type SuggestedAlert } from "./alert-controls";
 import { callLine, callMeaning } from "./call-line";
 import { briefFacts, briefLeadOf, capTier, compactMoney, daysBetween, fin, fmtDate, fmtStamp, levelFormatter, moneyFormatter, priceStamp, relativeDays, shortFact, signedPct } from "./format";import { ChangeChecks } from "./change-checks";
 import { FactCards } from "./fact-cards";
+import { FilingChanges } from "./filing-changes";
 import { PricePanel, type PanelZone } from "./price-panel";
 import { LockIcon, Missing, MoreLink, NUM, Panel, StatGrid, Tag, TONE_COLOR, type Tone } from "./primitives";
 import { PhoneSections } from "./phone-sections";
@@ -708,6 +709,11 @@ export function StockReport({
               <div className="px-3.5 py-3.5 sm:px-4">{data.briefFallback ?? <p className="text-[14px] leading-5 text-oa-muted-fg">We have not written a brief on {stock.ticker} yet.</p>}</div>
             )}
           </Panel>
+          {market === "US" ? (
+            <Suspense fallback={null}>
+              <FilingChanges ticker={stock.ticker} />
+            </Suspense>
+          ) : null}
           </div>
 
         </div>

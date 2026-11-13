@@ -47,6 +47,8 @@ function when(at: string, today: string): string {
 const FOCUS =
   "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
 
+const CLOSED: CardState = { busy: null, result: null, error: null, open: false };
+
 type CardState = {
   busy: "accept" | "dismiss" | null;
   result: ProposalResult | null;
@@ -98,37 +100,21 @@ function RunLog({ card, today }: { card: ProposalCard; today: string }) {
               <span className="text-oa-fg">{source.label}</span>
             );
             return (
-              <li
-                key={index}
-                className="flex min-w-0 items-baseline justify-between gap-3"
-              >
+              <li key={index} className="flex min-w-0 items-baseline justify-between gap-3">
                 <span className="min-w-0 text-pretty">{label}</span>
-                {day ? (
-                  <span className="shrink-0 text-[12px] text-oa-muted-fg">
-                    {day}
-                  </span>
-                ) : null}
+                {day ? <span className="shrink-0 text-[12px] text-oa-muted-fg">{day}</span> : null}
               </li>
             );
           })}
         </ul>
       </div>
       <div className="min-w-0">
-        <p className="text-[12px] font-medium text-oa-muted-fg">
-          What I checked
-        </p>
+        <p className="text-[12px] font-medium text-oa-muted-fg">What I checked</p>
         <dl className="mt-1 flex flex-col gap-0.5">
           {card.figures.map((figure, index) => (
-            <div
-              key={index}
-              className="flex min-w-0 items-baseline justify-between gap-3"
-            >
-              <dt className="min-w-0 truncate text-oa-muted-fg">
-                {figure.label}
-              </dt>
-              <dd className="oa-mono shrink-0 tabular-nums text-oa-fg">
-                {figure.value}
-              </dd>
+            <div key={index} className="flex min-w-0 items-baseline justify-between gap-3">
+              <dt className="min-w-0 truncate text-oa-muted-fg">{figure.label}</dt>
+              <dd className="oa-mono shrink-0 tabular-nums text-oa-fg">{figure.value}</dd>
             </div>
           ))}
         </dl>
@@ -142,15 +128,8 @@ function statusRows(watch: WatchSummary): Array<[string, string]> {
   return [
     ["Stocks", String(watch.stocks)],
     ["Price alerts set", String(watch.alerts)],
-    [
-      "Agents",
-      watch.paused
-        ? `${watch.agents} running, ${watch.paused} paused`
-        : `${watch.agents} running`,
-    ],
-    ...(watch.next
-      ? ([["Next check", capitalize(watch.next)]] as Array<[string, string]>)
-      : []),
+    ["Agents", watch.paused ? `${watch.agents} running, ${watch.paused} paused` : `${watch.agents} running`],
+    ...(watch.next ? ([["Next check", capitalize(watch.next)]] as Array<[string, string]>) : []),
   ];
 }
 
@@ -159,13 +138,7 @@ function statusRows(watch: WatchSummary): Array<[string, string]> {
  * beside the cards when that fills the last row; a one-row strip across the top when the cards already fill theirs
  * (or there are none), so no row ends with an empty slot (owner rules 4 and 10).
  */
-export function AgentStatus({
-  watch,
-  variant,
-}: {
-  watch: WatchSummary;
-  variant: "tile" | "strip";
-}) {
+export function AgentStatus({ watch, variant }: { watch: WatchSummary; variant: "tile" | "strip" }) {
   const rows = statusRows(watch);
   const head = (
     <span className="flex items-center gap-2.5">
@@ -187,14 +160,9 @@ export function AgentStatus({
       >
         {head}
         {rows.map(([label, value]) => (
-          <span
-            key={label}
-            className="flex items-baseline gap-1.5 text-[13px] leading-5"
-          >
+          <span key={label} className="flex items-baseline gap-1.5 text-[13px] leading-5">
             <span className="text-oa-muted-fg">{label}</span>
-            <span className="oa-mono font-semibold tabular-nums text-oa-fg">
-              {value}
-            </span>
+            <span className="oa-mono font-semibold tabular-nums text-oa-fg">{value}</span>
           </span>
         ))}
       </Link>
@@ -209,14 +177,9 @@ export function AgentStatus({
       {head}
       <span className="mt-2.5 flex flex-col divide-y divide-oa-border">
         {rows.map(([label, value]) => (
-          <span
-            key={label}
-            className="flex items-baseline justify-between gap-3 py-1.5 text-[13.5px] leading-5"
-          >
+          <span key={label} className="flex items-baseline justify-between gap-3 py-1.5 text-[13.5px] leading-5">
             <span className="shrink-0 text-oa-muted-fg">{label}</span>
-            <span className="oa-mono min-w-0 text-right font-semibold tabular-nums text-oa-fg">
-              {value}
-            </span>
+            <span className="oa-mono min-w-0 text-right font-semibold tabular-nums text-oa-fg">{value}</span>
           </span>
         ))}
       </span>
@@ -238,10 +201,7 @@ function LevelBar({ now, level }: { now: number; level: ProposalLevel }) {
       : `${Math.abs(gapPct).toFixed(1)}% ${gapPct < 0 ? "below" : "above"} now`;
   const nowLabel = (
     <span>
-      <span
-        aria-hidden="true"
-        className="mr-1 inline-block size-2 rounded-full bg-oa-primary align-[1px]"
-      />
+      <span aria-hidden="true" className="mr-1 inline-block size-2 rounded-full bg-oa-primary align-[1px]" />
       Now
     </span>
   );
@@ -253,10 +213,7 @@ function LevelBar({ now, level }: { now: number; level: ProposalLevel }) {
   const levelLeft = levelAt < nowAt;
   return (
     <span className="mt-2.5 block">
-      <span
-        aria-hidden="true"
-        className="relative block h-1.5 rounded-full bg-oa-accent"
-      >
+      <span aria-hidden="true" className="relative block h-1.5 rounded-full bg-oa-accent">
         <span
           className="absolute top-0 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--oa-primary)_30%,transparent)]"
           style={{
@@ -294,10 +251,7 @@ function MoveRange({ now, pct }: { now: number; pct: number }) {
   const width = (pct * 100) / half;
   return (
     <span className="mt-2.5 block">
-      <span
-        aria-hidden="true"
-        className="relative block h-1.5 rounded-full bg-oa-accent"
-      >
+      <span aria-hidden="true" className="relative block h-1.5 rounded-full bg-oa-accent">
         <span
           className="absolute top-0 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--oa-primary)_30%,transparent)]"
           style={{ left: `${left}%`, width: `${width}%` }}
@@ -353,8 +307,7 @@ export function ProposalCards({
   const today = todayProp ?? etToday();
   const headingId = React.useId();
 
-  const stateOf = (id: string): CardState =>
-    states[id] ?? { busy: null, result: null, error: null, open: false };
+  const stateOf = (id: string): CardState => states[id] ?? CLOSED;
   const patch = (id: string, next: Partial<CardState>) =>
     setStates((all) => ({
       ...all,
@@ -363,6 +316,30 @@ export function ProposalCards({
         ...next,
       },
     }));
+
+  /** One run log open at a time: opening one closes any other. */
+  const toggle = (id: string) =>
+    setStates((all) =>
+      Object.fromEntries(
+        Object.entries({ ...all, [id]: { ...(all[id] ?? CLOSED), open: !(all[id]?.open ?? false) } }).map(
+          ([key, entry]) => [key, key === id ? entry : { ...entry, open: false }],
+        ),
+      ),
+    );
+
+  // Escape closes the open run log.
+  const anyOpen = Object.values(states).some((entry) => entry.open);
+  React.useEffect(() => {
+    if (!anyOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape")
+        setStates((all) =>
+          Object.fromEntries(Object.entries(all).map(([key, entry]) => [key, { ...entry, open: false }])),
+        );
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [anyOpen]);
 
   const waiting = cards.filter((card) => !stateOf(card.id).result?.ok).length;
   React.useEffect(() => {
@@ -374,14 +351,39 @@ export function ProposalCards({
   }, [waiting]);
 
   /**
-   * A proposal left the queue: on /agent its line goes into the record at once (PROPOSAL_ANSWERED_EVENT), and the page
-   * is read again so the record holds the stored outcome.
+   * After an answer the queue is read again (GET /api/proposals: the server worked out the next proposal once the throttle
+   * was reset), and merged by id: a card answered here never comes back, a new one joins at the end. Only the queue is
+   * read, never the whole page.
+   */
+  const answeredIds = React.useRef(new Set<string>());
+  const refreshQueue = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/proposals", { credentials: "same-origin", cache: "no-store" });
+      const body = (await response.json().catch(() => null)) as { ok?: boolean; proposals?: ProposalCard[] } | null;
+      if (!response.ok || !body?.ok || !Array.isArray(body.proposals)) return;
+      const fresh = body.proposals.filter((card) => !answeredIds.current.has(card.id));
+      setCards((current) => {
+        const kept = current.filter((card) => !answeredIds.current.has(card.id));
+        const known = new Set(kept.map((card) => card.id));
+        return [...kept, ...fresh.filter((card) => !known.has(card.id))];
+      });
+    } catch {
+      // The queue stays as it is; the next page load reads it again.
+    }
+  }, []);
+
+  /**
+   * A proposal left the queue: on /agent its line goes into the record at once (PROPOSAL_ANSWERED_EVENT); the queue is
+   * read again for the next one (not when the answer navigates away, as the practice ticket does).
    */
   const answered = (
     card: ProposalCard,
     status: "accepted" | "dismissed" | "expired",
     message: string | null,
+    leaving = false,
   ) => {
+    answeredIds.current.add(card.id);
+    if (!leaving) void refreshQueue();
     if (!recordOnPage) return;
     const text = status === "accepted" && message ? message : card.title;
     const item: RecordItem = {
@@ -389,77 +391,54 @@ export function ProposalCards({
       kind: status,
       ticker: card.ticker,
       text: /[.!?]$/.test(text) ? text : `${text}.`,
-      tag:
-        status === "accepted"
-          ? "Done"
-          : status === "dismissed"
-            ? "Dismissed"
-            : "Expired",
+      tag: status === "accepted" ? "Done" : status === "dismissed" ? "Dismissed" : "Expired",
       figure: null,
-      href: card.ticker
-        ? `/stock/${encodeURIComponent(card.ticker)}`
-        : "/agents",
+      href: card.ticker ? `/stock/${encodeURIComponent(card.ticker)}` : "/agents",
     };
     window.dispatchEvent(
       new CustomEvent<ProposalAnsweredDetail>(PROPOSAL_ANSWERED_EVENT, {
         detail: { item },
       }),
     );
-    router.refresh();
   };
 
   const decide = async (card: ProposalCard, decision: "accept" | "dismiss") => {
     patch(card.id, { busy: decision, error: null });
     try {
-      const response = await fetch(
-        `/api/proposals/${encodeURIComponent(card.id)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ decision }),
-        },
-      );
+      const response = await fetch(`/api/proposals/${encodeURIComponent(card.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ decision }),
+      });
       const body = (await response.json().catch(() => null)) as {
         ok?: boolean;
         status?: string;
         result?: ProposalResult | null;
         error?: string;
       } | null;
-      if (
-        decision === "dismiss" &&
-        (body?.ok || body?.status === "dismissed" || body?.status === "expired")
-      ) {
-        answered(
-          card,
-          body?.status === "expired" ? "expired" : "dismissed",
-          null,
-        );
+      if (decision === "dismiss" && (body?.ok || body?.status === "dismissed" || body?.status === "expired")) {
+        answered(card, body?.status === "expired" ? "expired" : "dismissed", null);
         setCards((all) => all.filter((entry) => entry.id !== card.id));
         return;
       }
       if (body?.status === "expired") {
         // The reason the facts changed, in the server's words. With the record on the page the line moves there at once;
         // elsewhere the card says it and leaves a moment later.
-        const message =
-          body.result?.message ||
-          "The facts changed since, so this one is gone.";
+        const message = body.result?.message || "The facts changed since, so this one is gone.";
         if (recordOnPage) {
           answered(card, "expired", null);
           setCards((all) => all.filter((entry) => entry.id !== card.id));
           return;
         }
         patch(card.id, { busy: null, gone: true, error: message });
-        window.setTimeout(
-          () => setCards((all) => all.filter((entry) => entry.id !== card.id)),
-          2500,
-        );
+        window.setTimeout(() => setCards((all) => all.filter((entry) => entry.id !== card.id)), 2500);
         return;
       }
       const result = body?.result ?? null;
       if (body?.ok && result) {
         if (result.code === "opened" && result.href) {
-          answered(card, "accepted", result.message);
+          answered(card, "accepted", result.message, true);
           router.push(result.href);
           return;
         }
@@ -474,10 +453,7 @@ export function ProposalCards({
       }
       patch(card.id, {
         busy: null,
-        error:
-          result?.message ||
-          body?.error ||
-          "That didn't go through. Try again in a minute.",
+        error: result?.message || body?.error || "That didn't go through. Try again in a minute.",
       });
     } catch {
       patch(card.id, {
@@ -488,10 +464,7 @@ export function ProposalCards({
   };
 
   const status = watch && watch.stocks > 0 ? watch : null;
-  if (cards.length === 0)
-    return status && statusAlone ? (
-      <AgentStatus watch={status} variant="strip" />
-    ) : null;
+  if (cards.length === 0) return status && statusAlone ? <AgentStatus watch={status} variant="strip" /> : null;
 
   // Two across. With an odd number of cards the last row has one empty slot, which the status tile fills; with an even
   // number the rows are full, and the status is a strip above them (owner rule 4). One column (a phone) has no empty
@@ -502,10 +475,7 @@ export function ProposalCards({
   // or right under the card (one column), with a pointer to its card: no card in the grid stretches or moves.
   const openIndex = cards.findIndex((card) => stateOf(card.id).open);
   const itemCount = cards.length + (tile ? 1 : 0);
-  const rowEnd =
-    openIndex < 0
-      ? -1
-      : Math.min(openIndex - (openIndex % 2) + 1, itemCount - 1);
+  const rowEnd = openIndex < 0 ? -1 : Math.min(openIndex - (openIndex % 2) + 1, itemCount - 1);
   const panel = (variant: "narrow" | "wide") => {
     const card = cards[openIndex]!;
     return (
@@ -520,22 +490,12 @@ export function ProposalCards({
             aria-hidden="true"
             className="absolute -top-[7px] size-3 -translate-x-1/2 rotate-45 border-l border-t border-oa-border bg-oa-card"
             style={{
-              left:
-                variant === "narrow"
-                  ? "2rem"
-                  : openIndex % 2 === 0
-                    ? "25%"
-                    : "75%",
+              left: variant === "narrow" ? "2rem" : openIndex % 2 === 0 ? "25%" : "75%",
             }}
           />
           <p className="mb-2.5 text-[13px] font-semibold text-oa-fg">
             How I got here
-            {card.ticker ? (
-              <span className="oa-mono font-medium text-oa-muted-fg">
-                {" "}
-                · {card.ticker}
-              </span>
-            ) : null}
+            {card.ticker ? <span className="oa-mono font-medium text-oa-muted-fg"> · {card.ticker}</span> : null}
           </p>
           <RunLog card={card} today={today} />
         </div>
@@ -544,27 +504,16 @@ export function ProposalCards({
   };
 
   return (
-    <section
-      id="agent-proposals"
-      aria-labelledby={headingId}
-      className="min-w-0 scroll-mt-20"
-    >
-      <h2
-        id={headingId}
-        className="flex items-baseline gap-2 px-1 pb-2 text-[15px] font-semibold leading-6 text-oa-fg"
-      >
+    <section id="agent-proposals" aria-labelledby={headingId} className="min-w-0 scroll-mt-20">
+      <h2 id={headingId} className="flex items-baseline gap-2 px-1 pb-2 text-[15px] font-semibold leading-6 text-oa-fg">
         Needs you
         {waiting > 0 ? (
-          <span className="oa-mono text-[13px] font-medium tabular-nums text-oa-muted-fg">
-            {waiting}
-          </span>
+          <span className="oa-mono text-[13px] font-medium tabular-nums text-oa-muted-fg">{waiting}</span>
         ) : null}
       </h2>
       <div className="[container-type:inline-size]">
         {status ? (
-          <div
-            className={`mb-3 ${tile ? "[@container(min-width:34rem)]:hidden" : ""}`}
-          >
+          <div className={`mb-3 ${tile ? "[@container(min-width:34rem)]:hidden" : ""}`}>
             <AgentStatus watch={status} variant="strip" />
           </div>
         ) : null}
@@ -582,23 +531,10 @@ export function ProposalCards({
                   <button
                     type="button"
                     aria-expanded={state.open}
-                    aria-controls={logId}
-                    onClick={() =>
-                      setStates((all) =>
-                        Object.fromEntries(
-                          Object.entries({
-                            ...all,
-                            [card.id]: {
-                              ...stateOf(card.id),
-                              open: !state.open,
-                            },
-                          }).map(([id, entry]) => [
-                            id,
-                            id === card.id ? entry : { ...entry, open: false },
-                          ]),
-                        ),
-                      )
-                    }
+                    // Only a panel that is on the page; a short name for the toggle, not the whole card read out.
+                    aria-controls={state.open ? logId : undefined}
+                    aria-label={`How I got here, ${card.ticker ?? "your agents"}`}
+                    onClick={() => toggle(card.id)}
                     className="flex min-w-0 flex-col rounded-[inherit] px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_50%,transparent)]"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
@@ -609,13 +545,9 @@ export function ProposalCards({
                         </span>
                         {card.quote ? (
                           <span className="oa-mono flex flex-wrap items-baseline gap-x-1.5 text-[12.5px] leading-4 tabular-nums">
-                            <span className="text-oa-muted-fg">
-                              {price(card.quote.price)}
-                            </span>
+                            <span className="text-oa-muted-fg">{price(card.quote.price)}</span>
                             {card.quote.dayPct !== null ? (
-                              <span className={toneClass(card.quote.dayPct)}>
-                                {signed(card.quote.dayPct)} today
-                              </span>
+                              <span className={toneClass(card.quote.dayPct)}>{signed(card.quote.dayPct)} today</span>
                             ) : null}
                           </span>
                         ) : null}
@@ -624,7 +556,7 @@ export function ProposalCards({
                     <span className="mt-2.5 block text-pretty text-[14.5px] font-medium leading-5 text-oa-fg">
                       {card.title}
                     </span>
-                    {/* One useful line, always shown (owner rules 2 and 8); the rest is in the run log. */}
+                    {/* The title and one sentence (owner rules 2 and 8); everything else is in the run log. */}
                     {card.why[0] ? (
                       <span className="mt-1 block text-pretty text-[13px] leading-[18px] text-oa-muted-fg">
                         {card.why[0]}
@@ -635,19 +567,10 @@ export function ProposalCards({
                     ) : card.usualPct && card.quote ? (
                       <MoveRange now={card.quote.price} pct={card.usualPct} />
                     ) : null}
-                    {/* The run log in one line: how much was read, and the one figure the card does not say yet. */}
-                    {card.keyLine ? (
-                      <span className="mt-2 block text-pretty text-[12.5px] leading-[18px] text-oa-muted-fg">
-                        {card.keyLine}
-                      </span>
-                    ) : null}
                   </button>
                   <div className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-3.5 pb-3 pt-3">
                     {state.gone ? null : done ? (
-                      <p
-                        role="status"
-                        className="min-w-0 flex-1 text-pretty text-[13px] leading-5 text-oa-fg"
-                      >
+                      <p role="status" className="min-w-0 flex-1 text-pretty text-[13px] leading-5 text-oa-fg">
                         {done.message}
                         {done.href && done.code !== "opened" ? (
                           <>
@@ -657,9 +580,7 @@ export function ProposalCards({
                               prefetch={false}
                               className={`rounded font-medium text-oa-primary hover:underline ${FOCUS}`}
                             >
-                              {done.href.startsWith("/agents")
-                                ? "Open agents"
-                                : "Open alerts"}
+                              {done.href.startsWith("/agents") ? "Open agents" : "Open alerts"}
                             </Link>
                           </>
                         ) : null}
@@ -668,6 +589,7 @@ export function ProposalCards({
                       <>
                         <OaButton
                           size="sm"
+                          title={card.does ?? undefined}
                           loading={state.busy === "accept"}
                           disabled={state.busy !== null}
                           onClick={() => void decide(card, "accept")}
@@ -687,10 +609,7 @@ export function ProposalCards({
                     )}
                   </div>
                   {state.error ? (
-                    <p
-                      role="alert"
-                      className="-mt-1 px-3.5 pb-3 text-pretty text-[13px] leading-5 text-signal-bearish"
-                    >
+                    <p role="alert" className="-mt-1 px-3.5 pb-3 text-pretty text-[13px] leading-5 text-signal-bearish">
                       {state.error}
                     </p>
                   ) : null}

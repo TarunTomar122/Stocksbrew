@@ -19,6 +19,8 @@ vi.mock("@/lib/firebase-admin", () => ({
       }),
       doc: () => ({ get: async () => ({ exists: state.call !== null, data: () => ({ call: state.call }) }) }),
     }),
+    // Masked reads (lib/proposals-server.ts readCall): one doc ref in, one snapshot out.
+    getAll: async () => [{ exists: state.call !== null, data: () => ({ call: state.call }) }],
   },
 }));
 vi.mock("@/lib/firestore", () => ({

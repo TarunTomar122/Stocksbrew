@@ -177,6 +177,58 @@ function encodePath(path: string): string {
   return encodeURIComponent(path);
 }
 
+/**
+ * Keep only `fields` of `data`, the way Firestore's select and getAll
+ * fieldMask do: a dotted path keeps that nested value under the same nesting,
+ * and a field the document lacks is left out. Every server version takes a
+ * `select` on batch reads and queries (backend/localdb/server.py); the current
+ * one applies it inside SQLite, older ones after a whole read. Projecting the
+ * answer here as well costs nothing on an already-projected answer and gives
+ * callers the same shape from any server, including one that ignored it.
+ */
+export function projectFields(data: Record<string, unknown> | undefined, fields: readonly string[]): Record<string, unknown> | undefined {
+  if (!data) return data;
+  const out: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field === "__name__") continue;
+    const parts = field.split(".");
+    let value: unknown = data;
+    let found = true;
+    for (const part of parts) {
+      if (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, part)) {
+        found = false;
+        break;
+      }
+      value = (value as Record<string, unknown>)[part];
+    }
+    if (!found) continue;
+    let target = out;
+    for (const part of parts.slice(0, -1)) {
+      const child = target[part];
+      if (!child || typeof child !== "object" || Array.isArray(child)) target[part] = {};
+      target = target[part] as Record<string, unknown>;
+    }
+    target[parts.at(-1)!] = value;
+  }
+  return out;
+}
+
+/** Field paths from `select("a", "b")` (Firestore) or `select(["a", "b"])` (the older adapter form). */
+function fieldList(fields: ReadonlyArray<string | readonly string[]>): string[] {
+  const out = fields.flatMap((field) => (Array.isArray(field) ? field : [field])) as unknown[];
+  for (const field of out) {
+    if (typeof field !== "string" || !field) throw new Error("LocalDB select takes field paths as strings");
+  }
+  return out as string[];
+}
+
+/** Firestore's getAll read options. Only `fieldMask` is used. */
+export type LocalReadOptions = { fieldMask?: readonly string[] };
+
+function isReadOptions(value: unknown): value is LocalReadOptions {
+  return Boolean(value) && typeof value === "object" && !(value instanceof LocalDocumentReference);
+}
+
 export class LocalDocumentSnapshot {
   readonly id: string;
   readonly exists: boolean;
@@ -310,8 +362,9 @@ export class LocalQuery {
     return new LocalQuery(this.client, this.collectionPath, this.filters, this.orders, count, this.selected, this.group);
   }
 
-  select(fields: string[]): LocalQuery {
-    return new LocalQuery(this.client, this.collectionPath, this.filters, this.orders, this.limitCount, fields, this.group);
+  /** Only these fields of each document, like Firestore's `select("a", "b.c")`; an array is accepted too. */
+  select(...fields: Array<string | readonly string[]>): LocalQuery {
+    return new LocalQuery(this.client, this.collectionPath, this.filters, this.orders, this.limitCount, fieldList(fields), this.group);
   }
 
   async get(): Promise<LocalQuerySnapshot> {
@@ -323,14 +376,16 @@ export class LocalQuery {
         filters: this.filters,
         orders: this.orders,
         limit: this.limitCount,
-        select: this.selected,
+        // `select()` with no fields means "ids only"; Firestore sends __name__ for it too.
+        select: this.selected?.length === 0 ? ["__name__"] : this.selected,
       },
     });
     if (!response.ok) throw new Error(`LocalDB query failed (${response.status})`);
     const body = JSON.parse(response.text) as { documents?: LocalDocumentPayload[] };
+    const selected = this.selected;
     return new LocalQuerySnapshot((body.documents || []).map((document) => new LocalDocumentSnapshot(
       new LocalDocumentReference(this.client, document.path),
-      document,
+      selected ? { ...document, data: projectFields(document.data, selected) } : document,
     )));
   }
 
@@ -458,15 +513,25 @@ export class LocalFirestore {
       });
       if (!response.ok) throw new Error(`LocalDB batch read failed (${response.status})`);
       const payload = JSON.parse(response.text) as { documents?: LocalDocumentPayload[] };
-      for (const document of payload.documents || []) documents.set(document.path, document);
+      for (const document of payload.documents || []) {
+        documents.set(document.path, select ? { ...document, data: projectFields(document.data, select) } : document);
+      }
     }
     return refs.map((ref) => new LocalDocumentSnapshot(ref, documents.get(ref.path)));
   }
 
-  async getAll(...refs: LocalDocumentReference[]): Promise<LocalDocumentSnapshot[]> {
-    return this.batchGet(refs);
+  /**
+   * Documents by reference, like Firestore's `getAll(...refs, { fieldMask })`:
+   * a trailing options object with `fieldMask` reads only those fields.
+   */
+  async getAll(...refsOrOptions: Array<LocalDocumentReference | LocalReadOptions>): Promise<LocalDocumentSnapshot[]> {
+    const last = refsOrOptions.at(-1);
+    const options = isReadOptions(last) ? last : undefined;
+    const refs = (options ? refsOrOptions.slice(0, -1) : refsOrOptions) as LocalDocumentReference[];
+    return this.batchGet(refs, options?.fieldMask ? fieldList([options.fieldMask]) : undefined);
   }
 
+  /** `getAll(...refs, { fieldMask: select })` with the refs as an array. */
   async getAllSelected(refs: LocalDocumentReference[], select: string[]): Promise<LocalDocumentSnapshot[]> {
     return this.batchGet(refs, select);
   }
@@ -575,7 +640,7 @@ export class LocalFirestore {
 export type FirestoreLike = {
   collection: (collectionPath: string) => LocalCollectionReference;
   collectionGroup: (collectionId: string) => LocalQuery;
-  getAll: (...refs: LocalDocumentReference[]) => Promise<LocalDocumentSnapshot[]>;
+  getAll: (...refsOrOptions: Array<LocalDocumentReference | LocalReadOptions>) => Promise<LocalDocumentSnapshot[]>;
   batch: () => LocalWriteBatch;
   runTransaction: <T>(callback: (transaction: LocalTransaction) => Promise<T>) => Promise<T>;
 };

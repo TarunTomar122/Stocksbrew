@@ -286,12 +286,11 @@ async function readInsiderCounts(since: string): Promise<InsiderCount[]> {
   type Row = Record<string, unknown> & { symbol?: unknown; filing_date?: unknown; filed_at?: unknown };
   let rows: Row[];
   try {
-    // LocalDB takes the field list as one array (lib/local-firestore.ts).
-    const query = adminFirestore.collection("tm_insider_trades") as unknown as {
-      select(fields: string[]): { get(): Promise<{ docs: Array<{ data(): unknown }> }> };
-    };
     rows = (
-      await query.select(["id", "symbol", "tx_type", "price", "price_comparable", "foreign_line", "filing_date", "filed_at"]).get()
+      await adminFirestore
+        .collection("tm_insider_trades")
+        .select("id", "symbol", "tx_type", "price", "price_comparable", "foreign_line", "filing_date", "filed_at")
+        .get()
     ).docs.map((doc) => doc.data() as Row);
   } catch {
     rows = (await adminFirestore.collection("tm_insider_trades").limit(10000).get()).docs.map((doc) => doc.data() as Row);

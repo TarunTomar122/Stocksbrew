@@ -1,13 +1,13 @@
 "use client";
 
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import { currentFirebaseUser } from "@/lib/sign-in";
 import { checkoutSource } from "@/lib/product-analytics";
 
 export async function startDodoCheckout(
   period: "monthly" | "yearly" = "monthly",
   market: "US" | "IN" = "US",
 ): Promise<string> {
-  const user = getFirebaseAuth().currentUser;
+  const user = await currentFirebaseUser();
   if (!user) throw new Error("Sign in to continue");
 
   const idToken = await user.getIdToken();

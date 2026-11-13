@@ -54,6 +54,11 @@ export type ThreadNote = {
   locked: boolean;
   /** Today's morning note: drawn as the day's headline. */
   morning: boolean;
+  /**
+   * The market day the note is about, when it is filed under another day: the morning note before the open is filed
+   * under today but tells the last session (lib/thread/record.ts files it under this day).
+   */
+  aboutDay?: string | null;
 };
 
 export type ThreadDay = {

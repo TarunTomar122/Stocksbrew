@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   alertFromDoc,
   candidates,
-  keyLineOf,
   levelScale,
   outcomesOf,
   EXPIRY_DAYS,
@@ -177,7 +176,7 @@ describe("event → proposal", () => {
     );
     const draft = only(list, "results");
     expect(draft.title).toBe("Set an alert at $152 after NVDA's guidance cut");
-    expect(draft.why[0]).toBe("NVDA reported yesterday, lowered its guidance and fell 7.4%.");
+    expect(draft.why[0]).toBe("NVDA reported yesterday, lowered its guidance, missed on earnings by 3.2% and fell 7.4%.");
     expect(draft.read[0]).toEqual({ label: "NVDA results release", at: "2026-11-11T21:05:00Z", href: "https://example.com/pr" });
     withinBudget(draft);
   });
@@ -485,17 +484,33 @@ describe("dedupe and limits", () => {
     expect(levelScale(100, 60).levelAt).toBeLessThan(50);
   });
 
-  it("the card's key line is the one figure the card does not say, in 8 words or none", () => {
-    const base = { title: "Set an alert at $33.66 after ASTS's results drop", why: ["ASTS reported on Monday and fell 8.7%."], usualPct: null };
-    const figures = [
-      { label: "Price", value: "$34.48" },
-      { label: "Move on the report", value: "−8.7%" },
-      { label: "Earnings per share", value: "Miss (−7.3%)" },
+  it("every proposal's line is one sentence of at most 15 words, and its run log names only the level it acts on", () => {
+    const calls = { NVDA: { call: "Add" as const, changes: [{ date: "2026-11-11", from: "Hold" as const, to: "Add" as const }] } };
+    const all = [
+      ...candidates(inputs({ alerts: [alert({ live: false, triggered: true, triggeredAt: "2026-11-12T15:10:00.000Z" })], levels: { NVDA: { add_below: 135, trim_above: 190 } }, quotes: { NVDA: { price: 139.8, dayPct: -4.2, at: null } }, series: { NVDA: series(139.8, { low: 120 }) } })),
+      ...candidates(
+        inputs({
+          results: [{ ticker: "NVDA", reportDate: "2026-11-11", movePct: -8.7, guidance: "lowered", epsVerdict: "miss", epsSurprisePct: -7.3, revenueVerdict: null, sources: [] }],
+          levels: { NVDA: { add_below: 120, trim_above: 190 } },
+          quotes: { NVDA: { price: 160, dayPct: -8.7, at: null } },
+          series: { NVDA: series(160) },
+        }),
+      ),
+      ...candidates(inputs({ calls, levels: { NVDA: { add_below: 142.07, trim_above: 190 } }, quotes: { NVDA: { price: 150, dayPct: 1, at: null } } })),
+      ...candidates(inputs({ filings: [{ ticker: "NVDA", filed_at: "2026-11-11T20:10:00Z", line: "Filed an 8-K on a new material agreement", url: null }] })),
+      ...candidates(inputs({ upcoming: [{ ticker: "NVDA", date: "2026-11-19", session: "amc", usualPct: 6.2 }] })),
     ];
-    expect(keyLineOf({ ...base, figures })).toBe("Earnings per share: Miss (−7.3%)");
-    // Nothing new to say: no line.
-    expect(keyLineOf({ ...base, figures: [{ label: "Usual move", value: "±4.6%" }], usualPct: 4.6 })).toBeNull();
-    expect(keyLineOf({ ...base, figures: [{ label: "A very long figure label that runs on", value: "far too long here" }] })).toBeNull();
+    expect(new Set(all.map((draft) => draft.kind)).size).toBeGreaterThanOrEqual(5);
+    for (const draft of all) {
+      const line = draft.why[0]!;
+      expect(wordCount(line)).toBeLessThanOrEqual(WHY_MAX_WORDS);
+      expect(line.slice(0, -1)).not.toMatch(/[.!?]\s+[A-Z]/);
+      const labels = draft.figures.map((figure) => figure.label);
+      expect(labels.includes("Buy-more level") && labels.includes("Sell-some level")).toBe(false);
+      expect(labels.includes("60-day low") && labels.includes("60-day high")).toBe(false);
+    }
+    const results = all.find((draft) => draft.kind === "results")!;
+    expect(results.why[0]).toBe("NVDA reported yesterday, lowered its guidance, missed on earnings by 7.3% and fell 8.7%.");
   });
 
   it("an alert proposal carries its level for the card's bar", () => {
@@ -509,5 +524,52 @@ describe("dedupe and limits", () => {
     expect(readProposal({ ...stored, version: 2 })).toBeNull();
     expect(readProposal({ ...stored, status: "weird" })).toBeNull();
     expect(readProposal(null)).toBeNull();
+  });
+});
+
+describe("a holding's filing added risks", () => {
+  const change = {
+    ticker: "NVDA",
+    form: "10-Q" as const,
+    accession: "0001045810-26-000075",
+    filed: shift(TODAY, -1),
+    url: "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000075/nvda-20260726.htm",
+    added: ["Our indebtedness may adversely affect our financial condition and cash flows from operations."],
+    dropped: 0,
+    base: { form: "10-K" as const, filed: "2026-02-25", url: "https://www.sec.gov/Archives/edgar/data/1045810/x.htm" },
+  };
+  const priced = { quotes: { NVDA: { price: 150, dayPct: -1.2, at: null } }, series: { NVDA: series(150, { low: 131.2 }) } };
+
+  it("proposes an alert under the price, quoting the new risk as filed, with what it read", () => {
+    const draft = only(candidates(inputs({ ...priced, filingChanges: [change] })), "filing_risks");
+    expect(draft.title).toBe("Set an alert at $131.20: NVDA's 10-Q adds 1 risk");
+    expect(wordCount(draft.title)).toBeLessThanOrEqual(TITLE_MAX_WORDS);
+    expect(draft.why[0]).toBe("NVDA's 10-Q yesterday adds 1 risk.");
+    expect(draft.why[1]).toBe("New: “Our indebtedness may adversely affect our financial condition and cash flows…”");
+    for (const line of draft.why) expect(wordCount(line)).toBeLessThanOrEqual(WHY_MAX_WORDS);
+    expect(draft.event).toMatchObject({ key: `filing_risks:NVDA:${change.accession}`, refs: ["tm_filing_changes/NVDA"] });
+    expect(draft.read.slice(0, 2).map((source) => source.label)).toEqual(["NVDA 10-Q risk factors", "NVDA 10-K risk factors"]);
+    expect(draft.figures[0]).toEqual({ label: "Risks added", value: "1" });
+    expect(draft.action).toMatchObject({ type: "alert_price", condition: "below", price: 131.2 });
+  });
+
+  it("makes nothing for a watched stock, an old filing, a filing that only dropped risks, or without the alerts read", () => {
+    const watched = { ...NVDA, position: "watchlist" as const };
+    expect(candidates(inputs({ ...priced, stocks: [watched], filingChanges: [change] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
+    expect(candidates(inputs({ ...priced, filingChanges: [{ ...change, filed: shift(TODAY, -9) }] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
+    expect(candidates(inputs({ ...priced, filingChanges: [{ ...change, added: [], dropped: 2 }] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
+    expect(candidates(inputs({ ...priced, alerts: null, filingChanges: [change] })).some((draft) => draft.kind === "filing_risks")).toBe(false);
+  });
+
+  it("quotes a long new risk cut at a clause", () => {
+    const long = { ...change, added: ["We may fail to realize the anticipated benefits of the merger, and any failure to integrate the businesses may hurt us."] };
+    const draft = only(candidates(inputs({ ...priced, filingChanges: [long] })), "filing_risks");
+    expect(draft.why[1]).toBe("New: “We may fail to realize the anticipated benefits of the merger…”");
+  });
+
+  it("goes stale once the alert is set", () => {
+    const draft = only(candidates(inputs({ ...priced, filingChanges: [change] })), "filing_risks");
+    const proposal = newProposal("u1", draft, NOW);
+    expect(staleReason(proposal, inputs({ ...priced, alerts: [alert({ price: 131.2 })] }))).toBe("alert_set");
   });
 });
