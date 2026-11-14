@@ -214,6 +214,21 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-14 ~01:00 ET: crawler outage and the guard (bbfb81d2, fbe76f9d)
+- Owner sent the "N checks red" emails. Cause: GPTBot (from 19:00 UTC, ~7k pages/h) and PerplexityBot (from 02:00,
+  total ~13k/h) crawled endless filter URLs (/news?ticker&topic 26.7k, /calendar?day=2030-..&view 12.4k), each an
+  uncached render. Both web instances outgrew MemoryHigh=1G (heap cap 1024), were squeezed into swap and stopped
+  answering from ~03:00 to 05:40 UTC. Swap alerts had gone out from 20:15.
+- Fix: restarted both; lib/crawler-guard.ts in middleware (403 for filter views and SEO scrapers, a token bucket per
+  crawler family plus one shared by the AI crawlers, 429 past it); robots.txt Disallow /*? with the canonical views
+  allowed; varnish.vcl never keeps a refusal or lets it hide a stale copy (crawler.vtc); units: heap 768, no
+  MemoryHigh, MemorySwapMax=128M, LimitCORE=0. Quality pass found the screener canonicals, the favicon and the
+  Varnish hit-for-miss: fixed in fbe76f9d.
+- Same morning, 06:12 UTC: an unattended libc upgrade ran needrestart, which restarted Caddy, Varnish, LocalDB and
+  containerd (a short blip) and then grew to 3.6 GB on its next run (its interpreter scan reads every Python/Node
+  process's sources: 4.5 GB peak measured). Killed it; backend/vps/needrestart-stocksbrew.conf turns the scan off
+  (16-53 MB), installed in /etc/needrestart/conf.d/.
+
 ### 2026-11-13 ~17:50 ET: Buy more levels without empty cards (6405c662)
 - Owner: "tf is this ui with left cards being mostly empty". With 7 names in the side list, the list cell outgrew the
   cards and stretched its row's cards. Over 3 names the list is now its own band under the cards (bandColumns picks 3
