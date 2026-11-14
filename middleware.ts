@@ -19,24 +19,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(canonicalUrl, 308);
   }
 
-  // Crawlers: no filter views, SEO scrapers refused, a page rate per crawler (lib/crawler-guard.ts). Before anything
-  // else, so a refused request costs nothing.
-  const crawlerBlock = crawlerVerdict({
-    userAgent: request.headers.get("user-agent"),
-    pathname: request.nextUrl.pathname,
-    searchParams: request.nextUrl.searchParams,
-  });
-  if (crawlerBlock) {
-    return new Response(`${crawlerBlock.reason}\n`, {
-      status: crawlerBlock.status,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "private, no-store",
-        ...(crawlerBlock.status === 429 ? { "Retry-After": "30" } : {}),
-      },
-    });
-  }
-
   // Stock-against-stock pages live at one address: lower case, tickers in
   // alphabetical order. /compare/NVDA-vs-AMD and /compare/nvda-vs-amd go to
   // /compare/amd-vs-nvda in one hop. Whether the pair has a page is the page's call.
@@ -84,6 +66,26 @@ export function middleware(request: NextRequest) {
     const response = NextResponse.redirect(sectionUrl, 308);
     appendVaryAccept(response.headers);
     return response;
+  }
+
+  // Crawlers: no filter views, SEO scrapers refused, a page rate per crawler (lib/crawler-guard.ts). After the
+  // redirects above (an old address still hands its place to the new one), before anything that renders.
+  const crawlerBlock = crawlerVerdict({
+    userAgent: request.headers.get("user-agent"),
+    pathname: request.nextUrl.pathname,
+    searchParams: request.nextUrl.searchParams,
+  });
+  if (crawlerBlock) {
+    return new Response(`${crawlerBlock.reason}\n`, {
+      status: crawlerBlock.status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        // varnish.vcl html_ttl: never let a refusal stand in for the page (or hide its stale copy) for anyone else.
+        "X-Crawler-Refused": "1",
+        ...(crawlerBlock.status === 429 ? { "Retry-After": "30" } : {}),
+      },
+    });
   }
 
   const acceptHeader = request.headers.get("accept");

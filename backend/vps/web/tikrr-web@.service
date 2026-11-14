@@ -17,7 +17,7 @@ Environment=NODE_ENV=production
 Environment=HOSTNAME=localhost
 # One instance per core-ish: tikrr-web@3000 and tikrr-web@3001, load-balanced by Varnish (varnish.vcl).
 Environment=PORT=%i
-# Heap well under MemoryMax: code, buffers and the render cache live outside it (~300-400 MB).
+# Heap well under MemoryMax: code, native buffers and the module graph live outside it (~300-400 MB).
 ExecStart=/usr/local/bin/node --max-old-space-size=768 server.js
 Restart=always
 RestartSec=3
@@ -28,6 +28,8 @@ RestartSec=3
 # the whole box into swap.
 MemoryMax=1536M
 MemorySwapMax=128M
+# A heap-limit abort must not write a core file to the system disk.
+LimitCORE=0
 NoNewPrivileges=true
 
 [Install]

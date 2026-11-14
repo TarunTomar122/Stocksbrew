@@ -1,0 +1,60 @@
+varnishtest "a crawler's refusal (lib/crawler-guard.ts) is never kept for anyone else, and never hides a stale copy"
+
+server s1 {
+	# 1. A crawler on a page nobody has cached yet: refused.
+	rxreq
+	expect req.url == "/stock/ZTS"
+	txresp -status 403 -hdr "X-Crawler-Refused: 1" -hdr "Cache-Control: private, no-store" -body "refused"
+	# 2. A person right after: rendered and cached as usual.
+	rxreq
+	expect req.url == "/stock/ZTS"
+	txresp -hdr "Surrogate-Control: max-age=60" -body "zts"
+	# 3. /stock/AMD, cached briefly with a long stale-while-revalidate.
+	rxreq
+	expect req.url == "/stock/AMD"
+	txresp -hdr "Surrogate-Control: max-age=1, stale-while-revalidate=30, stale-if-error=600" -body "v1"
+	# 4. The background refresh a crawler set off: rate-limited.
+	rxreq
+	expect req.http.User-Agent ~ "GPTBot"
+	txresp -status 429 -hdr "X-Crawler-Refused: 1" -hdr "Retry-After: 30" -body "slow down"
+	# 5. The next refresh, set off by a person.
+	accept
+	rxreq
+	txresp -hdr "Surrogate-Control: max-age=60" -body "v2"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/stock/ZTS" -hdr "User-Agent: GPTBot/1.4"
+	rxresp
+	expect resp.status == 403
+	expect resp.http.X-Crawler-Refused == <undef>
+	txreq -url "/stock/ZTS" -hdr "User-Agent: Chrome"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "zts"
+	txreq -url "/stock/ZTS" -hdr "User-Agent: Chrome"
+	rxresp
+	expect resp.http.X-Cache == "HIT"
+
+	txreq -url "/stock/AMD"
+	rxresp
+	expect resp.body == "v1"
+	delay 1.5
+	txreq -url "/stock/AMD" -hdr "User-Agent: GPTBot/1.4"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "v1"
+	delay 0.5
+	# A person, within stale-while-revalidate: still the stale copy, at once.
+	txreq -url "/stock/AMD" -hdr "User-Agent: Chrome"
+	rxresp
+	expect resp.status == 200
+	expect resp.http.X-Cache == "HIT"
+	expect resp.body == "v1"
+	delay 0.5
+	txreq -url "/stock/AMD"
+	rxresp
+	expect resp.body == "v2"
+} -run

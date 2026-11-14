@@ -1,13 +1,19 @@
 import { BLOCKED_ROBOTS_NAMES } from "@/lib/crawler-guard";
 
 // Filter views (/news?ticker=..&topic=.., /calendar?day=..) are endless combinations of the same pages: crawlers stay
-// on the pages themselves, plus the calendar types the sitemap lists. middleware.ts (lib/crawler-guard.ts) enforces
-// the same for crawlers that ignore this file, and rate-limits the rest (Nov 14 outage: GPTBot and PerplexityBot).
+// on the pages themselves, plus the filter views with a page of their own (lib/crawler-guard.ts LISTED_FILTER_VIEWS).
+// middleware.ts enforces the same for crawlers that ignore this file, and rate-limits the rest (Nov 14 outage: GPTBot
+// and PerplexityBot). /icon.svg is served as /icon.svg?<hash>: allowed so search results keep the favicon.
 const rules = `Allow: /
 Allow: /calendar?type=earnings$
 Allow: /calendar?type=economic$
 Allow: /calendar?type=ipo$
 Allow: /calendar?type=dividend$
+Allow: /screener?tab=sectors$
+Allow: /screener?preset=
+Allow: /screener?sector=
+Allow: /icon.svg
+Allow: /apple-icon
 Allow: /api/v1/openapi.json
 Allow: /api/og
 Disallow: /*?

@@ -27,9 +27,10 @@ const KNOWN: Array<[RegExp, string, CrawlerKind]> = [
   [/DuckDuckBot|DuckAssistBot/i, "duckduckgo", "search"],
   [/YandexBot/i, "yandex", "search"],
   [/OAI-SearchBot/i, "oai-search", "search"],
-  [/PerplexityBot/i, "perplexity", "search"],
   [/Claude-SearchBot/i, "claude-search", "search"],
-  // Model training and other AI crawlers: welcome, slower.
+  // Model training and other AI crawlers: welcome, slower, and sharing one allowance between them.
+  // (PerplexityBot answers questions with links, but alone it fetched 5,600 pages an hour on Nov 14.)
+  [/PerplexityBot/i, "perplexity", "ai"],
   [/GPTBot/i, "gptbot", "ai"],
   [/ClaudeBot|anthropic-ai/i, "claudebot", "ai"],
   [/CCBot/i, "ccbot", "ai"],
@@ -38,8 +39,8 @@ const KNOWN: Array<[RegExp, string, CrawlerKind]> = [
   // SEO tools and scrapers: nothing in it for the site. Bytespider is known to ignore robots.txt.
   [/Bytespider/i, "bytespider", "blocked"],
   [/MJ12bot/i, "mj12bot", "blocked"],
-  [/SemrushBot/i, "semrush", "blocked"],
-  [/AhrefsBot/i, "ahrefs", "blocked"],
+  [/Semrush/i, "semrush", "blocked"],
+  [/Ahrefs/i, "ahrefs", "blocked"],
   [/DotBot/i, "dotbot", "blocked"],
   [/DataForSeoBot/i, "dataforseo", "blocked"],
   [/PetalBot/i, "petalbot", "blocked"],
@@ -70,16 +71,22 @@ export function crawlerOf(userAgent: string | null | undefined): Crawler | null 
     if (pattern.test(ua)) return { family, kind };
   }
   // Any other self-declared crawler: they name themselves (...bot, ...spider) and leave a URL. The URL check keeps
-  // phones whose model name ends in "bot" (CUBOT) out.
+  // phones whose model name ends in "bot" (CUBOT) out; the name is looked for outside the URL ("/robot/site-audit"
+  // is a path, not a name). They all share one allowance, so made-up names cannot buy more pages.
   if (/https?:\/\/|\+http|@/i.test(ua)) {
-    const match = /([a-z0-9_.-]*(?:bot|spider|crawler))\b/i.exec(ua);
-    if (match) return { family: match[1]!.toLowerCase(), kind: "ai" };
+    const name = ua.replace(/\+?https?:\/\/[^\s;)]*/gi, " ");
+    if (/[a-z0-9_.-]*(?:bot|spider|crawler)\b/i.test(name)) return { family: "other", kind: "ai" };
   }
   return null;
 }
 
-/** Filter views the sitemap lists: a crawler may read these. */
-const LISTED_FILTER_VIEWS = new Set(["/calendar?type=earnings", "/calendar?type=economic", "/calendar?type=ipo", "/calendar?type=dividend"]);
+/** Filter views with a page of their own (in the sitemap, or their own canonical address): a crawler may read these.
+ * Kept in step with lib/seo/sitemap.ts and the canonicals in app/(app)/calendar and app/(app)/screener (tested). */
+const SLUG = /^[a-z0-9-]{1,60}$/;
+const LISTED_FILTER_VIEWS: Record<string, Record<string, (value: string) => boolean>> = {
+  "/calendar": { type: (value) => ["earnings", "economic", "ipo", "dividend"].includes(value) },
+  "/screener": { tab: (value) => value === "sectors", preset: (value) => SLUG.test(value), sector: (value) => SLUG.test(value) },
+};
 
 /** Query parameters that only say where a link was shared (or are the client router's own, _rsc): a page with
  * nothing else is the page itself. */
@@ -87,9 +94,13 @@ const TRACKING_PARAM = /^(utm_[a-z]+|ref|fbclid|gclid|msclkid|mc_cid|mc_eid|igsh
 
 /** True when this address is a filter view a crawler should not fetch (robots.txt says the same). */
 export function isFilterView(pathname: string, searchParams: URLSearchParams): boolean {
-  const keys = Array.from(searchParams.keys());
-  if (keys.length === 0 || keys.every((key) => TRACKING_PARAM.test(key))) return false;
-  if (keys.length === 1 && LISTED_FILTER_VIEWS.has(`${pathname}?${keys[0]}=${searchParams.get(keys[0]!)}`)) return false;
+  const keys = Array.from(searchParams.keys()).filter((key) => !TRACKING_PARAM.test(key));
+  if (keys.length === 0) return false;
+  if (keys.length === 1) {
+    const allowed = LISTED_FILTER_VIEWS[pathname]?.[keys[0]!];
+    const values = searchParams.getAll(keys[0]!);
+    if (allowed && values.length === 1 && allowed(values[0]!)) return false;
+  }
   return true;
 }
 
@@ -107,27 +118,34 @@ export function isCrawlerFile(pathname: string): boolean {
   );
 }
 
-/** Pages per second (and burst) per crawler family, per web instance. There are two instances. */
-export const CRAWL_RATE: Record<Exclude<CrawlerKind, "blocked">, { perSecond: number; burst: number }> = {
-  search: { perSecond: 2, burst: 30 },
+/** Pages per second (and burst) per web instance; there are two instances. Each crawler family has its own
+ * allowance, and the AI crawlers also share one between them, so together they stay under ~2 renders a second. */
+export const CRAWL_RATE = {
+  search: { perSecond: 1, burst: 20 },
   ai: { perSecond: 0.5, burst: 10 },
-};
+  allAi: { perSecond: 1, burst: 15 },
+} as const;
 
 type Bucket = { tokens: number; at: number };
+/** Keys are the known families, "other" and "ai:all": a short, fixed list. */
 const buckets = new Map<string, Bucket>();
 
-/** Takes one page from this family's allowance; false when it is spent. */
+function refill(store: Map<string, Bucket>, key: string, rate: { perSecond: number; burst: number }, now: number): Bucket {
+  const bucket = store.get(key) ?? { tokens: rate.burst, at: now };
+  bucket.tokens = Math.min(rate.burst, bucket.tokens + (Math.max(0, now - bucket.at) / 1000) * rate.perSecond);
+  bucket.at = Math.max(bucket.at, now);
+  store.set(key, bucket);
+  return bucket;
+}
+
+/** Takes one page from this family's allowance (and, for AI crawlers, the shared one); false when it is spent. */
 export function takeCrawlToken(crawler: Crawler, now: number = Date.now(), store: Map<string, Bucket> = buckets): boolean {
   if (crawler.kind === "blocked") return false;
-  const { perSecond, burst } = CRAWL_RATE[crawler.kind];
-  const bucket = store.get(crawler.family) ?? { tokens: burst, at: now };
-  bucket.tokens = Math.min(burst, bucket.tokens + (Math.max(0, now - bucket.at) / 1000) * perSecond);
-  bucket.at = now;
-  // Families are a short list, but a generic name comes from the request: never let the map grow without end.
-  if (!store.has(crawler.family) && store.size >= 500) store.clear();
-  store.set(crawler.family, bucket);
-  if (bucket.tokens < 1) return false;
-  bucket.tokens -= 1;
+  const own = refill(store, crawler.family, CRAWL_RATE[crawler.kind], now);
+  const shared = crawler.kind === "ai" ? refill(store, "ai:all", CRAWL_RATE.allAi, now) : null;
+  if (own.tokens < 1 || (shared && shared.tokens < 1)) return false;
+  own.tokens -= 1;
+  if (shared) shared.tokens -= 1;
   return true;
 }
 

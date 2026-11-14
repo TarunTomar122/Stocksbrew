@@ -181,6 +181,14 @@ sub vcl_backend_response {
 # TTL, grace and stale-if-error for a page, from Surrogate-Control. Without it the page is not kept: a short
 # hit-for-miss marker lets later requests for it go to the app at once instead of queueing behind each other.
 sub html_ttl {
+  # A crawler turned away by middleware.ts (lib/crawler-guard.ts): the refusal is that crawler's alone. A background
+  # refresh keeps the old copy; otherwise nothing is kept, not even a hit-for-miss marker that would hide the page.
+  if (beresp.http.X-Crawler-Refused || beresp.status == 429) {
+    if (bereq.is_bgfetch || bereq.http.X-Varnish-Refresh) { return (abandon); }
+    set beresp.uncacheable = true;
+    set beresp.ttl = 0s;
+    return (deliver);
+  }
   if (beresp.status >= 500) {
     # A failed refresh: keep serving the old copy (background refresh) or let vcl_synth find it (foreground).
     if (bereq.is_bgfetch || bereq.http.X-Varnish-Refresh) { return (abandon); }
@@ -254,5 +262,6 @@ sub vcl_deliver {
   # Internal to this cache.
   unset resp.http.X-Url;
   unset resp.http.X-Swr;
+  unset resp.http.X-Crawler-Refused;
   unset resp.http.Surrogate-Control;
 }
