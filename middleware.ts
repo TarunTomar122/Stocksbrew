@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
+import { crawlerVerdict } from "@/lib/crawler-guard";
 import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
 import { EDGE_CACHE_HEADER, edgeCacheHeaderFor, isRouterRequest } from "@/lib/edge-cache-policy";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
@@ -16,6 +17,24 @@ export function middleware(request: NextRequest) {
     canonicalUrl.hostname = "www.stocksbrew.online";
     canonicalUrl.port = "";
     return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  // Crawlers: no filter views, SEO scrapers refused, a page rate per crawler (lib/crawler-guard.ts). Before anything
+  // else, so a refused request costs nothing.
+  const crawlerBlock = crawlerVerdict({
+    userAgent: request.headers.get("user-agent"),
+    pathname: request.nextUrl.pathname,
+    searchParams: request.nextUrl.searchParams,
+  });
+  if (crawlerBlock) {
+    return new Response(`${crawlerBlock.reason}\n`, {
+      status: crawlerBlock.status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        ...(crawlerBlock.status === 429 ? { "Retry-After": "30" } : {}),
+      },
+    });
   }
 
   // Stock-against-stock pages live at one address: lower case, tickers in

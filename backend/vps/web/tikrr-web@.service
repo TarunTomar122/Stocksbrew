@@ -17,12 +17,17 @@ Environment=NODE_ENV=production
 Environment=HOSTNAME=localhost
 # One instance per core-ish: tikrr-web@3000 and tikrr-web@3001, load-balanced by Varnish (varnish.vcl).
 Environment=PORT=%i
-ExecStart=/usr/local/bin/node --max-old-space-size=1024 server.js
+# Heap well under MemoryMax: code, buffers and the render cache live outside it (~300-400 MB).
+ExecStart=/usr/local/bin/node --max-old-space-size=768 server.js
 Restart=always
 RestartSec=3
 # The box also runs LocalDB, the data jobs and Firecrawl: keep the web app from crowding them out.
-MemoryHigh=1G
+# No MemoryHigh: at 1G it sat below what the heap was allowed to reach, so under load the kernel kept pushing the
+# live process into swap and it stopped answering (Nov 14, 03:00-05:40 UTC). Swap is capped instead: an instance
+# that outgrows MemoryMax is killed and restarted in seconds (Varnish retries the other one) rather than dragging
+# the whole box into swap.
 MemoryMax=1536M
+MemorySwapMax=128M
 NoNewPrivileges=true
 
 [Install]
