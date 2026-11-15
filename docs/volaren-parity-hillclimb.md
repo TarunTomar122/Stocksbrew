@@ -214,6 +214,22 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-15 ~13:30 ET: landing headline, hover cards, founder note, AGPL
+
+- Headline (owner's words): "Know exactly / what to do with each / stock you own", three lines, no full stop
+  (`components/oa/landing/hero-headline.tsx`, HERO_HEADLINE in `lib/brand-copy.ts`; HEADLINE_PIECES is tested to say the
+  same sentence). A "?" after Know, the underlined "what to do" and "own" + briefcase open picture cards at the pointer
+  (stock line slipping under a buy-more level; + = - for the three calls; your stocks vs the S&P 500, same start and
+  finish). Specs merged from a Fable and a Codex review. AAPL/NVDA/MSFT logos before "stock" link to their pages.
+- Gone: "What the agent did on Friday" counters ("useless"). Card hovers are an edge + shadow, not a fill (`CARD_HOVER`).
+- Light/dark is one icon in the top bars (footer under 430px). Questions: six folded rows. Last section "Why I built it"
+  in the owner's words (`ABOUT_WHY`, shared with /about), photo `public/founder.jpg` (their GitHub avatar).
+- License: AGPL-3.0-or-later (`LICENSE`), CLI MIT. Three quality passes: two-toggle sync, tap opening then closing on
+  phones (now pointer-type aware; cards let taps through), heading text joined without spaces; all fixed.
+- Open: `pricingMarket` reads `x-vercel-ip-country`, which the VPS never sets, so India pricing never shows (and the
+  note's "$19" is US); `/docs/methodology/calls-and-zones` still names the old calls (add/hold/trim).
+- Screenshots: scratchpad `hero/h8-sheet.png`, `h8d-sheet.png`, `h8p-sheet.png`.
+
 ### 2026-11-15 ~02:00 ET: the web servers' memory leak (Next's OG renderer) and a daily health check
 - After the crawler fix both web instances still grew ~180 MB/h and were OOM-killed by their cgroup every 5-7 h
   (3 times each on Nov 14). Not our caches: Next 13.5's bundled @vercel/og renders with resvg-wasm 2.4.1 and never

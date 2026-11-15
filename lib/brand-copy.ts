@@ -20,11 +20,12 @@ export const MEDIUM_DESCRIPTION =
 export const LONG_DESCRIPTION =
   "Search any US stock for financials, valuation, filings, earnings, analyst targets and news. Add the stocks you care about to your Watchlist and we’ll keep checking new filings, earnings reports and news. Pro adds detailed calls, price zones, targets and unlimited tracking. Research only, not investment advice.";
 
-// The agent is the product (Nov 13): the old line ("Your stocks, explained every day, with sources.") sold a daily
-// read; this one says what the page under it shows, an agent at work, each step with its figures and filings.
-export const HERO_HEADLINE = "An agent that watches your stocks and shows its work.";
-export const HERO_HEADLINE_LEAD = "An agent that watches your stocks";
-export const HERO_HEADLINE_EMPHASIS = "and shows its work.";
+// Owner, Nov 15, after "An agent that watches your stocks and shows its work." ("shows its work is useless") and a
+// short try of "An agent that follows your stocks and tells you what to do.": the line says what you get. The card
+// beside it is that: a call (Buy more, Keep, Sell some) with a price and a reason.
+export const HERO_HEADLINE = "Know exactly what to do with each stock you own";
+export const HERO_HEADLINE_LEAD = "Know exactly what to do";
+export const HERO_HEADLINE_EMPHASIS = "with each stock you own";
 
 export const HERO_SUBHEAD = "Each night it reads filings, reports and your reasons, and says what changed.";
 

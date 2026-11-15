@@ -1,8 +1,8 @@
 "use client";
 
 import { IntentLink } from "@/components/oa/intent-link";
-
 import { ThemeToggle } from "@/components/theme-toggle";
+
 import { StartFreeButton } from "@/components/oa/start-free-button";
 import { interTight } from "@/components/oa/font";
 import { SHORT_DESCRIPTION } from "@/lib/brand-copy";
@@ -105,19 +105,17 @@ export function Footer({ isSubscribed = false }: { isSubscribed?: boolean }) {
           </div>
         )}
 
-        {/* Compact (judge 91: the footer dominated short pages, most of all on a phone): the brand and the appearance
-            toggle on one side, the map as one line per group. On a phone the tab bar maps the product, so the footer
-            keeps one line of company links. */}
+        {/* Compact (judge 91: the footer dominated short pages, most of all on a phone): the brand on one side, the
+            map as one line per group. On a phone the tab bar maps the product, so the footer keeps one line of company
+            links. Light/dark is an icon in the top bar since Nov 15, and here too on phones under 430px. */}
         <div className="flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-start lg:gap-10">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 lg:w-[16rem] lg:shrink-0 lg:flex-col lg:items-start lg:gap-2">
             <IntentLink href="/" className="w-fit text-oa-fg">
               <StocksbrewLogo markSize={20} wordmarkClassName="text-[16px] font-medium tracking-tight" />
             </IntentLink>
+            {/* The app's phone bar has no room for it under 430px (components/oa/app-chrome-shell.tsx). */}
+            <ThemeToggle className="-ml-3 min-[430px]:hidden" />
             <p className="hidden max-w-[260px] text-[13px] leading-5 text-oa-muted-fg lg:block">{SHORT_DESCRIPTION}</p>
-            <div className="flex w-fit items-center gap-2.5 lg:mt-1">
-              <span className="oa-caption">Appearance</span>
-              <ThemeToggle />
-            </div>
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 sm:gap-2">

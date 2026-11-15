@@ -16,13 +16,19 @@ const MAIL = `[${CONTACT_EMAIL}](mailto:${CONTACT_EMAIL})`;
 
 /* ── About ─────────────────────────────────────────────────────────────── */
 
+/** The public repository. The code is AGPL-3.0-or-later (LICENSE); the CLI is MIT. */
+export const GITHUB_URL = "https://github.com/TarunTomar122/Stocksbrew";
+
+/** Why it exists, in the owner's own words (Nov 15: the earlier version "seems like AI"). The About page opens with
+ * these, and the landing's note quotes them. Keep their voice: edit for typos only. */
+export const ABOUT_WHY = [
+  "I kept seeing people build AI agents for the stock market and charge insane money for them. I knew I could do it cheaply, so I built one and open sourced it.",
+  `You don't have to pay. You can host it and run it yourself. If you can't, there's one simple $${US_PRO_MONTHLY} plan, and I take care of making it work for you.`,
+  "I read every bit of feedback myself, and the money helps me pay for my master's. :)",
+] as const;
+
 export const ABOUT_BLOCKS: Block[] = [
-  p(
-    "I built stocksbrew because following a company meant reopening the same tabs every morning. A price chart in one, the latest filing in another, a news search, an earnings calendar, someone's opinion on a forum. Most days nothing had changed, and I had spent twenty minutes finding that out.",
-  ),
-  p(
-    "What I wanted was something that did the reading for me and reported back: this moved, here is why if there is a why, this reports on Thursday, nothing else needs you. So that is what this is.",
-  ),
+  ...ABOUT_WHY.map((text) => p(text)),
   h2("What I decided it would not do"),
   ul(
     "**It does not touch money.** There is no brokerage connection and no way to place a trade. I did not want to hold a credential that could move anyone's savings, and I think a research tool is more honest when it cannot profit from you trading more.",
@@ -35,6 +41,7 @@ export const ABOUT_BLOCKS: Block[] = [
     "stocksbrew is a small independent product, built and run by me, Tarun Tomar. I write the code, the data pipelines and these pages. I am not a licensed investment adviser, a portfolio manager or a broker, and nothing here is advice for your situation.",
   ),
   p("There is no team page because there is no team to put on one, and no investor logos because there are none."),
+  p(`stocksbrew is open source under the AGPL: the code is on [GitHub](${GITHUB_URL}). You can read how every number is made, and run your own copy.`),
   h2("How it pays for itself"),
   p(
     `Reading is free: stock reports, our call on ${CALL_COVERAGE}, filings, fund pages and strategies. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and pays for the parts that run on your behalf. There are no ads, no affiliate links in our comparisons and no selling of your data. See [Free vs Pro](/docs/start/free-vs-pro).`,

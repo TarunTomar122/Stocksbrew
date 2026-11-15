@@ -9,6 +9,7 @@ import { MarketingBar } from "@/components/oa/marketing-bar";
 import { MobileNav } from "@/components/oa/mobile-nav";
 import { isMarketingPath } from "@/components/oa/nav-items";
 import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { PlaceStrip } from "@/components/oa/place-nav";
 import { SidebarNav } from "@/components/oa/sidebar-nav";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
@@ -46,8 +47,11 @@ export function AppChromeShell({
               <Link prefetch={false} href="/" className="text-oa-fg">
                 <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
               </Link>
-              {/* The inbox: a plain bell on first paint; the unread count is fetched once the page is idle. */}
-              <InboxBell variant="sidebar" />
+              <div className="flex items-center gap-0.5">
+                <ThemeToggle />
+                {/* The inbox: a plain bell on first paint; the unread count is fetched once the page is idle. */}
+                <InboxBell variant="sidebar" />
+              </div>
             </div>
             <div className="px-3 pb-3">
               <OaHeaderSearchButton trigger="row" />
@@ -64,6 +68,8 @@ export function AppChromeShell({
               <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight max-[379px]:sr-only" />
             </Link>
             <div className="flex min-w-0 items-center gap-2 max-[379px]:gap-1.5">
+              {/* Under 430px it pushes Start free off the edge (seen at 390); phones that narrow get it in the footer. */}
+              <ThemeToggle className="max-[429px]:hidden" />
               <OaHeaderSearchButton />
               <AskPanelButton variant="pill" />
               <InboxBell variant="topbar" />

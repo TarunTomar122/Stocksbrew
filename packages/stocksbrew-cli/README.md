@@ -10,3 +10,7 @@ stocksbrew search "semiconductor"
 ```
 
 Set `STOCKSBREW_TOKEN` for authenticated Watchlist and alert endpoints, or pass `--token`. Use `--base-url` for a compatible deployment. The API reference is at <https://www.stocksbrew.online/developers> and the OpenAPI document is at <https://www.stocksbrew.online/api/v1/openapi.json>.
+
+## License
+
+MIT. The stocksbrew app itself is AGPL-3.0-or-later.

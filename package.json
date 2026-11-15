@@ -2,6 +2,7 @@
   "name": "trace-money",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "backend:build-news-intel": "python3 -m backend.scripts.build_news_intelligence --market US --universe us_core_155 --max-articles 18",
     "backend:build-news-intel:100": "python3 -m backend.scripts.build_news_intelligence --market US --universe us_core_100 --max-articles 48",

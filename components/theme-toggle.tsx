@@ -4,40 +4,38 @@ import { CssIcon } from "@/components/icons/css-icons";
 import { useEffect, useState } from "react";
 
 /**
- * Light/dark toggle. The actual class is applied pre-paint by the inline
- * script in app/layout.tsx; this control keeps that choice in sync and stores
- * an explicit preference after the first click.
+ * Light/dark, as one round icon for the top bars (the same size as search): a moon in light mode, a sun in dark.
+ * The class is applied pre-paint by the inline script in app/layout.tsx. Which icon shows is decided by the html.dark
+ * class, so it is right on first paint; the html class is also the one source of truth, so two of these on one page
+ * (top bar and footer on a narrow phone, sidebar and phone bar in the app) never disagree.
  */
-export function ThemeToggle({
-  className = "",
-  variant = "default",
-}: {
-  className?: string;
-  variant?: "default" | "footer";
-}) {
+export function ThemeToggle({ className = "" }: { className?: string }) {
   const [isDark, setIsDark] = useState(false);
-  const isFooter = variant === "footer";
 
   useEffect(() => {
     const root = document.documentElement;
-    const syncFromDocument = () => setIsDark(root.classList.contains("dark"));
+    const sync = () => setIsDark(root.classList.contains("dark"));
     const syncFromStorage = (event: StorageEvent) => {
       if (event.key !== "sb-theme") return;
       const nextDark = event.newValue === "dark";
       root.classList.toggle("dark", nextDark);
       root.style.colorScheme = nextDark ? "dark" : "light";
-      setIsDark(nextDark);
     };
 
-    syncFromDocument();
+    sync();
+    // Another toggle on this page (or another tab, through storage) changes the html class: follow it.
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     window.addEventListener("storage", syncFromStorage);
-    return () => window.removeEventListener("storage", syncFromStorage);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("storage", syncFromStorage);
+    };
   }, []);
 
   function toggle() {
-    const next = !isDark;
-    setIsDark(next);
     const root = document.documentElement;
+    const next = !root.classList.contains("dark");
     root.classList.toggle("dark", next);
     root.style.colorScheme = next ? "dark" : "light";
     try {
@@ -52,41 +50,14 @@ export function ThemeToggle({
       type="button"
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      aria-pressed={isDark}
       title={isDark ? "Light mode" : "Dark mode"}
-      className={`group relative inline-flex h-8 w-[58px] shrink-0 items-center justify-between rounded-full border p-1 shadow-[inset_0_1px_1px_rgba(0,0,0,0.04)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-        isFooter
-          ? "border-white/15 bg-white/[0.07] hover:border-white/25 focus-visible:ring-offset-[#070b09]"
-          : "border-outline-variant bg-surface-container-low hover:border-outline focus-visible:ring-offset-surface"
-      } ${className}`}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-oa-muted-fg transition-colors hover:bg-oa-accent hover:text-oa-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] ${className}`}
     >
-      <span
-        aria-hidden
-        className={`absolute left-1 top-1 h-6 w-6 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.18)] transition-transform duration-300 ease-apple-ease motion-reduce:transition-none ${
-          isFooter ? "bg-[#f4f7f5]" : "bg-on-surface"
-        } ${
-          isDark ? "translate-x-[26px]" : "translate-x-0"
-        }`}
-      />
-      <span
-        aria-hidden
-        className={`relative z-10 grid h-6 w-6 place-items-center transition-colors ${
-          isFooter
-            ? isDark ? "text-white/45" : "text-[#070b09]"
-            : isDark ? "text-on-surface-variant" : "text-surface"
-        }`}
-      >
-        <CssIcon name="sun" size={15} />
+      <span aria-hidden className="grid place-items-center dark:hidden">
+        <CssIcon name="moon" size={18} />
       </span>
-      <span
-        aria-hidden
-        className={`relative z-10 grid h-6 w-6 place-items-center transition-colors ${
-          isFooter
-            ? isDark ? "text-[#070b09]" : "text-white/45"
-            : isDark ? "text-surface" : "text-on-surface-variant"
-        }`}
-      >
-        <CssIcon name="moon" size={14} />
+      <span aria-hidden className="hidden place-items-center dark:grid">
+        <CssIcon name="sun" size={19} />
       </span>
     </button>
   );

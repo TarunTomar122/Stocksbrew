@@ -3,8 +3,9 @@
   "version": "0.1.1",
   "description": "Official command-line client for Stocksbrew agent-ready stock intelligence",
   "type": "module",
+  "license": "MIT",
   "bin": { "stocksbrew": "bin/stocksbrew.js" },
   "engines": { "node": ">=18" },
-  "files": ["bin", "README.md"],
+  "files": ["bin", "README.md", "LICENSE"],
   "scripts": { "test": "node --test test/cli.test.js" }
 }

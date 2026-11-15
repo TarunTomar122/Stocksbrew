@@ -3013,3 +3013,17 @@ body:has(.oa-topbar) :is(.oa-page-frame, .oa-page-prose).max-w-\[84rem\] {
     }
   }
 }
+
+/* Landing headline cards (components/oa/landing/hero-headline.tsx): the card rises in and its picture draws itself.
+   Lines that draw use pathLength="1" so one dash covers them whatever their length. */
+@keyframes hh-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes hh-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes hh-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hh-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+.hh-rise { animation: hh-rise 140ms ease-out both; }
+.hh-draw { stroke-dasharray: 1; animation: hh-draw 520ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.hh-fade { animation: hh-fade 220ms ease-out both; }
+.hh-pop { transform-box: fill-box; transform-origin: center; animation: hh-pop 180ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .hh-rise, .hh-draw, .hh-fade, .hh-pop { animation: none; }
+}

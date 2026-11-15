@@ -6,7 +6,7 @@ This repository is the whole product: the Next.js web app, the document store it
 
 ## Screenshots
 
-![An agent that shows its work: one plain-English request followed from what it watched to what happened next](docs/screenshots/agent-loop.png)
+![One plain-English request followed from what it watched to what happened next](docs/screenshots/agent-loop.png)
 
 | | |
 |---|---|
@@ -220,7 +220,8 @@ Do not commit fetched data, caches or database files.
 
 - How to set up, test and send a change: [CONTRIBUTING.md](CONTRIBUTING.md).
 - Found a vulnerability? Report it privately: [SECURITY.md](SECURITY.md).
-- License: being finalised. The proposal (AGPL-3.0-or-later for the app, MIT for the CLI) is in [`LICENSE.proposed`](LICENSE.proposed); until a `LICENSE` file lands, no license is granted.
+- License: stocksbrew is open source under the [GNU AGPL v3.0 or later](LICENSE). You can use, change and self-host it; if you run a changed copy for other people, offer them its source. The command-line client in `packages/stocksbrew-cli` is [MIT](packages/stocksbrew-cli/LICENSE).
+- The license covers the code only. Data from the providers above stays under each provider's terms (bring your own keys), and the fonts in `assets/og` keep their SIL Open Font License.
 - Contact: tomartarun2001@gmail.com
 
 Nothing on stocksbrew is investment advice.

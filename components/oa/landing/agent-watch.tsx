@@ -24,7 +24,7 @@ import { loadLandingAgent } from "@/lib/agent-sequence-server";
 import { loadAgentWatch } from "@/lib/landing-agent-watch-server";
 import { formatValue } from "@/lib/thesis-watch/conditions";
 
-import { SectionHead } from "./shared";
+import { CARD_HOVER, SectionHead } from "./shared";
 
 /**
  * "Tell it what to watch, in plain English": what a person types to set up an agent, as a chat bubble, and what the
@@ -46,8 +46,8 @@ const EXAMPLE_NOTE = "Example portfolio with made-up reasons and thesis; every f
  * request's 56px (two lines), 8px, then the result: 26px of border and padding, a 24px row, 8 + 30px for the figure,
  * 8px, and the line's two lines (40px): 234px. Stacked on a phone, each card is as tall as what it says (about 210px).
  */
-const CARD = "oa-surface group relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3 transition-colors sm:min-h-[234px] sm:p-3.5";
-const RESULT = "mt-2 flex flex-1 flex-col rounded-xl border border-oa-border bg-oa-bg p-3 transition-colors group-hover:border-oa-fg/20";
+const CARD = `oa-surface group relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3 sm:min-h-[234px] sm:p-3.5 ${CARD_HOVER}`;
+const RESULT = "mt-2 flex flex-1 flex-col rounded-xl border border-oa-border bg-oa-bg p-3";
 const ROW = "flex h-6 min-w-0 items-center gap-2";
 const FIGURE_ROW = "mt-2 flex h-[30px] min-w-0 items-center gap-2.5";
 const FIGURE = "oa-mono shrink-0 text-[22px] font-semibold leading-[30px] tracking-[-0.02em] tabular-nums";
@@ -98,7 +98,7 @@ function formatUsd(value: number): string {
 /** The card: the whole card opens `href` (a link stretched over it, with the source as its hover title). */
 function Card({ href, label, title, ask, children }: { href: string; label: string; title?: string; ask: string; children: React.ReactNode }) {
   return (
-    <li className={`${CARD} hover:bg-oa-accent`}>
+    <li className={CARD}>
       <Ask text={ask} />
       <div className={RESULT}>{children}</div>
       <Link

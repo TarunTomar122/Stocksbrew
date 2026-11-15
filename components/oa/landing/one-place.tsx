@@ -11,7 +11,7 @@ import { extraFacts, type PlainCall } from "@/lib/portfolio-home/stocks";
 import { exampleBookOnce } from "@/lib/portfolio-home/stocks-server";
 import { exampleReasonChecks } from "@/lib/thesis-watch/server";
 
-import { ChangeText, EmptyRow, fmtPrice } from "./shared";
+import { CARD_HOVER, ChangeText, EmptyRow, fmtPrice } from "./shared";
 import Link from "next/link";
 
 const CALL_CHIP: Record<PlainCall, string> = {
@@ -82,7 +82,7 @@ export async function OnePlace() {
               <Link
                 prefetch={false}
                 href={`/stock/${encodeURIComponent(row.ticker)}`}
-                className="oa-surface flex h-full flex-col border border-oa-border bg-oa-bg px-3.5 py-3 outline-none transition-colors hover:bg-oa-accent focus-visible:bg-oa-accent"
+                className={`oa-surface flex h-full flex-col border border-oa-border bg-oa-bg px-3.5 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-oa-fg/20 ${CARD_HOVER}`}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <StockLogo ticker={row.ticker} size={22} circle />

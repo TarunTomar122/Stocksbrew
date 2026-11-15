@@ -5,6 +5,7 @@ import type * as React from "react";
 import { MarketingLinks } from "@/components/oa/marketing-links";
 import { OaHeaderSearchButton } from "@/components/oa/oa-header-search-button";
 import { StocksbrewLogo } from "@/components/stocksbrew-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 
 /**
@@ -27,7 +28,8 @@ export function MarketingBar({ account }: { account: React.ReactNode }) {
           <StocksbrewLogo markSize={22} wordmarkClassName="text-[16px] font-medium tracking-tight" />
         </Link>
         <MarketingLinks />
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <ThemeToggle />
           <OaHeaderSearchButton />
           {account}
         </div>

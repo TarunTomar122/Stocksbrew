@@ -9,6 +9,10 @@ export const H2 =
   "text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight";
 export const LEDE = "text-pretty mt-3 max-w-xl text-base leading-7 text-oa-muted-fg";
 export const LABEL = "oa-caption";
+/** Hover for a whole card that is a link: a slightly darker edge and a soft shadow, never a darker fill (owner, Nov 15:
+ * the beige fill on hover was "too intense"). */
+export const CARD_HOVER =
+  "transition-[border-color,box-shadow] duration-200 hover:border-[color-mix(in_srgb,var(--oa-fg)_18%,transparent)] hover:shadow-[0_6px_18px_-10px_rgba(0,0,0,0.22)] motion-reduce:transition-none";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

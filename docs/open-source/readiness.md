@@ -30,7 +30,7 @@ The working tree no longer has: the waitlist CSV (item 3; still in history), the
 | 8 | Discord IDs out | open: only in `scripts/vps-setup-openclaw.sh` and `backend/vps/migrate-steve-to-hermes.py`, both on the exclude list |
 | 9 | Private emails out of code | open: `backend/email.py:16` and `lib/brevo.ts:2` default the sender to the owner's second Gmail; `scripts/send-weekly-broadcast.py:39` filters it. Set `STOCKSBREW_FROM_EMAIL` in production, then change the defaults (the snapshot does it automatically) |
 | 10 | README, .env.example, CONTRIBUTING, SECURITY | done (review) |
-| 11 | License chosen | **open, owner**: AGPL-3.0-or-later recommended, see `LICENSE.proposed` |
+| 11 | License chosen | **done Nov 15**: AGPL-3.0-or-later (`LICENSE`), MIT for `packages/stocksbrew-cli` |
 | 12 | Data-source terms reviewed; no fetched data shipped | open: README table; owner decides whether scrapers stay on by default |
 | 13 | Third-party assets cleared | open: `public/trump-avatar.png` (photo rights), `public/agent-logos/` (trademarks), OFL notices for `assets/og` fonts, `fixtures/*.xml` (headline snippets from news sites, replace with synthetic) |
 | 14 | Local setup works without the owner's infra | partial: needs your own Firebase project; no seed data, so pages start empty |

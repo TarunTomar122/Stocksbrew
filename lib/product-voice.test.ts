@@ -13,6 +13,7 @@ import {
   SHORT_DESCRIPTION,
 } from "@/lib/brand-copy";
 import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { HEADLINE_PIECES } from "@/components/oa/landing/hero-headline";
 
 function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -20,10 +21,13 @@ function source(path: string): string {
 
 describe("product language", () => {
   it("keeps the approved first impression exact", () => {
-    expect(HERO_HEADLINE).toBe("An agent that watches your stocks and shows its work.");
+    expect(HERO_HEADLINE).toBe("Know exactly what to do with each stock you own");
     expect(`${HERO_HEADLINE_LEAD} ${HERO_HEADLINE_EMPHASIS}`).toBe(HERO_HEADLINE);
+    // The landing draws it in pieces (three lines, with hover cards): they must still say the same sentence.
+    expect(HEADLINE_PIECES.join(" ")).toBe(HERO_HEADLINE);
     expect(HERO_SUBHEAD).toBe("Each night it reads filings, reports and your reasons, and says what changed.");
-    // No promise to tell people what to buy: it overpromises and reads as advice.
+    // Owner, Nov 15: the page says what to do with each stock (the card beside it gives a call with a price and a reason).
+    // Still no blanket promise to say what to buy.
     expect(HERO_HEADLINE.toLowerCase()).not.toContain("what to buy");
     const landing = source("components/oa/oa-landing.tsx");
     expect(landing).toContain("{HERO_HEADLINE_LEAD}");

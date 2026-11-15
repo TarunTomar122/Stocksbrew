@@ -16,6 +16,7 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 ## 2. Don't make people click to read
 
 - No accordions or "Why" toggles hiding the useful sentence. "you don't need the Why chevron. You could always show that information in the card." Show it.
+- One exception, the owner's own ask (Nov 15): the landing's Questions are six folded rows with a chevron, centred.
 - Summaries that sit behind a chevron row become cards with the information visible.
 
 ## 3. Cards, not tables, for stock items
@@ -107,6 +108,8 @@ The rule the owner has repeated most, and is angriest about: "repeating the same
 - Agent status reads in two seconds: one row per agent (kind, short name, a figure, when it ran) and flagged stocks as logo chips with their move. No "Checked: …" paragraphs ("what is this design and why is it so text").
 
 - Biggest things first (Nov 13): the top of /agent and /briefing is "Biggest things" (Needs you sits under it, only when something waits), leading with the biggest real events on the person's stocks, ranked by impact: earnings with the after-hours move (CBRS +18% after hours), big news moves (SMCI −11% on a DOJ probe), filings that change the story. Never practice-account buy suggestions there ("I don't want the practice account thingy. That one is useless for me"). The record never shows expired reminders. 5%+ move lines stay ("I needed that").
+
+- Hover cards (the landing headline, Nov 15): a small picture and a title of four words or fewer, almost no other text ("too much text and no visual"). Each card must look different from the others. It opens where the pointer is, and nothing on the line moves when something is hovered (logos lift in place, never fan out). Pictures are schematic: no prices or returns, and a portfolio line never beats the S&P 500.
 
 ## 11. Speed
 
