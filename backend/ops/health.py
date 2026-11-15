@@ -529,7 +529,22 @@ def disk_checks(statvfs: Callable[[str], Any] = os.statvfs, staging: int = 0, st
     return rows
 
 
-def memory_checks(info: dict[str, int], load: tuple[float, float, float], cpus: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def memory_pressure(text: str) -> float | None:
+    """Share of the last minute some task waited on memory, in percent (/proc/pressure/memory "some avg60")."""
+    for line in text.splitlines():
+        if line.startswith("some "):
+            for part in line.split():
+                if part.startswith("avg60="):
+                    try:
+                        return float(part.split("=", 1)[1])
+                    except ValueError:
+                        return None
+    return None
+
+
+def memory_checks(
+    info: dict[str, int], load: tuple[float, float, float], cpus: int, pressure: float | None = None
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     total = info.get("MemTotal", 0)
     available = info.get("MemAvailable", 0)
     swap_total = info.get("SwapTotal", 0)
@@ -545,12 +560,16 @@ def memory_checks(info: dict[str, int], load: tuple[float, float, float], cpus: 
             "fail" if mem_share < 0.07 else "warn" if mem_share < 0.15 else "ok",
             f"{available / gib:.1f} GB available of {total / gib:.1f} GB",
         ),
+        # Full swap alone is not trouble: Firecrawl's idle workers live there, and the box runs fine with it at 97%.
+        # Trouble is processes waiting on memory (memory pressure): 70-80% in the Nov 14 outage, under 1% normally.
+        # Without a pressure reading (an old kernel) it falls back to how full swap is.
         check(
             "swap",
             "box",
             "Swap",
-            "ok" if not swap_total else "fail" if swap_share >= 0.95 else "warn" if swap_share >= 0.8 else "ok",
-            f"{swap_used / gib:.1f} GB used of {swap_total / gib:.1f} GB" if swap_total else "none",
+            swap_status(swap_total, swap_share, pressure),
+            (f"{swap_used / gib:.1f} GB used of {swap_total / gib:.1f} GB" if swap_total else "none")
+            + (f"; waiting on memory {pressure:.1f}% of the last minute" if pressure is not None else ""),
         ),
         check(
             "load",
@@ -561,6 +580,7 @@ def memory_checks(info: dict[str, int], load: tuple[float, float, float], cpus: 
         ),
     ]
     system = {
+        "mem_pressure": pressure,
         "mem_total": total,
         "mem_available": available,
         "swap_total": swap_total,
@@ -569,6 +589,14 @@ def memory_checks(info: dict[str, int], load: tuple[float, float, float], cpus: 
         "cpus": cpus,
     }
     return rows, system
+
+
+def swap_status(swap_total: int, swap_share: float, pressure: float | None) -> str:
+    if pressure is not None:
+        return "fail" if pressure >= 20 else "warn" if pressure >= 5 else "ok"
+    if not swap_total:
+        return "ok"
+    return "fail" if swap_share >= 0.95 else "warn" if swap_share >= 0.8 else "ok"
 
 
 SERVICE_UNITS = (
@@ -1162,7 +1190,11 @@ def collect(
         load = os.getloadavg()
     except OSError:
         info, load = {}, (0.0, 0.0, 0.0)
-    rows, system = memory_checks(info, load, os.cpu_count() or 1)
+    try:
+        pressure = memory_pressure(Path("/proc/pressure/memory").read_text())
+    except OSError:
+        pressure = None
+    rows, system = memory_checks(info, load, os.cpu_count() or 1, pressure)
     if info:
         checks.extend(rows)
     system["disks"] = [{"mount": row["mount"], "label": row["label"], "free": row["free"], "total": row["total"]} for row in checks if row["id"].startswith("disk:") and "free" in row]
