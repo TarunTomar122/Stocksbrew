@@ -53,7 +53,10 @@ function remember<T>(key: string, load: () => Promise<T>): Promise<T> {
   const value = load();
   kept.set(key, { at: Date.now(), value });
   // Never keep a failure: the next job tries again.
-  value.catch(() => kept.delete(key));
+  value.catch(() => {
+    // Only this load's entry: a newer one may have taken the key meanwhile.
+    if (kept.get(key)?.value === value) kept.delete(key);
+  });
   return value;
 }
 

@@ -367,24 +367,28 @@ class RunTest(unittest.TestCase):
             self.assertEqual(setter.call_count, 2)
 
 
+class MemoryPressureTest(unittest.TestCase):
+    def test_swap_check_follows_memory_pressure_not_how_full_swap_is(self):
+        info = {"MemTotal": 8 * 1024**3, "MemAvailable": 3 * 1024**3, "SwapTotal": 4 * 1024**3, "SwapFree": 100 * 1024**2}
+
+        def swap(pressure):
+            return next(row for row in h.memory_checks(info, (1.0, 1.0, 1.0), 4, pressure)[0] if row["id"] == "swap")
+
+        # Swap 97% full of idle pages, nobody waiting on memory: fine.
+        self.assertEqual(swap(0.04)["status"], "ok")
+        self.assertIn("waiting on memory 0.0%", swap(0.04)["detail"])
+        self.assertEqual(swap(6.0)["status"], "warn")
+        # The Nov 14 outage: tasks waited on memory 70-80% of the time.
+        self.assertEqual(swap(75.0)["status"], "fail")
+        # No pressure reading: how full swap is decides, as before.
+        self.assertEqual(swap(None)["status"], "fail")
+
+    def test_memory_pressure_reads_some_avg60(self):
+        text = "some avg10=0.06 avg60=12.50 avg300=0.13 total=42776568078\nfull avg10=0.06 avg60=9.00 avg300=0.13 total=1\n"
+        self.assertEqual(h.memory_pressure(text), 12.5)
+        self.assertIsNone(h.memory_pressure(""))
+
+
 if __name__ == "__main__":
     unittest.main()
 
-
-def test_swap_check_follows_memory_pressure_not_how_full_swap_is():
-    info = {"MemTotal": 8 * 1024**3, "MemAvailable": 3 * 1024**3, "SwapTotal": 4 * 1024**3, "SwapFree": 100 * 1024**2}
-    swap = lambda pressure: next(row for row in h.memory_checks(info, (1.0, 1.0, 1.0), 4, pressure)[0] if row["id"] == "swap")
-    # Swap 97% full of idle pages, nobody waiting on memory: fine.
-    assert swap(0.04)["status"] == "ok"
-    assert "waiting on memory 0.0%" in swap(0.04)["detail"]
-    assert swap(6.0)["status"] == "warn"
-    # The Nov 14 outage: tasks waited on memory 70-80% of the time.
-    assert swap(75.0)["status"] == "fail"
-    # No pressure reading: how full swap is decides, as before.
-    assert swap(None)["status"] == "fail"
-
-
-def test_memory_pressure_reads_some_avg60():
-    text = "some avg10=0.06 avg60=12.50 avg300=0.13 total=42776568078\nfull avg10=0.06 avg60=9.00 avg300=0.13 total=1\n"
-    assert h.memory_pressure(text) == 12.5
-    assert h.memory_pressure("") is None
