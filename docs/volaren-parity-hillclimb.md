@@ -214,6 +214,24 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-15 ~02:00 ET: the web servers' memory leak (Next's OG renderer) and a daily health check
+- After the crawler fix both web instances still grew ~180 MB/h and were OOM-killed by their cgroup every 5-7 h
+  (3 times each on Nov 14). Not our caches: Next 13.5's bundled @vercel/og renders with resvg-wasm 2.4.1 and never
+  frees the Resvg instance or the rendered image, so every ImageResponse (/api/og, share cards) left ~3.3 MB in wasm
+  memory (outside the V8 heap, so --max-old-space-size never capped it). scripts/patch-next-og.mjs adds the two
+  free() calls to Next's copy; deploy-web.sh runs it before `next build` and checks the standalone output after.
+  Also: lib/agent-events-data.ts sweeps expired entries from its read cache.
+- How it was found (reuse this for the next leak): a throwaway instance on a spare port from a copy of the release
+  (`sudo systemd-run --uid=ubuntu -p EnvironmentFile=/etc/tikrr/web.env -p WorkingDirectory=<copy> -E PORT=3010
+  -E HOSTNAME=localhost -E NODE_ENV=production -E LOCALDB_READONLY=1 /usr/local/bin/node --inspect=127.0.0.1:9239
+  --max-old-space-size=768 server.js`), GET-only replay of real URLs from the Caddy log with a browser UA, and
+  process.memoryUsage / CDP heap snapshots between rounds (heapUsed flat, external climbing = native/wasm). Delete the
+  snapshot afterwards: it holds process.env. Never touch tikrr-web@3000/3001 for this.
+- Ops health's Swap check now goes by memory pressure (PSI some avg60: warn 5%, fail 20%), not swap fullness: swap
+  holds Firecrawl's idle pages at ~97% while the box runs fine (a2f6cdb0).
+- A daily 07:00 UTC scheduled check (T3, new thread per run) reviews ops-health, OOM kills, box memory, crawlers,
+  app errors and data freshness, and fixes what it can.
+
 ### 2026-11-14 ~01:00 ET: crawler outage and the guard (bbfb81d2, fbe76f9d)
 - Owner sent the "N checks red" emails. Cause: GPTBot (from 19:00 UTC, ~7k pages/h) and PerplexityBot (from 02:00,
   total ~13k/h) crawled endless filter URLs (/news?ticker&topic 26.7k, /calendar?day=2030-..&view 12.4k), each an

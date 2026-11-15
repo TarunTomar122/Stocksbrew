@@ -20,11 +20,14 @@ git -C "$WORK" clean -fdq -e node_modules -e .next
 if ! git -C "$WORK" diff --quiet HEAD -- package-lock.json 2>/dev/null || [ "$WORK/package-lock.json" -nt "$WORK/node_modules/.package-lock.json" ]; then
   ( cd "$WORK" && npm ci --no-audit --no-fund --ignore-scripts >/dev/null )
 fi
+# Next's bundled @vercel/og leaks every OG render into wasm memory: free it (scripts/patch-next-og.mjs).
+node "$WORK/scripts/patch-next-og.mjs" "$WORK"
 trap 'rm -f "$WORK/.env.production.local"' EXIT
 cp "$WEB_ENV" "$WORK/.env.production.local"
 ( cd "$WORK" && rm -rf .next/standalone && NEXT_OUTPUT=standalone NEXT_PUBLIC_APP_VERSION="$SHA" npx next build )
 rm -f "$WORK/.env.production.local"
 OUT="$WORK/.next/standalone"
+node "$WORK/scripts/patch-next-og.mjs" --check "$OUT"
 mkdir -p "$OUT/.next" && cp -R "$WORK/.next/static" "$OUT/.next/static"
 [ -d "$WORK/public" ] && cp -R "$WORK/public" "$OUT/public"
 # Never ship env files inside the build.

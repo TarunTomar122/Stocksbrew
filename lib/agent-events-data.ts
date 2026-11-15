@@ -36,8 +36,18 @@ export const NEWS_SOURCES_SINCE = "2026-11-10";
 
 type Kept<T> = { at: number; value: Promise<T> };
 const kept = new Map<string, Kept<unknown>>();
+let lastSweep = 0;
+
+/** Story ids and days only ever grow: drop what has expired (at most once a minute), so a long-lived web server never
+ * piles them up. */
+function sweepKept(now = Date.now()): void {
+  if (now - lastSweep < 60_000) return;
+  lastSweep = now;
+  for (const [key, entry] of kept) if (now - entry.at >= KEEP_MS) kept.delete(key);
+}
 
 function remember<T>(key: string, load: () => Promise<T>): Promise<T> {
+  sweepKept();
   const hit = kept.get(key) as Kept<T> | undefined;
   if (hit && Date.now() - hit.at < KEEP_MS) return hit.value;
   const value = load();
@@ -50,6 +60,7 @@ function remember<T>(key: string, load: () => Promise<T>): Promise<T> {
 /** For tests: forget everything kept. */
 export function forgetAgentEventReads(): void {
   kept.clear();
+  lastSweep = 0;
 }
 
 type Rows = { docs: Array<{ id: string; data: () => unknown }> };
@@ -167,6 +178,7 @@ async function storiesFor(tickers: string[], from: string): Promise<Map<string, 
   for (const byTicker of batches) {
     for (const [ticker, stories] of byTicker) {
       out.set(ticker, stories);
+      sweepKept();
       kept.set(`news:${from}:${ticker}`, { at: Date.now(), value: Promise.resolve(stories) });
     }
   }
@@ -199,6 +211,7 @@ async function tonesFor(ids: string[]): Promise<Record<string, NewsToneLabel>> {
       }
     }
     if (label) out[id] = label;
+    sweepKept();
     kept.set(`tone:${id}`, { at: Date.now(), value: Promise.resolve(label) });
   });
   return out;
