@@ -61,17 +61,34 @@ export function cleanSeries(series: ReadonlyArray<{ date?: unknown; close?: unkn
   return [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, close]) => ({ date, close }));
 }
 
-/** Keep at most `max` points, sampled evenly from the end so the latest close survives. */
-export function thinSeries(points: ChartPoint[], max: number): ChartPoint[] {
+/**
+ * Keep at most `max` points, sampled evenly from the end so the latest close survives. Days in `keep` (a marked move)
+ * survive too, with the close before each: a move is drawn from that close, and a mark on a thinned-away day would
+ * snap to the next plotted day and show the wrong date and price (Tesla's Sep 4 drop read "Sep 8").
+ */
+export function thinSeries(points: ChartPoint[], max: number, keep: ReadonlySet<string> = new Set()): ChartPoint[] {
   if (points.length <= max || max < 2) return points;
   const step = Math.ceil(points.length / max);
-  const out: ChartPoint[] = [];
-  for (let i = points.length - 1; i >= 0; i -= step) out.push(points[i]!);
-  if (out[out.length - 1] !== points[0]) out.push(points[0]!);
-  return out.reverse();
+  const picked = new Set<number>();
+  for (let i = points.length - 1; i >= 0; i -= step) picked.add(i);
+  picked.add(0);
+  for (const date of keep) {
+    // The first trading day on or after it, the day a mark on `date` snaps to.
+    let lo = 0;
+    let hi = points.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (points[mid]!.date < date) lo = mid + 1;
+      else hi = mid;
+    }
+    if (lo >= points.length) continue;
+    picked.add(lo);
+    if (lo > 0) picked.add(lo - 1);
+  }
+  return [...picked].sort((a, b) => a - b).map((index) => points[index]!);
 }
 
-function rangeFrom(key: ChartRangeKey, label: string, window: ChartPoint[], maxPoints: number): ChartRange | null {
+function rangeFrom(key: ChartRangeKey, label: string, window: ChartPoint[], maxPoints: number, keep?: ReadonlySet<string>): ChartRange | null {
   if (window.length < 5) return null;
   const first = window[0]!;
   const last = window[window.length - 1]!;
@@ -84,7 +101,7 @@ function rangeFrom(key: ChartRangeKey, label: string, window: ChartPoint[], maxP
   return {
     key,
     label,
-    points: thinSeries(window, maxPoints),
+    points: thinSeries(window, maxPoints, keep),
     changePct: ((last.close - first.close) / first.close) * 100,
     fromDate: first.date,
     high,
@@ -97,8 +114,9 @@ function rangeFrom(key: ChartRangeKey, label: string, window: ChartPoint[], maxP
  * series really covers it (a 5Y tab over two years of data would mislead),
  * and "Max" appears when the series runs longer than the longest window shown.
  */
-export function buildChartRanges(series: ReadonlyArray<ChartPoint>, maxPoints = 200): ChartRange[] {
+export function buildChartRanges(series: ReadonlyArray<ChartPoint>, maxPoints = 200, keepDates: ReadonlyArray<string> = []): ChartRange[] {
   const clean = cleanSeries(series);
+  const keep = new Set(keepDates);
   if (clean.length < 5) return [];
   const first = clean[0]!;
   const last = clean[clean.length - 1]!;
@@ -109,7 +127,7 @@ export function buildChartRanges(series: ReadonlyArray<ChartPoint>, maxPoints = 
     // Allow a week of slack: listings and holidays rarely line up with the calendar.
     if (dayMs(first.date) - dayMs(cutoff) > 7 * 86_400_000) continue;
     const window = clean.filter((point) => point.date >= cutoff);
-    const range = rangeFrom(key, key, window, maxPoints);
+    const range = rangeFrom(key, key, window, maxPoints, keep);
     if (range) {
       out.push(range);
       longestCovered = months;
@@ -117,7 +135,7 @@ export function buildChartRanges(series: ReadonlyArray<ChartPoint>, maxPoints = 
   }
   const spanMonths = (dayMs(last.date) - dayMs(first.date)) / (30.44 * 86_400_000);
   if (spanMonths > longestCovered + 1) {
-    const range = rangeFrom("MAX", "Max", clean, maxPoints);
+    const range = rangeFrom("MAX", "Max", clean, maxPoints, keep);
     if (range) out.push(range);
   }
   return out;
@@ -213,7 +231,7 @@ export function unpackChartRanges(packed: PackedChartRanges): ChartRange[] {
 
 // ─── Events on the chart ─────────────────────────────────────────────────────
 
-export type ChartEventKind = "call" | "earnings" | "congress" | "insider";
+export type ChartEventKind = "call" | "earnings" | "move" | "congress" | "insider";
 
 export type ChartEvent = {
   /** ISO day the thing happened. */
@@ -222,6 +240,10 @@ export type ChartEvent = {
   title: string;
   detail?: string;
   tone?: "up" | "down" | "flat";
+  /** A "move": the change in percent, close to close, from the day before `date` to `endDate` (or `date`). */
+  pct?: number;
+  /** A "move" that ran over several days on one story: its last day. */
+  endDate?: string;
 };
 
 export type ChartMarker = {
@@ -233,14 +255,14 @@ export type ChartMarker = {
   events: ChartEvent[];
 };
 
-const KIND_PRIORITY: Record<ChartEventKind, number> = { call: 0, earnings: 1, insider: 2, congress: 3 };
+const KIND_PRIORITY: Record<ChartEventKind, number> = { call: 0, earnings: 1, move: 2, insider: 3, congress: 4 };
 
 /**
  * Snap events onto a range. Each event lands on the first plotted day on or
  * after its date. Markers closer together than `minGap` (a fraction of the
- * chart's width) are merged into one, so the lane under the chart never
- * overlaps. When a range is still crowded the lowest-priority, oldest markers
- * are dropped first.
+ * chart's width) are merged into one, except moves, which always keep their
+ * own marker (two can share a day; spreadLane keeps their boxes apart). When a
+ * range is still crowded the lowest-priority, oldest markers are dropped first.
  */
 export function placeMarkers(
   points: ReadonlyArray<ChartPoint>,
@@ -265,17 +287,35 @@ export function placeMarkers(
   }
   placed.sort((a, b) => a.index - b.index);
 
+  // A move always gets its own box: its number is the point, and two moves a week apart (Tesla up 5.1% on Aug 21,
+  // down 5.9% on Sep 4) folded into one box would show one number for both, sometimes the wrong way. The lane spreads
+  // boxes that would overlap (spreadLane); everything else still groups by the gap.
+  const moves = placed.filter((item) => item.event.kind === "move");
+  const rest = placed.filter((item) => item.event.kind !== "move");
+
   const rank = (a: { index: number; event: ChartEvent }, b: { index: number; event: ChartEvent }) =>
     KIND_PRIORITY[a.event.kind] - KIND_PRIORITY[b.event.kind] || b.index - a.index;
   const gap = Math.max(1, Math.round(minGap * (points.length - 1)));
   const clusters: Array<Array<{ index: number; event: ChartEvent }>> = [];
-  for (const item of placed) {
+  for (const item of rest) {
     const cluster = clusters[clusters.length - 1];
     if (cluster && item.index - cluster[0]!.index < gap) cluster.push(item);
     else clusters.push([item]);
   }
 
-  let markers: ChartMarker[] = clusters.map((cluster) => {
+  // A cluster is grouped from its first event but drawn on its lead, which can sit up to gap − 1 days later: merge
+  // again while two leads are closer than the gap, or the next cluster's box lands right on top of this one.
+  const leadOf = (cluster: Array<{ index: number; event: ChartEvent }>) => [...cluster].sort(rank)[0]!;
+  const spaced: Array<Array<{ index: number; event: ChartEvent }>> = [];
+  for (const cluster of clusters) {
+    let current = cluster;
+    while (spaced.length && Math.abs(leadOf(current).index - leadOf(spaced[spaced.length - 1]!).index) < gap) {
+      current = [...spaced.pop()!, ...current];
+    }
+    spaced.push(current);
+  }
+
+  let markers: ChartMarker[] = [...spaced, ...moves.map((item) => [item])].map((cluster) => {
     const sorted = [...cluster].sort(rank);
     // The marker sits on its most important event (the latest one on a tie).
     const lead = sorted[0]!;
@@ -287,6 +327,186 @@ export function placeMarkers(
       .slice(0, maxMarkers);
   }
   return markers.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Where the boxes in the marker lane go, in pixels: each as close to its own day as it can be without touching its
+ * neighbours. Boxes that would overlap are pushed apart as a group centred on their days, and the lane's ends hold.
+ * `items` are box centres and widths in lane order; returns the new centres in the same order.
+ */
+export function spreadLane(items: ReadonlyArray<{ x: number; width: number }>, laneWidth: number, pad = 3): number[] {
+  type Group = { first: number; last: number; width: number; centre: number };
+  const groups: Group[] = [];
+  const place = (group: Group) => {
+    const ideal = items.slice(group.first, group.last + 1).reduce((sum, item) => sum + item.x, 0) / (group.last - group.first + 1);
+    const half = group.width / 2;
+    group.centre = laneWidth >= group.width ? Math.min(laneWidth - half, Math.max(half, ideal)) : laneWidth / 2;
+  };
+  items.forEach((item, index) => {
+    let group: Group = { first: index, last: index, width: item.width, centre: item.x };
+    place(group);
+    for (;;) {
+      const before = groups[groups.length - 1];
+      if (!before || before.centre + before.width / 2 + pad <= group.centre - group.width / 2) break;
+      groups.pop();
+      group = { first: before.first, last: group.last, width: before.width + pad + group.width, centre: 0 };
+      place(group);
+    }
+    groups.push(group);
+  });
+  const out: number[] = [];
+  for (const group of groups) {
+    const count = group.last - group.first + 1;
+    // A group wider than the whole lane (a phone with many marks) is squeezed to fit, overlapping evenly, rather than
+    // spilling off both ends where the outer boxes would be cut off.
+    const squeeze = group.width > laneWidth && count > 1;
+    const gapBetween = squeeze ? pad - (group.width - laneWidth) / (count - 1) : pad;
+    let left = squeeze ? 0 : group.centre - group.width / 2;
+    for (let i = group.first; i <= group.last; i += 1) {
+      out.push(left + items[i]!.width / 2);
+      left += items[i]!.width + gapBetween;
+    }
+  }
+  return out;
+}
+
+// ─── Days the stock moved on its own news ────────────────────────────────────
+
+export type UnusualMove = {
+  date: string;
+  /** The trading day before, whose close the move is measured from. */
+  prev: string;
+  /** The stock's change that day, in percent. */
+  pct: number;
+  /** The part the market does not explain: pct − beta × the market's change. */
+  excess: number;
+  /**
+   * "big": unusual for this stock even after the market (2.5 of its own daily spreads), marked whenever a reason is
+   * found. "news": smaller (1.5 spreads) and marked only when the reason is news about the company itself.
+   */
+  tier: "big" | "news";
+};
+
+/**
+ * The size half of the rule for marking a move on the chart: which days moved far more than this stock usually moves,
+ * after taking out what the market did that day. One bar per stock, so a 4% day counts on Coca-Cola and not on Nvidia.
+ * The other half (a reason in the day's news, about the company) is the model's; a day with no such reason gets no mark.
+ *
+ * Measured over the last `lookbackDays` trading days the two series share. A day must also move at least `floorPct`
+ * in plain terms: a 2% day is never "big news" to someone holding the stock.
+ */
+export function unusualMoves(
+  stock: ReadonlyArray<ChartPoint>,
+  market: ReadonlyArray<ChartPoint>,
+  options: { lookbackDays?: number; bigSpreads?: number; newsSpreads?: number; floorPct?: number } = {},
+): { moves: UnusualMove[]; beta: number; spread: number } {
+  const { lookbackDays = 252, bigSpreads = 2.5, newsSpreads = 1.5, floorPct = 3 } = options;
+  const marketClose = new Map(cleanSeries(market).map((point) => [point.date, point.close]));
+  const clean = cleanSeries(stock);
+  const days: Array<{ date: string; prev: string; r: number; m: number }> = [];
+  for (let i = 1; i < clean.length; i += 1) {
+    const today = clean[i]!;
+    const before = clean[i - 1]!;
+    const m1 = marketClose.get(today.date);
+    const m0 = marketClose.get(before.date);
+    if (m1 === undefined || m0 === undefined) continue;
+    days.push({ date: today.date, prev: before.date, r: (today.close / before.close - 1) * 100, m: (m1 / m0 - 1) * 100 });
+  }
+  const window = days.slice(-lookbackDays);
+  if (window.length < 40) return { moves: [], beta: 1, spread: 0 };
+  const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  const rMean = mean(window.map((day) => day.r));
+  const mMean = mean(window.map((day) => day.m));
+  let cov = 0;
+  let varM = 0;
+  for (const day of window) {
+    cov += (day.r - rMean) * (day.m - mMean);
+    varM += (day.m - mMean) ** 2;
+  }
+  const beta = varM > 0 ? cov / varM : 1;
+  const excess = window.map((day) => day.r - beta * day.m);
+  const exMean = mean(excess);
+  const spread = Math.sqrt(mean(excess.map((value) => (value - exMean) ** 2)));
+  const moves: UnusualMove[] = [];
+  window.forEach((day, index) => {
+    const ex = excess[index]!;
+    if (Math.abs(day.r) < floorPct || !(spread > 0)) return;
+    // The move and its market-adjusted part must point the same way: a stock that fell 3% on a day the market fell 5%
+    // did well that day, and a "▼3%" box would say the opposite of the news.
+    if (Math.sign(ex) !== Math.sign(day.r)) return;
+    const size = Math.abs(ex) / spread;
+    if (size >= bigSpreads) moves.push({ date: day.date, prev: day.prev, pct: day.r, excess: ex, tier: "big" });
+    else if (size >= newsSpreads) moves.push({ date: day.date, prev: day.prev, pct: day.r, excess: ex, tier: "news" });
+  });
+  return { moves, beta, spread };
+}
+
+/**
+ * The change over a stretch, close to close: from the close before `start` to the close on `end`. Null when the
+ * series does not cover it.
+ */
+export function stretchChange(points: ReadonlyArray<ChartPoint>, start: string, end: string = start): number | null {
+  const clean = cleanSeries(points);
+  const startIndex = clean.findIndex((point) => point.date >= start);
+  if (startIndex < 1) return null;
+  let endIndex = -1;
+  for (let i = clean.length - 1; i >= startIndex; i -= 1) {
+    if (clean[i]!.date <= end) {
+      endIndex = i;
+      break;
+    }
+  }
+  if (endIndex < startIndex) return null;
+  return (clean[endIndex]!.close / clean[startIndex - 1]!.close - 1) * 100;
+}
+
+/**
+ * A move on the trading day of an earnings report or the two after it is the report's reaction, not news of its own:
+ * it goes into the "E" marker's tooltip ("Fell 14.5% the next day") instead of a second marker beside it.
+ */
+export function foldMovesIntoEarnings(events: ReadonlyArray<ChartEvent>, points: ReadonlyArray<ChartPoint>): ChartEvent[] {
+  const days = cleanSeries(points).map((point) => point.date);
+  // Null before the series starts: a report from before the first close would otherwise count as day 0 and take in
+  // the moves of the series' first days.
+  const tradingIndex = (date: string) => {
+    if (!days.length || date < days[0]!) return null;
+    const at = days.findIndex((day) => day >= date);
+    return at < 0 ? days.length : at;
+  };
+  const earnings = events.filter((event) => event.kind === "earnings");
+  const folded = new Map<ChartEvent, ChartEvent[]>();
+  const out: ChartEvent[] = [];
+  for (const event of events) {
+    if (event.kind !== "move") continue;
+    const at = tradingIndex(event.date);
+    if (at === null) continue;
+    const report = earnings.find((item) => {
+      const reportAt = tradingIndex(item.date);
+      return reportAt !== null && at >= reportAt && at - reportAt <= 2;
+    });
+    if (report) folded.set(report, [...(folded.get(report) ?? []), event]);
+  }
+  const foldedMoves = new Set([...folded.values()].flat());
+  for (const event of events) {
+    if (foldedMoves.has(event)) continue;
+    const moves = folded.get(event);
+    if (!moves) {
+      out.push(event);
+      continue;
+    }
+    // In date order for the text; the box shows the biggest of them.
+    moves.sort((a, b) => a.date.localeCompare(b.date));
+    const biggest = moves.reduce((best, move) => (Math.abs(move.pct ?? 0) > Math.abs(best.pct ?? 0) ? move : best));
+    const reaction = moves
+      .map((move) => {
+        const pct = move.pct ?? 0;
+        const verb = pct >= 0 ? "Rose" : "Fell";
+        return `${verb} ${Math.abs(pct).toFixed(1)}%: ${move.title}`;
+      })
+      .join(". ");
+    out.push({ ...event, detail: event.detail ? `${event.detail}. ${reaction}` : reaction, pct: biggest.pct, tone: (biggest.pct ?? 0) >= 0 ? "up" : "down" });
+  }
+  return out;
 }
 
 // ─── Our own calls ───────────────────────────────────────────────────────────

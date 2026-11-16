@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { placeMarkers, unpackChartRanges, type ChartEvent, type ChartEventKind, type ChartRange, type ChartRangeKey, type PackedChartRanges } from "@/lib/stock-chart";
+import { placeMarkers, spreadLane, unpackChartRanges, type ChartEvent, type ChartEventKind, type ChartRange, type ChartRangeKey, type PackedChartRanges } from "@/lib/stock-chart";
 
 import { fmtDate, signedPct } from "./format";
 
@@ -31,13 +31,36 @@ const GRID = "color-mix(in srgb, var(--oa-fg) 8%, transparent)";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const TONE = { up: "var(--signal-bullish)", down: "var(--signal-bearish)" } as const;
 
-const MARKER_LETTER: Record<ChartEventKind, string> = { call: "C", earnings: "E", congress: "T", insider: "T" };
+// A "move" has no letter: its box shows the move itself (▼11%), which needs no legend lesson (owner rule: plain numbers
+// beat clever encodings).
+const MARKER_LETTER: Record<ChartEventKind, string> = { call: "C", earnings: "E", move: "M", congress: "T", insider: "T" };
 const MARKER_NAME: Record<ChartEventKind, string> = {
   call: "Our call changed",
   earnings: "Earnings",
+  move: "Big move",
   congress: "Large disclosed trade",
   insider: "Large disclosed trade",
 };
+
+function Arrow({ up, className = "" }: { up: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 10 10" aria-hidden="true" className={`shrink-0 fill-current ${className}`}>
+      <path d={up ? "M5 1.5 9 8H1z" : "M5 8.5 1 2h8z"} />
+    </svg>
+  );
+}
+
+/** "−11%" in the lane, "−11.0%" in the tooltip: whole numbers in the box from 10% up, one decimal under it. */
+function movePct(pct: number, exact = false): string {
+  const digits = exact || Math.abs(pct) < 10 ? 1 : 0;
+  return `${Math.abs(pct).toFixed(digits)}%`;
+}
+
+function moveSpan(event: ChartEvent): string {
+  if (!event.endDate || event.endDate === event.date) return fmtDate(event.date, false);
+  const sameMonth = event.date.slice(0, 7) === event.endDate.slice(0, 7);
+  return sameMonth ? `${fmtDate(event.date, false)}–${Number(event.endDate.slice(8, 10))}` : `${fmtDate(event.date, false)} – ${fmtDate(event.endDate, false)}`;
+}
 
 function niceTicks(lo: number, hi: number, count = 4): number[] {
   const span = hi - lo;
@@ -168,9 +191,29 @@ export function PricePanel({
   const initial = ranges.find((range) => range.key === defaultRange)?.key ?? ranges[ranges.length - 1]?.key;
   const [activeKey, setActiveKey] = useState<ChartRangeKey | undefined>(initial);
   const [hover, setHover] = useState<number | null>(null);
+  // The lane box last pointed at or focused (its position in `markers`): a move and another marker can share a day,
+  // and the tooltip must show the one under the pointer.
+  const [laneHover, setLaneHover] = useState<number | null>(null);
 
   const range = ranges.find((item) => item.key === activeKey) ?? ranges[ranges.length - 1];
   const points = useMemo(() => range?.points ?? [], [range]);
+  // The lane's width in pixels and whether the numbers show (sm up), so boxes that would overlap can be spread apart.
+  // Before the first measure (server render) every box sits on its own day.
+  const [plotEl, setPlotEl] = useState<HTMLDivElement | null>(null);
+  const [lane, setLane] = useState<{ px: number; wide: boolean } | null>(null);
+  useEffect(() => {
+    if (!plotEl || typeof ResizeObserver === "undefined") return;
+    const wideQuery = window.matchMedia("(min-width: 640px)");
+    const measure = () => setLane({ px: plotEl.clientWidth, wide: wideQuery.matches });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(plotEl);
+    wideQuery.addEventListener("change", measure);
+    return () => {
+      observer.disconnect();
+      wideQuery.removeEventListener("change", measure);
+    };
+  }, [plotEl]);
   const markers = useMemo(() => placeMarkers(points, events), [points, events]);
   // The marker lane only takes room when there are markers; without it the month labels sit right under the line.
   const plotBottom = markers.length ? "bottom-11" : "bottom-6";
@@ -254,7 +297,7 @@ export function PricePanel({
   const narrowTops = spreadLabels(plotLabels, 12);
 
   const hoverPoint = hover != null ? points[hover] : null;
-  const hoverMarker =
+  const nearestMarker =
     hover != null
       ? markers.reduce<(typeof markers)[number] | null>((best, marker) => {
           const distance = Math.abs(marker.index - hover);
@@ -262,13 +305,57 @@ export function PricePanel({
           return !best || distance < Math.abs(best.index - hover) ? marker : best;
         }, null)
       : null;
+  const pinnedMarker = laneHover != null ? markers[laneHover] : undefined;
+  // From a lane box: that box. From the plot: everything on the nearest marked day, since a move keeps its own box
+  // even on a day that has another marker.
+  const hoverMarker =
+    pinnedMarker && pinnedMarker.index === hover
+      ? pinnedMarker
+      : nearestMarker
+        ? { ...nearestMarker, events: markers.filter((marker) => marker.index === nearestMarker.index).flatMap((marker) => marker.events) }
+        : null;
   const hoverX = hover != null ? x(hover) : 0;
+
+  // A move that ran over several days on one story (Nvidia's CEO, Nov 9–12) shades the days it covers.
+  const bands = markers.flatMap((marker, markerIndex) => {
+    const lead = marker.events[0];
+    if (marker.kind !== "move" || !lead?.endDate || lead.endDate === lead.date) return [];
+    let end = marker.index;
+    while (end + 1 < n && points[end + 1]!.date <= lead.endDate) end += 1;
+    // The band starts at the close before the move, so it covers the whole drop or climb on the line.
+    const start = Math.max(0, marker.index - 1);
+    return end > start ? [{ key: `band-${markerIndex}`, from: x(start), to: x(end), up: (lead.pct ?? 0) >= 0 }] : [];
+  });
+  const moveUp = (marker: (typeof markers)[number]) => (marker.events[0]?.pct ?? 0) >= 0;
+  // Each box's width in pixels, from what it shows: a 20px square, plus the arrow and number from sm up. The lane's
+  // text-[10px] renders at 13px (the type floor in globals.css), where a tabular figure is about 7.2px, "." 4px and
+  // "%" 9.5px, a pixel or so over what the browser measures. Move box: 1px borders, px-1, 8px arrow, 2px gap, then
+  // the number. Earnings box: the same plus the "E" (9.5px) and its 2px margin. Boxes that would touch are spread
+  // apart, each as near its own day as room allows.
+  const boxWidth = (marker: (typeof markers)[number]) => {
+    const pct = marker.events[0]?.pct;
+    if (!lane?.wide || pct === undefined || (marker.kind !== "move" && marker.kind !== "earnings")) return 20;
+    const text = [...movePct(pct)].reduce((sum, char) => sum + (char === "." ? 4 : char === "%" ? 9.5 : 7.2), 0);
+    return Math.ceil(marker.kind === "move" ? 2 + 8 + 8 + 2 + text : 2 + 8 + 9.5 + 2 + 8 + 2 + text);
+  };
+  const laneLeft =
+    lane && lane.px > 0 && n > 1
+      ? spreadLane(markers.map((marker) => ({ x: (x(marker.index) / 100) * lane.px, width: boxWidth(marker) })), lane.px).map(
+          (centre) => `${centre}px`,
+        )
+      : markers.map((marker) => `${x(marker.index)}%`);
+
+  const pointAt = (index: number | null, markerIndex: number | null) => {
+    setHover(index);
+    setLaneHover(markerIndex);
+  };
 
   const onMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     setHover(Math.round(fraction * (n - 1)));
+    setLaneHover(null);
   };
 
   return (
@@ -285,6 +372,7 @@ export function PricePanel({
                 onClick={() => {
                   setActiveKey(item.key);
                   setHover(null);
+                  setLaneHover(null);
                 }}
                 className={`oa-mono h-10 min-w-9 rounded-md px-1.5 text-[12.5px] font-medium min-[360px]:min-w-10 min-[360px]:px-2 sm:h-7 sm:min-w-9 sm:text-[12px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)] ${
                   active ? "bg-oa-card text-oa-fg shadow-[0_1px_2px_rgba(40,25,5,0.14)]" : "text-oa-muted-fg hover:text-oa-fg"
@@ -311,6 +399,7 @@ export function PricePanel({
       >
         {/* plot */}
         <div
+          ref={setPlotEl}
           className={`absolute ${plotBottom} left-0 right-14 top-1 touch-pan-y`}
           onPointerMove={onMove}
           onPointerDown={onMove}
@@ -329,6 +418,16 @@ export function PricePanel({
                 <rect key={`${zone.key}-fill`} x="0" width="100" y={top} height={height} fill={`color-mix(in srgb, ${TONE[zone.tone]} 9%, transparent)`} />
               );
             })}
+            {bands.map((band) => (
+              <rect
+                key={band.key}
+                x={band.from}
+                width={band.to - band.from}
+                y="0"
+                height="100"
+                fill={`color-mix(in srgb, ${band.up ? TONE.up : TONE.down} 10%, transparent)`}
+              />
+            ))}
             <path d={area} fill={`color-mix(in srgb, ${lineColor} 7%, transparent)`} />
             {zones.map((zone) =>
               off(zone.price) ? null : (
@@ -361,15 +460,15 @@ export function PricePanel({
                 />
               ),
             )}
-            {markers.map((marker) => (
+            {markers.map((marker, markerIndex) => (
               <line
-                key={`m-${marker.index}`}
+                key={`m-${markerIndex}`}
                 x1={x(marker.index)}
                 x2={x(marker.index)}
                 y1={y(points[marker.index]!.close)}
                 y2="100"
-                stroke={marker.kind === "call" ? "var(--oa-primary)" : "var(--oa-muted-fg)"}
-                strokeOpacity={marker.kind === "call" ? 0.7 : 0.35}
+                stroke={marker.kind === "call" ? "var(--oa-primary)" : marker.kind === "move" ? (moveUp(marker) ? TONE.up : TONE.down) : "var(--oa-muted-fg)"}
+                strokeOpacity={marker.kind === "call" ? 0.7 : marker.kind === "move" ? 0.5 : 0.35}
                 strokeWidth="1"
                 vectorEffect="non-scaling-stroke"
               />
@@ -410,8 +509,14 @@ export function PricePanel({
                 style={{ left: `${hoverX}%`, top: `${y(hoverPoint.close)}%`, background: lineColor }}
               />
               <div
-                className="pointer-events-none absolute top-1 z-10 w-max max-w-[min(17rem,80%)] rounded-lg border border-oa-border bg-oa-card px-2.5 py-1.5 shadow-[0_8px_24px_-12px_rgba(40,25,5,0.5)]"
-                style={hoverX > 55 ? { right: `${100 - hoverX + 1.5}%` } : { left: `${hoverX + 1.5}%` }}
+                className="pointer-events-none absolute top-1 z-10 w-max rounded-lg border border-oa-border bg-oa-card px-2.5 py-1.5 shadow-[0_8px_24px_-12px_rgba(40,25,5,0.5)]"
+                // Never wider than the room on its side (plus the price axis on the right), so a long line wraps
+                // instead of running off the card on a phone.
+                style={
+                  hoverX > 55
+                    ? { right: `${100 - hoverX + 1.5}%`, maxWidth: `min(17rem, 80%, ${hoverX - 1.5}%)` }
+                    : { left: `${hoverX + 1.5}%`, maxWidth: `min(17rem, 80%, calc(${100 - hoverX - 1.5}% + 3.5rem))` }
+                }
               >
                 <p className="oa-mono text-[11px] leading-4 text-oa-muted-fg">{fmtDate(hoverPoint.date)}</p>
                 <p className="oa-mono text-[14px] font-medium leading-5 text-oa-fg">
@@ -421,15 +526,32 @@ export function PricePanel({
                   </span>
                 </p>
                 {hoverMarker
-                  ? hoverMarker.events.slice(0, 3).map((event, index) => (
-                      <p key={index} className="mt-1 border-t border-oa-border pt-1 text-[12px] leading-4 text-oa-fg">
-                        <span className="oa-mono text-[10px] uppercase tracking-[0.08em] text-oa-label">
-                          {MARKER_NAME[event.kind]} · {fmtDate(event.date, false)}
-                        </span>
-                        <span className="block whitespace-normal">{event.title}</span>
-                        {event.detail ? <span className="block whitespace-normal text-oa-muted-fg">{event.detail}</span> : null}
-                      </p>
-                    ))
+                  ? hoverMarker.events.slice(0, 3).map((event, index) =>
+                      event.kind === "move" ? (
+                        <p key={index} className="mt-1 border-t border-oa-border pt-1 text-[12px] leading-4 text-oa-fg">
+                          <span className="oa-mono flex items-center gap-1 text-[11px] leading-4 text-oa-muted-fg">
+                            <span
+                              className="inline-flex items-center gap-0.5 font-medium"
+                              style={{ color: (event.pct ?? 0) >= 0 ? TONE.up : TONE.down }}
+                            >
+                              <Arrow up={(event.pct ?? 0) >= 0} className="size-2" />
+                              {movePct(event.pct ?? 0, true)}
+                            </span>
+                            · {moveSpan(event)}
+                          </span>
+                          <span className="block whitespace-normal font-medium">{event.title}</span>
+                          {event.detail ? <span className="block whitespace-normal text-oa-muted-fg">{event.detail}</span> : null}
+                        </p>
+                      ) : (
+                        <p key={index} className="mt-1 border-t border-oa-border pt-1 text-[12px] leading-4 text-oa-fg">
+                          <span className="oa-mono text-[10px] uppercase tracking-[0.08em] text-oa-label">
+                            {MARKER_NAME[event.kind]} · {fmtDate(event.date, false)}
+                          </span>
+                          <span className="block whitespace-normal">{event.title}</span>
+                          {event.detail ? <span className="block whitespace-normal text-oa-muted-fg">{event.detail}</span> : null}
+                        </p>
+                      ),
+                    )
                   : null}
                 {hoverMarker && hoverMarker.events.length > 3 ? (
                   <p className="oa-mono mt-1 text-[11px] leading-4 text-oa-muted-fg">and {hoverMarker.events.length - 3} more around this date</p>
@@ -465,27 +587,66 @@ export function PricePanel({
         {/* event lane, only when there are events to mark */}
         {markers.length ? (
         <div className="absolute bottom-5 left-0 right-14 h-5 border-t border-oa-border">
-          {markers.map((marker) => (
+          {markers.map((marker, markerIndex) =>
+            marker.kind === "move" ? (
+              <button
+                key={`lane-${markerIndex}`}
+                type="button"
+                onPointerEnter={() => pointAt(marker.index, markerIndex)}
+                onFocus={() => pointAt(marker.index, markerIndex)}
+                onBlur={() => pointAt(null, null)}
+                onClick={() => pointAt(marker.index, markerIndex)}
+                aria-label={`${marker.events[0] ? moveSpan(marker.events[0]) : fmtDate(marker.date)}: ${moveUp(marker) ? "up" : "down"} ${movePct(marker.events[0]?.pct ?? 0, true)}. ${marker.events.map((event) => event.title).join("; ")}`}
+                className="oa-mono absolute top-1/2 inline-flex h-5 min-w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-0.5 rounded-[4px] border px-1 text-[10px] font-medium leading-none outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_70%,transparent)]"
+                style={{
+                  left: laneLeft[markerIndex],
+                  color: moveUp(marker) ? TONE.up : TONE.down,
+                  borderColor: `color-mix(in srgb, ${moveUp(marker) ? TONE.up : TONE.down} 45%, transparent)`,
+                  background: `color-mix(in srgb, ${moveUp(marker) ? TONE.up : TONE.down} 10%, var(--oa-card))`,
+                }}
+              >
+                <Arrow up={moveUp(marker)} className="size-2" />
+                {/* The number from sm up; a phone's lane is too narrow for it, the tooltip has it. */}
+                <span className="hidden sm:inline">{movePct(marker.events[0]?.pct ?? 0)}</span>
+              </button>
+            ) : (
             <button
-              key={`lane-${marker.index}`}
+              key={`lane-${markerIndex}`}
               type="button"
-              onPointerEnter={() => setHover(marker.index)}
-              onFocus={() => setHover(marker.index)}
-              onBlur={() => setHover(null)}
-              onClick={() => setHover(marker.index)}
-              aria-label={`${fmtDate(marker.date)}: ${marker.events.map((event) => event.title).join("; ")}`}
-              className={`oa-mono absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[4px] text-[10px] font-medium leading-none outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_70%,transparent)] ${
+              onPointerEnter={() => pointAt(marker.index, markerIndex)}
+              onFocus={() => pointAt(marker.index, markerIndex)}
+              onBlur={() => pointAt(null, null)}
+              onClick={() => pointAt(marker.index, markerIndex)}
+              aria-label={`${fmtDate(marker.date)}: ${marker.events
+                .map((event) => (event.kind === "earnings" && event.pct !== undefined && event.detail ? `${event.title}. ${event.detail}` : event.title))
+                .join("; ")}`}
+              className={`oa-mono absolute top-1/2 ${
+                marker.kind === "earnings" && marker.events[0]?.pct !== undefined
+                  ? "inline-flex h-5 min-w-5 items-center justify-center sm:px-1"
+                  : "grid size-5 place-items-center"
+              } -translate-x-1/2 -translate-y-1/2 rounded-[4px] text-[10px] font-medium leading-none outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_70%,transparent)] ${
                 marker.kind === "call"
                   ? "bg-oa-primary text-oa-primary-fg"
                   : marker.kind === "earnings"
                     ? "border border-oa-fg/50 bg-oa-card text-oa-fg"
                     : "bg-oa-secondary text-oa-fg"
               }`}
-              style={{ left: `${x(marker.index)}%` }}
+              style={{ left: laneLeft[markerIndex] }}
             >
               {MARKER_LETTER[marker.kind]}
+              {/* The report's reaction, when it moved the stock (foldMovesIntoEarnings): "E ▼15%". */}
+              {marker.kind === "earnings" && marker.events[0]?.pct !== undefined ? (
+                <span
+                  className="ml-0.5 hidden items-center gap-0.5 sm:inline-flex"
+                  style={{ color: moveUp(marker) ? TONE.up : TONE.down }}
+                >
+                  <Arrow up={moveUp(marker)} className="size-2" />
+                  {movePct(marker.events[0].pct)}
+                </span>
+              ) : null}
             </button>
-          ))}
+            ),
+          )}
         </div>
         ) : null}
 
@@ -506,7 +667,16 @@ export function PricePanel({
       {/* What the letters in the marker lane stand for, only for the kinds this chart shows. */}
       {markerKinds.length ? (
         <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3.5 pb-2 pt-1 text-[12.5px] leading-5 text-oa-muted-fg sm:px-4">
-          {markerKinds.map((kind) => (
+          {markerKinds.map((kind) =>
+            kind === "move" ? (
+              <span key={kind} className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="inline-flex items-center gap-px">
+                  <Arrow up className="size-2.5 text-[var(--signal-bullish)]" />
+                  <Arrow up={false} className="size-2.5 text-[var(--signal-bearish)]" />
+                </span>
+                Big move on company news
+              </span>
+            ) : (
             <span key={kind} className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden="true"
@@ -518,7 +688,8 @@ export function PricePanel({
               </span>
               {kind === "earnings" ? "Earnings report" : MARKER_NAME[kind]}
             </span>
-          ))}
+            ),
+          )}
         </figcaption>
       ) : null}
     </figure>
