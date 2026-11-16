@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { GET as robotsTxt } from "@/app/robots.txt/route";
-import { BLOCKED_ROBOTS_NAMES, crawlerOf, crawlerVerdict, isFilterView, takeCrawlToken } from "./crawler-guard";
+import {
+  BLOCKED_ROBOTS_NAMES,
+  SIGNED_IN_RATE,
+  VISITOR_KEYS_MAX,
+  VISITOR_RATE,
+  crawlerOf,
+  crawlerVerdict,
+  isFilterView,
+  isRouterFetch,
+  takeCrawlToken,
+  takeVisitorToken,
+  visitorKey,
+} from "./crawler-guard";
 import { CALENDAR_TYPES } from "./calendar-shared";
 
 const GPTBOT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.4; +https://openai.com/gptbot)";
@@ -124,6 +136,111 @@ describe("crawlerVerdict", () => {
     // robots.txt and the sitemaps stay readable even when the allowance is spent.
     expect(verdict(GPTBOT, "/robots.txt", 0, store)).toBeNull();
     expect(verdict(GPTBOT, "/sitemaps/stocks.xml", 0, store)).toBeNull();
+  });
+});
+
+describe("visitor page rate (scrapers that pass for a browser)", () => {
+  const CHROME_152 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36";
+  const visit = (
+    url: string,
+    visitor: { key: string | null; signedIn?: boolean; routerRequest?: boolean },
+    now: number,
+    visitorStore: Map<string, { tokens: number; at: number }>,
+    ua = CHROME_152,
+  ) => {
+    const parsed = new URL(url, "https://www.stocksbrew.online");
+    return crawlerVerdict(
+      {
+        userAgent: ua,
+        pathname: parsed.pathname,
+        searchParams: parsed.searchParams,
+        visitor: { key: visitor.key, signedIn: visitor.signedIn ?? false, routerRequest: visitor.routerRequest ?? false },
+      },
+      now,
+      new Map(),
+      visitorStore,
+    );
+  };
+
+  it("keys on CF-Connecting-IP only, IPv6 by its /64", () => {
+    expect(visitorKey("203.0.113.7")).toBe("203.0.113.7");
+    expect(visitorKey(" 203.0.113.7 ")).toBe("203.0.113.7");
+    expect(visitorKey("2001:db8:0:12::1")).toBe("2001:db8:0:12::/64");
+    expect(visitorKey("2001:0db8:0000:0012:abcd:ef01:2345:6789")).toBe("2001:db8:0:12::/64");
+    expect(visitorKey("::1")).toBe("0:0:0:0::/64");
+    expect(visitorKey(null)).toBeNull();
+    expect(visitorKey("")).toBeNull();
+    expect(visitorKey("not-an-ip")).toBeNull();
+    expect(visitorKey("1:2:3")).toBeNull();
+    expect(visitorKey("1::2::3")).toBeNull();
+  });
+
+  it("lets a burst through, then 429s a scraper at 100 pages a minute, and refills", () => {
+    const store = new Map();
+    const statuses = Array.from({ length: 100 }, (_, i) => visit(`/screener?n=${i}&sector=technology`, { key: "198.51.100.1" }, i * 600, store)?.status ?? 200);
+    const served = statuses.filter((status) => status === 200).length;
+    // 30 at once, plus 0.25 a second over the minute: 44 of 100.
+    expect(served).toBe(VISITOR_RATE.burst + Math.floor((99 * 0.6) * VISITOR_RATE.perSecond));
+    expect(statuses.at(-1)).toBe(429);
+    // Another address has its own allowance; this one has a page again four seconds on.
+    expect(visit("/stock/NVDA", { key: "198.51.100.2" }, 60_000, store)).toBeNull();
+    expect(visit("/stock/NVDA", { key: "198.51.100.1" }, 59_400 + 4_000, store)).toBeNull();
+  });
+
+  it("tells the client router's fetches from page loads by the headers Next 13.5 leaves for middleware", () => {
+    // Next strips RSC, Next-Router-* and _rsc before middleware; Next-Url stays on every router fetch and prefetch.
+    expect(isRouterFetch(new Headers({ "next-url": "/screener" }))).toBe(true);
+    expect(isRouterFetch(new Headers({ "sec-fetch-dest": "empty" }))).toBe(true);
+    expect(isRouterFetch(new Headers({ "sec-fetch-dest": "document", "sec-fetch-mode": "navigate" }))).toBe(false);
+    // The scrapers sent no Sec-Fetch headers at all: a page load.
+    expect(isRouterFetch(new Headers({ accept: "text/html" }))).toBe(false);
+  });
+
+  it("gives a session cookie a bigger allowance, not an unlimited one", () => {
+    const store = new Map();
+    const statuses = Array.from({ length: 200 }, () => visit("/stock/NVDA", { key: "198.51.100.5", signedIn: true }, 0, store)?.status ?? 200);
+    expect(statuses.filter((status) => status === 200).length).toBe(SIGNED_IN_RATE.burst);
+    // The signed-out allowance of the same address is its own.
+    expect(visit("/stock/NVDA", { key: "198.51.100.5" }, 0, store)).toBeNull();
+  });
+
+  it("never counts client-router requests, requests from the box, static files or crawler files", () => {
+    const store = new Map();
+    for (let i = 0; i < 200; i++) {
+      expect(visit("/stock/NVDA", { key: null }, 0, store)).toBeNull();
+      expect(visit("/robots.txt", { key: "198.51.100.3" }, 0, store)).toBeNull();
+      expect(visit("/founder.jpg", { key: "198.51.100.3" }, 0, store)).toBeNull();
+      expect(visit("/fonts/inter.woff2", { key: "198.51.100.3" }, 0, store)).toBeNull();
+    }
+    expect(store.size).toBe(0);
+    // A ticker with a dot is a page.
+    expect(visit("/stock/BRK.B", { key: "198.51.100.3" }, 0, store)).toBeNull();
+    expect(store.size).toBe(1);
+  });
+
+  it("leaves self-declared crawlers to their own rules", () => {
+    const store = new Map();
+    expect(visit("/news?ticker=NU", { key: "198.51.100.4" }, 0, store, GPTBOT)?.status).toBe(403);
+    expect(store.size).toBe(0);
+  });
+
+  it("drops the least recently seen busy address, not the first one seen", () => {
+    const store = new Map<string, { tokens: number; at: number }>();
+    takeVisitorToken("early-and-busy", 0, store);
+    for (let i = 1; i < VISITOR_KEYS_MAX; i++) takeVisitorToken(`other-${i}`, 0, store);
+    takeVisitorToken("early-and-busy", 1, store);
+    takeVisitorToken("newcomer", 2, store);
+    expect(store.has("early-and-busy")).toBe(true);
+    expect(store.has("other-1")).toBe(false);
+  });
+
+  it("keeps its memory bounded, dropping idle addresses first", () => {
+    const store = new Map<string, { tokens: number; at: number }>();
+    for (let i = 0; i < VISITOR_KEYS_MAX; i++) takeVisitorToken(`idle-${i}`, 0, store);
+    takeVisitorToken("busy", 1_000_000, store);
+    expect(store.size).toBe(1);
+    for (let i = 0; i < VISITOR_KEYS_MAX * 2; i++) takeVisitorToken(`busy-${i}`, 1_000_000, store);
+    expect(store.size).toBeLessThanOrEqual(VISITOR_KEYS_MAX);
   });
 });
 

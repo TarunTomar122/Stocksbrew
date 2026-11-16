@@ -38,10 +38,13 @@ ssh vps "mkdir -p /opt/tikrr-web/releases/$SHA"
 rsync -a --delete "$OUT/" "vps:/opt/tikrr-web/releases/$SHA/"
 # Native modules must match the VPS (linux x64), not this laptop.
 # sharp's prebuilt binaries (@img/sharp-*) are per platform: swap the laptop's for linux-x64 ones, installed in a
-# scratch folder so npm never touches the release's own tree.
-ssh vps "set -e; REL=/opt/tikrr-web/releases/$SHA; T=\$(mktemp -d); cd \$T && npm init -y >/dev/null && npm install --no-audit --no-fund --os=linux --cpu=x64 --libc=glibc sharp@$SHARP >/dev/null; rm -rf \$REL/node_modules/sharp \$REL/node_modules/@img; cp -R \$T/node_modules/sharp \$T/node_modules/@img \$REL/node_modules/; rm -rf \$T"
-# Swap in the new release one instance at a time, so Varnish always has one ready backend (no downtime).
-ssh vps "set -e; ln -sfn /opt/tikrr-web/releases/$SHA /opt/tikrr-web/current; for port in 3000 3001; do sudo systemctl restart tikrr-web@\$port; for i in \$(seq 1 60); do curl -s -o /dev/null --max-time 2 http://localhost:\$port/robots.txt && break; sleep 1; done; done; ls -1dt /opt/tikrr-web/releases/* | tail -n +6 | xargs -r rm -rf"
+# scratch folder so npm never touches the release's own tree. sharp's own JS dependencies (semver, detect-libc) go in
+# sharp/node_modules: the standalone trace leaves semver out, and without it sharp never loaded (Nov 13-16).
+# The last line loads sharp from the release the way the server does, so a broken swap fails the deploy here.
+ssh vps "set -e; REL=/opt/tikrr-web/releases/$SHA; T=\$(mktemp -d); cd \$T && npm init -y >/dev/null && npm install --no-audit --no-fund --os=linux --cpu=x64 --libc=glibc sharp@$SHARP >/dev/null; rm -rf \$REL/node_modules/sharp \$REL/node_modules/@img; cp -R \$T/node_modules/sharp \$T/node_modules/@img \$REL/node_modules/; mkdir -p \$REL/node_modules/sharp/node_modules; for dep in semver detect-libc; do cp -R \$T/node_modules/\$dep \$REL/node_modules/sharp/node_modules/; done; rm -rf \$T; cd \$REL && /usr/local/bin/node -e \"require('sharp'); console.log('sharp loads')\""
+# Swap in the new release one instance at a time, so Varnish always has one ready backend (no downtime). Keeps the
+# three newest builds (this one and two to roll back to): each is ~1 GB of a system disk that sat at 12% free on Nov 16.
+ssh vps "set -e; ln -sfn /opt/tikrr-web/releases/$SHA /opt/tikrr-web/current; for port in 3000 3001; do sudo systemctl restart tikrr-web@\$port; for i in \$(seq 1 60); do curl -s -o /dev/null --max-time 2 http://localhost:\$port/robots.txt && break; sleep 1; done; done; ls -1dt /opt/tikrr-web/releases/* | tail -n +4 | xargs -r rm -rf"
 # The cached pages and API answers came from the old build (its HTML names the old build's script files): drop
 # everything but the content-hashed build files, which both builds can still serve.
 ssh vps "curl -s -o /dev/null -w 'varnish ban %{http_code}\n' -X BAN -H 'X-Ban-Url: ^/(?!_next/static/)' http://127.0.0.1:6081/"

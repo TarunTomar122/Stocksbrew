@@ -426,6 +426,21 @@ class CboeParserTest(unittest.TestCase):
         self.assertEqual(parsed["volume"], {"SUM OF ALL PRODUCTS": {"call": 7752661.0, "put": 7339138.0}})
         self.assertEqual(markets.parse_cboe_daily_options("<Error/>"), {"ratios": {}, "volume": {}})
 
+    def test_daily_options_keeps_the_spx_series_across_cboes_rename(self):
+        """Since autumn 2026 Cboe's SPX line includes SPXO and is named for it; it is still P/C SPX."""
+        payload = {
+            "ratios": [{"name": "SPX + SPXW + SPXO PUT/CALL RATIO", "value": "1.21"}],
+            "SPX + SPXW + SPXO": [{"name": "VOLUME", "call": 100, "put": 121, "total": 221}],
+        }
+        parsed = markets.parse_cboe_daily_options(payload)
+        spx = next(row for row in markets.CBOE_PUT_CALL if row[0] == "pc-spx")
+        self.assertEqual(parsed["ratios"], {spx[1]: 1.21})
+        self.assertEqual(parsed["volume"], {spx[2]: {"call": 100.0, "put": 121.0}})
+        both = {"ratios": [{"name": spx[1], "value": "1.0"}, {"name": "SPX + SPXW + SPXO PUT/CALL RATIO", "value": "2.0"}]}
+        self.assertEqual(markets.parse_cboe_daily_options(both)["ratios"], {spx[1]: 1.0})
+        both["ratios"].reverse()
+        self.assertEqual(markets.parse_cboe_daily_options(both)["ratios"], {spx[1]: 1.0})
+
     def test_weekdays_back_skips_weekends(self):
         from datetime import date
 

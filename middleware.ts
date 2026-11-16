@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendVaryAccept, preferredType } from "@/lib/accept";
-import { crawlerVerdict } from "@/lib/crawler-guard";
+import { crawlerVerdict, isRouterFetch, visitorKey } from "@/lib/crawler-guard";
 import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
 import { EDGE_CACHE_HEADER, edgeCacheHeaderFor, isRouterRequest } from "@/lib/edge-cache-policy";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
@@ -70,10 +70,19 @@ export function middleware(request: NextRequest) {
 
   // Crawlers: no filter views, SEO scrapers refused, a page rate per crawler (lib/crawler-guard.ts). After the
   // redirects above (an old address still hands its place to the new one), before anything that renders.
+  // Signed-out page loads are also counted per visitor address, for scrapers that pass for a browser.
   const crawlerBlock = crawlerVerdict({
     userAgent: request.headers.get("user-agent"),
     pathname: request.nextUrl.pathname,
     searchParams: request.nextUrl.searchParams,
+    visitor:
+      request.method === "GET" || request.method === "HEAD"
+        ? {
+            key: visitorKey(request.headers.get("cf-connecting-ip")),
+            signedIn: request.cookies.has(SESSION_COOKIE_NAME),
+            routerRequest: isRouterFetch(request.headers),
+          }
+        : undefined,
   });
   if (crawlerBlock) {
     return new Response(`${crawlerBlock.reason}\n`, {
@@ -141,7 +150,8 @@ export function middleware(request: NextRequest) {
   const waitlist = process.env.NEXT_PUBLIC_WAITLIST_MODE === "true";
   if (!waitlist) {
     // How long the shared cache (Varnish) may keep this signed-out page (lib/edge-cache-policy.ts). Null for anyone
-    // with a session cookie, for client-router requests and for pages not on the public list.
+    // with a session cookie, for client-router requests and for pages not on the public list. (Next 13.5 strips the
+    // router headers before middleware, so isRouterRequest rarely fires here; varnish.vcl html_candidate checks them.)
     const edgeCache = edgeCacheHeaderFor({
       method: request.method,
       pathname: request.nextUrl.pathname,

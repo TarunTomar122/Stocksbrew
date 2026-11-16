@@ -214,6 +214,28 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-16 07:00 UTC: daily health check
+- Web: no OOM kills in 24 h; both instances ~560 MB at 12 h uptime (peak ~800 MB), so the OG leak fix holds.
+  Memory pressure 0, needrestart's interpreter scan still off. One red alert: Nov 15 16:35-17:20 the hourly agentdata
+  run failed on one cut-off EDGAR body (http.client.IncompleteRead was not in Fetcher's retry list). Fixed in
+  backend/agentdata/feeds_common.py.
+- Scrapers that pass for a browser: two Chrome/152 Windows clients (Cloudflare HK and KR) took ~27k of the day's
+  51k requests, all Varnish misses, up to 100 pages/min each, walking every /screener, /news and /calendar filter
+  combination (the HK one caused 127 of the ~180 renders over 5 s). lib/crawler-guard.ts now gives each signed-out
+  visitor address (CF-Connecting-IP, IPv6 by /64) a page-load bucket per instance (0.25/s, burst 30; anyone with
+  a session cookie 1/s, burst 120), 429 past it. Not counted: static files, requests without the header, and the
+  client router's fetches. Quality pass caught that Next 13.5 strips RSC/Next-Router-*/_rsc before middleware, so
+  isRouterRequest never fires there: router fetches are told by Next-Url or Sec-Fetch-Dest != document instead.
+- P/C SPX failed every markets run since at least Nov 12: Cboe renamed the line "SPX + SPXW + SPXO" (CBOE_RENAMED).
+- Production sharp never loaded (`Cannot find module 'semver/functions/coerce'`): the deploy's linux swap copied
+  sharp and @img but not sharp's JS deps. deploy-web.sh now copies semver and detect-libc into sharp/node_modules
+  and fails before the swap if `require('sharp')` breaks. It also keeps 3 builds instead of 5 (system disk had
+  gone amber at 12% free).
+- Open (owner): ~4.7k /stock/X 404s a day, many linked from /follow pages (13F holdings outside the covered
+  universe: MCK, PCG, BDX, GPC...); the Sunday weekly group holds the agentdata lock 2.5 h (13F funds), so the
+  wire and markets went 3 h stale on Sunday morning; disk: an old 1.4 GB LocalDB copy
+  (/var/lib/tikrr/localdb/documents.sqlite3.bak-20260919T095622Z) and a 4 GB journal sit on the system disk.
+
 ### 2026-11-15 ~13:30 ET: landing headline, hover cards, founder note, AGPL
 
 - Headline (owner's words): "Know exactly / what to do with each / stock you own", three lines, no full stop

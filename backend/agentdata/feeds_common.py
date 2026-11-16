@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import threading
 import time
@@ -119,7 +120,9 @@ class Fetcher:
                     time.sleep(2.0 * (attempt + 1) ** 2)
                     continue
                 break
-            except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as error:
+            except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError, OSError) as error:
+                # HTTPException: a body cut off mid-transfer (IncompleteRead) or a bad status line. On Nov 15 one cut-off
+                # EDGAR response escaped this loop and failed the whole hourly filings run.
                 last = type(error).__name__
                 time.sleep(1.5 * (attempt + 1))
         self.failures.append(f"{url} ({last})")

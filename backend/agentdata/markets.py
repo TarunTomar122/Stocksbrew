@@ -778,6 +778,15 @@ def parse_cboe_history(text: str) -> tuple[list[str], list[float]]:
     return days, [by_day[day] for day in days]
 
 
+# Names Cboe changed, mapped back to the ones in CBOE_PUT_CALL so a series stays one series across the change.
+# From Nov 9, 2026 the SPX line takes in SPXO (Nov 6 is the last old name); P/C SPX failed every run until Nov 16.
+# Were a day ever to carry both names, the exact one wins.
+CBOE_RENAMED = {
+    "SPX + SPXW + SPXO PUT/CALL RATIO": "SPX + SPXW PUT/CALL RATIO",
+    "SPX + SPXW + SPXO": "SPX + SPXW",
+}
+
+
 def parse_cboe_daily_options(payload: Any) -> dict[str, Any]:
     """Cboe's daily market statistics -> ``{"ratios": {name: value}, "volume": {section: {...}}}``."""
     ratios: dict[str, float] = {}
@@ -787,7 +796,11 @@ def parse_cboe_daily_options(payload: Any) -> dict[str, Any]:
     for item in payload.get("ratios") or []:
         value = _to_float((item or {}).get("value"))
         if value is not None and value > 0:
-            ratios[str(item.get("name") or "").strip()] = value
+            name = str(item.get("name") or "").strip()
+            key = CBOE_RENAMED.get(name, name)
+            if key != name and key in ratios:
+                continue
+            ratios[key] = value
     for section, rows in payload.items():
         if section == "ratios" or not isinstance(rows, list):
             continue
@@ -795,7 +808,9 @@ def parse_cboe_daily_options(payload: Any) -> dict[str, Any]:
             if isinstance(row, dict) and row.get("name") == "VOLUME":
                 call, put = _to_float(row.get("call")), _to_float(row.get("put"))
                 if call is not None and put is not None:
-                    volume[section] = {"call": call, "put": put}
+                    key = CBOE_RENAMED.get(section, section)
+                    if key == section or key not in volume:
+                        volume[key] = {"call": call, "put": put}
     return {"ratios": ratios, "volume": volume}
 
 

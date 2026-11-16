@@ -382,3 +382,40 @@ def test_stake_roles_when_it_cannot_tell():
     }
     assert sf.stake_report_roles(recent, 42) == {0: "unknown", 1: "unknown"}
     assert sf.stake_report_roles({"form": ["SC 13D"], "accessionNumber": ["0000000001-26-000001"], "fileNumber": ["005-1"]}, 42) == {0: "subject"}
+
+
+# -- fetcher -------------------------------------------------------------------
+
+
+def test_fetcher_retries_a_cut_off_body_and_gives_up_quietly(tmp_path, monkeypatch):
+    """A body cut off mid-transfer (http.client.IncompleteRead) is retried, then counted as a failure, never raised."""
+    import http.client
+    import io
+
+    from backend.agentdata import feeds_common as fc
+
+    class Cut(io.BytesIO):
+        def read(self, *args):
+            raise http.client.IncompleteRead(b"partial")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class Whole(Cut):
+        def read(self, *args):
+            return b'{"ok": true}'
+
+    replies = [Cut(), Whole()]
+    monkeypatch.setattr(fc, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(fc.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(fc.urllib.request, "urlopen", lambda *_a, **_k: replies.pop(0))
+    fetcher = fc.Fetcher("t", user_agent="test", min_interval=0, attempts=2)
+    assert fetcher.get_json("https://example.test/a.json") == {"ok": True}
+    assert fetcher.failures == []
+
+    monkeypatch.setattr(fc.urllib.request, "urlopen", lambda *_a, **_k: Cut())
+    assert fetcher.get("https://example.test/b.json") is None
+    assert fetcher.failures == ["https://example.test/b.json (IncompleteRead)"]
