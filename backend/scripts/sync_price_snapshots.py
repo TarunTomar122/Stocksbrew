@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from backend.instrument_universe import list_instruments
-from backend.price_pipeline_contract import is_current_market_timestamp
+from backend.price_pipeline_contract import _parse_utc, is_current_market_timestamp
 from backend.price_utils import has_valid_quote_change, normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
@@ -53,6 +53,54 @@ def _market_snapshot_rows(saved_rows: list[dict], instrument_by_id: dict[str, di
             },
         })
     return rows
+
+
+# A symbol with no saved price for this long that also fails today is a dead listing (taken private, merged, renamed),
+# not a provider outage: EA stopped on Aug 4; BK (now BNY on Yahoo) on Jul 23. It still gets requested, so it prices
+# again if Yahoo brings it back, but it no longer counts toward the publish floor. Long enough that a weekend or a
+# holiday stretch never qualifies; the run logs the list, which is where a renamed ticker shows up.
+DEAD_LISTING_AFTER = timedelta(days=7)
+# Dead listings are a handful in a batch (13 of ~800 on Nov 16). When far more look dead, or nothing priced at all, it is
+# our feed (a Yahoo block lasting over a week leaves every symbol "unpriced for 7 days"), so they all count again.
+DEAD_LISTING_MAX_SHARE = 0.25
+
+
+def coverage_exemptions(
+    instruments: list[dict],
+    saved_ids: set[str],
+    latest_prices: dict[str, dict],
+    *,
+    require_current_session: bool,
+    now: datetime,
+) -> dict[str, list[str]]:
+    """The failed instruments that should not count against the publish floor, by reason.
+
+    - "mutual_fund": a mutual fund prices once a day, hours after the close, so no market-hours phase (open, midday,
+      close, post-close) can ever have today's price for it.
+    - "dead_listing": no saved price for DEAD_LISTING_AFTER (or never priced) and none today, while the rest of the
+      batch prices (some saved, at most DEAD_LISTING_MAX_SHARE of it looking dead).
+
+    Saved instruments are never exempt, so the floor still measures every symbol that could have priced.
+    """
+    funds: list[str] = []
+    dead: list[str] = []
+    for instrument in instruments:
+        instrument_id = instrument["instrument_id"]
+        if instrument_id in saved_ids:
+            continue
+        if require_current_session and str(instrument.get("fund_kind") or "").lower() == "mutual_fund":
+            funds.append(instrument_id)
+            continue
+        last = _parse_utc((latest_prices.get(instrument_id) or {}).get("captured_at"))
+        if last is None or now - last > DEAD_LISTING_AFTER:
+            dead.append(instrument_id)
+    if dead and (not saved_ids or len(dead) > DEAD_LISTING_MAX_SHARE * len(instruments)):
+        print(
+            f"[price coverage] {len(dead)} of {len(instruments)} have no price for {DEAD_LISTING_AFTER.days}+ days "
+            f"and {len(saved_ids)} priced now: counting them all, this looks like a feed outage, not dead listings"
+        )
+        dead = []
+    return {"mutual_fund": funds, "dead_listing": dead}
 
 
 def sync_price_snapshots(
@@ -176,6 +224,34 @@ def sync_price_snapshots(
                 "analyst_consensus": snapshot.get("analyst_consensus", {}),
             }))
 
+    # Read before this run's rows are saved, so "last priced" means before today.
+    saved_ids = {row["instrument_id"] for row in saved_rows}
+    failed_ids = [instrument["instrument_id"] for instrument in instruments if instrument["instrument_id"] not in saved_ids]
+    try:
+        latest_prices = store.get_latest_prices(failed_ids) if failed_ids else {}
+    except Exception as exc:  # The floor then counts every failure, as before.
+        print(f"[price coverage] could not read last prices for exemptions: {exc}")
+        latest_prices = None
+    exemptions = (
+        coverage_exemptions(
+            instruments,
+            saved_ids,
+            latest_prices,
+            require_current_session=require_current_session,
+            now=reference_now,
+        )
+        if latest_prices is not None
+        else {"mutual_fund": [], "dead_listing": []}
+    )
+    exempt_count = sum(len(ids) for ids in exemptions.values())
+    if exempt_count:
+        print(
+            f"[price coverage] not counted toward the floor: "
+            f"{len(exemptions['mutual_fund'])} mutual funds (no price until their evening NAV), "
+            f"{len(exemptions['dead_listing'])} with no price for {DEAD_LISTING_AFTER.days}+ days "
+            f"({', '.join(exemptions['dead_listing'][:20])})"
+        )
+
     store.save_price_snapshots_bulk(saved_rows)
     store.save_fundamental_snapshots_bulk(fundamental_rows)
 
@@ -204,6 +280,7 @@ def sync_price_snapshots(
             "invalid_instrument_ids": invalid_instrument_ids,
             "stale_session_quote_count": len(stale_session_instrument_ids),
             "stale_session_instrument_ids": stale_session_instrument_ids,
+            "coverage_exempt_instrument_ids": exemptions,
         },
     )
 
@@ -218,6 +295,9 @@ def sync_price_snapshots(
         "invalid_instrument_ids": invalid_instrument_ids,
         "stale_session_quote_count": len(stale_session_instrument_ids),
         "stale_session_instrument_ids": stale_session_instrument_ids,
+        # What the publish floor measures (require_price_batch_coverage): the instruments that could have priced.
+        "coverage_input_count": len(instruments) - exempt_count,
+        "coverage_exempt_instrument_ids": exemptions,
     }
 
 

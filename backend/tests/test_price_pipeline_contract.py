@@ -139,3 +139,40 @@ def test_price_batch_coverage_accepts_measured_production_shape() -> None:
     )
 
     assert coverage == pytest.approx(569 / 573)
+
+
+def test_price_batch_coverage_leaves_out_instruments_that_could_not_price() -> None:
+    # Nov 16 post-close: 777 of 807 saved; 18 mutual funds before their NAV and 12 dead listings (EA, BK, AVB, ...).
+    coverage = require_price_batch_coverage(
+        {"input_count": 807, "saved_count": 777, "coverage_input_count": 777},
+        minimum_coverage=0.98,
+        context="US post-close price batch",
+    )
+    assert coverage == 1.0
+
+
+def test_price_batch_coverage_still_fails_an_outage_with_exemptions() -> None:
+    with pytest.raises(RuntimeError, match=r"90\.0%.*\(450/500, 30 more not expected to price\)"):
+        require_price_batch_coverage(
+            {"input_count": 530, "saved_count": 450, "coverage_input_count": 500},
+            minimum_coverage=0.96,
+            context="US open price batch",
+        )
+
+
+def test_price_batch_coverage_rejects_impossible_coverage_counts() -> None:
+    for bad in (10, 600, "x"):
+        with pytest.raises(RuntimeError):
+            require_price_batch_coverage(
+                {"input_count": 530, "saved_count": 450, "coverage_input_count": bad},
+                minimum_coverage=0.96,
+                context="US open price batch",
+            )
+
+
+def test_price_batch_coverage_passes_a_batch_with_nothing_that_could_price() -> None:
+    assert require_price_batch_coverage(
+        {"input_count": 12, "saved_count": 0, "coverage_input_count": 0},
+        minimum_coverage=0.96,
+        context="US open price batch",
+    ) == 1.0

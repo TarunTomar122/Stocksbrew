@@ -201,11 +201,31 @@ def require_price_batch_coverage(
             f"{context} reported impossible price counts: "
             f"saved={saved_count} input={input_count}"
         )
-    coverage = saved_count / input_count
+    # The batch may name instruments that could not have priced (mutual funds before their evening NAV, listings with
+    # no price for a week): they stay out of the measure, so a few dead tickers cannot fail a healthy run while a real
+    # outage, which fails symbols that priced yesterday, still trips the floor.
+    expected_count = input_count
+    if result.get("coverage_input_count") is not None:
+        try:
+            expected_count = int(result["coverage_input_count"])
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(f"{context} reported an invalid coverage count") from exc
+        if expected_count < saved_count or expected_count > input_count:
+            raise RuntimeError(
+                f"{context} reported impossible coverage counts: "
+                f"saved={saved_count} expected={expected_count} input={input_count}"
+            )
+        if expected_count == 0:
+            # Every miss is exempt (say, only mutual funds before their NAV): nothing here could have priced.
+            return 1.0
+    exempt = input_count - expected_count
+    coverage = saved_count / expected_count
     if coverage < minimum_coverage:
         raise RuntimeError(
             f"{context} price coverage {coverage:.1%} is below the "
             f"{minimum_coverage:.0%} publish floor "
-            f"({saved_count}/{input_count})"
+            f"({saved_count}/{expected_count}"
+            + (f", {exempt} more not expected to price" if exempt else "")
+            + ")"
         )
     return coverage

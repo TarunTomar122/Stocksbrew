@@ -31,7 +31,7 @@ def test_price_core_worker_does_not_publish_a_low_coverage_batch() -> None:
             return_value={"input_count": 3, "saved_count": 1},
         ),
         patch.object(price_core_job, "materialize_views") as materialize,
-        pytest.raises(RuntimeError, match="33.3%.*98%"),
+        pytest.raises(RuntimeError, match="33.3%.*96%"),
     ):
         price_core_job.main()
 
