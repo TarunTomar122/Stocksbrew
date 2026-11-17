@@ -214,6 +214,37 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-17 07:00 UTC: daily health check
+- Ops health red all day on Failed units (open, open-movers, midday-movers, hourly and post-close price lanes) and
+  Move reasons (3.4 days old), 4 alert emails. Cause: the 98% publish floor counted mutual funds before their NAV
+  and dead listings; fixed in a15f4e5c (pulled to /opt/tikrr at 06:29, units reset). Read-only check on today's
+  data: in us_core_155 all 10 misses are dead listings (AVB, BK, EA, EQR, BLD, GTLS, ACA, APLS, INDV, CPRX), so the
+  floor reads 100%. Move reasons, closing briefs and the home dashboard come back after tonight's post-close (21:10).
+- Web: no restarts or OOM since the Nov 16 18:45 deploy, ~495 MB each. Box: memory pressure ~0.3%, root disk 85%
+  (was 88%), backup 22 h old, needrestart interpreter scan still off. Two stale systemd-run units from earlier
+  sessions reset; dnsmasq has been failed since Aug 26 and is not ours.
+- Traffic 27.7k requests (51k yesterday): the per-visitor limit took the two Chrome/152 scrapers out. 7 requests
+  over 5 s.
+- Bug, fixed: /?ref=producthunt&utm_source=producthunt answered 503 every time (3-4 a day since Nov 13, any `/?...`;
+  also /stock/IVV?ref=x). Next 13.5 had stored the landing's cached copy (.next/server/app/anon/1.meta, and 4 stock
+  copies) with `"status":304`: Varnish refreshes with If-None-Match, Next answers 304 from the stale copy, and the
+  background rebuild saves res.statusCode (base-server.js) as the copy's status. After that every request got a
+  bodyless 304; Varnish turns a 304 to an unconditional fetch into a 503. Plain `/` only worked because Varnish held a
+  copy. next.config.js `generateEtags: false` (no ETag, no 304), and varnish.vcl drops If-None-Match and
+  If-Modified-Since on every fetch to the app (an `If-None-Match: *` still makes Next answer 304 without an ETag);
+  varnish-tests/conditional.vtc fails without it. The deploy's fresh build drops the bad copies.
+- New scraper, not handled in code: ~7.4k document loads of /news?ticker=X&topic=Y (1,512 tickers, mostly OTC like
+  GSTMF, x 6 topics) from rotating proxies (US, PK, DE, FR, HK; a different Cloudflare colo nearly every request),
+  browser UAs, no cookie, no referer, Sec-Fetch-Site none. The per-address limit cannot see it. Cheap so far (p50
+  110 ms, none slow). If it grows, the clean fix is a Cloudflare WAF rule (owner): /news with both ticker= and
+  topic= in the query, no referer, no session cookie: managed challenge. A person clicking a topic chip uses the
+  client router, so never hits it.
+- Landing "agent watch" cards: ~130 "took longer than 2000ms; left out" a day (lines, replay). Every price
+  revalidation calls revalidatePath("/"), and Next 13.5's unstable_cache drops entries read under that path
+  (implicit soft tags), so the next render reads cold. The read still fills the cache; the first visitor after a
+  refresh is usually ops-health (also behind the 2-4 s "Home page" warns). Left as is; a fix would warm "/" in
+  app/api/revalidate after the drop, like /briefing.
+
 ### 2026-11-16 07:00 UTC: daily health check
 - Web: no OOM kills in 24 h; both instances ~560 MB at 12 h uptime (peak ~800 MB), so the OG leak fix holds.
   Memory pressure 0, needrestart's interpreter scan still off. One red alert: Nov 15 16:35-17:20 the hourly agentdata

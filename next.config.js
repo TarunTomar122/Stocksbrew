@@ -5,6 +5,12 @@ const nextConfig = {
   // Self-hosting on the VPS (backend/vps/web/): NEXT_OUTPUT=standalone builds a server.js with only the modules it
   // needs. Unset elsewhere, so a Vercel build stays exactly as it was.
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" } : {}),
+  // No ETags on pages, so Next never answers 304. Next 13.5 saves the status of the response it was sending into a
+  // page's cached copy when it rebuilds in the background: Varnish refreshes with If-None-Match, a stale copy matched,
+  // and the rebuilt copy was stored as 304. From then on every request for it got a bodyless 304, which Varnish turns
+  // into a 503 on a miss (/?ref=producthunt and /stock/IVV?ref=x failed from Nov 13 to Nov 17). The cost: a browser
+  // revalidating a page gets the full page instead of a 304. varnish.vcl also drops conditional headers to the app.
+  generateEtags: false,
   async redirects() {
     return [
       // ── The 2026-11 rebuild: old routes land on the surface that replaced them.

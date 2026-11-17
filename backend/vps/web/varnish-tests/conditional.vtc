@@ -1,0 +1,46 @@
+varnishtest "The app never gets a conditional request: Next 13.5 would save the 304 into the page's cached copy"
+
+server s1 {
+	# 1. A signed-out page: stored with its ETag (an app that still sends one).
+	rxreq
+	expect req.url == "/"
+	expect req.http.If-None-Match == <undef>
+	expect req.http.If-Modified-Since == <undef>
+	txresp -hdr "Content-Type: text/html; charset=utf-8" -hdr "ETag: \"abc\"" -hdr "Surrogate-Control: max-age=1, stale-while-revalidate=60" -body "home"
+
+	# 2. Its background refresh once stale: a full fetch, not If-None-Match from the old copy.
+	rxreq
+	expect req.url == "/"
+	expect req.http.If-None-Match == <undef>
+	expect req.http.If-Modified-Since == <undef>
+	txresp -hdr "Content-Type: text/html; charset=utf-8" -hdr "ETag: \"abc\"" -hdr "Surrogate-Control: max-age=300" -body "home"
+
+	# 3. A signed-in (passed) request with the client's own conditional headers: they are dropped too.
+	rxreq
+	expect req.url == "/news"
+	expect req.http.Cookie == "tikrr_session=abc"
+	expect req.http.If-None-Match == <undef>
+	expect req.http.If-Modified-Since == <undef>
+	txresp -body "news for abc"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/" -hdr "Accept: text/html"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "home"
+	delay 1.5
+	# Stale: served from the old copy while the refresh (2) runs in the background.
+	txreq -url "/" -hdr "Accept: text/html"
+	rxresp
+	expect resp.status == 200
+	delay 0.5
+	txreq -url "/news" -hdr "Cookie: tikrr_session=abc" -hdr "If-None-Match: *" -hdr "If-Modified-Since: Mon, 16 Nov 2026 00:00:00 GMT"
+	rxresp
+	expect resp.status == 200
+	expect resp.body == "news for abc"
+} -run
+
+server s1 -wait

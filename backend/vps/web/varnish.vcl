@@ -155,6 +155,12 @@ sub vcl_backend_fetch {
   # Pages only: the app decides from the request whether a response may be kept, so it must see the request
   # Varnish will store. (Static files are fetched as they are.)
   if (bereq.http.X-Varnish-Html) { unset bereq.http.Cookie; }
+  # Never a conditional request to the app: Next 13.5 saves a 304 it answered into a page's cached copy and then
+  # answers every request for it with a bodyless 304, which is a 503 here on a miss (Nov 13-17, /?ref=producthunt).
+  # next.config.js turns its ETags off; this also covers "If-None-Match: *" on passed requests. Tested in
+  # varnish-tests/conditional.vtc.
+  unset bereq.http.If-None-Match;
+  unset bereq.http.If-Modified-Since;
   # A foreground refresh with an old copy to fall back on: don't hold the visitor for the full two minutes if the
   # app hangs (a cold render takes ~5 s at worst), serve the old copy instead (vcl_synth).
   if (bereq.http.X-Varnish-Refresh) { set bereq.first_byte_timeout = 20s; }
