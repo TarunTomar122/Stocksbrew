@@ -24,44 +24,48 @@ import { loadLandingAgent } from "@/lib/agent-sequence-server";
 import { loadAgentWatch } from "@/lib/landing-agent-watch-server";
 import { formatValue } from "@/lib/thesis-watch/conditions";
 
-import { CARD_HOVER, SectionHead } from "./shared";
+import { BAND_PAD, Band, Muted, SectionHead } from "./shared";
 
 /**
- * "Tell it what to watch, in plain English": what a person types to set up an agent, as a chat bubble, and what the
- * agent sent back, as a small result card built from real data (the example portfolio's own agents and figures, a
+ * "Tell it what to watch, in plain English": what a person types to set up an agent, as the card's bold lead-in, and
+ * what the agent sent back, as a raised result panel built from real data (the example portfolio's own agents and figures, a
  * filing, a theme's replay; lib/landing-agent-watch.ts). It took the place of the three example-agent cards and of
  * the day's market-check tiles. Each card opens the page where that work lives; nothing is repeated per card. A card
  * with no real result today is left out, and the grid keeps whole rows (six or three from lg, four or two). With fewer
  * than two cards the section is left out too.
  */
 
-const HEAD_TITLE = "Tell it what to watch, in plain English.";
+const HEAD_TITLE = (
+  <>
+    Tell it what to watch, <Muted>in plain English.</Muted>
+  </>
+);
 const HEAD_HREF = "/agents";
 const HEAD_LINK = "Create your agent";
 /** Said once under the cards: which parts are made up. */
 const EXAMPLE_NOTE = "Example portfolio with made-up reasons and thesis; every figure is real.";
 
 /**
- * Fixed parts from sm, so cards side by side end level and the ghost holds their place: 28px padding, a 2px border, the
- * request's 56px (two lines), 8px, then the result: 26px of border and padding, a 24px row, 8 + 30px for the figure,
- * 8px, and the line's two lines (40px): 234px. Stacked on a phone, each card is as tall as what it says (about 210px).
+ * A bento card (council, Nov 18, after tradytics): a soft well with no border, the request as its bold lead-in, and what
+ * the agent sent back as a raised panel that runs off the card's right and bottom edges, like a crop of the app. Cards
+ * in a row end level (the grid stretches them; the panel takes the rest of the height).
  */
-const CARD = `oa-surface group relative flex min-w-0 flex-col border border-oa-border bg-oa-card p-3 sm:min-h-[234px] sm:p-3.5 ${CARD_HOVER}`;
-const RESULT = "mt-2 flex flex-1 flex-col rounded-xl border border-oa-border bg-oa-bg p-3";
+const CARD =
+  "group relative flex min-w-0 flex-col overflow-hidden rounded-[20px] bg-oa-secondary/60 pl-5 pt-5 transition-colors duration-200 hover:bg-oa-secondary motion-reduce:transition-none sm:pl-7 sm:pt-7";
+const RESULT =
+  "relative mt-5 ml-4 flex flex-1 flex-col rounded-tl-2xl border-l border-t border-oa-border bg-oa-card p-4 shadow-[0_10px_30px_-14px_rgba(58,42,16,0.28)] sm:ml-10 sm:p-5";
 const ROW = "flex h-6 min-w-0 items-center gap-2";
 const FIGURE_ROW = "mt-2 flex h-[30px] min-w-0 items-center gap-2.5";
 const FIGURE = "oa-mono shrink-0 text-[22px] font-semibold leading-[30px] tracking-[-0.02em] tabular-nums";
 const SMALL = "oa-type-fixed text-[12.5px] leading-4 text-oa-muted-fg";
 const LINE = "mt-2 text-pretty text-[14px] leading-5 text-oa-muted-fg sm:min-h-[40px]";
 
-/** The person's request: a chat bubble on the right, bottom-aligned in a two-line slot so results line up. */
+/** The person's request, in their words: the card's bold lead-in, kept to two lines' room so the panels line up. */
 function Ask({ text }: { text: string }) {
   return (
-    <div className="flex min-h-[56px] items-end justify-end">
-      <p className="w-fit max-w-[94%] text-pretty rounded-2xl rounded-br-md bg-oa-primary/[.13] px-3 py-2 text-[14px] leading-5 text-oa-fg">
-        <span className="sr-only">Someone asks: </span>“{text.replace(/\.$/, "")}”
-      </p>
-    </div>
+    <p className="pr-5 text-pretty text-[17px] font-medium leading-6 text-oa-fg sm:min-h-[56px] sm:pr-7 sm:text-[19px] sm:leading-7">
+      <span className="sr-only">Someone asks: </span>“{text.replace(/\.$/, "")}”
+    </p>
   );
 }
 
@@ -188,7 +192,7 @@ function LineBar({ card }: { card: LineCard }) {
   const width = Math.abs(scale.value - base);
   return (
     <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="relative block h-1.5 rounded-full bg-oa-card">
+      <span className="relative block h-1.5 rounded-full bg-[color-mix(in_srgb,var(--oa-fg)_9%,transparent)]">
         <span className={`absolute inset-y-0 rounded-full ${card.holds ? "bg-signal-bullish" : "bg-signal-bearish"}`} style={{ left: `${left * 100}%`, width: `${width * 100}%` }} />
         <span className="absolute -inset-y-1 w-[2px] rounded-full bg-oa-fg" style={{ left: `calc(${scale.line * 100}% - 1px)` }} />
       </span>
@@ -232,11 +236,11 @@ function ReplayView({ card }: { card: ReplayCard }) {
         {card.changes.length > 0 ? (
           <span aria-hidden="true" className="flex -space-x-1.5">
             {card.changes.slice(0, 3).map((change) => (
-              <StockLogo key={`${change.op}:${change.ticker}`} ticker={change.ticker} size={20} circle atOnce className="ring-2 ring-oa-bg" />
+              <StockLogo key={`${change.op}:${change.ticker}`} ticker={change.ticker} size={20} circle atOnce className="ring-2 ring-oa-card" />
             ))}
           </span>
         ) : null}
-        {/* One word: from lg the four cards share a row, and the dates beside it already span the four weeks. */}
+        {/* One word: the dates beside it already span the four weeks. */}
         <span className="truncate text-[14px] font-medium text-oa-fg">Replay</span>
       </Head>
       <div className={FIGURE_ROW}>
@@ -266,7 +270,7 @@ function ThesisView({ card }: { card: ThesisCard }) {
       <Head icon="agents">
         <span aria-hidden="true" className="flex -space-x-1.5">
           {card.companies.map((company) => (
-            <StockLogo key={company.ticker} ticker={company.ticker} size={20} circle atOnce className="ring-2 ring-oa-bg" />
+            <StockLogo key={company.ticker} ticker={company.ticker} size={20} circle atOnce className="ring-2 ring-oa-card" />
           ))}
         </span>
         <span className="oa-type-fixed oa-mono truncate text-[12px] font-semibold text-oa-fg">{card.companies.map((company) => company.ticker).join(" · ")}</span>
@@ -296,25 +300,24 @@ function CardView({ card, today, prices }: { card: WatchCard; today: string; pri
   }
 }
 
-/** Whole rows only: six or three in rows of three from lg, four in one row from lg, four or two in rows of two from sm. */
+/** Whole rows only: six or three in rows of three from lg, four or two in rows of two from sm. */
 function shown(cards: WatchCard[]): { cards: WatchCard[]; grid: string } {
   const n = cards.length >= 6 ? 6 : cards.length >= 4 ? 4 : cards.length === 3 ? 3 : cards.length >= 2 ? 2 : 0;
-  // Three stay stacked below lg: two columns there would leave the third alone in its row. Four sit in one row from lg
-  // (the loop above took the move card's place), never two wide rows of two.
+  // Three stay stacked below lg: two columns there would leave the third alone in its row. Four are a 2x2 bento, wide
+  // enough for each panel to read like a crop of the app (council, Nov 18).
   const grid =
     n === 6
-      ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3"
+      ? "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
       : n === 4
-        ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4"
+        ? "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"
         : n === 3
-          ? "grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3"
-          : "grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3";
+          ? "grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3"
+          : "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4";
   return { cards: cards.slice(0, n), grid };
 }
 
-const SECTION = "scroll-mt-24";
 
-export async function AgentWatchSection({ className = "" }: { className?: string }) {
+export async function AgentWatchSection() {
   const [watch, { loop }] = await Promise.all([loadAgentWatch(), loadLandingAgent()]);
   // The loop above already tells the move card's case in full (owner rule 1): it is not shown twice.
   const move = watch.move && loop && loop.ticker === watch.move.ticker && loop.found.day === watch.move.day ? null : watch.move;
@@ -322,7 +325,7 @@ export async function AgentWatchSection({ className = "" }: { className?: string
   const { cards, grid } = shown(all);
   if (cards.length < 2) return null;
   return (
-    <section id="agent-watches" className={`${SECTION} ${className}`}>
+    <Band id="agent-watches" className={BAND_PAD}>
       <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
       <Reveal delay={60}>
         {/* Four on a phone, the rest behind one quiet "Show more" (kit ShowMoreGrid); all of them from sm. */}
@@ -331,23 +334,23 @@ export async function AgentWatchSection({ className = "" }: { className?: string
             <CardView key={card.kind} card={card} today={watch.today} prices={watch.prices} />
           ))}
         </ShowMoreGrid>
-        <p className="mt-3 text-[13px] leading-5 text-oa-muted-fg">{EXAMPLE_NOTE}</p>
+        <p className="mt-4 text-center text-[13px] leading-5 text-oa-muted-fg">{EXAMPLE_NOTE}</p>
       </Reveal>
-    </section>
+    </Band>
   );
 }
 
 /** The section's place while it loads: the same heading, six card shells at the cards' own heights (four on a phone), the note. */
-export function AgentWatchGhost({ className = "" }: { className?: string }) {
+export function AgentWatchGhost() {
   return (
-    <section aria-hidden="true" className={`${SECTION} ${className}`}>
+    <Band className={BAND_PAD}>
       <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
-      <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 max-sm:[&>li:nth-child(n+5)]:hidden">
-        {Array.from({ length: 6 }, (_, index) => (
-          <li key={index} className={`${CARD} h-[210px] sm:h-auto`} />
+      <ul aria-hidden="true" className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <li key={index} className={`${CARD} h-[250px]`} />
         ))}
       </ul>
-      <p className="mt-3 text-[13px] leading-5 text-oa-muted-fg">{EXAMPLE_NOTE}</p>
-    </section>
+      <p className="mt-4 text-center text-[13px] leading-5 text-oa-muted-fg">{EXAMPLE_NOTE}</p>
+    </Band>
   );
 }

@@ -4,9 +4,9 @@ import { Reveal } from "@/components/reveal";
 import { AppLink } from "@/components/oa/app-link";
 
 /** Layout and type constants shared by every landing section. */
-export const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6";
+export const FRAME = "mx-auto w-full max-w-[76rem] px-4 sm:px-6 xl:px-12";
 export const H2 =
-  "text-balance font-medium tracking-tight text-oa-fg text-[28px] leading-tight sm:text-4xl sm:leading-tight";
+  "text-balance font-medium tracking-[-0.02em] text-oa-fg text-[30px] leading-[1.12] sm:text-[44px] sm:leading-[1.08]";
 export const LEDE = "text-pretty mt-3 max-w-xl text-base leading-7 text-oa-muted-fg";
 export const LABEL = "oa-caption";
 /** Hover for a whole card that is a link: a slightly darker edge and a soft shadow, never a darker fill (owner, Nov 15:
@@ -61,30 +61,28 @@ export function toneClass(tone: "up" | "down" | "flat"): string {
   return "text-oa-muted-fg";
 }
 
-/** Section heading with an optional supporting line and a right-aligned link. */
+/**
+ * Section heading, centred, with an optional link under it. The title may carry a muted second half
+ * (<Muted>followed all the way through.</Muted>), the one two-tone touch the council kept from tradytics (Nov 18). No line
+ * under the title (owner rule 8): `lede` stays for the rare section that says something its content does not.
+ */
 export function SectionHead({
   title,
   lede,
   href,
   hrefLabel,
-  align = "left",
 }: {
   title: React.ReactNode;
   lede?: React.ReactNode;
   href?: string;
   hrefLabel?: string;
-  align?: "left" | "center";
 }) {
   return (
     <Reveal>
-      <div
-        className={`mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between ${
-          align === "center" ? "sm:justify-center sm:text-center" : ""
-        }`}
-      >
-        <div className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
+      <div className="mb-8 flex flex-col items-center gap-5 text-center sm:mb-10">
+        <div className="max-w-3xl">
           <h2 className={H2}>{title}</h2>
-          {lede ? <p className={`${LEDE} ${align === "center" ? "mx-auto" : ""}`}>{lede}</p> : null}
+          {lede ? <p className={`${LEDE} mx-auto`}>{lede}</p> : null}
         </div>
         {href && hrefLabel ? (
           <AppLink
@@ -97,6 +95,36 @@ export function SectionHead({
         ) : null}
       </div>
     </Reveal>
+  );
+}
+
+/** A band's vertical rhythm: room for each section to read on its own, without a heading eating a third of the screen. */
+export const BAND_PAD = "py-12 sm:py-[72px]";
+
+/** The muted second half of a two-tone heading, on its own line from sm so a heading never splits mid-phrase. */
+export function Muted({ children }: { children: React.ReactNode }) {
+  return <span className="text-oa-muted-fg sm:block">{children}</span>;
+}
+
+/**
+ * One band of the page: a full-bleed hairline on top (none on the first), the content in the frame, and the frame's own
+ * edges drawn as hairlines from xl, where the page is wider than the frame. Together they are the page's grid.
+ */
+export function Band({
+  children,
+  first = false,
+  className = "",
+  id,
+}: {
+  children: React.ReactNode;
+  first?: boolean;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section id={id} className={`scroll-mt-24 ${first ? "" : "border-t border-oa-border"}`}>
+      <div className={`${FRAME} xl:border-x xl:border-oa-border ${className}`}>{children}</div>
+    </section>
   );
 }
 

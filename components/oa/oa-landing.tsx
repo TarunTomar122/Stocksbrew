@@ -23,7 +23,7 @@ import { HeroDemo, HeroDemoGhost } from "./landing/hero-demo";
 import { HeroHeadline } from "./landing/hero-headline";
 import { OnePlace } from "./landing/one-place";
 import { PlansSection } from "./landing/plans-section";
-import { FRAME, SectionHead } from "./landing/shared";
+import { BAND_PAD, Band, Muted, SectionHead } from "./landing/shared";
 import { LandingTaste } from "./landing/taste";
 import Image from "next/image";
 import Link from "next/link";
@@ -92,74 +92,70 @@ export async function OaLanding() {
     <main className={`oa-landing ${interTight.variable} min-w-0 flex-grow overflow-x-clip`}>
       <OaSiteHeader variant="marketing" />
 
-      <div className={FRAME}>
-        {/* The hero, in two columns from lg: the headline and the taste's search on the left (type a stock, read our
-            call on it), and a live demo card on the right that flips between today's stand-out stocks. The visitor's
-            own picks take the demo's place. On a phone the demo stacks under the search. */}
-        <section className="pb-4 pt-12 sm:pt-14 lg:pt-16">
-          <LandingTaste
-            lead={
+      {/* The page as bands on one grid (council, Nov 18, after tradytics): hairlines between bands and, from xl, along the
+          frame's edges. Centred two-tone headings, nothing under them (owner rule 8). */}
+      {/* The hero, centred: the headline and the taste's search (type a stock, read our call on it), then today's
+          stand-out calls as a window of the app. The visitor's own picks take the window's place. */}
+      <Band first className="pb-12 pt-10 sm:pb-[72px] sm:pt-16">
+        <LandingTaste
+          lead={<HeroHeadline lead={HERO_HEADLINE_LEAD} emphasis={HERO_HEADLINE_EMPHASIS} />}
+          demo={
+            <Suspense fallback={<HeroDemoGhost />}>
+              <HeroDemo />
+            </Suspense>
+          }
+          footnote={HERO_FOOTNOTE}
+        />
+      </Band>
+
+      {/* The agent's loop on one real case: what the example portfolio asked, the days it checked, what it found, what it
+          decided and what the stock did next against the S&P 500. On a day with no stored case, the strongest proposal
+          today takes its place. Each section brings its own band, so one with nothing to show leaves no empty band. */}
+      <Suspense fallback={<AgentLoopGhost />}>
+        <AgentLoopSection />
+      </Suspense>
+
+      {/* What else the agent watches, as a bento of real results: a filing that changed its risks, a reason with a
+          number, a theme's basket replayed, a thesis rolled up. */}
+      <Suspense fallback={<AgentWatchGhost />}>
+        <AgentWatchSection />
+      </Suspense>
+
+      <Band id="portfolio" className={BAND_PAD}>
+        <SectionHead
+          title={
+            <>
+              What we&apos;d do <Muted>with each stock you own.</Muted>
+            </>
+          }
+          href="/portfolio"
+          hrefLabel="Add your stocks"
+        />
+        <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
+          <OnePlace />
+        </Suspense>
+      </Band>
+
+      {/* plans: hidden once you already subscribe */}
+      {!user.isSubscribed ? (
+        <Band id="pricing" className={BAND_PAD}>
+          <SectionHead
+            title={
               <>
-                <HeroHeadline lead={HERO_HEADLINE_LEAD} emphasis={HERO_HEADLINE_EMPHASIS} />
-                {/* No line under the headline (owner rule 8, judges ship 85): the example card beside it shows the call,
-                    the why and what would change it. HERO_SUBHEAD stays the page's meta and share description. */}
+                Our calls are free. <Muted>Pro adds the full report.</Muted>
               </>
             }
-            demo={
-              <Suspense fallback={<HeroDemoGhost />}>
-                <HeroDemo />
-              </Suspense>
-            }
-            footnote={HERO_FOOTNOTE}
+            href="/pricing"
+            hrefLabel="Compare the plans"
           />
-        </section>
+          <Reveal>
+            <PlansSection trialEligible={(await getViewer()).trialEligible} market={pricingMarket(headers().get("x-vercel-ip-country"))} />
+          </Reveal>
+        </Band>
+      ) : null}
 
-        {/* Right under the hero, the agent's loop on one real case: what the example portfolio asked, the days it
-            checked, what it found, what it decided and what the stock did next against the S&P 500. On a day with no
-            stored case, the strongest proposal today takes its place. */}
-        <Suspense fallback={<AgentLoopGhost className="mt-8 sm:mt-12" />}>
-          <AgentLoopSection className="mt-8 sm:mt-12" />
-        </Suspense>
-
-        {/* Then what else the agent watches, as small cards on real data: a filing that changed its risks, a reason
-            with a number, a theme's basket replayed, a thesis rolled up. It took the place of the day's market-check
-            tiles (a count of what ran, not what it found). Each card waits at most 2s; the section needs two. */}
-        <Suspense fallback={<AgentWatchGhost className="mt-8 sm:mt-12" />}>
-          <AgentWatchSection className="mt-8 sm:mt-12" />
-        </Suspense>
-
-        {/* one story below the hero: short proofs with real data, one link each, then the questions answered in the open */}
-        <div className="flex flex-col gap-14 pb-12 pt-10 sm:gap-20 sm:pb-20 sm:pt-14">
-          {/* "Why stocks moved today" used to open here: the hero's card already shows today's stand-out moves with
-              their reason, so the page spends that room on the agent instead (the section above). */}
-
-          <section id="portfolio" className="scroll-mt-24">
-            {/* No line under the title (owner rule 8): "no broker login" is the hero's footnote and the first answer below. */}
-            <SectionHead
-              title="What we'd do with each stock you own."
-              href="/portfolio"
-              hrefLabel="Add your stocks"
-            />
-            <Suspense fallback={<div className="oa-surface h-80 animate-pulse border border-oa-border bg-oa-card motion-reduce:animate-none" aria-hidden="true" />}>
-              <OnePlace />
-            </Suspense>
-          </section>
-
-          {/* plans: hidden once you already subscribe */}
-          {!user.isSubscribed ? (
-            <section id="pricing" className="scroll-mt-24">
-              <SectionHead
-                // One heading, one idea (owner rule 6, judges ship 42): the two plans in one sentence.
-                title="Our calls are free, and Pro adds the full report."
-                href="/pricing"
-                hrefLabel="Compare the plans"
-              />
-              <Reveal>
-                <PlansSection trialEligible={(await getViewer()).trialEligible} market={pricingMarket(headers().get("x-vercel-ip-country"))} />
-              </Reveal>
-            </section>
-          ) : null}
-
+      <Band className={BAND_PAD}>
+        <div className="flex flex-col gap-12 sm:gap-[72px]">
           <section id="faq" aria-labelledby="faq-title" className="scroll-mt-24">
             <h2 id="faq-title" className="text-center text-[24px] font-medium tracking-tight text-oa-fg sm:text-[28px]">
               Questions
@@ -214,7 +210,7 @@ export async function OaLanding() {
             </figure>
           </section>
         </div>
-      </div>
+      </Band>
     </main>
   );
 }

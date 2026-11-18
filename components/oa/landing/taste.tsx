@@ -51,7 +51,7 @@ export function LandingTaste({
 }: {
   /** The hero's headline and line under it (server-rendered by the landing), above the search. */
   lead: React.ReactNode;
-  /** The live demo card (components/oa/landing/hero-demo.tsx) in the right column until someone picks a stock. */
+  /** The live demo window (components/oa/landing/hero-demo.tsx) under the search until someone picks a stock. */
   demo: React.ReactNode;
   footnote: string | null;
 }) {
@@ -261,17 +261,15 @@ export function LandingTaste({
   const watchLabel = ready.length === 1 ? `Watch ${ready[0]!.ticker} for me` : "Watch these for me";
 
   return (
-    // Two columns from lg: the headline and the search on the left, and on the right the live demo card, which the
-    // visitor's own picks replace as soon as there is one (so the call they asked for shows where the demo was). On a
-    // phone the right column stacks under the search. The cards come first and the action under them; three cards can
-    // push it below the fold on a phone, so a slim copy sits just above the bottom tab bar while the cards are on
-    // screen and the real one is not (StickyWatch). With no demo and no picks the right column is empty and hides,
-    // and the left one takes the row. Top-aligned with a fixed inset rather than centred, so the headline and the
-    // field do not jump when picks make the right column taller.
-    <div className="flex w-full flex-col gap-8 lg:flex-row lg:items-start lg:gap-12 xl:gap-16">
-      <div className="min-w-0 lg:flex-1 lg:pt-12">
+    // Centred (council, Nov 18, after tradytics): the headline and the search on top, and under them the live demo as
+    // a window of the app, which the visitor's own picks replace as soon as there is one (so the call they asked for
+    // shows where the demo was). The cards come first and the action under them; three cards can push it below the
+    // fold on a phone, so a slim copy sits just above the bottom tab bar while the cards are on screen and the real one
+    // is not (StickyWatch). With no demo and no picks the lower block is empty and hides.
+    <div className="flex w-full flex-col items-center gap-10 sm:gap-14">
+      <div className="flex w-full min-w-0 flex-col items-center">
         {lead}
-        <div ref={boxRef} className="relative mt-6 w-full max-w-xl sm:mt-8">
+        <div ref={boxRef} className="relative mt-7 w-full max-w-xl sm:mt-10">
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -340,7 +338,7 @@ export function LandingTaste({
                 autoComplete="off"
                 autoCapitalize="characters"
                 spellCheck={false}
-                className="h-9 min-w-[8rem] flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg"
+                className="h-9 min-w-[8rem] flex-1 bg-transparent text-base text-oa-fg outline-none placeholder:text-oa-muted-fg focus-visible:outline-none"
               />
             )}
           </form>
@@ -376,8 +374,7 @@ export function LandingTaste({
         </div>
 
         {picks.length === 0 ? (
-          // Centred under the centred headline until the demo card sits beside them (lg).
-          <p className="mt-3 text-center text-[15px] leading-6 text-oa-muted-fg lg:text-left">
+          <p className="mt-3 text-center text-[15px] leading-6 text-oa-muted-fg">
             Or try{" "}
             {SUGGESTED.map((ticker, i) => (
               <span key={ticker}>
@@ -403,14 +400,14 @@ export function LandingTaste({
         ) : null}
       </div>
 
-      <div className="min-w-0 empty:hidden lg:w-[440px] lg:shrink-0">
+      <div className="w-full min-w-0 empty:hidden">
         {picks.length ? (
           <>
             <ul
               ref={cardsRef}
               aria-live="polite"
-              className={`grid w-full grid-cols-1 gap-3 text-left lg:grid-cols-1 ${
-                picks.length === 2 ? "md:grid-cols-2" : picks.length === 3 ? "md:grid-cols-3" : "md:max-w-md"
+              className={`mx-auto grid w-full grid-cols-1 gap-3 text-left ${
+                picks.length === 2 ? "md:max-w-3xl md:grid-cols-2" : picks.length === 3 ? "md:grid-cols-3" : "md:max-w-md"
               }`}
             >
               {picks.map((ticker) => (
@@ -418,10 +415,10 @@ export function LandingTaste({
               ))}
             </ul>
 
-            {pricedAt ? <p className="mt-2 text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
+            {pricedAt ? <p className="mt-2 text-center text-[13px] leading-5 text-oa-muted-fg">Moves as of {pricedAt}</p> : null}
 
             {ready.length ? (
-              <div ref={actionRef} className="mt-4 flex flex-col items-start gap-2">
+              <div ref={actionRef} className="mt-4 flex flex-col items-center gap-2 text-center">
                 <OaButton size="md" loading={busy} onClick={() => void watch()} className="h-11 px-6 text-[15px]">
                   {watchLabel}
                 </OaButton>

@@ -10,7 +10,7 @@ import { loadLandingAgent } from "@/lib/agent-sequence-server";
 import { absoluteDay, capitalize, dayPossessive, dayWords, etDayOf, stampWords, weekdayName } from "@/lib/day-words";
 
 import { SequenceStrip } from "./agent-sequence";
-import { SectionHead, fmtPrice } from "./shared";
+import { BAND_PAD, Band, Muted, SectionHead, fmtPrice } from "./shared";
 
 /**
  * The agent's loop on one real case, right under the hero: what the example portfolio asked its agent, the days it
@@ -20,9 +20,17 @@ import { SectionHead, fmtPrice } from "./shared";
  * shows in its place (./agent-sequence.tsx), under the same heading.
  */
 
-const HEAD_TITLE = "One request, followed all the way through.";
+const HEAD_TITLE = (
+  <>
+    One request, <Muted>followed all the way through.</Muted>
+  </>
+);
 /** The fallback strip's own heading: it shows today's proposal, not one request through to its result. */
-const STRIP_TITLE = "Our agent at work on real data.";
+const STRIP_TITLE = (
+  <>
+    Our agent at work, <Muted>on real data.</Muted>
+  </>
+);
 const HEAD_HREF = "/agent";
 const HEAD_LINK = "Try it on your stocks";
 
@@ -353,24 +361,23 @@ function Loop({ loop }: { loop: AgentLoop }) {
   );
 }
 
-const SECTION = "scroll-mt-24";
 
 /** The section: the loop under its heading; the strongest proposal today when there is no case; nothing with neither. */
-export async function AgentLoopSection({ className = "" }: { className?: string }) {
+export async function AgentLoopSection() {
   const { loop, sequence } = await loadLandingAgent();
   if (!loop && !sequence) return null;
   return (
-    <section id="what-it-does" className={`${SECTION} ${className}`}>
+    <Band id="what-it-does" className={BAND_PAD}>
       <SectionHead title={loop ? HEAD_TITLE : STRIP_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
       <Reveal delay={60}>{loop ? <Loop loop={loop} /> : <SequenceStrip sequence={sequence!} />}</Reveal>
-    </section>
+    </Band>
   );
 }
 
 /** The section's place while it loads: the heading and the card's frame at the five-step loop's measured height (Nov 13: 775px on a 390px phone, 285px from lg). */
-export function AgentLoopGhost({ className = "" }: { className?: string }) {
+export function AgentLoopGhost() {
   return (
-    <section className={`${SECTION} ${className}`}>
+    <Band className={BAND_PAD}>
       <SectionHead title={HEAD_TITLE} href={HEAD_HREF} hrefLabel={HEAD_LINK} />
       <div aria-hidden="true" className={`${CARD} h-[775px] lg:h-[285px]`}>
         <div className="flex h-14 items-center justify-between gap-3 border-b border-oa-border px-4 sm:px-5">
@@ -378,6 +385,6 @@ export function AgentLoopGhost({ className = "" }: { className?: string }) {
           <ExampleLabel />
         </div>
       </div>
-    </section>
+    </Band>
   );
 }

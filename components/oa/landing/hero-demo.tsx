@@ -15,10 +15,10 @@ import { historyWindowFromRows } from "@/lib/serve/stock-serve-shared";
 import { getStockIntelligenceDoc, getStockPriceHistory, getStockSummary, priceHistoryChart } from "@/lib/stock";
 import { buildStockRead } from "@/lib/stock-read";
 
-import { HeroDemoCard } from "./hero-demo-card";
+import { HeroDemoCard, WindowFrame } from "./hero-demo-card";
 
 /**
- * The hero's right side: a live demo of the product on today's real data. Up to three of the showcase stocks
+ * The hero's app window: a live demo of the product on today's real data. Up to three of the showcase stocks
  * (lib/seo/stock-pages.ts, whose levels are public) that stood out today, each with its price and move, our call
  * with its own level, one short reason and three months of closes; the visitor flips between them with logo tabs.
  * The call and its reason are the landing taste's own (lib/landing-taste.ts), so typing the same ticker into the
@@ -108,28 +108,42 @@ export async function HeroDemo() {
   return <HeroDemoCard stocks={stocks} stamps={stocks.map((stock) => capitalize(moveStamp(stock.priceAt)))} />;
 }
 
-/** The card's shape while today's data loads: the same frame and height, so nothing jumps when it arrives. */
+/** The window's shape while today's data loads: the same frame and about its height, so nothing jumps when it arrives. */
 export function HeroDemoGhost() {
   return (
-    <div aria-hidden="true" className="oa-surface w-full border border-oa-border bg-oa-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)] sm:p-5">
-      <Bar className="h-4 w-36" />
-      <div className="mt-4 flex gap-2">
-        <Bar className="h-9 w-24 rounded-full" />
-        <Bar className="h-9 w-24 rounded-full" />
-        <Bar className="h-9 w-24 rounded-full" />
-      </div>
-      <div className="mt-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Bar className="size-10 rounded-full" />
-          <Bar className="h-5 w-28" />
+    <div aria-hidden="true">
+      <WindowFrame>
+        <div className="flex items-center justify-between gap-3 border-b border-oa-border px-4 py-3 sm:px-6">
+          <Bar className="h-4 w-36" />
+          <div className="hidden gap-1.5 sm:flex">
+            <Bar className="h-9 w-24 rounded-full" />
+            <Bar className="h-9 w-24 rounded-full" />
+            <Bar className="h-9 w-24 rounded-full" />
+          </div>
         </div>
-        <Bar className="h-7 w-24" />
-      </div>
-      <Bar className="mt-4 h-7 w-44" />
-      <Bar className="mt-3 h-4 w-full" />
-      <Bar className="mt-2 h-4 w-2/3" />
-      <Bar className="mt-4 h-20 w-full" />
-      <Bar className="mt-5 h-11 w-40 rounded-full" />
+        {/* The phone's tab row, under the title there. */}
+        <div className="grid grid-cols-3 gap-1.5 px-4 pt-3 sm:hidden">
+          <Bar className="h-9 rounded-full" />
+          <Bar className="h-9 rounded-full" />
+          <Bar className="h-9 rounded-full" />
+        </div>
+        <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10 lg:gap-y-5 lg:p-8">
+          <div className="lg:col-start-1 lg:row-start-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bar className="size-11 rounded-full" />
+                <Bar className="h-5 w-28" />
+              </div>
+              <Bar className="h-7 w-24" />
+            </div>
+            <Bar className="mt-5 h-8 w-44" />
+            <Bar className="mt-3 h-4 w-full" />
+            <Bar className="mt-2 h-4 w-2/3" />
+          </div>
+          <Bar className="h-11 w-40 rounded-full lg:col-start-1 lg:row-start-2 lg:self-end" />
+          <Bar className="row-start-2 h-28 w-full sm:h-36 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-52" />
+        </div>
+      </WindowFrame>
     </div>
   );
 }

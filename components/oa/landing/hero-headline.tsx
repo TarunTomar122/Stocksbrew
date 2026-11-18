@@ -7,10 +7,10 @@ import Link from "next/link";
 import { StockLogo } from "@/components/stock-logo";
 
 /**
- * The landing's headline in three lines (owner, Nov 15): "Know exactly / what to do with each / stock you own". Three
- * spots open a small picture card on hover, focus or tap (owner: a visual, a short title, almost no text): the "?"
- * after Know (a stock with the price we'd act at), "what to do" (the three calls as zones on a chart) and "own"
- * (tracking your stocks against the S&P 500). Three logos before "stock" open their stock pages.
+ * The landing's headline in three lines (owner, Nov 15): "Know exactly / what to do with each / stock you own".
+ * Two spots open a small picture card on hover, focus or tap (owner: a visual, a short title, almost no text): "what
+ * to do" (the three calls) and "own" (tracking your stocks against the S&P 500). The "?" after Know is gone (owner,
+ * Nov 18). Three logos before "stock" open their stock pages.
  *
  * The cards are rendered only while open, so the heading's text (and what a search engine reads) is the sentence alone.
  * Each opens under its own word, moved in only as far as the screen edge needs.
@@ -25,17 +25,11 @@ const [KNOW, EXACTLY, WHAT_TO_DO, WITH_EACH, STOCK_YOU, OWN] = HEADLINE_PIECES;
 /** Small pictures for the cards: shapes only, no prices or returns, so nothing in them can be out of date or untrue. */
 const toPoints = (ys: number[]) => ys.map((y, i) => `${(i * 240) / (ys.length - 1)},${y}`).join(" ");
 
-// "?" card: a climb, a pullback, and the last stretch dipping under the dashed buy-more level (y 50).
-const LEVEL_Y = 50;
-const STOCK_LINE = toPoints([72, 66, 60, 62, 50, 44, 34, 28, 22, 30, 40, 52, 60]);
-
 // "own" card: your stocks and the S&P 500 start and finish at the same point and cross on the way, so the picture never
 // says either one wins (a schematic, not a return).
 const MINE_LINE = toPoints([36, 28, 40, 26, 42, 30, 44, 32, 36]);
 const MINE_AREA = `${MINE_LINE} 240,64 0,64`;
 const SP_LINE = toPoints([36, 38, 34, 37, 33, 38, 35, 37, 36]);
-
-const LABEL = "text-[11px] font-medium";
 
 /** Plus, equals, minus: adding to, keeping or trimming what you own. Not arrows, which read as a price forecast. */
 const CALL_TILES = [
@@ -46,7 +40,7 @@ const CALL_TILES = [
 
 const PORTFOLIO_LOGOS = LOGOS;
 
-type HintKey = "stock" | "calls" | "own";
+type HintKey = "calls" | "own";
 
 /** Card width in px (17rem); it opens under the word it explains, moved in only as far as the screen edge needs. */
 const PANEL_WIDTH = 272;
@@ -54,7 +48,6 @@ const PANEL_WIDTH = 272;
 const PANEL =
   "hh-rise pointer-events-none absolute z-30 w-[17rem] max-w-[calc(100vw-2rem)] rounded-xl border border-oa-border bg-oa-card p-3.5 text-left text-[14px] font-normal leading-5 tracking-normal text-oa-fg shadow-[0_12px_32px_-12px_rgba(0,0,0,0.25)]";
 const PANEL_TITLE = "block text-[14px] font-medium leading-5";
-const PANEL_ART = "mt-2.5 block h-24 w-full overflow-visible";
 
 export function HeroHeadline({ lead, emphasis }: { lead: string; emphasis: string }) {
   const [open, setOpen] = React.useState<HintKey | null>(null);
@@ -138,23 +131,10 @@ export function HeroHeadline({ lead, emphasis }: { lead: string; emphasis: strin
     <h1
       ref={headingRef}
       aria-label={`${lead} ${emphasis}`}
-      className="relative mx-auto max-w-[40rem] text-center font-medium tracking-tight text-oa-fg text-[2rem] leading-[1.22] sm:text-[3rem] sm:leading-[1.16] lg:mx-0 lg:text-left xl:text-[3.5rem]"
+      className="relative mx-auto max-w-[52rem] text-center font-medium tracking-[-0.03em] text-oa-fg text-[2.1rem] leading-[1.18] sm:text-[3.25rem] sm:leading-[1.1] xl:text-[4.25rem] xl:leading-[1.06]"
     >
       <span className="block">
-        {KNOW}
-        <button
-          type="button"
-          {...trigger("stock", "Our call, our price")}
-          // Sized in its own em (0.34 of the headline's): a 1.5em circle, raised to sit at the top of "Know".
-          className="relative -top-[1.05em] ml-[0.15em] inline-flex size-[1.5em] items-center justify-center rounded-full border border-oa-border bg-oa-card align-middle text-[0.34em] font-semibold leading-none tracking-normal text-oa-muted-fg outline-none transition-colors hover:border-oa-fg/30 hover:text-oa-fg focus-visible:ring-2 focus-visible:ring-oa-fg/20"
-        >
-          {/* Drawn, not typed, so the heading's text stays the sentence. */}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-[0.95em]">
-            <path d="M9 9a3 3 0 1 1 4.2 2.75c-.75.33-1.2 1.05-1.2 1.85V14" />
-            <path d="M12 18h.01" />
-          </svg>
-        </button>{" "}
-        {EXACTLY}
+        {KNOW} {EXACTLY}
       </span>{" "}
       <span className="block">
         <button
@@ -200,29 +180,10 @@ export function HeroHeadline({ lead, emphasis }: { lead: string; emphasis: strin
         </button>
       </span>
 
-      {open === "stock" ? (
-        <span id={`${id}-stock`} role="tooltip" className={PANEL} style={place}>
-          <span className={PANEL_TITLE}>Our call, our price</span>
-          {/* The line draws itself; as it slips under the level, the zone fills and the call pops in. */}
-          <svg viewBox="0 0 240 96" aria-hidden="true" className={PANEL_ART}>
-            <rect x="0" y={LEVEL_Y} width="240" height={96 - LEVEL_Y} rx="4" className="hh-fade fill-emerald-600/10" style={{ animationDelay: "420ms" }} />
-            <line x1="0" y1={LEVEL_Y} x2="240" y2={LEVEL_Y} strokeWidth="1.5" strokeDasharray="4 4" className="hh-fade stroke-emerald-700 dark:stroke-emerald-400" />
-            <polyline points={STOCK_LINE} pathLength={1} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" className="hh-draw stroke-oa-fg" />
-            <circle cx="240" cy="60" r="3.5" className="hh-pop fill-oa-fg" style={{ animationDelay: "500ms" }} />
-            <g className="hh-pop" style={{ animationDelay: "480ms" }}>
-              <rect x="168" y="70" width="62" height="18" rx="9" className="fill-emerald-600/20" />
-              <text x="199" y="83" textAnchor="middle" className={`${LABEL} fill-emerald-800 dark:fill-emerald-300`}>
-                Buy more
-              </text>
-            </g>
-          </svg>
-        </span>
-      ) : null}
-
       {open === "calls" ? (
         <span id={`${id}-calls`} role="tooltip" className={PANEL} style={place}>
           <span className={PANEL_TITLE}>Three calls</span>
-          {/* Three tiles, one after another: add, keep, trim. Not a chart, so it reads apart from the stock card. */}
+          {/* Three tiles, one after another: add, keep, trim. Not a chart, so it reads apart from the "own" card. */}
           <span className="mt-2.5 grid grid-cols-3 gap-2">
             {CALL_TILES.map((tile, index) => (
               <span
