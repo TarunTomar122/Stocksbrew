@@ -214,6 +214,32 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-18 07:00 UTC: daily health check
+- Ops health: 94 ok, 97 warn, 97 fail runs. Move reasons (fail) and the home dashboard (warn) stayed red until the
+  first price run after a15f4e5c (back to green at 14:56), closing briefs (warn) until the 21:10 post-close wrote them.
+  2 alert emails: 10:20 "Move reasons still red", 14:56 "all back to green". Green since 00:50 apart from "Home page"
+  2-10 s warns and one "Stock page: no answer within 15s" (00:45): Caddy answered those same probes in 1-4 ms (or never
+  saw the stock one), so the time went on the trip out through Cloudflare and back, not on the box.
+- Web: no restarts or OOM since the Nov 17 07:17 deploy, ~620 MB each after 24 h. Box: memory pressure ~0.1%, root
+  disk 87% (85%; LocalDB grows 35-100 MB a day, 4.6 GB now; journal 4.1 GB), backup 22 h old and verified,
+  needrestart's interpreter scan still off, only dnsmasq failed (since Aug 26, not ours).
+- Traffic 39.9k requests (27.7k), 66 over 5 s, 5 errors: 4 were our own curl checks of the /?ref 503 before
+  yesterday's deploy (/?ref=producthunt answers 200 now), 1 a server action whose client hung up. The /news?ticker&topic
+  scraper is still there (6.2k loads, 7.4k yesterday), still cheap; the Cloudflare rule from yesterday stays the fix.
+  Landing "agent watch" cards left out 47 times (130).
+- Fixed: the 09:30 ET open price run failed its second shard's first try every trading day since at least Nov 9
+  (Nov 17: 344/366 = 94.0% against the 96% floor, after a15f4e5c had taken funds and dead listings out) and only
+  passed on the unit's retry 5-15 minutes later. The misses are thin ETFs and small caps (IMCB, QDF, GVLU, ZUMZ, BBW,
+  ABM...) with no trade minutes after the bell, 4-12% of a shard. The 09:50 run has the same exposure and its success
+  starts the move reasons and morning briefs (all four tries failed Nov 16, so no briefs that morning). Both open runs
+  now use a 90% floor (price_core_job.py `publish_floor`); hourly and later runs keep 96%, and an outage still fails.
+  Quality pass (subagent) corrected my first account of the cost (I had it as views waiting until 10:00) and asked for
+  boundary tests; both done.
+- Seen, left: LocalDB's slowest read is the wire's 2,500 newest headlines (1,051 a day, 242 over 1 s, up to 20 s):
+  `orderBy("published_at")` compiles to a CASE over json_extract that the published_at index cannot serve, so SQLite
+  sorts the whole collection. Only the 2-minute background refresh waits on it, never a visitor. 3 backend tests fail
+  on main too (test_agentdata_schedule dry run, two SK Hynix alias tests in test_stock_requests_terminal).
+
 ### 2026-11-17 07:00 UTC: daily health check
 - Ops health red all day on Failed units (open, open-movers, midday-movers, hourly and post-close price lanes) and
   Move reasons (3.4 days old), 4 alert emails. Cause: the 98% publish floor counted mutual funds before their NAV
