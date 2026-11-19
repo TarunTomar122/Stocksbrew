@@ -135,6 +135,45 @@ describe("POST /api/revalidate", () => {
     expect(again.warmed).toEqual([]);
   });
 
+  it("builds the home page again after dropping it by its address, and not again inside the window", async () => {
+    vi.stubEnv("PORT", "3000");
+    const order: string[] = [];
+    revalidatePath.mockImplementation((path: string) => order.push(`drop ${path}`));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        order.push(`get ${url}`);
+        return new Response("<html></html>", { status: 200 });
+      }),
+    );
+    const payload = await (await POST(request({ kinds: ["prices"] }, { "x-revalidate-scope": "local" }))).json();
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+    expect(order.indexOf("drop /")).toBeLessThan(order.indexOf("get http://localhost:3000/"));
+    expect(payload.warmed).toEqual(["/", "/briefing"]);
+
+    order.length = 0;
+    const again = await (await POST(request({ kinds: ["briefs"] }, { "x-revalidate-scope": "local" }))).json();
+    expect(order).toEqual([]);
+    expect(again.warmed).toEqual([]);
+  });
+
+  it("does not rebuild in its fallback when no peer answered: that would come after a whole peer timeout", async () => {
+    vi.stubEnv("REVALIDATE_PEERS", "http://localhost:3000");
+    vi.stubEnv("PORT", "3000");
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        throw new Error("The operation was aborted due to timeout");
+      }),
+    );
+    const payload = await (await POST(request({ kinds: ["prices"] }))).json();
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+    expect(urls).toEqual(["http://localhost:3000/api/revalidate"]);
+    expect(payload.warmed).toEqual([]);
+  });
+
   it("answers even when the rebuild fails, and reports nothing built", async () => {
     vi.stubEnv("PORT", "3001");
     vi.stubGlobal(

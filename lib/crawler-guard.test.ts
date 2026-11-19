@@ -52,6 +52,20 @@ describe("crawlerOf", () => {
     expect(crawlerOf("Mozilla/5.0 (compatible; AhrefsSiteAudit/6.1; +http://ahrefs.com/robot/site-audit)")?.kind).toBe("blocked");
   });
 
+  it("names the crawlers from the Nov 18 logs that leave no URL", () => {
+    expect(crawlerOf("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ShapBot/0.1.0")).toEqual({ family: "parallel", kind: "ai" });
+    expect(crawlerOf("Lightpanda/1.0 ShapBot/0.1.0")).toEqual({ family: "parallel", kind: "ai" });
+    expect(
+      crawlerOf(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 (compatible; meta-webindexer/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler))",
+      ),
+    ).toEqual({ family: "meta", kind: "ai" });
+    expect(crawlerOf("Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; AzureAI-SearchBot/1.0;")).toEqual({ family: "other", kind: "ai" });
+    // Still people: an old Internet Explorer and a phone whose model name ends in "bot".
+    expect(crawlerOf("Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)")).toBeNull();
+    expect(crawlerOf("Mozilla/5.0 (Linux; Android 9; CUBOT/X19) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36")).toBeNull();
+  });
+
   it("blocks in middleware every scraper robots.txt shuts out", () => {
     for (const name of BLOCKED_ROBOTS_NAMES) {
       expect(crawlerOf(`Mozilla/5.0 (compatible; ${name}/1.0; +https://example.com/)`)?.kind, name).toBe("blocked");

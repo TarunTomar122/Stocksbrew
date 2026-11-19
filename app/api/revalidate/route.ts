@@ -18,9 +18,10 @@ import { copyRouteOf, nextTargets, planRevalidation, varnishBanPattern, type Rev
  *  2. each instance drops its cached signed-out copies and data caches for the
  *     plan (`revalidatePath` / `revalidateTag`: the next request for them
  *     renders afresh instead of being served the old copy); the copies of
- *     pages in COPY_ROUTES (/briefing) are dropped through their own route and
- *     built again by the instance itself before it answers, so a signed-out
- *     visitor gets a built copy and a signed-in one keeps its warm caches;
+ *     pages in COPY_ROUTES (/briefing) are dropped through their own route,
+ *     and those and the home page are built again by the instance itself
+ *     before it answers, so a signed-out visitor gets a built copy (and a
+ *     signed-in /briefing keeps its warm caches);
  *  3. once they have answered, one BAN to Varnish (VARNISH_BAN_URL, localhost
  *     only) drops the cached HTML for the same pages, so the next visitor gets
  *     the new page and it is cached again.
@@ -50,10 +51,12 @@ function peers(): string[] {
 }
 
 /**
- * How long one page's rebuild may take before the refresh goes on without it. With WARM_STAGGER_MS it stays well
- * inside PEER_TIMEOUT_MS, and the whole call inside the pipeline's 20 s (backend/scripts/trigger_web_revalidate.py).
+ * How long one page's rebuild may take before the refresh goes on without it. The home page renders cold in ~2.5-4 s,
+ * next to /briefing's rebuild on the same instance. With WARM_STAGGER_MS it stays inside PEER_TIMEOUT_MS, and the whole
+ * call (peers, then the ban) inside the pipeline's 20-30 s (backend/scripts/trigger_web_revalidate.py). The fallback
+ * when no peer answered does not rebuild, so it cannot add a second round to that.
  */
-const WARM_TIMEOUT_MS = 5_000;
+const WARM_TIMEOUT_MS = 7_000;
 /**
  * The second instance starts its rebuild this much later: both write the same files in the shared .next cache, and
  * Node's writeFile is not atomic.
@@ -71,7 +74,7 @@ function ownPort(): string | null {
 
 /**
  * Build this instance's signed-out copy of each page again, right after it was dropped (lib/revalidate-targets.ts
- * COPY_ROUTES), by asking for it the way a signed-out visitor would: no cookie, HTML. The copy is stored once its
+ * COPY_ROUTES and WARM_BY_ADDRESS), by asking for it the way a signed-out visitor would: no cookie, HTML. The copy is stored once its
  * render finishes, so the whole body is read. Returns the pages that came back 200; a page that fails or runs long is
  * left for the next visitor to build, as before.
  */
@@ -119,7 +122,10 @@ function revalidateHere(plan: RevalidatePlan, force: boolean): LocalResult & { w
   };
   for (const path of paths) {
     // The tag every render of the address carries, its cached signed-out copy included (lib/revalidate-targets.ts).
-    run(`path:${path}`, () => revalidatePath(path));
+    run(`path:${path}`, () => {
+      revalidatePath(path);
+      dropped.add(path);
+    });
   }
   for (const route of routes)
     run(`route:${route}`, () => {
@@ -128,7 +134,7 @@ function revalidateHere(plan: RevalidatePlan, force: boolean): LocalResult & { w
     });
   for (const tag of tags) run(`tag:${tag}`, () => revalidateTag(tag));
   // Only the copies this call dropped (a refresh skipped inside the window left the copy as it was).
-  return { revalidated, skipped, warm: warm.filter((page) => dropped.has(copyRouteOf(page) ?? "")) };
+  return { revalidated, skipped, warm: warm.filter((page) => dropped.has(copyRouteOf(page) ?? page)) };
 }
 
 /** Refresh this instance, then build again the copies it dropped. */
@@ -218,8 +224,14 @@ export async function POST(req: NextRequest) {
     revalidatedCount = peerResults.reduce((sum, item) => sum + item.revalidated, 0);
   }
   if (!peerResults.some((item) => item.ok)) {
-    // No peers set, or none answered (a wrong REVALIDATE_PEERS): at least this instance is refreshed.
-    local = await refreshHere(plan, force);
+    // No peers set, or none answered (a wrong REVALIDATE_PEERS): at least this instance is refreshed. With peers set,
+    // the dropped copies are left for the next visitor: a rebuild here would come after a whole PEER_TIMEOUT_MS.
+    if (origins.length) {
+      const { warm: _skipped, ...result } = revalidateHere(plan, force);
+      local = { ...result, warmed: [] };
+    } else {
+      local = await refreshHere(plan, force);
+    }
     revalidatedCount = local.revalidated.length;
   }
   // Every instance skipped it (refreshed seconds ago): the cached HTML was dropped then too.

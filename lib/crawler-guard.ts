@@ -36,7 +36,10 @@ const KNOWN: Array<[RegExp, string, CrawlerKind]> = [
   [/ClaudeBot|anthropic-ai/i, "claudebot", "ai"],
   [/CCBot/i, "ccbot", "ai"],
   [/Amazonbot/i, "amazonbot", "ai"],
-  [/meta-externalagent|meta-externalfetcher|FacebookBot/i, "meta", "ai"],
+  [/meta-externalagent|meta-externalfetcher|meta-webindexer|FacebookBot/i, "meta", "ai"],
+  // Parallel's web agent: a headless browser that runs every page's scripts (Nov 18: 21,000 requests in 50 minutes,
+  // 1,256 stock pages) and leaves no URL in its name, so it read as a visitor.
+  [/ShapBot/i, "parallel", "ai"],
   // SEO tools and scrapers: nothing in it for the site. Bytespider is known to ignore robots.txt.
   [/Bytespider/i, "bytespider", "blocked"],
   [/MJ12bot/i, "mj12bot", "blocked"],
@@ -78,6 +81,8 @@ export function crawlerOf(userAgent: string | null | undefined): Crawler | null 
     const name = ua.replace(/\+?https?:\/\/[^\s;)]*/gi, " ");
     if (/[a-z0-9_.-]*(?:bot|spider|crawler)\b/i.test(name)) return { family: "other", kind: "ai" };
   }
+  // Or, with no URL, as a "compatible;" product with a version (AzureAI-SearchBot/1.0): a phone's model name never is.
+  if (/compatible;\s*[a-z0-9_.-]*(?:bot|spider|crawler)\//i.test(ua)) return { family: "other", kind: "ai" };
   return null;
 }
 

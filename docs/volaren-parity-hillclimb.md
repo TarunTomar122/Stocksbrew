@@ -214,6 +214,36 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-19 07:00 UTC: daily health check
+- Ops health: 264 ok, 21 warn, 3 fail runs, no alert emails. Warns: "Home page" 2.5-4 s (13), "Swap" with memory
+  pressure at 6-13% for a minute (4: 13:50, 15:25, 20:51, 23:30, each as the Trace pipeline finished; avg300 0.04%
+  now), "Response time" p95 2.7 s (3, 15:05-15:15), "Web 3001" 2.5 s once. Fails: 14:40 home "no answer within 15s"
+  and 17:45 stock page 10.3 s never reached Caddy that slow (the Cloudflare leg); 17:35 home 6.2 s was 2.9 s at Caddy.
+- The home probe warns were the box this time, not Cloudflare: Caddy took 2.6-3.8 s on each, a Varnish MISS and a Next
+  MISS of the signed-out home copy, always the first request after a prices or briefs refresh (23:20:14 prices, 23:20:34
+  probe at 3.1 s). So since at least Nov 17, 12:00-01:00 UTC every day; the 5-minute probe usually got there first, but
+  facebookexternalhit, YandexBot and two people (4.1 s, 2.8 s) did too. Each of those cold renders is also where the
+  landing's agent-watch cards were left out (99 lines, matching to the second).
+- Web: no restarts or OOM since the Nov 18 11:58 deploy, 450/467 MB after 19 h. Box: root disk 87% (87%), backup 22 h
+  old and verified (691k documents, 658 MB), needrestart's interpreter scan still off, only dnsmasq failed (not ours),
+  nothing over 1.5 GB. Every tikrr timer ran on time.
+- Traffic 33.0k requests (39.9k), 5 over 5 s, 2 errors: Varnish 503s on two analytics POSTs from ShapBot (a dropped
+  backend connection, POSTs are not retried). ShapBot is parallel.ai's headless browser (runs each page's scripts,
+  signs its requests): 20.7k requests in 50 minutes from 10:56, 1,256 stock pages, 2.6k pre-market quote fetches, 5.3k
+  analytics beacons (dropped by isBot, so the owner's numbers are clean). Cheap (p95 0.24 s), but with no URL in its
+  user agent the guard took it for a person, as it did meta-webindexer (246), AzureAI-SearchBot (22). The
+  /news?ticker&topic scraper fell to 554 loads (6.2k).
+- Fixed: each instance builds the home page again right after a refresh drops it, before Varnish's ban
+  (lib/revalidate-targets.ts WARM_BY_ADDRESS, like /briefing's copy; "/" is still refreshed by its address since the
+  live page for India and signed-in visitors reads the same caches), warm timeout 5 s to 7 s for its ~3 s cold render
+  beside /briefing's. The crawler guard names ShapBot (family "parallel", ai) and meta-webindexer (meta), and treats a
+  URL-less "compatible; SomethingBot/1.0" as a crawler. Quality pass (subagent): no bugs; it asked that the fallback
+  (no peer answered) not rebuild, since that would come after a whole peer timeout and could pass the 20 s caller
+  limit, for exact warm lists per kind in the test, and two comment fixes; all done, with a test for the fallback.
+- Seen, left: the Trace pipeline's minute-long memory pressure (not ours). The warm render can still leave the
+  agent-watch cards out of the copy (their own time limit); the next 60 s refresh fills them, now without anyone
+  waiting.
+
 ### 2026-11-18 07:00 UTC: daily health check
 - Ops health: 94 ok, 97 warn, 97 fail runs. Move reasons (fail) and the home dashboard (warn) stayed red until the
   first price run after a15f4e5c (back to green at 14:56), closing briefs (warn) until the 21:10 post-close wrote them.

@@ -166,6 +166,15 @@ const COPY_ROUTES: Readonly<Record<string, string>> = {
   "/briefing": "/(app)/anon/[v]/briefing",
 };
 
+/**
+ * Pages refreshed by their address that are still built again right away (`warm`), before Varnish's ban: the home
+ * page. Its signed-out copy (app/anon/[v]/page.tsx) renders cold in ~2.5-4 s once its address is revalidated, and
+ * until Nov 19 the first request after each prices or briefs refresh waited for that (ops-health's probe at Caddy:
+ * 2.6-3.8 s, a few times an hour in US market hours). The address stays how "/" is refreshed, because the live page
+ * behind it (visitors from India, a signed-in /?home=1) reads the same caches.
+ */
+const WARM_BY_ADDRESS: ReadonlySet<string> = new Set(["/"]);
+
 /** The route a page in COPY_ROUTES is refreshed through, or null for a page refreshed by its address. */
 export function copyRouteOf(page: string): string | null {
   return Object.prototype.hasOwnProperty.call(COPY_ROUTES, page) ? COPY_ROUTES[page]! : null;
@@ -177,8 +186,9 @@ export function copyRouteOf(page: string): string | null {
  * (lib/anon-view.ts, /anon/1/stock/NVDA) is tagged with the public address it
  * was rewritten from (`_N_T_/stock/NVDA`), so `revalidatePath("/stock/NVDA")`
  * drops it, along with every `unstable_cache` entry read while rendering it.
- * A page in COPY_ROUTES is refreshed through its copy's route instead and is
- * listed in `warm`: the public addresses to build again once dropped.
+ * A page in COPY_ROUTES is refreshed through its copy's route instead; those
+ * and the pages in WARM_BY_ADDRESS are listed in `warm`: the public addresses
+ * to build again once dropped.
  */
 export function nextTargets(plan: RevalidatePlan): { paths: string[]; routes: string[]; tags: string[]; warm: string[] } {
   const paths = new Set<string>();
@@ -192,6 +202,7 @@ export function nextTargets(plan: RevalidatePlan): { paths: string[]; routes: st
       warm.add(page);
     } else {
       paths.add(page);
+      if (WARM_BY_ADDRESS.has(page)) warm.add(page);
     }
     (LEGACY_PAGE_TAGS[page] || []).forEach((tag) => tags.add(tag));
   }

@@ -63,12 +63,23 @@ describe("nextTargets", () => {
       const targets = nextTargets(plan);
       expect(targets.paths, kind).not.toContain("/briefing");
       expect(targets.routes, kind).toContain("/(app)/anon/[v]/briefing");
-      expect(targets.warm, kind).toEqual(["/briefing"]);
+      expect(targets.warm, kind).toEqual(kind === "prices" || kind === "briefs" ? ["/", "/briefing"] : ["/briefing"]);
     }
     expect(nextTargets({ pages: ["/news"], families: [], tags: [] }).warm).toEqual([]);
     expect(copyRouteOf("/briefing")).toBe("/(app)/anon/[v]/briefing");
     expect(copyRouteOf("/news")).toBeNull();
     expect(copyRouteOf("constructor")).toBeNull();
+  });
+
+  it("refreshes the home page by its address and asks for it to be built again", () => {
+    // A cold render of the signed-out home took ~3 s, and the first visitor after each prices refresh waited for it.
+    for (const kind of ["prices", "briefs"]) {
+      const targets = nextTargets(planRevalidation({ kinds: [kind] })!);
+      expect(targets.paths, kind).toContain("/");
+      expect(targets.warm, kind).toEqual(["/", "/briefing"]);
+    }
+    expect(nextTargets({ pages: ["/stock/NVDA", "/news"], families: ["stock"], tags: [] }).warm).toEqual([]);
+    expect(copyRouteOf("/")).toBeNull();
   });
 
   it("still bans the public /briefing address in Varnish", () => {
