@@ -313,6 +313,7 @@ export function FollowDirectory({
                           key={`${holding.ticker ?? holding.name}-${index}`}
                           ticker={holding.ticker}
                           name={holding.name}
+                          linked={holding.page !== false}
                           also={holding.ticker ? also.get(holding.ticker.toUpperCase()) : undefined}
                           title={
                             source.kind === "fund" && holding.weight != null

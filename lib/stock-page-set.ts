@@ -1,0 +1,80 @@
+import { getLatestPriceQuotes } from "@/lib/firestore";
+import { fundKindOf } from "@/lib/funds/tickers";
+import { getSeoStockPage } from "@/lib/seo/stock-pages";
+import { normalizeStockSymbolParam } from "@/lib/stock";
+
+/** The tickers that have a stock page, or `null` when that could not be read (then everything is linked). */
+export type StockPageSet = ReadonlySet<string> | null;
+
+/** Whether a page exists changes slowly (a new listing, a dead one): each answer is kept this long per instance. */
+const MEMO_MS = 10 * 60_000;
+const MEMO_MAX = 5_000;
+const memo = new Map<string, { has: boolean; at: number }>();
+
+/** The ticker as the stock page's address normalises it, or null (never throws on a stray "%"). */
+function normalized(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return normalizeStockSymbolParam(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Which of these tickers have a stock page that answers 200, so a list of
+ * filings (13F holdings, congress trades) links only those and prints the rest
+ * as plain text. Since at least Nov 14 every /follow page linked each traded
+ * ticker, and about a quarter of them (ADP, KKR, FIS, O, ...) were 404s that
+ * Bingbot, Googlebot and people kept following.
+ *
+ * The same rule as the stock page's 404 check (app/(app)/stock/[symbol]):
+ * the 500-company catalogue, any US fund ticker (a fund page, or the page that
+ * says we are adding it), else a latest price with a current quote. Only the US
+ * market is read: filings are US listings. A page it misses (India only, an
+ * alias) is printed instead of linked, never the other way round. `null` when
+ * the store could not be read: then everything stays linked rather than
+ * unlinking real pages on a guess.
+ */
+export async function stockPagesAmong(tickers: Iterable<string | null | undefined>, now: number = Date.now()): Promise<StockPageSet> {
+  const pages = new Set<string>();
+  const toRead = new Set<string>();
+  for (const raw of tickers) {
+    const ticker = normalized(raw);
+    if (!ticker || pages.has(ticker) || toRead.has(ticker)) continue;
+    if (getSeoStockPage(ticker) || fundKindOf(ticker)) {
+      pages.add(ticker);
+      continue;
+    }
+    const known = memo.get(ticker);
+    if (known && now - known.at < MEMO_MS) {
+      if (known.has) pages.add(ticker);
+    } else toRead.add(ticker);
+  }
+  if (toRead.size === 0) return pages;
+  try {
+    const quotes = await getLatestPriceQuotes([...toRead].map((ticker) => `US_${ticker}`));
+    if (memo.size > MEMO_MAX) memo.clear();
+    for (const ticker of toRead) {
+      const has = typeof quotes.get(`US_${ticker}`)?.quote?.current === "number";
+      memo.set(ticker, { has, at: now });
+      if (has) pages.add(ticker);
+    }
+    return pages;
+  } catch (error) {
+    console.error(`[stock-page-set] price read failed, linking every ticker: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/** Whether a ticker gets a link: yes when the set could not be read. */
+export function hasStockPage(pages: StockPageSet | undefined, ticker: string | null | undefined): boolean {
+  const key = normalized(ticker);
+  if (!key) return false;
+  return pages ? pages.has(key) : true;
+}
+
+/** For tests: forget what was read. */
+export function forgetStockPages(): void {
+  memo.clear();
+}

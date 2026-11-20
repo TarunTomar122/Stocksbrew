@@ -5,6 +5,7 @@ import { MoveBar } from "@/components/oa/kit/tone";
 import type { StockTally } from "@/lib/follow-insights";
 import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { shortBuyerName } from "@/lib/buyer-name";
+import { hasStockPage, stockPagesAmong } from "@/lib/stock-page-set";
 
 /**
  * "Most bought by funds" style list: one row per stock, how many of them were
@@ -91,7 +92,7 @@ export function StockTallyPanel({
  * reads at a glance and the names wait under each bar. With no `total`, the
  * bars share the longest row's scale instead.
  */
-export function TallyBars({
+export async function TallyBars({
   rows,
   side,
   unit,
@@ -108,6 +109,8 @@ export function TallyBars({
 }) {
   const { rows: shown, also } = oneRowPerCompany(rows, (row) => row.ticker);
   if (shown.length === 0) return <p className="py-4 text-[14px] leading-5 text-oa-muted-fg">{empty}</p>;
+  // Fund and congress filings name stocks we hold no page for; those rows are printed, not linked (lib/stock-page-set.ts).
+  const pages = await stockPagesAmong(shown.map((row) => row.ticker));
   const counts = shown.map((row) => (side === "buy" ? row.buyers : row.sellers).length);
   const scale = total && total > 0 ? total : Math.max(...counts, 1);
   return (
@@ -118,9 +121,9 @@ export function TallyBars({
         const more = who.length - names.length;
         const width = Math.max(3, (counts[index]! / scale) * 100);
         return (
-          <li key={row.ticker} className="relative py-2.5 transition-colors hover:bg-oa-accent/60">
+          <li key={row.ticker} className={`relative py-2.5 transition-colors${hasStockPage(pages, row.ticker) ? " hover:bg-oa-accent/60" : ""}`}>
             <div className="flex items-center justify-between gap-3">
-              <Ticker symbol={row.ticker} name={row.name} size={20} wrap stretch className="min-w-0 max-w-full" />
+              <Ticker symbol={row.ticker} name={row.name} size={20} wrap stretch href={hasStockPage(pages, row.ticker) ? undefined : null} className="min-w-0 max-w-full" />
               <p className="shrink-0 text-right text-[13.5px] leading-5 text-oa-muted-fg">
                 <span className={`${NUM} font-semibold text-oa-fg`}>{who.length}</span>
                 {total ? (

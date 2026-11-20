@@ -48,6 +48,7 @@ import { alsoClassesLabel, oneRowPerCompany } from "@/lib/share-class";
 import { netSide, type ToneWord } from "@/lib/tone";
 import { ogImage } from "@/lib/og/url";
 import Link from "next/link";
+import { hasStockPage, stockPagesAmong, type StockPageSet } from "@/lib/stock-page-set";
 
 type Props = { params: { slug: string } };
 
@@ -80,6 +81,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const TH =
   "oa-mono px-3 py-2 text-[11px] font-normal uppercase tracking-[0.08em] text-oa-muted-fg";
 const TD = "px-3 py-1.5 align-middle";
+
+/** Every `ticker` in a profile (positions, changes, options, trades), for one existence read. */
+function tickersIn(value: unknown, out: string[] = []): string[] {
+  if (Array.isArray(value)) for (const item of value) tickersIn(item, out);
+  else if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      if (key === "ticker" && typeof item === "string") out.push(item);
+      else if (item && typeof item === "object") tickersIn(item, out);
+    }
+  }
+  return out;
+}
 
 /** Where our records for a fund or member stop, said at the top when they stopped long ago. */
 function StaleNote({ line }: { line: string | null }) {
@@ -180,9 +193,11 @@ function ChangeBadge({ position }: { position: FundPosition }) {
 function PortfolioRows({
   rows,
   offset,
+  pages,
 }: {
   rows: FundPosition[];
   offset: number;
+  pages: StockPageSet;
 }) {
   const top = rows.reduce((max, row) => Math.max(max, row.weight ?? 0), 0) || 1;
   return (
@@ -198,7 +213,7 @@ function PortfolioRows({
           <td className={`${TD} max-w-[11rem] sm:max-w-[13rem]`}>
             <div className="flex min-w-0 items-baseline gap-2">
               {position.ticker ? (
-                <Ticker ticker={position.ticker} className="text-[13px]" />
+                <Ticker ticker={position.ticker} linked={hasStockPage(pages, position.ticker)} className="text-[13px]" />
               ) : null}
               <span
                 className={`text-pretty text-[13px] ${position.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
@@ -283,12 +298,14 @@ function ChangeList({
   count,
   rows,
   detail,
+  pages,
 }: {
   title: string;
   tone: string;
   count: number;
   rows: FundChange[];
   detail: (row: FundChange) => string;
+  pages: StockPageSet;
 }) {
   return (
     <div className="min-w-0 px-4 py-3">
@@ -310,7 +327,7 @@ function ChangeList({
               className="flex items-baseline justify-between gap-2 text-[13px] leading-5"
             >
               <span className="flex min-w-0 items-baseline gap-1.5">
-                {row.ticker ? <Ticker ticker={row.ticker} /> : null}
+                {row.ticker ? <Ticker ticker={row.ticker} linked={hasStockPage(pages, row.ticker)} /> : null}
                 <span
                   className={`text-pretty ${row.ticker ? "text-[12px] text-oa-muted-fg" : "text-oa-fg"}`}
                 >
@@ -385,10 +402,12 @@ function FundView({
   profile,
   followed,
   activity,
+  pages,
 }: {
   profile: FundProfile;
   followed: boolean;
   activity: Awaited<ReturnType<typeof getSourceActivity>>;
+  pages: StockPageSet;
 }) {
   const latest = profile.latest;
   const changes = profile.changes;
@@ -517,6 +536,7 @@ function FundView({
           >
             <div className="grid divide-y divide-oa-border sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 [&>*]:border-oa-border sm:[&>*:nth-child(even)]:border-l sm:[&>*:nth-child(n+3)]:border-t xl:[&>*+*]:border-l xl:[&>*:nth-child(n+3)]:border-t-0">
               <ChangeList
+                pages={pages}
                 title="New buys"
                 tone={UP}
                 count={changes.counts.new}
@@ -524,6 +544,7 @@ function FundView({
                 detail={(row) => fmtWeight(row.weight)}
               />
               <ChangeList
+                pages={pages}
                 title="Added to"
                 tone={UP}
                 count={changes.counts.added}
@@ -535,6 +556,7 @@ function FundView({
                 }
               />
               <ChangeList
+                pages={pages}
                 title="Trimmed"
                 tone={DOWN}
                 count={changes.counts.reduced}
@@ -546,6 +568,7 @@ function FundView({
                 }
               />
               <ChangeList
+                pages={pages}
                 title="Exited"
                 tone={DOWN}
                 count={changes.counts.sold}
@@ -575,7 +598,7 @@ function FundView({
             <table className="w-full border-collapse">
               <PortfolioHead />
               <tbody>
-                <PortfolioRows rows={first} offset={0} />
+                <PortfolioRows rows={first} offset={0} pages={pages} />
               </tbody>
             </table>
           </div>
@@ -590,7 +613,7 @@ function FundView({
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <tbody>
-                    <PortfolioRows rows={rest} offset={20} />
+                    <PortfolioRows rows={rest} offset={20} pages={pages} />
                   </tbody>
                 </table>
               </div>
@@ -633,7 +656,7 @@ function FundView({
                     >
                       {option.put_call}
                     </span>
-                    {option.ticker ? <Ticker ticker={option.ticker} /> : null}
+                    {option.ticker ? <Ticker ticker={option.ticker} linked={hasStockPage(pages, option.ticker)} /> : null}
                     <span className="text-pretty text-oa-muted-fg">
                       {shortCompanyName(option.name)}
                     </span>
@@ -748,9 +771,11 @@ function FundView({
 function CongressView({
   profile,
   followed,
+  pages,
 }: {
   profile: CongressProfile;
   followed: boolean;
+  pages: StockPageSet;
 }) {
   const stats = profile.stats;
   const party = partyLabel(profile.party);
@@ -782,7 +807,7 @@ function CongressView({
           <td className={`${TD} max-w-[15rem] sm:max-w-[14rem]`}>
             <div className="flex min-w-0 items-baseline gap-2">
               {trade.ticker ? (
-                <Ticker ticker={trade.ticker} className="text-[13px]" />
+                <Ticker ticker={trade.ticker} linked={hasStockPage(pages, trade.ticker)} className="text-[13px]" />
               ) : null}
               <span
                 className={`text-pretty text-[13px] ${trade.ticker ? "text-oa-muted-fg" : "text-oa-fg"}`}
@@ -1048,11 +1073,13 @@ export default async function FollowProfilePage({ params }: Props) {
     getSessionUser(),
   ]);
   if (!profile) notFound();
-  const [followed, activity] = await Promise.all([
+  const [followed, activity, pages] = await Promise.all([
     getFollowedSources(session?.uid),
     profile.kind === "fund"
       ? getSourceActivity(profile.slug).catch(() => [])
       : Promise.resolve([]),
+    // Filings name stocks we hold no page for; those tickers are printed, not linked (lib/stock-page-set.ts).
+    stockPagesAmong(tickersIn(profile)),
   ]);
   const isFollowed = followed.includes(profile.slug);
 
@@ -1083,9 +1110,9 @@ export default async function FollowProfilePage({ params }: Props) {
         ]}
       />
       {profile.kind === "fund" ? (
-        <FundView profile={profile} followed={isFollowed} activity={activity} />
+        <FundView profile={profile} followed={isFollowed} activity={activity} pages={pages} />
       ) : (
-        <CongressView profile={profile} followed={isFollowed} />
+        <CongressView profile={profile} followed={isFollowed} pages={pages} />
       )}
     </AppPage>
   );

@@ -14,28 +14,35 @@ export function toneOf(value: number | null | undefined): string {
   return value > 0 ? UP : DOWN;
 }
 
-/** A ticker that opens its stock page. Plain text when the filing gave no ticker. */
+/** A ticker that opens its stock page. Plain text when we hold no page for it (`linked={false}`, see lib/stock-page-set.ts). */
 export function Ticker({
   ticker,
   className = "",
   logo = 16,
   logoAtOnce = false,
+  linked = true,
 }: {
   ticker: string | null | undefined;
   className?: string;
+  /** False for a ticker we hold no stock page for: the link would be a 404. */
+  linked?: boolean;
   /** Logo size in px; the logo sits centred while the ticker keeps the row's text baseline. */
   logo?: number;
   /** Load the logo at once instead of lazily: a long table's logos otherwise show as empty squares until scrolled to. */
   logoAtOnce?: boolean;
 }) {
   if (!ticker) return null;
-  return (
-    <Link prefetch={false}
-      href={stockHref(ticker)}
-      className={`oa-mono ftk${className ? ` ${className}` : ""}`}
-    >
+  const look = `oa-mono ftk${className ? ` ${className}` : ""}`;
+  const inner = (
+    <>
       <StockLogo ticker={ticker} size={logo} className="self-center" atOnce={logoAtOnce} />
       {ticker}
+    </>
+  );
+  if (!linked) return <span className={`${look} ftk-plain`}>{inner}</span>;
+  return (
+    <Link prefetch={false} href={stockHref(ticker)} className={look}>
+      {inner}
     </Link>
   );
 }
@@ -47,9 +54,12 @@ export function HoldingChip({
   weight,
   title,
   also,
+  linked = true,
 }: {
   ticker: string | null;
   name: string | null;
+  /** False for a ticker we hold no stock page for: the chip is printed, not linked. */
+  linked?: boolean;
   weight?: string;
   title?: string;
   /** Other share classes of the same company folded into this chip ("GOOG"). */
@@ -73,7 +83,7 @@ export function HoldingChip({
   );
   // The chip's look is .hchip in app/globals.css: a directory row prints three of these.
   const shape = "hchip";
-  return ticker ? (
+  return ticker && linked ? (
     <Link prefetch={false}
       href={stockHref(ticker)}
       title={title ?? name ?? ticker}

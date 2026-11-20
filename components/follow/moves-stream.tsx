@@ -10,11 +10,14 @@ import {
   type ActivityItem,
   type FollowActivity,
 } from "@/lib/follow-shared";
+import { hasStockPage, stockPagesAmong, type StockPageSet } from "@/lib/stock-page-set";
 
-function moveLine(item: ActivityItem): MoveLine | null {
+function moveLine(item: ActivityItem, pages: StockPageSet): MoveLine | null {
   const name = item.ticker ? null : (item.name ?? "").split(" ").slice(0, 4).join(" ");
   if (!item.ticker && !name) return null;
-  return { label: actionLabel(item.action), up: actionTone(item.action) === "up", ticker: item.ticker, name, size: activitySize(item) };
+  const line: MoveLine = { label: actionLabel(item.action), up: actionTone(item.action) === "up", ticker: item.ticker, name, size: activitySize(item) };
+  if (item.ticker && !hasStockPage(pages, item.ticker)) line.plain = true;
+  return line;
 }
 
 /** When it was filed against when it happened: the lag is the whole point of reading these. */
@@ -42,7 +45,7 @@ function timing(event: FollowActivity): string {
  * What was just filed, newest first: who, what, how big, and filed when against traded when.
  * The words are worked out here, on the server; the list itself (moves-list.tsx) gets only them.
  */
-export function MovesStream({
+export async function MovesStream({
   events,
   emptyText,
   showName = true,
@@ -58,7 +61,10 @@ export function MovesStream({
       </p>
     );
   }
-  const rows = events.map((event): MoveRow => ({
+  const kept = events.map((event) => event.items.filter((item) => item.ticker || item.name).slice(0, 6));
+  // Only tickers we hold a page for are links; the rest would be 404s (lib/stock-page-set.ts).
+  const pages = await stockPagesAmong(kept.flat().map((item) => item.ticker));
+  const rows = events.map((event, index): MoveRow => ({
     id: event.id,
     day: fmtDate(event.date, false),
     dayLong: fmtDate(event.date),
@@ -66,10 +72,8 @@ export function MovesStream({
     name: event.name,
     person: event.person,
     ...(event.party ? { party: event.party } : {}),
-    items: event.items
-      .filter((item) => item.ticker || item.name)
-      .slice(0, 6)
-      .map(moveLine)
+    items: kept[index]!
+      .map((item) => moveLine(item, pages))
       .filter((line): line is MoveLine => line !== null),
     note: event.kind === "fund" && !event.items.length ? "First filing on record, nothing to compare yet." : event.headline,
     timing: timing(event),

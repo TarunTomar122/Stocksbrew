@@ -214,6 +214,33 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-20 07:00 UTC: daily health check
+- Ops health: 278 ok, 8 warn, 2 fail runs, no alert emails. Fails: "Home page" 12.2 s at 18:45 and "no answer within
+  15s" at 20:50; Caddy answered both probes from Varnish in 0 ms (the 18:45 one arrived 12 s late), so the Cloudflare
+  leg again. Warns: "Response time" p95 2.6-2.9 s (5: 12:15-12:20, 23:55-00:05), "Home page" 2.8 s once, "Swap" with
+  memory pressure 13% at 08:36 (the LocalDB backup finishing) and 11% at 13:51.
+- Every ops-health run takes 6-11 s since Nov 19 ~14:00 (under 1 s before), up to 61 s a few times: its two 24 h
+  journal queries walk ~20 system journal files a day now. xrdp (remote desktop, not ours) logs 61k lines an hour since
+  Nov 19 12:00: an RDP brute force from 194.180.48.135 and .136, ~6,000 connections an hour (93.7k in 20 h), each a
+  failed TLS handshake. ufw is inactive and 3389 is open to the internet. Left for the owner.
+- Web: no restarts or OOM since the Nov 19 07:18 deploy, 548/536 MB after 24 h. Box: root disk 88% (88%), backup 22.6 h
+  old and fine, needrestart's interpreter scan still off, only dnsmasq failed (not ours), nothing over 1.5 GB, swap
+  full (normal). Every tikrr timer ran on time.
+- Traffic 12.9k requests (33.0k with ShapBot's 20.7k), 9 over 5 s, no 5xx. App errors: the known agent-watch and
+  landing time limits, and 134 "serve read timed out", 132 of them during my own link check at 07:18-07:19.
+- Found: 1,061 stock-page 404s a day, 805 tickers (WY, SBUX, ADP, KKR, FIS, O, ...), since at least Nov 14. Not a
+  regression: we only have pages for priced stocks (967 US). But the /follow pages linked every ticker in a filing:
+  78 of /follow's 149 stock links were 404s, ~25% on member pages; Bingbot (144), people and other crawlers followed them.
+- Fixed: lib/stock-page-set.ts reads which tickers have a page (the catalogue, US funds, else a latest price with a
+  quote: the stock page's own 404 rule; one batched read, kept 10 min; a failed read links everything). The /follow
+  directory, latest moves, the tally bars and the fund/member pages print the others as plain text. After: 0 of 229
+  links on /follow and two member pages answer anything but 200. Screens (scratchpad shots/): member trades table
+  before/after, desktop, mobile, dark. Quality pass (subagent): no bugs; fixed the comment it found misplaced, and
+  took its suggestions (read in parallel with the profile, safe normalise, no hover on unlinked tally rows, memo, tests).
+- Seen, left: the RDP flood (owner); /insiders and /follow/copy link the same way but showed no 404s; the full test
+  suite has 16 failing files in a fresh worktree (missing service-account file, tests pinned to past dates like
+  "The Nov 17 report decides"), not touched by this change.
+
 ### 2026-11-19 07:00 UTC: daily health check
 - Ops health: 264 ok, 21 warn, 3 fail runs, no alert emails. Warns: "Home page" 2.5-4 s (13), "Swap" with memory
   pressure at 6-13% for a minute (4: 13:50, 15:25, 20:51, 23:30, each as the Trace pipeline finished; avg300 0.04%

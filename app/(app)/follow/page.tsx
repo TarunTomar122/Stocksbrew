@@ -37,6 +37,7 @@ import {
   type FollowSource,
 } from "@/lib/follow";
 import { ogImage } from "@/lib/og/url";
+import { hasStockPage, stockPagesAmong, type StockPageSet } from "@/lib/stock-page-set";
 import Link from "next/link";
 
 export function generateMetadata(): Metadata {
@@ -79,7 +80,7 @@ function sparks(fund?: number[], spy?: number[]): { spark?: number[]; spark_spy?
 }
 
 /** The table only needs a slice of each card; the rest stays on the server. */
-function lean(source: FollowSource): FollowSource {
+function lean(source: FollowSource, pages: StockPageSet): FollowSource {
   const spark = (values?: number[]) => {
     if (!values || values.length < 2) return undefined;
     const step = Math.max(1, Math.floor(values.length / 28));
@@ -100,7 +101,8 @@ function lean(source: FollowSource): FollowSource {
     active: source.active,
     latest_date: source.latest_date,
     stock_value: source.stock_value,
-    top_holdings: (source.top_holdings ?? []).slice(0, 3),
+    // A holding we hold no stock page for is printed, not linked (lib/stock-page-set.ts).
+    top_holdings: topHoldings(source).map((holding) => (holding.ticker && !hasStockPage(pages, holding.ticker) ? { ...holding, page: false as const } : holding)),
     // Only what the table prints and sorts by: the six windows for the fund and the S&P 500,
     // the start date for the record's hover, and the two lines of the small chart.
     performance: source.performance
@@ -113,6 +115,11 @@ function lean(source: FollowSource): FollowSource {
       : null,
     ...(source.party ? { party: source.party } : {}),
   } as FollowSource;
+}
+
+/** The holdings the directory prints: its first three. */
+function topHoldings(source: FollowSource) {
+  return (source.top_holdings ?? []).slice(0, 3);
 }
 
 function tabOf(value: string | string[] | undefined): DirectoryTab {
@@ -230,6 +237,8 @@ async function DirectoryTabBody({
 }) {
   const [all, mine, followMeta] = await Promise.all([sources, followed, meta]);
   const { funds, congress } = splitSources(all);
+  const shown = tab === "funds" ? funds : congress;
+  const pages = await stockPagesAmong(shown.flatMap((source) => topHoldings(source).map((holding) => holding.ticker)));
   const fundsNote = <span>Before costs and taxes.</span>;
   const congressNote = (
     <span>
@@ -241,7 +250,7 @@ async function DirectoryTabBody({
     <FollowDirectory
       key={tab}
       tab={tab}
-      sources={(tab === "funds" ? funds : congress).map(lean)}
+      sources={shown.map((source) => lean(source, pages))}
       followed={mine}
       note={tab === "funds" ? fundsNote : congressNote}
       bar={<TabBar current={tab} tabs={tabItems({ funds: funds.length, congress: congress.length })} className={BAR} />}

@@ -2939,6 +2939,10 @@ body:has(.oa-topbar) :is(.oa-page-frame, .oa-page-prose).max-w-\[84rem\] {
   .ftk {
     @apply inline-flex shrink-0 items-baseline gap-1.5 font-medium text-oa-fg underline decoration-oa-border decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-oa-primary hover:decoration-oa-primary focus-visible:text-oa-primary;
   }
+  /* A ticker we hold no stock page for: printed, so it must not look like a link. */
+  .ftk-plain {
+    @apply no-underline hover:text-oa-fg;
+  }
 
   /* Latest moves (components/follow/moves-list.tsx). */
   .mv-row {

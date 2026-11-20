@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ExternalLink, PartyDot, Ticker } from "@/components/follow/bits";
 
 /** One line of a filing, already in words: "Added", the ticker (or a short name), and how big. */
-export type MoveLine = { label: string; up: boolean; ticker: string | null; name: string | null; size: string };
+/** `plain` marks a ticker we hold no stock page for (printed, not linked); left out otherwise, to keep the payload small. */
+export type MoveLine = { label: string; up: boolean; ticker: string | null; name: string | null; size: string; plain?: true };
 
 /**
  * One filing as the stream prints it. MovesStream (moves-stream.tsx) works the
@@ -53,7 +54,7 @@ export function MovesList({ rows, showName }: { rows: MoveRow[]; showName: boole
                 {row.items.map((item, index) => (
                   <span key={`${item.label}-${item.ticker ?? item.name}-${index}`} className="mv-item">
                     <span className={`oa-mono mv-act ${item.up ? "text-signal-bullish" : "text-signal-bearish"}`}>{item.label}</span>
-                    {item.ticker ? <Ticker ticker={item.ticker} /> : <span className="text-oa-fg">{item.name}</span>}
+                    {item.ticker ? <Ticker ticker={item.ticker} linked={!item.plain} /> : <span className="text-oa-fg">{item.name}</span>}
                     {item.size ? <span className="oa-mono mv-size">{item.size}</span> : null}
                   </span>
                 ))}

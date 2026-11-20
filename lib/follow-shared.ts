@@ -55,6 +55,8 @@ export type HoldingChip = {
   ticker: string | null;
   name: string | null;
   weight: number | null;
+  /** Set (false) only by a page that checked: we hold no stock page for this ticker, so it is printed, not linked. */
+  page?: false;
 };
 
 export type ChangeBrief = {
