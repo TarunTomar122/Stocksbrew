@@ -259,14 +259,8 @@ Cutover completed on `2026-07-01`.
 
 Git checkout cutover completed on `2026-07-04`.
 
-Rollback for the Git checkout cutover:
-
-```bash
-sudo systemctl stop 'tikrr-*.timer'
-sudo mv /opt/tikrr /opt/tikrr.failed
-sudo mv /opt/tikrr.pre-git-20260704T031012Z /opt/tikrr
-sudo TIKRR_REPO_DIR=/opt/tikrr TIKRR_USER=ubuntu ENABLE_TIMERS=1 bash /opt/tikrr/backend/vps/install-systemd.sh
-```
+The pre-git copy (`/opt/tikrr.pre-git-20260704T031012Z`) that the cutover's rollback moved back was deleted on
+2026-11-21; roll back a bad change with git in `/opt/tikrr` instead.
 
 First scheduled VPS timer after cutover:
 

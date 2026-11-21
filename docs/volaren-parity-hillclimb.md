@@ -246,6 +246,15 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   /var/lib/tikrr/localdb/documents.sqlite3.bak-20260919T095622Z (1.4 GB, the nightly backups cover it), the
   journal at 4.1 GB (a `SystemMaxUse=2G` drop-in would free ~2 GB), npm caches in /home/ubuntu (~3.5 GB),
   /var/log/syslog* 0.7 GB and xrdp.log 253 MB from the RDP flood. 3389 is still open with ufw off.
+- Owner said go (07:30): journal capped at 2G (backend/vps/journald-stocksbrew.conf, installed); deleted
+  /opt/tikrr/.next (1.3 GB, an Aug 8 build, the site runs from /opt/tikrr-web), /opt/tikrr.pre-git-20260704T031012Z
+  (349 MB), the Sept 19 LocalDB copy (1.4 GB), 7 disabled snap revisions (refresh.retain=2 now), the npm and apt caches,
+  rotated /var/log files outside caddy/journal, and emptied xrdp.log. Root 89% to 79% (8.2 to 15.4 GiB free, ~7.2 GiB
+  freed). Kept: backend/.cache (the jobs' provider caches), the last 3 web releases, python/uv installs, trace,
+  reel-queue, docker. Web, LocalDB, Caddy, Varnish active, pages 200 from Varnish; ops-health "ok" at 07:35, the first
+  all-green run since Nov 20 19:20. Quality pass (subagent): nothing running referenced the deleted paths, live logs
+  untouched; fixed the numbers above and the README's July rollback note that moved the deleted copy back. xrdp.log
+  refilled with 4.7k lines in 10 minutes: the RDP flood is back, closing 3389 is still the owner's call.
 
 ### 2026-11-20 07:00 UTC: daily health check
 - Ops health: 278 ok, 8 warn, 2 fail runs, no alert emails. Fails: "Home page" 12.2 s at 18:45 and "no answer within
