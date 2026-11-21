@@ -214,6 +214,39 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-21 07:00 UTC: daily health check
+- Ops health: 149 ok, 46 warn, 93 fail runs, 2 alert emails (23:20 and the 05:20 reminder). Every fail is "Failed
+  units: tikrr-earnings-intel.service" from 23:11 on. Warns: "System disk" in 139 runs since 19:25 (root 89%, 8.0-8.5 GB
+  free, under the 12% line), "Home page" 3.2 s once (20:10), "Stock page" 3.0 s once (00:10). Runs still take 5-10 s
+  (61 s once), though the xrdp flood has stopped (0 lines in the last hour).
+- Earnings-intel: Friday's 23:00 run died on one OpenAI call (requests ReadTimeout, 70 s) in `_llm_synthesize`, which
+  raised out of the loop, so none of the 30 reporters (WMT, INTU, PDD, ROST, GAP, ...) got a post-earnings report and
+  their briefs were not refreshed. Mon-Thu runs were fine (~20 min).
+- Fixed (0106dcd5): the LLM call goes through `post_chat_completion` (retries 429/5xx and dropped connections, 90 s),
+  a hung call (`LLMWallTimeout`, which that helper does not retry, since its wall alarm equals the read timeout) gets
+  one more try, a stock that still fails is logged with its traceback and skipped, and the run stops after 3 failures
+  in a row. The unit fails only if nothing was built or it stopped on failures in a row. Tests: 5 new in
+  test_earnings_events.py; 27 passed on the VPS venv with test_llm_client.py; ruff clean. Quality pass (subagent):
+  found the wall-timeout gap (fixed as above, local to this script, not in the shared client: 16 lanes use it and
+  none expect hangs to retry), suggested the traceback and a reset-counter test (both done). Pulled to /opt/tikrr and
+  re-ran the unit by hand at 07:10: 25 reports (the 3-day window had moved on), 0 failures, the 25 briefs refreshed, unit success; ops-health back to the disk warn only.
+- Web: no restarts or OOM since the Nov 20 07:35 deploy, 643/600 MB after 23.5 h. Box: memory pressure ~0.2% avg300,
+  backup 22.5 h old (709.9k documents), needrestart's interpreter scan still off, only dnsmasq failed besides ours
+  (since Aug 26, not ours), nothing over 1.5 GB, swap full (normal). Every other tikrr timer ran on time.
+- Traffic 20.0k requests (12.9k), 13 over 5 s (screener n=783 sorts, three cold 404 renders, my own /insiders check),
+  1 error: a 500 on a POST to / with `Next-Action: x` (a server-action probe, no origin header). The /news?ticker&topic
+  scraper is still there and still cheap (1,036 loads, p50 0.2 s).
+- Stock-page 404s 2,446 (1,230 tickers), up from 1,061, 387 of them with a /follow referer after the deploy. Checked:
+  /follow, josh-gottheimer, viking-global and valueact link 241 stock pages and every one answers 200 (MTB and AZTA,
+  both 404s in the log, are not linked). The requests come from forged browsers (Chrome 154, no cookie, a different
+  Cloudflare colo nearly every time): a scraper replaying an old link list with the referer it found them on. Left.
+- App errors: the known landing/agent-watch time limits (~350), 132 "serve read timed out", all from my own link
+  check yesterday at 07:18-07:19.
+- For the owner: root disk at 89% and now warning every run. Candidates, none touched: a Sept 19 LocalDB copy
+  /var/lib/tikrr/localdb/documents.sqlite3.bak-20260919T095622Z (1.4 GB, the nightly backups cover it), the
+  journal at 4.1 GB (a `SystemMaxUse=2G` drop-in would free ~2 GB), npm caches in /home/ubuntu (~3.5 GB),
+  /var/log/syslog* 0.7 GB and xrdp.log 253 MB from the RDP flood. 3389 is still open with ufw off.
+
 ### 2026-11-20 07:00 UTC: daily health check
 - Ops health: 278 ok, 8 warn, 2 fail runs, no alert emails. Fails: "Home page" 12.2 s at 18:45 and "no answer within
   15s" at 20:50; Caddy answered both probes from Varnish in 0 ms (the 18:45 one arrived 12 s late), so the Cloudflare
