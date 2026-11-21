@@ -319,3 +319,84 @@ def test_market_events_ranks_before_final_limit(monkeypatch) -> None:
 
     assert [event["ticker"] for event in payload["events"]] == ["HIGH", "LOW"]
     assert written["payload"]["event_count"] == 2
+
+
+def _run_build_intel(monkeypatch, capsys, tickers, failing):
+    import json
+    import sys
+
+    monkeypatch.setattr(build_earnings_intel, "TraceMoneyStore", lambda: object())
+    monkeypatch.setattr(
+        build_earnings_intel,
+        "_universe_instruments_by_ticker",
+        lambda *_args, **_kwargs: {t: {"instrument_id": f"US_{t}", "ticker": t} for t in tickers},
+    )
+    monkeypatch.setattr(
+        build_earnings_intel,
+        "_list_recent_events",
+        lambda **_kwargs: [{"ticker": t, "event_date": "2026-11-20"} for t in tickers],
+    )
+    monkeypatch.setattr(build_earnings_intel, "_build_input_payload", lambda _s, _m, ticker, *_a: {"ticker": ticker})
+
+    def fake_llm(payload, **_kwargs):
+        if payload["ticker"] in failing:
+            raise TimeoutError("read timed out")
+        return {}
+
+    monkeypatch.setattr(build_earnings_intel, "_llm_synthesize", fake_llm)
+    monkeypatch.setattr(build_earnings_intel, "_sanitize_decision_guide", lambda report, _payload: report)
+    monkeypatch.setattr(sys, "argv", ["build_earnings_intel", "--all-recent", "--max-events", "30"])
+    exit_code = 0
+    try:
+        build_earnings_intel.main()
+    except SystemExit as exc:
+        exit_code = exc.code
+    out = capsys.readouterr().out
+    # The summary is the only JSON in stdout; the progress lines before it are plain text.
+    summary = json.loads(out[out.index("\n{") + 1:] if not out.startswith("{") else out)
+    return exit_code, summary
+
+
+def test_build_intel_keeps_going_past_one_failed_stock(monkeypatch, capsys) -> None:
+    code, summary = _run_build_intel(monkeypatch, capsys, ["AAA", "BBB", "CCC"], failing={"BBB"})
+    assert code == 0
+    assert summary["count"] == 2
+    assert [f["ticker"] for f in summary["failures"]] == ["BBB"]
+
+
+def test_build_intel_fails_when_every_stock_fails(monkeypatch, capsys) -> None:
+    code, summary = _run_build_intel(monkeypatch, capsys, ["AAA", "BBB"], failing={"AAA", "BBB"})
+    assert code == 1
+    assert summary["count"] == 0
+
+
+def test_build_intel_stops_after_failures_in_a_row(monkeypatch, capsys) -> None:
+    tickers = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
+    code, summary = _run_build_intel(monkeypatch, capsys, tickers, failing={"BBB", "CCC", "DDD", "EEE", "FFF"})
+    assert code == 1
+    assert summary["count"] == 1
+    assert [f["ticker"] for f in summary["failures"]] == ["BBB", "CCC", "DDD"]
+
+
+def test_build_intel_counts_only_failures_in_a_row(monkeypatch, capsys) -> None:
+    tickers = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
+    code, summary = _run_build_intel(monkeypatch, capsys, tickers, failing={"AAA", "BBB", "DDD", "EEE"})
+    assert code == 0
+    assert summary["count"] == 2
+    assert len(summary["failures"]) == 4
+
+
+def test_llm_synthesize_retries_a_hung_call(monkeypatch) -> None:
+    from backend.llm_client import LLMWallTimeout
+
+    calls = []
+
+    def fake_post(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise LLMWallTimeout("hung")
+        return {"choices": [{"message": {"content": "{}"}}]}
+
+    monkeypatch.setattr(build_earnings_intel, "post_chat_completion", fake_post)
+    assert build_earnings_intel._llm_synthesize({"ticker": "AAA"}, model_name="m", prompt_variant="v1") == {}
+    assert len(calls) == 2

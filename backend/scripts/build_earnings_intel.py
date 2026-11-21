@@ -11,18 +11,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import traceback
 from datetime import datetime, timezone
 from typing import Any
 
-import requests
-
 from backend.llm_client import (
+    LLMWallTimeout,
     json_response_format,
-    llm_api_url,
-    llm_headers,
     llm_model,
     parse_json_content,
-    require_llm_api_key,
+    post_chat_completion,
     schema_system_prompt,
 )
 from backend.instrument_universe import list_instruments
@@ -31,6 +29,8 @@ from backend.storage import TraceMoneyStore
 
 
 OPENAI_DEFAULT_MODEL = "gpt-5.6-luna"
+MAX_FAILURES_IN_A_ROW = 3
+LLM_HANG_ATTEMPTS = 2
 
 GROUNDING_CONTRACT = """NON-NEGOTIABLE GROUNDING RULES (read payload.timing and payload.reported_actuals first):
 
@@ -470,30 +470,38 @@ def _reddit_context(store: TraceMoneyStore, market: str, ticker: str) -> dict[st
 
 
 def _llm_synthesize(payload: dict[str, Any], model_name: str, prompt_variant: str) -> dict[str, Any]:
-    api_key = require_llm_api_key()
     system_prompt = PROMPT_VARIANTS.get(prompt_variant, EARNINGS_INTEL_SYSTEM_PROMPT_V1)
-    response = requests.post(
-        llm_api_url(),
-        headers=llm_headers(api_key),
-        json={
-            "model": model_name,
-            "reasoning_effort": "low",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": schema_system_prompt(system_prompt, EARNINGS_INTEL_SCHEMA),
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(payload, ensure_ascii=True),
-                },
-            ],
-            "response_format": json_response_format(),
+    messages = [
+        {
+            "role": "system",
+            "content": schema_system_prompt(system_prompt, EARNINGS_INTEL_SCHEMA),
         },
-        timeout=70,
-    )
-    response.raise_for_status()
-    content = response.json()["choices"][0]["message"]["content"]
+        {
+            "role": "user",
+            "content": json.dumps(payload, ensure_ascii=True),
+        },
+    ]
+    # post_chat_completion retries 429/5xx and dropped connections, but a call
+    # that hangs trips its wall-clock alarm (LLMWallTimeout), which it does not
+    # retry; give that one more go. A single 70 s hang on one stock failed the
+    # whole night's run on Nov 20.
+    for attempt in range(1, LLM_HANG_ATTEMPTS + 1):
+        try:
+            body = post_chat_completion(
+                model=model_name,
+                reasoning_effort="low",
+                messages=messages,
+                response_format=json_response_format(),
+                timeout=90,
+                stage="earnings_intel",
+                max_attempts=3,
+            )
+            break
+        except LLMWallTimeout:
+            if attempt >= LLM_HANG_ATTEMPTS:
+                raise
+            print(f"  [retry] LLM call hung, attempt {attempt}/{LLM_HANG_ATTEMPTS}", flush=True)
+    content = body["choices"][0]["message"]["content"]
     return parse_json_content(content)
 
 
@@ -790,6 +798,9 @@ def main() -> None:
 
     results: list[dict[str, Any]] = []
     skipped: list[str] = []
+    failures: list[dict[str, str]] = []
+    failures_in_a_row = 0
+    stopped_early = False
     for event in events_to_process:
         ticker = str(event.get("ticker") or args.ticker).upper().strip()
         if not ticker:
@@ -803,9 +814,23 @@ def main() -> None:
             except ValueError:
                 skipped.append(ticker)
                 continue
-        payload = _build_input_payload(store, args.market, ticker, instrument, event)
-        synthesis = _llm_synthesize(payload, model_name=model_name, prompt_variant=args.prompt_variant)
-        synthesis = _sanitize_decision_guide(synthesis, payload)
+        try:
+            payload = _build_input_payload(store, args.market, ticker, instrument, event)
+            synthesis = _llm_synthesize(payload, model_name=model_name, prompt_variant=args.prompt_variant)
+            synthesis = _sanitize_decision_guide(synthesis, payload)
+        except Exception as exc:  # one stock's bad read or LLM call must not drop the rest
+            failures.append({"ticker": ticker, "error": f"{type(exc).__name__}: {exc}"[:300]})
+            print(f"  [fail] {ticker}: {type(exc).__name__}: {exc}", flush=True)
+            traceback.print_exc()
+            failures_in_a_row += 1
+            if failures_in_a_row >= MAX_FAILURES_IN_A_ROW:
+                # Three stocks failing back to back means the LLM or the
+                # store is down: stop instead of retrying every stock left.
+                print(f"  [stop] {failures_in_a_row} failures in a row", flush=True)
+                stopped_early = True
+                break
+            continue
+        failures_in_a_row = 0
         event_date = str((event or {}).get("event_date") or datetime.now(timezone.utc).date().isoformat())
         instrument_id = str(instrument.get("instrument_id") or "")
         doc_id = _build_doc_id(args.market, instrument_id, event_date)
@@ -840,15 +865,24 @@ def main() -> None:
         results.append(report)
 
     if args.dry_run or not args.write:
-        print(json.dumps(results[0] if len(results) == 1 else {"count": len(results), "skipped": skipped, "items": results}, indent=2, ensure_ascii=True))
-        return
-    print(json.dumps({
-        "status": "ok",
-        "count": len(results),
-        "skipped": skipped,
-        "doc_ids": [item["doc_id"] for item in results],
-        "instrument_ids": [item["instrument_id"] for item in results if item.get("instrument_id")],
-    }, ensure_ascii=True))
+        if len(results) == 1 and not failures:
+            print(json.dumps(results[0], indent=2, ensure_ascii=True))
+        else:
+            print(json.dumps({"count": len(results), "skipped": skipped, "failures": failures, "items": results}, indent=2, ensure_ascii=True))
+    else:
+        print(json.dumps({
+            "status": "ok" if not failures else "partial",
+            "count": len(results),
+            "skipped": skipped,
+            "failures": failures,
+            "doc_ids": [item["doc_id"] for item in results],
+            "instrument_ids": [item["instrument_id"] for item in results if item.get("instrument_id")],
+        }, ensure_ascii=True))
+    # A stock or two failing keeps what was built and exits 0, so the job goes
+    # on to refresh those briefs. Nothing built, or a stop on failures in a
+    # row (LLM or store down), fails the unit so ops-health reports it.
+    if stopped_early or (failures and not results):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
