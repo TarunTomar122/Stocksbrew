@@ -22,6 +22,23 @@ const BOT_RE = new RegExp(
   "i",
 );
 
+/**
+ * True for a scripted browser passing for a person: Lightpanda (a headless browser made for scraping), or a
+ * User-Agent the browser's own client hints contradict. A Chromium browser sends its real version in Sec-CH-UA
+ * ("Chromium";v="146") and the same major version in its User-Agent (Chrome/146; Edge, Opera, Brave, Samsung and
+ * Android WebViews too), and Firefox and Safari send no Sec-CH-UA at all. Nov 22: a scraper on residential proxies
+ * loaded /news and /calendar/earnings/* ~200 times an hour as "Chrome/119" or "Firefox/121" while its hints said
+ * Chrome 146, and its pages' beacons filled the live analytics with ~40 fake visitors.
+ */
+export function isForgedBrowser(ua: string | null | undefined, secChUa: string | null | undefined): boolean {
+  const agent = ua ?? "";
+  if (/Lightpanda/i.test(agent)) return true;
+  const chromium = /"Chromium";\s*v="(\d+)"/i.exec(secChUa ?? "");
+  if (!chromium) return false;
+  const chrome = /\bChrome\/(\d+)/.exec(agent);
+  return !chrome || chrome[1] !== chromium[1];
+}
+
 export function isBot(ua: string | null | undefined): boolean {
   const value = (ua ?? "").trim();
   if (value.length < 20 || value.length > 1000) return true;

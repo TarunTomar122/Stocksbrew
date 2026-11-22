@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { PRODUCTION_HOSTS } from "@/lib/analytics-env";
 import { enqueue, parseBeacon } from "@/lib/analytics/ingest";
 import { cloudflareCountry, visitorAddress } from "@/lib/analytics/address";
-import { isBot } from "@/lib/analytics/ua";
+import { isBot, isForgedBrowser } from "@/lib/analytics/ua";
 import { createIpRateLimiter } from "@/lib/ip-rate-limit";
 
 export const runtime = "nodejs";
@@ -64,7 +64,7 @@ async function readCapped(request: NextRequest, cap: number): Promise<string | n
 export async function POST(request: NextRequest) {
   try {
     const ua = request.headers.get("user-agent") ?? "";
-    if (isBot(ua)) return done();
+    if (isBot(ua) || isForgedBrowser(ua, request.headers.get("sec-ch-ua"))) return done();
     // Only our own pages post here: a browser always sends Origin on a POST, and it must be this host.
     const origin = request.headers.get("origin");
     const host = request.headers.get("host") ?? "";

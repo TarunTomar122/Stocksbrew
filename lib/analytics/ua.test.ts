@@ -1,4 +1,4 @@
-import { browserFamily, deviceClass, isBot, screenBucket } from "@/lib/analytics/ua";
+import { browserFamily, deviceClass, isBot, isForgedBrowser, screenBucket } from "@/lib/analytics/ua";
 
 const CHROME_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const SAFARI_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -65,5 +65,25 @@ describe("device and browser", () => {
     expect(screenBucket(1920)).toBe("1920+");
     expect(screenBucket(-1)).toBeNull();
     expect(screenBucket("wide")).toBeNull();
+  });
+});
+
+describe("isForgedBrowser", () => {
+  const hints = (v: string, brand = "Google Chrome") => `"Chromium";v="${v}", "Not-A.Brand";v="24", "${brand}";v="${v}"`;
+  it("passes real browsers", () => {
+    expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36", hints("146"))).toBe(false);
+    // Edge, Opera and Android WebViews put the Chromium version in Chrome/.
+    expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0", hints("146", "Microsoft Edge"))).toBe(false);
+    expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 OPR/130.0.0.0", '"Opera";v="130", "Chromium";v="145", "Not-A.Brand";v="24"')).toBe(false);
+    expect(isForgedBrowser("Mozilla/5.0 (Linux; Android 15; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/146.0.0.0 Mobile Safari/537.36", hints("146", "Android WebView"))).toBe(false);
+    // Firefox and Safari send no hints.
+    expect(isForgedBrowser("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gecko/20100101 Firefox/145.0", null)).toBe(false);
+    expect(isForgedBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Mobile/15E148 Safari/604.1", "")).toBe(false);
+  });
+  it("catches a User-Agent its hints contradict, and Lightpanda", () => {
+    expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36", hints("146"))).toBe(true);
+    expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0", hints("146"))).toBe(true);
+    expect(isForgedBrowser("Lightpanda/1.0", '"Lightpanda";v="1"')).toBe(true);
+    expect(isForgedBrowser("Lightpanda/1.0", null)).toBe(true);
   });
 });

@@ -83,6 +83,7 @@ export function middleware(request: NextRequest) {
             routerRequest: isRouterFetch(request.headers),
             referer: request.headers.get("referer"),
             secFetchSite: request.headers.get("sec-fetch-site"),
+            secChUa: request.headers.get("sec-ch-ua"),
           }
         : undefined,
   });

@@ -9,10 +9,13 @@
  *   lists (robots.txt says the same, but crawlers re-read it only about once a day).
  * - Each crawler family gets a token bucket per web instance; past it, 429 with Retry-After, which they back off on.
  * - Scrapers that pass for a browser: each signed-out visitor address gets a page-load bucket per instance (VISITOR_RATE),
- *   and a page load with a made-up Referer (an origin with no path on a navigation no link started) is refused (403).
+ *   and a page load with a made-up Referer (an origin with no path on a navigation no link started) is refused (403),
+ *   as is one from a forged browser (a User-Agent its own client hints contradict, or Lightpanda; isForgedBrowser).
  * Link previews (Slack, X, WhatsApp...) and fetches a person asked for (ChatGPT-User, Perplexity-User) are not
  * crawlers here: they are someone reading a page.
  */
+
+import { isForgedBrowser } from "@/lib/analytics/ua";
 
 export type CrawlerKind = "search" | "ai" | "blocked";
 export type Crawler = { family: string; kind: CrawlerKind };
@@ -232,6 +235,8 @@ export type VisitorInput = {
   routerRequest: boolean;
   referer?: string | null;
   secFetchSite?: string | null;
+  /** The Sec-CH-UA client hint: a Chromium browser's real brands and versions. */
+  secChUa?: string | null;
 };
 
 /** True for a page load with a Referer a browser does not send by itself: an http(s) origin with no path
@@ -269,7 +274,7 @@ export function crawlerVerdict(
   if (!crawler) {
     const visitor = input.visitor;
     if (!visitor || visitor.routerRequest || STATIC_FILE.test(input.pathname)) return null;
-    if (isForgedReferer(visitor.referer, visitor.secFetchSite)) {
+    if (isForgedReferer(visitor.referer, visitor.secFetchSite) || isForgedBrowser(input.userAgent, visitor.secChUa)) {
       return { status: 403, reason: "This request does not look like it came from a browser. Open https://www.stocksbrew.online/ directly." };
     }
     if (!visitor.key) return null;

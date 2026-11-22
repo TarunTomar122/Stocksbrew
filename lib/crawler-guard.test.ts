@@ -158,7 +158,7 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
   const CHROME_152 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36";
   const visit = (
     url: string,
-    visitor: { key: string | null; signedIn?: boolean; routerRequest?: boolean; referer?: string | null; secFetchSite?: string | null },
+    visitor: { key: string | null; signedIn?: boolean; routerRequest?: boolean; referer?: string | null; secFetchSite?: string | null; secChUa?: string | null },
     now: number,
     visitorStore: Map<string, { tokens: number; at: number }>,
     ua = CHROME_152,
@@ -175,6 +175,7 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
           routerRequest: visitor.routerRequest ?? false,
           referer: visitor.referer,
           secFetchSite: visitor.secFetchSite,
+          secChUa: visitor.secChUa,
         },
       },
       now,
@@ -275,6 +276,26 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
     // Crawlers that send one (DuckDuckBot, GPTBot) keep their own rules.
     const duck = "DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)";
     expect(visit("/stock/IBM", { key: "198.51.100.7", referer: "http://www.stocksbrew.online" }, 0, store, duck)).toBeNull();
+  });
+
+  it("refuses page loads from a forged browser: hints that contradict the User-Agent, or Lightpanda", () => {
+    // Nov 22: ~200 page loads an hour on /news and /calendar/earnings/*, each claiming an old Chrome or Firefox
+    // while the browser's own hints said Chrome 146.
+    const hints146 = '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"';
+    const oldChrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
+    const firefox = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0";
+    const chrome146 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
+    const store = new Map();
+    expect(visit("/news", { key: "198.51.100.20", secChUa: hints146 }, 0, store, oldChrome)?.status).toBe(403);
+    expect(visit("/news", { key: "198.51.100.21", secChUa: hints146 }, 0, store, firefox)?.status).toBe(403);
+    expect(visit("/news", { key: null }, 0, store, "Lightpanda/1.0")?.status).toBe(403);
+    expect(store.size).toBe(0);
+    // The real thing passes, and so does a browser that sends no hints (Firefox, Safari) or a router fetch.
+    expect(visit("/news", { key: "198.51.100.22", secChUa: hints146 }, 0, store, chrome146)).toBeNull();
+    expect(visit("/news", { key: "198.51.100.23" }, 0, store, firefox)).toBeNull();
+    expect(visit("/news", { key: "198.51.100.20", routerRequest: true, secChUa: hints146 }, 0, store, oldChrome)).toBeNull();
+    // Parallel's agent names itself and keeps its crawler rules.
+    expect(visit("/news", { key: "198.51.100.24" }, 0, store, "Lightpanda/1.0 ShapBot/0.1.0")).toBeNull();
   });
 
   it("leaves self-declared crawlers to their own rules", () => {
