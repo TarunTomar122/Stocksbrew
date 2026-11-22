@@ -38,6 +38,7 @@ const COLUMNS: Column[] = [
     links: [
       { label: "Find stocks", href: "/screener" },
       { label: "Sectors", href: "/sectors" },
+      { label: "Heat map", href: "/heatmap" },
       { label: "Compare", href: "/compare" },
       { label: "Markets", href: "/markets" },
       { label: "Filings", href: "/filings" },
@@ -65,6 +66,7 @@ const COLUMNS: Column[] = [
       { label: "Pricing", href: "/pricing" },
       { label: "Docs", href: "/docs" },
       { label: "Developers", href: "/developers", phone: false },
+      { label: "Stock widget", href: "/widgets", phone: false },
       { label: "Security", href: "/security", phone: false },
       { label: "About", href: "/about" },
       { label: "Blog", href: "/blog" },

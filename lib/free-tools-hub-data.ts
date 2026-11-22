@@ -82,9 +82,9 @@ export const FREE_TOOL_GROUPS: FreeToolGroup[] = [
     description: "Heat maps, screens, headlines, and macro reads — no login required.",
     tools: [
       {
-        href: "/heat",
-        title: "Stock Market Heatmap",
-        description: "See the US stocks getting unusual attention today, why they moved, and how the setup reads.",
+        href: "/heatmap",
+        title: "Stock Market Heat Map",
+        description: "The biggest US stocks by sector, sized by market value and coloured by today's move.",
         icon: "local_fire_department",
         accent: "#ea580c",
         featured: true,

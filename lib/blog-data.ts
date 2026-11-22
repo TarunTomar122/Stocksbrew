@@ -1,7 +1,14 @@
+import { FREE_COVERED_STOCKS } from "@/lib/paywall-flag";
+import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+
 export type BlogPost = {
   slug: string;
   title: string;
   seoTitle?: string;
+  /** True when seoTitle already names stocksbrew, so the page title skips the " · stocksbrew" suffix. */
+  seoTitleAbsolute?: boolean;
+  /** The one line under the on-page title (owner rule: at most ~15 words). Falls back to description, which stays the meta description. */
+  lede?: string;
   description: string;
   category: string;
   tags: string[];
@@ -12,6 +19,97 @@ export type BlogPost = {
 };
 
 export const allBlogPosts: BlogPost[] = [
+  {
+    slug: "cnbc-alternatives",
+    title: "CNBC Alternatives: Where to Follow the Market Instead",
+    seoTitle: "7 Best CNBC Alternatives in 2026 (Free and Paid)",
+    description:
+      "Yahoo Finance, Bloomberg, Reuters and 4 more CNBC alternatives for live market TV, written headlines and news on your own stocks, with real prices.",
+    lede: "Seven places to follow the market instead of CNBC, with what each costs.",
+    category: "comparison",
+    tags: ["cnbc-alternatives", "stock-market-news", "financial-news-apps", "market-tv", "2026"],
+    date: "2026-11-22",
+    readTime: "8 min read",
+    faqs: [
+      { question: "What is the best free alternative to CNBC?", answer: "Yahoo Finance. It streams about eight hours of live market shows each trading day for free on its site, app and YouTube, and keeps quotes, watchlists and news alerts in the same app." },
+      { question: "Is CNBC free?", answer: "The CNBC app is free with watchlists, news alerts and a daily free preview of the live stream. CNBC PRO costs $34.99 a month or $299.99 a year in the App Store, and CNBC+ is $14.99 a month." },
+      { question: "Can I watch Bloomberg TV for free?", answer: "Bloomberg's help page says you can watch Bloomberg TV live for up to 15 minutes a day on its site and apps without a subscription." },
+      { question: "What should I use for news on just my own stocks?", answer: "Yahoo Finance alerts work for free. stocksbrew groups headlines by stock for the US stocks you own and gives a reason for a move only when a dated source backs it." },
+    ],
+  },
+  {
+    slug: "marketwatch-alternatives",
+    title: "MarketWatch Alternatives for News, Quotes and Watchlists",
+    seoTitle: "7 MarketWatch Alternatives in 2026 (Free and Paid)",
+    description:
+      "Yahoo Finance, Google Finance, Reuters and 4 more MarketWatch alternatives for market news, quotes and watchlists, with what each one costs.",
+    lede: "Seven places for market news, quotes and watchlists, with what each costs.",
+    category: "comparison",
+    tags: ["marketwatch-alternatives", "stock-market-news", "stock-quotes", "watchlist-apps", "2026"],
+    date: "2026-11-22",
+    readTime: "7 min read",
+    faqs: [
+      { question: "What is the best alternative to MarketWatch?", answer: "Yahoo Finance is the closest free replacement: market news, quotes, watchlists and portfolios in one app, plus free live market shows." },
+      { question: "Is MarketWatch free?", answer: "The MarketWatch app is free to download, with MarketWatch and a MarketWatch plus Barron's bundle sold as in-app subscriptions." },
+      { question: "Who owns MarketWatch?", answer: "MarketWatch is part of Dow Jones, which also publishes The Wall Street Journal and Barron's." },
+      { question: "Which alternative is best for checking the numbers behind a headline?", answer: "Stock Analysis. It shows statements, ratios, forecasts and an earnings calendar, mostly free, with Pro at $9.99 a month or $79 a year." },
+    ],
+  },
+  {
+    slug: "seeking-alpha-alternatives",
+    title: "Seeking Alpha Alternatives: Cheaper Ways to Research Stocks",
+    seoTitle: "7 Seeking Alpha Alternatives in 2026 (Free and Cheaper)",
+    description:
+      "Seeking Alpha Premium is $299 a year. These 7 alternatives cover ratings, picks and stock data for less, from free Stock Analysis to TipRanks and Zacks.",
+    lede: "Seven cheaper ways to get ratings, picks and stock data.",
+    category: "comparison",
+    tags: ["seeking-alpha-alternatives", "stock-research", "analyst-ratings", "stock-picks", "2026"],
+    date: "2026-11-22",
+    readTime: "8 min read",
+    faqs: [
+      { question: "How much is Seeking Alpha Premium?", answer: "Seeking Alpha's help page lists Premium at $299 a year, plus tax where it applies." },
+      { question: "What is the best free alternative to Seeking Alpha?", answer: "Stock Analysis covers the data side for free: statements, ratios, analyst forecasts and a screener. It has no opinion articles." },
+      { question: "What is the best alternative for analyst ratings?", answer: "TipRanks. It ranks analysts by their record and lets you follow them, with email alerts on your stocks." },
+      { question: "Does stocksbrew replace Seeking Alpha?", answer: "Not for long written analysis, transcripts or dividend grades. It gives each US stock it covers a Buy more, Keep or Sell some call with the reason and a daily briefing on the stocks you own." },
+    ],
+  },
+  {
+    slug: "yahoo-finance-alternatives",
+    title: "Yahoo Finance Alternatives Worth Switching To",
+    seoTitle: "7 Best Yahoo Finance Alternatives in 2026 (Free and Paid)",
+    description:
+      "Google Finance, Stock Analysis, TradingView, Finviz and 3 more Yahoo Finance alternatives, with free plan limits and prices checked in November 2026.",
+    lede: "Compare seven alternatives, their free limits and prices.",
+    category: "comparison",
+    tags: ["yahoo-finance-alternatives", "stock-quotes", "stock-research", "watchlist-apps", "2026"],
+    date: "2026-11-22",
+    readTime: "8 min read",
+    faqs: [
+      { question: "What is the best free alternative to Yahoo Finance?", answer: "Google Finance for quotes, watchlists and portfolio tracking, or Stock Analysis for cleaner financial statements. Both are free to start." },
+      { question: "Is there a Yahoo Finance alternative without ads?", answer: "stocksbrew has no ads on its free or paid plan. Yahoo Finance's own paid plans, from $95.40 a year, also remove ads." },
+      { question: "Which Yahoo Finance alternative has the best charts?", answer: "TradingView. Its free plan allows one chart per tab and two indicators per chart; paid plans start at $14.95 a month." },
+      { question: "Which alternative is best for screening stocks?", answer: "Finviz. Its free screener uses delayed data and has no alerts; Elite is $39.50 a month." },
+    ],
+  },
+  {
+    slug: "stocksbrew-alternatives",
+    title: "stocksbrew Alternatives, and When Each One Is Better",
+    seoTitle: "stocksbrew Alternatives: 7 Tools and When Each Wins",
+    seoTitleAbsolute: true,
+    description:
+      "An honest list from the stocksbrew team: Yahoo Finance, TradingView, Finviz, Stock Analysis, TipRanks, Koyfin and Google Finance, and when to pick each.",
+    lede: "Seven tools that beat stocksbrew at something, and when to pick each.",
+    category: "comparison",
+    tags: ["stocksbrew-alternatives", "stock-research-tools", "watchlist-apps", "stock-analysis-app", "2026"],
+    date: "2026-11-22",
+    readTime: "8 min read",
+    faqs: [
+      { question: "What are the best stocksbrew alternatives?", answer: "Yahoo Finance or Google Finance for a free all-rounder, TradingView for charts, Finviz for screening the whole US market, Stock Analysis for long financial history, TipRanks for tracking analysts and Koyfin for global markets." },
+      { question: "When is stocksbrew the wrong tool?", answer: "When you need stocks outside the US, a native phone app, real charts, alerts on analyst rating changes, or a broker connection to place trades." },
+      { question: "Is stocksbrew free?", answer: `Every stock report and call is free to read, and the free plan covers ${FREE_COVERED_STOCKS} stocks in full. Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year; it covers every stock you track and adds alerts on our levels, earnings and changed calls.` },
+      { question: "Can I use stocksbrew with another tool?", answer: "Yes, and many people do: Finviz or TradingView to find and chart stocks, stocksbrew to keep up with the ones you own." },
+    ],
+  },
   {
     slug: "chartrecap-review",
     title: "ChartRecap Review: A Trading Journal That Keeps the Chart in the Record",
@@ -70,13 +168,15 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-stock-research-websites-2026",
-    title: "Best Stock Research Websites in 2026: Pick the Right Tool for the Job",
-    seoTitle: "8 Best Stock Research Websites in 2026",
+    title: "The 8 Best Stock Research Websites in 2026",
+    seoTitle: "8 Best Stock Research Websites in 2026 (US and Global)",
     description:
-      "Compare the best stock research websites for fundamentals, charts, screening, filings, analyst views, news, AI summaries, and watchlist monitoring.",
+      "Stock Analysis, Finviz and TradingView for free US research; TIKR and Koyfin for global stocks. 8 research sites compared on price and what each does best.",
+    lede: "Eight research sites for US and global stocks, and what each does best.",
     category: "comparison",
     tags: ["best-stock-research-websites", "stock-research-tools", "stock-analysis-sites", "investing-websites", "2026"],
     date: "2026-08-03",
+    updated: "2026-11-22",
     readTime: "17 min read",
     faqs: [
       { question: "What is the best stock research website?", answer: "The best website depends on the job. Stock Analysis is strong for clean financial data, Finviz for screening, TradingView for charts, TIKR and Koyfin for deep global research, Quartr for first-party company material, Seeking Alpha for competing opinions, and stocksbrew for interpreted US-stock monitoring." },
@@ -87,16 +187,19 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-stock-watchlist-apps-2026",
-    title: "Best Stock Watchlist Apps in 2026: Seven Ways to Follow What Matters",
-    seoTitle: "7 Best Stock Watchlist Apps in 2026",
+    title: "The 7 Best Stock Watchlist Apps in 2026",
+    seoTitle: "7 Best Stock Watchlist Apps in 2026 (Free and Paid)",
     description:
-      "Compare stock watchlist apps for prices, news, earnings, charts, alerts, research, and AI monitoring, including the best fit for each workflow.",
+      "Yahoo Finance, TradingView, Stock Analysis and 4 more watchlist apps compared on alerts, news and price, plus which ones alert on analyst rating changes.",
+    lede: "Compare seven watchlists and their costs.",
     category: "comparison",
     tags: ["best-stock-watchlist-apps", "stock-watchlist", "stock-alert-app", "portfolio-news", "2026"],
     date: "2026-08-03",
+    updated: "2026-11-22",
     readTime: "16 min read",
     faqs: [
-      { question: "What is the best stock watchlist app?", answer: "Yahoo Finance is a strong general-purpose choice, TradingView fits chart and technical workflows, Stock Analysis fits clean fundamentals, Koyfin fits configurable dashboards, and stocksbrew fits investors who want AI research and material-change monitoring for US stocks." },
+      { question: "What is the best stock watchlist app?", answer: "Yahoo Finance is a strong free general-purpose choice, TradingView fits chart and technical workflows, Stock Analysis fits clean fundamentals, Koyfin fits configurable dashboards, and stocksbrew fits investors who want a call on each US stock they own and a daily read of what changed." },
+      { question: "Which app alerts me when analysts change a rating on my watchlist?", answer: "TipRanks is built for it: Premium follows up to 5 analysts with email alerts on up to 30 stocks. Stock Analysis Pro lets you follow up to 25 analysts, and Finviz Elite marks upgrades and downgrades on its charts. stocksbrew shows ratings by month on each stock report but does not alert on rating changes." },
       { question: "What should a stock watchlist app track?", answer: "At minimum it should track current price, earnings dates, relevant company news, important filings, and alerts you can control. Research-focused watchlists should also show what changed in the investment case." },
       { question: "Is a watchlist the same as a portfolio tracker?", answer: "No. A watchlist follows securities you may own or may simply be researching. A portfolio tracker records holdings, cost basis, allocation, and performance. Some apps support both." },
       { question: "Are free stock watchlist apps good enough?", answer: "They can be. Free apps handle quotes, simple news, and basic lists well. Paid tools become useful when you need deeper research, advanced charts, specialized alerts, global data, or automated interpretation." },
@@ -104,16 +207,18 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-stock-news-apps-2026",
-    title: "Best Stock News Apps in 2026: Broad Coverage or News for Your Stocks?",
-    seoTitle: "7 Best Stock News Apps in 2026",
+    title: "The 7 Best Stock News Apps in 2026",
+    seoTitle: "7 Best Stock News Apps in 2026 (Free and Paid)",
     description:
-      "Compare stock news apps for breaking coverage, company-specific alerts, market context, analyst commentary, and personalized watchlist intelligence.",
+      "Reuters for speed, Bloomberg for depth, CNBC for live TV, Yahoo Finance for free alerts on your tickers. 7 stock news apps compared, with real prices.",
+    lede: "Seven stock news apps, from live TV to news on your own stocks.",
     category: "comparison",
     tags: ["best-stock-news-apps", "stock-market-news-app", "personalized-stock-news", "watchlist-news", "2026"],
     date: "2026-08-03",
+    updated: "2026-11-22",
     readTime: "16 min read",
     faqs: [
-      { question: "What is the best app for stock news?", answer: "Reuters and Bloomberg fit broad professional coverage, CNBC fits live market programming, Yahoo Finance fits free quotes plus personalized alerts, Seeking Alpha fits company analysis and opinion, and stocksbrew fits interpreted updates tied to a US-stock watchlist." },
+      { question: "What is the best app for stock news?", answer: "Reuters and Bloomberg fit broad professional coverage, CNBC fits live market programming, Yahoo Finance fits free quotes plus personalized alerts, Seeking Alpha fits company analysis and opinion, and stocksbrew fits news on the US stocks you own, grouped by stock." },
       { question: "Which stock news app is best for a watchlist?", answer: "Choose an app that can filter news to followed tickers, preserve source links and timestamps, cover earnings and filings, and avoid sending every low-value headline as an alert." },
       { question: "Is real-time stock news always better?", answer: "No. Speed matters for market-moving events, but many investors benefit more from relevance, verification, and an explanation of why the event affects the company than from receiving every headline first." },
       { question: "Can AI summarize stock news accurately?", answer: "AI can reduce reading time, but useful summaries should link to the source, preserve the event date and market-data timestamp, separate facts from interpretation, and acknowledge uncertainty or missing information." },
@@ -187,13 +292,15 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "gross-margin-vs-operating-margin-vs-net-margin",
-    title: "Gross Margin vs Operating Margin vs Net Margin: Read the Whole Business",
-    seoTitle: "Gross vs Operating vs Net Profit Margin",
+    title: "Gross vs Operating vs Net Margin: What Each Shows",
+    seoTitle: "Gross vs Operating vs Net Margin: Formulas and Examples",
     description:
-      "See how gross, operating, and net profit margins differ, what changes in each margin reveal, and how to compare margins without using bad benchmarks.",
+      "Gross margin is product economics, operating margin is running costs, net margin is what shareholders keep. Formulas, a worked example and what each shows.",
+    lede: "Three margins, three formulas and one worked example.",
     category: "guides",
     tags: ["gross-margin", "operating-margin", "net-profit-margin", "profitability", "financial-statements"],
     date: "2026-08-03",
+    updated: "2026-11-22",
     readTime: "14 min read",
     faqs: [
       {
@@ -304,13 +411,15 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "analyst-ratings-price-targets-explained",
-    title: "Analyst Ratings and Price Targets: How to Read Them Correctly",
-    seoTitle: "Analyst Ratings & Price Targets Explained",
+    title: "Analyst Ratings and Price Targets: How to Read Them",
+    seoTitle: "Analyst Ratings and Price Targets: Read and Track Them",
     description:
-      "Understand buy, hold, and sell ratings, consensus price targets, estimate revisions, conflicts, time horizons, and the questions to ask before using analyst research.",
+      "What Buy, Hold and Sell really mean, why consensus targets mislead, and the apps that track analyst rating changes: TipRanks, MarketBeat, Stock Analysis.",
+    lede: "What ratings and targets mean, and the apps that track rating changes.",
     category: "guides",
     tags: ["analyst-ratings", "price-targets", "stock-forecast", "analyst-recommendations", "stock-analysis"],
     date: "2026-07-23",
+    updated: "2026-11-22",
     readTime: "14 min read",
     faqs: [
       {
@@ -322,6 +431,11 @@ export const allBlogPosts: BlogPost[] = [
         question: "Is a Buy rating the same at every brokerage?",
         answer:
           "No. Rating definitions, benchmark assumptions, time horizons, and distribution policies vary by firm. Read the firm's definition and the report's assumptions before comparing labels.",
+      },
+      {
+        question: "What is a good app for tracking analyst ratings?",
+        answer:
+          "TipRanks is the most complete: it ranks analysts by their record and sends email alerts on followed stocks. MarketBeat sends a free daily email of rating changes, Stock Analysis Pro lets you follow up to 25 analysts, and stocksbrew shows targets and ratings by month beside each stock's financials.",
       },
       {
         question: "Are analyst price target changes useful?",
@@ -360,17 +474,19 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "best-stock-analysis-apps-2026",
-    title: "Best Stock Analysis Apps in 2026: An Honest Workflow Comparison",
-    seoTitle: "Best Stock Analysis Apps in 2026",
-    description: "Compare the best stock analysis apps for US investors by data freshness, research depth, charts, screening, monitoring, price, and real workflow fit.",
+    title: "The Best Stock Analysis Apps in 2026, Compared",
+    seoTitle: "Best Stock Analysis Software in 2026: 8 Apps Compared",
+    description: "Stock Analysis, Finviz, TradingView, TIKR, Koyfin, Seeking Alpha and stocksbrew compared on ease of use, free plans and price, with the best pick per job.",
+    lede: "Eight stock analysis apps compared on setup, free plans and price.",
     category: "comparison",
     tags: ["stock-analysis-app", "US-stocks", "comparison", "2026", "research-tools"],
     date: "2026-07-22",
+    updated: "2026-11-22",
     readTime: "18 min read",
     faqs: [
       {
         question: "What is the best stock analysis app in 2026?",
-        answer: "There is no universal winner. Stocksbrew fits investors who want a current interpreted read and ongoing monitoring; Stock Analysis fits clean financial data; Finviz fits screening; TradingView fits charts; TIKR fits long financial history; Koyfin fits dashboards; and Seeking Alpha fits a large library of analyst opinion.",
+        answer: "There is no universal winner. Stocksbrew fits investors who want a call on each covered US stock they own and a daily read of what changed; Stock Analysis fits clean financial data; Finviz fits screening; TradingView fits charts; TIKR fits long financial history; Koyfin fits dashboards; and Seeking Alpha fits a large library of analyst opinion.",
       },
       {
         question: "What is the difference between a stock analysis app and a trading app?",
@@ -519,13 +635,21 @@ export const allBlogPosts: BlogPost[] = [
   },
   {
     slug: "finviz-vs-tradingview-vs-stocksbrew",
-    title: "Finviz vs TradingView vs stocksbrew: Which Research Workflow Fits?",
-    seoTitle: "Finviz vs TradingView vs stocksbrew",
+    title: "Finviz vs TradingView: Which One Do You Need?",
+    seoTitle: "Finviz vs TradingView (2026): Which One Do You Need?",
     description:
-      "A source-backed comparison of screening, charting, watchlist monitoring, alerts, and cost—plus the workflow where using all three makes sense.",
+      "Finviz is the faster screener, TradingView the better chart app. Free plans, prices and alerts compared side by side, plus where stocksbrew fits.",
+    lede: "Screener or charts: free plans, prices and alerts side by side.",
     category: "comparison",
     tags: ["finviz", "tradingview", "stocksbrew", "comparison", "methodology"],
     date: "2026-07-16",
+    updated: "2026-11-22",
+    faqs: [
+      { question: "Is Finviz or TradingView better?", answer: "Finviz is better for screening US stocks and scanning the market map. TradingView is better for charts, indicators and technical alerts across stocks, crypto, forex and futures. Many investors use Finviz to find names and TradingView to time them." },
+      { question: "Is Finviz free?", answer: "Yes, with delayed data, basic screener filters, 3 years of financials and no alerts. Elite costs $39.50 a month or $299.50 a year and adds real-time data, advanced filters, 8 years of financials and alerts." },
+      { question: "Is TradingView free?", answer: "Yes. The Basic plan allows one chart per tab and two indicators per chart. Paid plans run from $14.95 a month (Essential) to $239.95 a month (Ultimate), less when billed yearly." },
+      { question: "Where does stocksbrew fit next to Finviz and TradingView?", answer: "After you have picked your stocks. stocksbrew gives each US stock you own a Buy more, Keep or Sell some call with its reason and a daily briefing on what changed. It is not a charting tool and its screener covers only the stocks it researches." },
+    ],
     readTime: "15 min read",
   },
   {
@@ -935,6 +1059,11 @@ export const allBlogPosts: BlogPost[] = [
 // discovery until their article has a clear intent, original value, sources,
 // useful internal links, and a human read-through.
 export const REVIEWED_BLOG_SLUGS = new Set([
+  "cnbc-alternatives",
+  "marketwatch-alternatives",
+  "seeking-alpha-alternatives",
+  "yahoo-finance-alternatives",
+  "stocksbrew-alternatives",
   "chartrecap-review",
   "best-stock-research-websites-2026",
   "best-stock-watchlist-apps-2026",

@@ -19,6 +19,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-seeking-alpha": {
     blogs: [
+      { href: "/blog/seeking-alpha-alternatives", label: "Seeking Alpha alternatives" },
       { href: "/blog/track-stock-news-for-your-portfolio", label: "Track portfolio news" },
       { href: "/blog/stock-market-daily-newsletter-free", label: "Free newsletters" },
     ],
@@ -29,6 +30,8 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-tradingview": {
     blogs: [
+      { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "Finviz vs TradingView" },
+      { href: "/blog/stocksbrew-alternatives", label: "stocksbrew alternatives" },
       { href: "/blog/how-to-read-stock-charts-beginners", label: "Read stock charts" },
       { href: "/blog/buy-hold-sell-signals-explained", label: "Buy/hold/sell signals" },
     ],
@@ -39,6 +42,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-yahoo-finance": {
     blogs: [
+      { href: "/blog/yahoo-finance-alternatives", label: "Yahoo Finance alternatives" },
       { href: "/blog/best-stock-portfolio-tracker-free-2026", label: "Free portfolio trackers" },
       { href: "/blog/watchlist-vs-portfolio-tracker", label: "Watchlist vs portfolio" },
     ],
@@ -69,6 +73,7 @@ export const COMPARE_RELATED: Record<
   },
   "stocksbrew-vs-finviz": {
     blogs: [
+      { href: "/blog/finviz-vs-tradingview-vs-stocksbrew", label: "Finviz vs TradingView" },
       { href: "/compare/stocksbrew-vs-finviz", label: "Blog: vs Finviz" },
       { href: "/blog/stock-picks-vs-stock-screeners", label: "Picks vs screeners" },
       { href: "/blog/free-stock-market-analysis-tools", label: "Free analysis tools" },
@@ -157,6 +162,32 @@ export function getCompareRelated(slug: string): { blogs: SeoLink[]; compares: S
 
 /** Blog slug → related compare pages (for blog footers). */
 export const BLOG_COMPARE_LINKS: Record<string, SeoLink[]> = {
+  "cnbc-alternatives": [
+    { href: "/docs/compare/stocksbrew-vs-yahoo-finance", label: "vs Yahoo Finance" },
+    { href: "/docs/compare/stocksbrew-vs-seeking-alpha", label: "vs Seeking Alpha" },
+  ],
+  "marketwatch-alternatives": [
+    { href: "/docs/compare/stocksbrew-vs-yahoo-finance", label: "vs Yahoo Finance" },
+    { href: "/docs/compare/stocksbrew-vs-stockanalysis", label: "vs Stock Analysis" },
+  ],
+  "seeking-alpha-alternatives": [
+    { href: "/docs/compare/stocksbrew-vs-seeking-alpha", label: "vs Seeking Alpha" },
+    { href: "/docs/compare/stocksbrew-vs-tipranks", label: "vs TipRanks" },
+    { href: "/docs/compare/stocksbrew-vs-motley-fool", label: "vs Motley Fool" },
+  ],
+  "yahoo-finance-alternatives": [
+    { href: "/docs/compare/stocksbrew-vs-yahoo-finance", label: "vs Yahoo Finance" },
+    { href: "/docs/compare/stocksbrew-vs-stockanalysis", label: "vs Stock Analysis" },
+  ],
+  "stocksbrew-alternatives": [
+    { href: "/docs/compare/stocksbrew-vs-yahoo-finance", label: "vs Yahoo Finance" },
+    { href: "/docs/compare/stocksbrew-vs-tradingview", label: "vs TradingView" },
+    { href: "/docs/compare/stocksbrew-vs-tipranks", label: "vs TipRanks" },
+  ],
+  "finviz-vs-tradingview-vs-stocksbrew": [
+    { href: "/docs/compare/stocksbrew-vs-finviz", label: "vs Finviz" },
+    { href: "/docs/compare/stocksbrew-vs-tradingview", label: "vs TradingView" },
+  ],
   "buy-hold-sell-signals-explained": [
     { href: "/compare/stocksbrew-vs-tipranks", label: "vs TipRanks" },
     { href: "/compare/stocksbrew-vs-prospero", label: "vs Prospero" },

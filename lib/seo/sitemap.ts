@@ -89,6 +89,7 @@ const PAGES = [
   "/signals",
   "/screener",
   "/screener?tab=sectors",
+  "/heatmap",
   "/compare",
   "/filings",
   "/backtest",
@@ -105,6 +106,7 @@ const PAGES = [
   "/agents",
   "/pricing",
   "/developers",
+  "/widgets",
   "/security",
   "/about",
 ] as const;
@@ -180,7 +182,7 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
       for (const post of indexableBlogPosts) entries.push({ path: `/blog/${post.slug}`, lastmod: day(post.updated ?? post.date) });
       break;
     case "stocks": {
-      // The same rule as the page's robots tag: stockHasCurrentRead (lib/seo/stock-pages.ts) on the same snapshot row.
+      // The same rule as the page's robots tag: stockIsIndexable (lib/seo/stock-pages.ts) on the same snapshot row.
       const [coverage, built] = await Promise.all([getCoverage(), stockBuiltDates()]);
       for (const ticker of indexableStockSymbols(coverage, today)) entries.push({ path: `/stock/${ticker}`, lastmod: built.get(ticker) });
       break;

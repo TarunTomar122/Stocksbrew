@@ -1,5 +1,6 @@
 import universeCatalog from "@/backend/config/instrument_universe.json";
 import { resolveSector } from "@/lib/gics-sector";
+import { levelFree } from "@/lib/og/format";
 
 export type SeoStockPage = {
   instrumentId: string;
@@ -76,20 +77,107 @@ export function getSeoStockPage(ticker: string): SeoStockPage | null {
   return STOCK_BY_TICKER.get(String(ticker || "").trim().toUpperCase()) ?? null;
 }
 
-/** "Apple Inc. (AAPL)", or just "ZETA" when the only name we hold is the ticker. */
-function nameAndTicker(stock: Pick<SeoStockPage, "name" | "ticker">): string {
+const LEGAL_SUFFIX =
+  /,?\s+(?:Inc\.?|Incorporated|Corporation|Corp\.?|Company|Co\.?|Holdings?|Ltd\.?|Limited|plc|N\.V\.|S\.A\.|AG|SE|Group|& Co\.?)$/i;
+
+/** "NVIDIA", "Coca-Cola": the name without "The" and its legal suffixes, for titles and snippets that must stay short. */
+export function shortStockName(stock: Pick<SeoStockPage, "name" | "ticker">): string {
   const name = String(stock.name ?? "").trim();
-  return name && name.toUpperCase() !== stock.ticker.toUpperCase() ? `${name} (${stock.ticker})` : stock.ticker;
+  if (!name || name.toUpperCase() === stock.ticker.toUpperCase()) return stock.ticker;
+  let short = name.replace(/^The\s+/i, "");
+  for (let i = 0; i < 3 && LEGAL_SUFFIX.test(short); i += 1) short = short.replace(LEGAL_SUFFIX, "").trim();
+  short = short.replace(/,\s*$/, "").trim();
+  return short.length >= 2 ? short : name;
 }
 
-export function stockSeoDescription(stock: Pick<SeoStockPage, "name" | "ticker" | "sector" | "industry">): string {
-  const category = stock.industry || stock.sector || "US stock";
-  return `${nameAndTicker(stock)} stock on one page: the price, our current call and the reasoning behind it, financials, valuation against its own history, analyst price targets, earnings dates and results, who owns it and recent news. ${category}.`;
+/** "NVIDIA (NVDA)", or "ZETA" when the only name we hold is the ticker. */
+function shortLabel(stock: Pick<SeoStockPage, "name" | "ticker">): string {
+  const short = shortStockName(stock);
+  return short === stock.ticker ? stock.ticker : `${short} (${stock.ticker})`;
 }
 
-/** The page title, written from what the stock page shows. */
+/** The facts of a screener row a stock page's snippet reads (lib/screener-shared.ts ScreenerRow). */
+export type StockSnippetFacts = StockReadFacts & {
+  target?: number | null;
+  upside?: number | null;
+  earnings_date?: string | null;
+};
+
+/** Our call in the words the page uses. */
+const CALL_WORDS: Record<string, string> = { Add: "Buy more", Hold: "Keep", Trim: "Sell some" };
+/** Google shows about this many characters of a description. */
+export const STOCK_DESCRIPTION_MAX = 160;
+/** A search snippet quotes our call only while it is at most this many days old. */
+export const SNIPPET_CALL_MAX_AGE_DAYS = 60;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const usd = (value: number) => `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/**
+ * A number that is not a percentage or a multiple ("178.60", "under 175",
+ * "$182"): in a thesis that is almost always a price level, and levels are not
+ * public on every stock, so a snippet sentence holding one is left out.
+ */
+const BARE_NUMBER = /\d(?![\d.,]*\s?(?:%|x\b|×|percent\b))/i;
+const LEVEL_TALK = /\$|\b(?:add|adding|buy|buying|buy more|trim|trimming|sell|selling|sell some)\s+(?:below|above|under|over|near|at|around)\b|\b(?:zones?|levels?|support|resistance|targets?)\b/i;
+/** Template lines the pipeline writes when it has nothing to say ("CC coverage is quiet."). */
+const FILLER = /\bcoverage is quiet\b|\bnothing new\b|\bno (?:fresh|new) (?:news|read)\b/i;
+
+/** The thesis's first sentence when it fits whole, says something, and names no price level. */
+function thesisSentence(text: string | null | undefined, max: number): string | null {
+  const clean = levelFree(text);
+  if (!clean) return null;
+  const first = clean.split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/)[0]!.trim();
+  if (BARE_NUMBER.test(first) || LEVEL_TALK.test(first) || FILLER.test(first)) return null;
+  const sentence = /[.!?]$/.test(first) ? first : `${first}.`;
+  return sentence.length <= max ? sentence : null;
+}
+
+/**
+ * The search snippet for a stock page. With today's screener row it gives the
+ * price, our call and why, and the analysts' average target, so each page has
+ * its own; without a row it says what the page holds. A part that does not fit
+ * whole is left out, never cut off mid-sentence.
+ */
+export function stockSeoDescription(
+  stock: Pick<SeoStockPage, "name" | "ticker">,
+  row?: StockSnippetFacts | null,
+  today?: string,
+): string {
+  const label = shortLabel(stock);
+  if (!row || !finite(row.price) || row.price <= 0) {
+    return `${label} stock price, forecast and our buy or sell call, with financials, analyst targets, earnings and news.`;
+  }
+  // A price more than a few days old (a data job lagging) is not quoted as the price.
+  const priceIsCurrent = !today || !row.price_at || isFresh(row.price_at, today, 5);
+  const parts: string[] = [priceIsCurrent ? `${label} stock at ${usd(row.price)}.` : `${label} stock price and forecast.`];
+  const room = () => STOCK_DESCRIPTION_MAX - parts.join(" ").length - 1;
+  const add = (part: string | null) => {
+    if (part && part.length <= room()) parts.push(part);
+  };
+  // The call is quoted only while it is recent; the page itself dates an older one.
+  const callIsRecent = !today || isFresh(row.call_at, today, SNIPPET_CALL_MAX_AGE_DAYS);
+  const call = callIsRecent ? CALL_WORDS[String(row.call ?? "")] : undefined;
+  if (call) {
+    add(`Our call: ${call}.`);
+    add(thesisSentence(row.thesis, room()));
+  }
+  if (finite(row.target) && row.target > 0) {
+    const upside = finite(row.upside) ? ` (${row.upside >= 0 ? "+" : "−"}${Math.abs(row.upside).toFixed(0)}%)` : "";
+    add(`Analysts' average target ${usd(row.target)}${upside}.`);
+  }
+  const earnings = String(row.earnings_date ?? "").slice(0, 10);
+  if (today && /^\d{4}-\d{2}-\d{2}$/.test(earnings) && earnings >= today) {
+    add(`Earnings ${MONTHS[Number(earnings.slice(5, 7)) - 1]} ${Number(earnings.slice(8, 10))}.`);
+  }
+  if (parts.join(" ").length < 110) add("Forecast, financials and news.");
+  return parts.join(" ");
+}
+
+/** The page title, in the words people search with ("nvda stock price", "nvidia stock forecast"). */
 export function stockSeoTitle(stock: Pick<SeoStockPage, "name" | "ticker">): string {
-  return `${nameAndTicker(stock)} Stock: Our Call, Valuation and Earnings`;
+  return `${shortLabel(stock)} Stock Price, Forecast and Our Call`;
 }
 
 export const FEATURED_STOCK_TICKERS = [
@@ -111,7 +199,7 @@ const FEATURED_STOCKS = new Set<string>(FEATURED_STOCK_TICKERS);
  * The most viewed stock pages of the last 90 days, then the largest
  * companies by market value, as picked on 2026-11-10 (first-party views from
  * `tm_stock_views`, market values from the screener). This list no longer
- * decides indexing (see `stockHasCurrentRead` below); it ranks names where a
+ * decides indexing (see `stockIsIndexable` below); it ranks names where a
  * page has to choose a few, such as which pairs of rivals get a compare page.
  *
  * This is separate from FEATURED_STOCK_TICKERS on purpose: that list also
@@ -130,10 +218,14 @@ export const TOP_STOCK_TICKERS = [
   "SCCO", "CB", "VRTX", "BA", "SPGI", "NVO", "ETN", "LMT", "MDT", "HDB",
 ] as const;
 
-/** A stock page is indexable while its written read is at most this many days old... */
-export const STOCK_READ_MAX_AGE_DAYS = 60;
-/** ...and its last price is at most this many days old. */
-export const STOCK_PRICE_MAX_AGE_DAYS = 10;
+/**
+ * A stock page is indexable while its last price is at most this many days
+ * old. Generous on purpose: a page that flips between index and noindex each
+ * time a data job lags loses its place in Google for weeks (the Nov 10-17
+ * price outage did that to NVDA, AMZN and META), while a price over a month
+ * old means the stock stopped trading or we stopped covering it.
+ */
+export const STOCK_PRICE_MAX_AGE_DAYS = 30;
 
 function dayNumber(stamp: string): number {
   return Date.parse(`${stamp.slice(0, 10)}T00:00:00Z`);
@@ -156,20 +248,26 @@ export type StockReadFacts = {
 };
 
 /**
- * The stock index rule. A stock page is open to search engines when it
- * carries a current written read (our call and the thesis from a brief
- * written in the last STOCK_READ_MAX_AGE_DAYS days) and a price from the last
- * STOCK_PRICE_MAX_AGE_DAYS days. Every other stock page stays noindex.
+ * The stock index rule. A stock page is open to search engines while it has a
+ * real price from the last STOCK_PRICE_MAX_AGE_DAYS days: the page then holds
+ * the price, financials, valuation, analyst targets and news, whatever the age
+ * of our written call (the page dates the call itself). Every other stock page
+ * stays noindex. Until Nov 22 the rule also wanted a call under 60 days old and
+ * a price under 10, which kept ~280 real pages out and flipped the rest.
  *
  * The page metadata (app/(app)/stock/[symbol]/page.tsx) and the stocks
  * sitemap (lib/seo/sitemap.ts) both apply this function to the same screener
  * snapshot row, so the two cannot disagree.
  */
-export function stockHasCurrentRead(row: StockReadFacts | null | undefined, today: string): boolean {
+export function stockIsIndexable(row: StockReadFacts | null | undefined, today: string): boolean {
   if (!row) return false;
-  if (!String(row.call ?? "").trim() || !String(row.thesis ?? "").trim()) return false;
   if (typeof row.price !== "number" || !Number.isFinite(row.price) || row.price <= 0) return false;
-  return isFresh(row.call_at, today, STOCK_READ_MAX_AGE_DAYS) && isFresh(row.price_at, today, STOCK_PRICE_MAX_AGE_DAYS);
+  return isFresh(row.price_at, today, STOCK_PRICE_MAX_AGE_DAYS);
+}
+
+/** True when the row carries our call and the thesis behind it. */
+export function stockHasCall(row: StockReadFacts | null | undefined): boolean {
+  return Boolean(row && String(row.call ?? "").trim() && String(row.thesis ?? "").trim());
 }
 
 export function isFeaturedStockTicker(ticker: string): boolean {

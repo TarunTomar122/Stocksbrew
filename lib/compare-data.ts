@@ -43,7 +43,14 @@ export type PriceCheck = {
   text: string;
   /** When not checked: what we found instead, as a sentence (replaces "we could not read"). */
   note?: string;
+  /** What `source` is, when it is not the product's pricing page ("its Premium help page"). */
+  sourceName?: string;
 };
+
+/** How a page names where the other product's prices were read: "its pricing page" unless the check says otherwise. */
+export function priceSourceName(slug: string): string {
+  return PRICE_CHECKS[slug]?.sourceName ?? "its pricing page";
+}
 
 const CHECKED_ON = "2026-11-11";
 
@@ -53,7 +60,13 @@ export const PRICE_CHECKS: Record<string, PriceCheck> = {
     checked: CHECKED_ON,
     text: "Tickertape has a free plan, and Pro costs ₹399 for a month, ₹899 for three months or ₹2,999 for a year (Indian rupees)",
   },
-  "stocksbrew-vs-seeking-alpha": { source: "https://seekingalpha.com/premium", checked: null, text: "" },
+  // seekingalpha.com/premium does not render without a browser; its help center states the price in plain text.
+  "stocksbrew-vs-seeking-alpha": {
+    source: "https://help.seekingalpha.com/what-is-seeking-alpha-premium",
+    checked: "2026-11-22",
+    text: "Seeking Alpha Premium costs $299 a year plus tax",
+    sourceName: "its Premium help page",
+  },
   "stocksbrew-vs-tradingview": {
     source: "https://www.tradingview.com/pricing/",
     checked: CHECKED_ON,
@@ -112,7 +125,7 @@ export function competitorPriceSentence(slug: string, competitorName: string): s
   if (!check || !check.checked || !check.text) {
     return check?.note ?? `We could not read ${competitorName}'s current prices from its own site, so this page quotes none: check its pricing page`;
   }
-  return `${check.text}, per its pricing page on ${fmtCheckDay(check.checked)}`;
+  return `${check.text}, per ${priceSourceName(slug)} on ${fmtCheckDay(check.checked)}`;
 }
 
 /**
@@ -205,7 +218,7 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       "Seeking Alpha is a large library of contributor analysis, transcripts and Quant ratings that you read. stocksbrew is a short daily briefing on your own stocks plus a rule-based call on each one. One is depth on a single stock. The other is a check on what changed.",
     ourDrawback: "it has no earnings call transcripts, no contributor analysis and no dividend grades.",
     competitorUrl: "https://seekingalpha.com",
-    competitorPricingUrl: "https://seekingalpha.com/premium",
+    competitorPricingUrl: "https://help.seekingalpha.com/what-is-seeking-alpha-premium",
     stocksbrewBestFor: "You want one place that tells you what changed for the stocks you follow, with the source and the time.",
     competitorBestFor: "You want long written analysis, earnings call transcripts, factor grades and Quant, author and sell-side ratings on a specific stock.",
     bothScenario: "Read the stocksbrew briefing to see what changed. When a stock needs a decision, read the longer analysis on Seeking Alpha.",

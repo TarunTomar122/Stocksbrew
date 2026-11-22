@@ -108,6 +108,7 @@ export const SEO_PRIORITY_URLS = [
   "/signals",
   // Page families built from stored data (lib/seo/families.ts). Move pages are pinged by the
   // mover research job as they are published (backend/scripts/research_daily_anomaly_reasons.py).
+  "/heatmap",
   "/sectors",
   "/sectors/technology",
   "/sectors/financials",

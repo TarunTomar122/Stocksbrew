@@ -385,10 +385,7 @@ export const marketSeoBlogContent: Record<string, string> = {
 `,
 
   "analyst-ratings-price-targets-explained": `
-<div class="article-summary">
-  <h2>The short version</h2>
-  <p>A Buy rating is a research opinion under one firm’s definition. A consensus target mixes reports with different dates and assumptions. Use ratings to find changing expectations, then inspect the revenue, margin, earnings, risk, and valuation assumptions behind them.</p>
-</div>
+<p>Treat a rating as one firm's opinion and a price target as one estimate over a 6 to 18 month horizon. A consensus target mixes reports with different dates and assumptions, so what matters is why an analyst changed the model. To track ratings, TipRanks is the most complete app (it ranks analysts and alerts you on followed stocks), MarketBeat sends a free daily email of rating changes, Stock Analysis Pro lets you follow up to 25 analysts, and stocksbrew shows targets and ratings by month beside each stock's financials.</p>
 
 <p>Analyst ratings and price targets are easy to display and easy to misuse. A target that implies 20% upside looks precise, but it may depend on estimates that are already stale, a valuation multiple that differs from the market’s, or a time horizon the reader never checked.</p>
 
@@ -492,14 +489,31 @@ export const marketSeoBlogContent: Record<string, string> = {
 
 <p>That is operationally different from EPS remaining at $5 while the multiple rises from 20 to 24 because peer valuations expanded. Both produce a $120 target; only one reflects a stronger earnings forecast.</p>
 
-<h2>How Stocksbrew uses analyst context</h2>
+<h2 id="apps">Apps for tracking analyst ratings</h2>
 
-<p>A company page can show the current consensus label, target, and analyst count alongside valuation, growth, recent earnings, and risks. The target is context, not the conclusion. Check the timestamp, compare the target gap with estimate quality, and read the primary company evidence.</p>
+<p>These are the tools we could confirm on each company's own pages on November 22, 2026. Prices change, so check before you pay.</p>
+
+<div class="table-scroll"><table>
+  <thead><tr><th>App</th><th>What it does for ratings</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://www.tipranks.com/plans">TipRanks</a></td><td>Ranks analysts and research firms; Premium follows up to 5 experts with email alerts on up to 30 stocks</td><td>Premium shown at $30 a month, Ultimate at $50, as a discount on yearly plans</td></tr>
+    <tr><td><a href="https://www.marketbeat.com/faq">MarketBeat</a></td><td>A free Daily Ratings email each weekday; paying All Access members get it first</td><td>Newsletter free</td></tr>
+    <tr><td><a href="https://stockanalysis.com/pro/">Stock Analysis</a></td><td>Analyst forecasts on every stock page; Pro follows up to 25 analysts with up to 100 alerts</td><td>Pro $9.99 a month or $79 a year</td></tr>
+    <tr><td><a href="https://finviz.com/elite">Finviz Elite</a></td><td>Marks upgrades and downgrades on the chart, on the candle where they happened</td><td>$39.50 a month</td></tr>
+    <tr><td>stocksbrew</td><td>Analyst price targets and ratings by month on each stock report, beside earnings and financials; no alert when a rating changes</td><td>Free to read</td></tr>
+  </tbody>
+</table></div>
+
+<p>If you also want company financials in the same place, Stock Analysis and stocksbrew put the ratings on the same page as the numbers. TipRanks goes furthest on the analysts themselves. For a wider look at watchlist apps, see <a href="/blog/best-stock-watchlist-apps-2026">the best stock watchlist apps</a>.</p>
+
+<h2>How stocksbrew uses analyst context</h2>
+
+<p>Each <a href="/stock/NVDA">stock report</a> shows analyst price targets and ratings by month alongside valuation, growth, recent earnings and risks. The target is context, not the conclusion. Check the timestamp, compare the target gap with estimate quality, and read the primary company evidence.</p>
 
 <div class="cta-section">
-  <h3>Inspect analyst context beside the fundamentals</h3>
-  <p>Open a US ticker and compare the consensus view with price, growth, valuation, earnings, and risk.</p>
-  <a class="cta-button" href="/screener">Browse US stock analysis →</a>
+  <h3>See analyst targets beside the fundamentals</h3>
+  <p>Open a US stock and compare the analysts' view with price, growth, valuation, earnings and risk.</p>
+  <a class="cta-button" href="/screener">Browse US stocks →</a>
 </div>
 `,
 

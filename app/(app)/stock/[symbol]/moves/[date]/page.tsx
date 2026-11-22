@@ -12,7 +12,7 @@ import { getDailySeries } from "@/lib/screener-series";
 import { sectorSlug } from "@/lib/screener-shared";
 import { causeWords, cleanTicker, insiderHref, isIsoDay, longDay, moveHref, moveTitle, moversDayHref, sectorHref, stockLabel } from "@/lib/seo/families";
 import { getCoverage, getMovesDay, getRecentMoves } from "@/lib/seo/family-data";
-import { getSeoStockPage, stockHasCurrentRead } from "@/lib/seo/stock-pages";
+import { getSeoStockPage, stockIsIndexable } from "@/lib/seo/stock-pages";
 import { plainCallReason } from "@/lib/plain-copy";
 import { withoutVagueChange } from "@/lib/call-basis";
 
@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: path },
-    robots: { index: stockHasCurrentRead(row, todayET()), follow: true },
+    robots: { index: stockIsIndexable(row, todayET()), follow: true },
     openGraph: { type: "article", title: `${title} · stocksbrew`, description, url: `${BASE}${path}`, images: [shareImage] },
     twitter: { card: "summary_large_image", title: `${title} · stocksbrew`, description, images: [shareImage] },
   };

@@ -138,7 +138,7 @@ export default async function SectorsPage() {
         actions={
           <span className="flex items-center gap-4">
             <AverageKey rising={risingAll} buyMore={buyMoreAll} />
-            <Link prefetch={false} href="/screener?tab=sectors" className="text-[13px] font-medium text-oa-primary hover:underline">
+            <Link prefetch={false} href="/heatmap" className="text-[13px] font-medium text-oa-primary hover:underline">
               Heat map →
             </Link>
           </span>

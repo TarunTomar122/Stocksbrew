@@ -14,7 +14,7 @@ source disagree, the source wins; fix this file.
 | Trial | 3-day free trial at US checkout, card required, one per account | `lib/pricing.ts` `US_PRO_TRIAL_DAYS`; `app/api/subscription/create-checkout/route.ts` |
 | Data sources | Yahoo Finance prices (batched, not real time), SEC EDGAR, Nasdaq earnings calendar, Clerk of the House, market data vendors | `/docs/methodology/data-sources` |
 | Not advice | "Our view, not advice." on every call | stock page call block |
-| Stock pages | indexable at /stock/{TICKER} (680 in the stocks sitemap per the 2026-11-11 audit, not rechecked here); noindex without a call in 60 days or a price in 10 | `lib/seo/stock-pages.ts` `stockHasCurrentRead` |
+| Stock pages | indexable at /stock/{TICKER} whenever the price is under 30 days old, whatever the call's age (since 2026-11-22; before that a call under 60 days and a price under 10 were also needed, which kept ~280 real pages noindexed and flipped others) | `lib/seo/stock-pages.ts` `stockIsIndexable` |
 | Product comparisons | 12 at /docs/compare/stocksbrew-vs-*; competitor prices checked 2026-11-11 (Seeking Alpha, Morningstar, Prospero, Danelfin not checked) | `lib/compare-data.ts` `PRICE_CHECKS` |
 | What AI engines read | /llms.txt, generated from the files above | `lib/llms.ts` (test: `lib/llms.test.ts`) |
 | Structured data | Organization, WebSite, WebApplication with an AggregateOffer (Free $0, Pro $19/mo, $190/yr). No FAQ, HowTo or review markup | `app/layout.tsx` |

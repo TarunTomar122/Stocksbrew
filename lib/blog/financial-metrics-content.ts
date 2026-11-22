@@ -312,10 +312,7 @@ export const financialMetricsBlogContent: Record<string, string> = {
 `,
 
   "gross-margin-vs-operating-margin-vs-net-margin": `
-<div class="article-summary">
-  <h2>The short answer</h2>
-  <p>Gross margin shows the economics of the product. Operating margin shows the cost of running the business around it. Net margin shows what remained after interest, taxes, and non-operating items. Read the three as a bridge, not as competing scores.</p>
-</div>
+<p>Gross margin is what is left of each sales dollar after the direct cost of the product. Operating margin also takes out running costs like research, sales and admin. Net margin takes out interest and taxes too, so it is what the shareholders actually keep. A company with $1 billion of sales might show a 40% gross margin, a 15% operating margin and a 10.5% net margin. Read the three as a bridge, not as competing scores.</p>
 
 <p>Revenue says how much a company sold. Profit margins show how much of each sales dollar survived at different levels of the income statement. That makes the pattern across gross margin, operating margin, and net margin more useful than any isolated percentage.</p>
 

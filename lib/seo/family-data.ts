@@ -22,7 +22,7 @@ import {
   moveSources,
   type StockPair,
 } from "@/lib/seo/families";
-import { TOP_STOCK_TICKERS, stockHasCurrentRead } from "@/lib/seo/stock-pages";
+import { TOP_STOCK_TICKERS, stockIsIndexable } from "@/lib/seo/stock-pages";
 
 /**
  * Server loaders for the programmatic page families. Everything comes from
@@ -106,10 +106,10 @@ export const getStockFamily = perRequest(async (symbol: string): Promise<StockFa
   return family.row ? { ...family, row: withFreshEarningsGap(family.row, todayET()) } : family;
 });
 
-/** Stock pages that pass the index rule today (see stockHasCurrentRead), in ticker order. */
+/** Stock pages that pass the index rule today (see stockIsIndexable), in ticker order. */
 export function indexableStockSymbols(coverage: Coverage, today: string = todayET()): string[] {
   return coverage.rows
-    .filter((row) => stockHasCurrentRead(row, today))
+    .filter((row) => stockIsIndexable(row, today))
     .map((row) => row.symbol.toUpperCase())
     .sort();
 }

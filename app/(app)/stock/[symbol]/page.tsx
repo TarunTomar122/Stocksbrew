@@ -21,7 +21,7 @@ import { ogImage } from "@/lib/og/url";
 import { getStockFamily } from "@/lib/seo/family-data";
 import {
   getSeoStockPage,
-  stockHasCurrentRead,
+  stockIsIndexable,
   stockSeoDescription,
   stockSeoTitle,
 } from "@/lib/seo/stock-pages";
@@ -122,24 +122,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const liveRead = profile || !normalized ? Promise.resolve(null) : getStockSummary(upper, "US").catch(() => null);
   const known = normalized && exists !== "no";
   const shareLineRead = known ? stockShareLine(upper).catch(() => null) : Promise.resolve(null);
+  // The stock's screener row: the index rule and the snippet's price, call and target.
   // If the coverage read fails, keep the page indexable rather than noindex it during an outage.
-  const indexRead = known
-    ? getStockFamily(upper).then((family) => stockHasCurrentRead(family.row, todayET()), () => true)
-    : Promise.resolve(true);
+  const today = todayET();
+  const familyRead = known ? getStockFamily(upper).then((family) => family, () => null) : Promise.resolve(null);
+  const indexRead = known ? familyRead.then((family) => (family ? stockIsIndexable(family.row, today) : true)) : Promise.resolve(true);
   // A catalogued stock is known to exist, so its metadata (which holds the first byte) does not wait on the check.
   if (!profile && exists === "no") return { title: "Stock not found", robots: { index: false, follow: true } };
   const live = await liveRead;
-  const identity = profile ?? live;
+  // A covered stock missing from both the catalogue and the summary store (ABB, Nov 22) still has its
+  // screener row, which the stocks sitemap reads: name it from that row so page and sitemap apply one rule.
+  const coveredRow = profile || live ? null : ((await familyRead)?.row ?? null);
+  const identity =
+    profile ?? live ?? (coveredRow?.name ? { name: coveredRow.name, sector: coveredRow.sector ?? "", industry: coveredRow.industry ?? "" } : null);
   const title = identity
     ? stockSeoTitle({ name: identity.name, ticker: upper })
     : `${upper} Stock Analysis & Research`;
   const description = identity
-    ? stockSeoDescription({
-        name: identity.name,
-        ticker: upper,
-        sector: identity.sector || "",
-        industry: identity.industry || "",
-      })
+    ? stockSeoDescription({ name: identity.name, ticker: upper }, (await familyRead)?.row ?? null, today)
     : `${upper} stock price, fundamentals, earnings, analyst context, risks, and recent news in one research view.`;
   // The share card: price, move, our call and the read, drawn from today's data (lib/og).
   const shareImage = ogImage(["stock", upper], identity ? `${upper} (${identity.name}): price, today's move and our call` : `${upper} stock report`, { daily: true });
@@ -149,16 +149,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     keywords: identity
       ? [
-          `${upper} stock analysis`,
+          `${upper} stock price`,
+          `${upper} stock forecast`,
+          `${upper} price target`,
+          `is ${upper} a buy`,
           `${identity.name} stock`,
           `${upper} earnings`,
-          `${upper} stock price`,
           identity.industry,
           identity.sector,
         ].filter((value): value is string => Boolean(value))
       : undefined,
     alternates: { canonical: `/stock/${upper}` },
-    // The index rule lives in lib/seo/stock-pages.ts (stockHasCurrentRead); the stocks sitemap applies the same rule to the same row.
+    // The index rule lives in lib/seo/stock-pages.ts (stockIsIndexable); the stocks sitemap applies the same rule to the same row.
     robots: {
       index: Boolean(identity) && (await indexRead),
       follow: true,

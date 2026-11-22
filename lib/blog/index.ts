@@ -8,9 +8,10 @@ import { marketSeoBlogContent } from "@/lib/blog/market-seo-content";
 import { financialMetricsBlogContent } from "@/lib/blog/financial-metrics-content";
 import { productIntentBlogContent } from "@/lib/blog/product-intent-content";
 import { editorialRefreshBlogContent } from "@/lib/blog/editorial-refresh-content";
+import { alternativesBlogContent } from "@/lib/blog/alternatives-content";
 
 export function getBlogContent(slug: string): string {
-  const post = editorialRefreshBlogContent[slug] ?? productIntentBlogContent[slug] ?? financialMetricsBlogContent[slug] ?? agentWorkflowBlogContent[slug] ?? marketSeoBlogContent[slug] ?? analysisAppBlogContent[slug] ?? agentBlogContent[slug] ?? researchBlogContent[slug] ?? seoBlogContent[slug] ?? blogContent[slug];
+  const post = alternativesBlogContent[slug] ?? editorialRefreshBlogContent[slug] ?? productIntentBlogContent[slug] ?? financialMetricsBlogContent[slug] ?? agentWorkflowBlogContent[slug] ?? marketSeoBlogContent[slug] ?? analysisAppBlogContent[slug] ?? agentBlogContent[slug] ?? researchBlogContent[slug] ?? seoBlogContent[slug] ?? blogContent[slug];
   if (!post) return "<p>Content coming soon. We're writing this piece right now.</p>";
   return post;
 }

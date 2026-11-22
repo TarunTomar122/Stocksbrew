@@ -124,7 +124,7 @@ export const PLACES: NavPlace[] = [
       section("Find stocks", "/screener", "screener"),
       section("Best stock lists", "/best", "screener"),
       section("Build a basket", "/baskets/new", "themes", ["/baskets"]),
-      section("Sectors", "/sectors", "sectors"),
+      section("Sectors", "/sectors", "sectors", ["/heatmap"]),
       section("Compare", "/compare", "compare"),
       section("Markets", "/markets", "markets"),
       section("Filings", "/filings", "filings"),

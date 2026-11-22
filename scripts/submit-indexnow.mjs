@@ -48,7 +48,7 @@ const PRIORITY_PATHS = [
   "/blog/earnings-season-watchlist-playbook",
   "/blog/track-stock-news-for-your-portfolio",
   "/blog/finviz-vs-tradingview-vs-stocksbrew",
-  "/heat",
+  "/heatmap",
   "/blog/best-stock-watchlist-apps-2026",
   "/blog/best-stock-news-apps-2026",
   "/compare/stocksbrew-vs-finviz",

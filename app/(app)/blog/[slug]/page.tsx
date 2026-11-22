@@ -26,7 +26,8 @@ export function generateMetadata({ params }: Props): Metadata {
   const post = allBlogPosts.find((item) => item.slug === params.slug);
   if (!post) return { title: "Not Found" };
   return {
-    title: post.seoTitle ?? post.title,
+    // A search title that already names the brand skips the " · stocksbrew" template.
+    title: post.seoTitleAbsolute && post.seoTitle ? { absolute: post.seoTitle } : post.seoTitle ?? post.title,
     description: post.description,
     keywords: post.tags,
     authors: [{ name: "Tarun Tomar", url: AUTHOR_PATH }],
@@ -102,7 +103,7 @@ export default function BlogPostPage({ params }: Props) {
 
         <header className="mb-8 border-b border-oa-border pb-6">
           <h1 className="text-balance text-[30px] font-medium leading-[1.12] tracking-tight text-oa-fg sm:text-[38px]">{post.title}</h1>
-          <p className="mt-3 text-pretty text-[17.5px] leading-7 text-oa-muted-fg">{post.description}</p>
+          <p className="mt-3 text-pretty text-[17.5px] leading-7 text-oa-muted-fg">{post.lede ?? post.description}</p>
           <p className="oa-mono mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] leading-4 text-oa-muted-fg">
             <span>
               By{" "}

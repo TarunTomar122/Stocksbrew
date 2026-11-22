@@ -18,7 +18,8 @@ describe("financial metrics SEO cluster", () => {
       expect(post, slug).toBeDefined();
       expect(isIndexableBlogPost(slug), slug).toBe(true);
       expect(content.length, slug).toBeGreaterThan(9_000);
-      expect(content, slug).toContain('class="article-summary"');
+      // An opening answer: the old summary card, or (after the Nov 22 refresh, owner rule: no summary block) a plain first paragraph.
+      expect(content.includes('class="article-summary"') || content.trimStart().startsWith("<p>"), slug).toBe(true);
       expect(content, slug).toContain('class="source-note"');
       expect(content, slug).toContain('class="cta-section"');
       expect(content, slug).toMatch(/https:\/\/(www\.)?(sec\.gov|investor\.gov|cfainstitute\.org)/);

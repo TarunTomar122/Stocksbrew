@@ -1,25 +1,17 @@
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+
 /** Source-reviewed content for the stock-analysis-app search cluster. */
 export const analysisAppBlogContent: Record<string, string> = {
   "best-stock-analysis-apps-2026": `
-<div class="source-note"><strong>Review standard:</strong> Updated July 22, 2026. We reviewed each product's public feature and pricing pages, then compared the workflows they are designed to support. Stocksbrew publishes this guide and is included below; there are no affiliate links or paid placements. Prices and limits can change, so verify them on the linked official pages.</div>
+<p>Stock Analysis is the easiest free start: statements, forecasts and a screener with no setup, and Pro at $9.99 a month. Finviz screens the US market and shows it as a heat map on one page (free with delayed data, Elite $39.50 a month). TradingView is built around charts, indicators and Pine Script alerts. TIKR and Koyfin go deeper on financial history and global markets, Seeking Alpha is built on contributor articles and quant ratings ($299 a year), and stocksbrew gives each covered US stock you follow a call and tells you what changed. SEC EDGAR stays the free primary source behind all of them.</p>
+
+<p>stocksbrew publishes this guide and is one of the apps in it; there are no affiliate links or paid placements.</p>
 
 <p>Search for the best stock analysis app and you will find three different products mixed into the same list: brokerage apps for placing trades, charting terminals for studying price action, and research apps for deciding whether a company deserves your attention. They are not interchangeable.</p>
 
-<p>The right stock analysis app should shorten the path from “this ticker moved” to a conclusion you can audit. It should tell you when the data was captured, show enough evidence to challenge its output, and fit the part of research you actually repeat. A feature count alone cannot tell you that.</p>
+<p>The right stock analysis app should help you check the financial data and sources behind an investment decision. It should tell you when the data was captured, show enough evidence to challenge its output, and fit the part of research you actually repeat. A feature count alone cannot tell you that.</p>
 
-<div class="article-summary">
-  <h2>Quick answer: choose by the job</h2>
-  <ul>
-    <li><strong>Stocksbrew:</strong> best fit for an interpreted US-stock read, a tracked watchlist, and alerts when the setup changes.</li>
-    <li><strong>Stock Analysis:</strong> best fit for clean financial tables, broad security coverage, and a strong free data experience.</li>
-    <li><strong>Finviz:</strong> best fit for fast US-stock screening and visual market maps.</li>
-    <li><strong>TradingView:</strong> best fit for charts, indicators, alerts, and technical workflows.</li>
-    <li><strong>TIKR:</strong> best fit for long financial history, estimates, transcripts, and valuation work.</li>
-    <li><strong>Koyfin:</strong> best fit for customizable market dashboards and cross-asset context.</li>
-    <li><strong>Seeking Alpha:</strong> best fit for a large library of contributor analysis, transcripts, and quant ratings.</li>
-    <li><strong>SEC EDGAR:</strong> not a polished analysis app, but the free primary-source control every US-stock workflow needs.</li>
-  </ul>
-</div>
 
 <h2 id="methodology">How we compared stock analysis apps</h2>
 
@@ -27,7 +19,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <ol>
   <li><strong>Freshness:</strong> Can you see when the price, financials, earnings context, or generated analysis was updated?</li>
-  <li><strong>Evidence depth:</strong> Does the app cover the business, financial statements, valuation, price action, catalysts, and risks—or only one layer?</li>
+  <li><strong>Evidence depth:</strong> Does the app cover the business, financial statements, valuation, price action, catalysts, and risks, or only one layer?</li>
   <li><strong>Interpretation:</strong> Does it explain what the numbers might mean, or leave you with a dense table?</li>
   <li><strong>Auditability:</strong> Can you trace an important claim back to a filing, earnings release, or clearly defined metric?</li>
   <li><strong>Comparison:</strong> Can you compare peers using the same fields and definitions?</li>
@@ -42,28 +34,41 @@ export const analysisAppBlogContent: Record<string, string> = {
 <div class="table-scroll"><table>
   <thead><tr><th>App</th><th>Best for</th><th>Free access</th><th>Representative paid price</th><th>Main limitation</th></tr></thead>
   <tbody>
-    <tr><td><strong>Stocksbrew</strong></td><td>Interpreted US-stock calls, targets, risks, Watchlist monitoring</td><td>Market pages and up to 3 Watchlist names</td><td>$19/month</td><td>US-focused; not a trading terminal or deep charting suite</td></tr>
+    <tr><td><strong>Stocksbrew</strong></td><td>A call on each covered US stock, a daily briefing, alerts</td><td>Every stock report and call; ${FREE_COVERED_STOCKS} stocks covered in full</td><td>$${US_PRO_MONTHLY}/month or $${US_PRO_YEARLY}/year for Pro</td><td>US stocks only; not a trading terminal or a charting suite</td></tr>
     <tr><td><strong>Stock Analysis</strong></td><td>Clean financial data, screeners, broad coverage</td><td>Substantial free tier</td><td>$9.99/month or $79/year for Pro</td><td>Primarily a data and research interface, not a thesis monitor</td></tr>
-    <tr><td><strong>Finviz</strong></td><td>US screening, heat maps, idea generation</td><td>Useful free screener and market maps</td><td>$39.50/month or $299.50/year for Elite</td><td>Better at finding candidates than developing a full company thesis</td></tr>
-    <tr><td><strong>TradingView</strong></td><td>Technical analysis, charts, alerts, community scripts</td><td>Free plan</td><td>Paid plans start at $12.95/month billed annually</td><td>Extra exchange data may cost more; fundamentals are not its central strength</td></tr>
-    <tr><td><strong>TIKR</strong></td><td>Financial history, estimates, transcripts, valuation</td><td>Free US starter plan</td><td>Plus $24.95/month; Pro $54.95/month</td><td>Depth can require more manual synthesis</td></tr>
+    <tr><td><strong>Finviz</strong></td><td>US screening, heat maps, idea generation</td><td>Free screener and maps with delayed data, no alerts</td><td>$39.50/month or $299.50/year for Elite</td><td>Better at finding candidates than developing a full company thesis</td></tr>
+    <tr><td><strong>TradingView</strong></td><td>Technical analysis, charts, alerts, community scripts</td><td>Basic plan: one chart per tab, two indicators per chart</td><td>From $14.95/month (Essential), less billed yearly</td><td>Extra exchange data may cost more; fundamentals are not its central strength</td></tr>
+    <tr><td><strong>TIKR</strong></td><td>Financial history, estimates, transcripts, valuation</td><td>Free US starter plan with 5 years of financials</td><td>Plus $24.95/month; Pro $54.95/month</td><td>Depth can require more manual synthesis</td></tr>
     <tr><td><strong>Koyfin</strong></td><td>Custom dashboards, global markets, macro context</td><td>Free plan</td><td>Plus $39/month; Premium $79/month</td><td>Powerful but denser than a guided research workflow</td></tr>
     <tr><td><strong>Seeking Alpha</strong></td><td>Contributor research, ratings, transcripts</td><td>Limited free access</td><td>Premium $299/year</td><td>Volume of opinion requires filtering and conflict awareness</td></tr>
     <tr><td><strong>SEC EDGAR</strong></td><td>Authoritative US filings</td><td>Free</td><td>$0</td><td>Primary documents, not a finished analysis workflow</td></tr>
   </tbody>
 </table></div>
 
-<p>Prices above are public list prices observed on July 22, 2026. Promotional prices, taxes, professional exchange fees, app-store billing, and annual discounts can differ.</p>
+<p>Prices are public list prices. We rechecked Stock Analysis, Finviz, TIKR, Koyfin and Seeking Alpha on November 22, 2026, and TradingView on November 11, 2026. First-year discounts, taxes, exchange data fees and app-store billing can differ.</p>
+
+<h2 id="what-its-like">What each one is like to use</h2>
+
+<p>Feature lists hide the thing you notice on day one: how much setup the app wants before it is useful.</p>
+
+<ul>
+  <li><strong>Stock Analysis:</strong> type a ticker and read. Almost no setup, and the free tier covers a lot.</li>
+  <li><strong>Finviz:</strong> dense on purpose. The screener pays off once you know which filters you want; free data is delayed and free accounts get no alerts.</li>
+  <li><strong>TradingView:</strong> the best chart experience here, but you build the workspace yourself. The free plan allows one chart per tab and two indicators per chart.</li>
+  <li><strong>TIKR and Koyfin:</strong> terminal-style. Great once your layouts are saved, slow for a quick look.</li>
+  <li><strong>Seeking Alpha:</strong> reading, not tooling. Expect to spend your time in articles and ratings.</li>
+  <li><strong>stocksbrew:</strong> add the stocks you own or watch and it reports back: one briefing a day, a call per stock, email alerts. It runs in the browser, with no native mobile app.</li>
+</ul>
 
 <h2 id="stocksbrew">1. Stocksbrew: best for a current read plus ongoing monitoring</h2>
 
 <p><a href="/">Stocksbrew</a> is designed around a different question from a traditional screener: once you start researching a US stock, what is the current setup, what supports it, what threatens it, and when should you look again?</p>
 
-<p>A stock page combines price context, fundamentals, analyst consensus, valuation, growth, quality, momentum, ownership, earnings context, and a structured call. <a href="/portfolio">Watchlist</a> turns selected names into a monitored list with earnings and price-zone alerts. Pro adds the detailed call, Stocksbrew target, unlimited tracked names, and agent access for $9 per month.</p>
+<p>A stock page (see <a href="/stock/NVDA">NVDA</a>) combines price context, fundamentals, analyst price targets and ratings, valuation, earnings, ownership and a Buy more, Keep or Sell some call with its reason. <a href="/portfolio">My stocks</a> holds what you own and watch, and the daily <a href="/briefing">briefing</a> tells you what changed for them. Reading is free and Free covers ${FREE_COVERED_STOCKS} stocks in full; Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year and adds alerts on our levels, earnings and changed calls.</p>
 
 <p><strong>Where it is strongest:</strong> moving from scattered data to an interpretable watchlist workflow. The product exposes freshness and keeps the call, drivers, risks, target context, and alerts near the stock.</p>
 
-<p><strong>Where it is weaker:</strong> it is currently built around US equities, is a web app rather than a native mobile terminal, does not place trades, and is not intended to replace TradingView for advanced charts or TIKR for decades of statement history.</p>
+<p><strong>Where it is weaker:</strong> it covers US-listed stocks only, is a web app rather than a native mobile app, does not place trades, and is not intended to replace TradingView for advanced charts or TIKR for decades of statement history.</p>
 
 <h2 id="stock-analysis">2. Stock Analysis: best clean all-purpose data app</h2>
 
@@ -150,10 +155,12 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <p>If the answer is attractive but unauditable, the app has optimized persuasion rather than analysis. For a scored version of this trial, use our <a href="/blog/stock-analysis-app-checklist">12-point stock analysis app checklist</a>. If your main concern is free access, see the <a href="/blog/free-stock-market-analysis-tools">$0 stock research stack</a>.</p>
 
+<div class="source-note"><strong>Prices:</strong> rechecked on each product's own page on November 22, 2026 (TradingView's US prices on November 11, 2026). Plans and limits change, so check the linked pages before you pay.</div>
+
 <h2 id="faq">Frequently asked questions</h2>
 
 <h3>What is the best stock analysis app in 2026?</h3>
-<p>There is no universal winner. Stocksbrew fits investors who want a current interpreted read and ongoing monitoring; Stock Analysis fits clean financial data; Finviz fits screening; TradingView fits charts; TIKR fits long financial history; Koyfin fits dashboards; and Seeking Alpha fits a large library of analyst opinion.</p>
+<p>There is no universal winner. Stocksbrew fits investors who want a call on each covered US stock they own and a daily read of what changed; Stock Analysis fits clean financial data; Finviz fits screening; TradingView fits charts; TIKR fits long financial history; Koyfin fits dashboards; and Seeking Alpha fits a large library of analyst opinion.</p>
 
 <h3>What is the difference between a stock analysis app and a trading app?</h3>
 <p>A stock analysis app helps you investigate a company, compare evidence, and monitor a thesis. A trading app is primarily built to place and manage orders. Some products do both, but execution convenience is not the same as research quality.</p>
@@ -163,8 +170,8 @@ export const analysisAppBlogContent: Record<string, string> = {
 
 <div class="cta-section">
   <h3>See the Stocksbrew workflow on your own ticker</h3>
-  <p>Start with the free stock pages and three Watchlist names. Upgrade only if the detailed call, target, and alerts remove a real research bottleneck.</p>
-  <a class="cta-button" href="/portfolio">Try Stocksbrew Watchlist →</a>
+  <p>Every stock report and call is free to read. Add the stocks you own and see whether the briefing saves you time before paying for anything.</p>
+  <a class="cta-button" href="/portfolio">Add your stocks →</a>
 </div>
 `,
 
@@ -194,7 +201,7 @@ export const analysisAppBlogContent: Record<string, string> = {
 <h3>2. Sector participation and breadth</h3>
 <p>An index can rise because a handful of mega-cap constituents rose. Sector performance and breadth tell you whether the move is broad. Check which sectors lead, how many stocks participate, and whether defensives or cyclicals confirm the economic story.</p>
 
-<p>A <a href="/screener?tab=sectors">market heat map</a> is useful here, but do not stop at color. Ask whether the largest rectangles are dominating the result and whether the median stock tells the same story as the index.</p>
+<p>A <a href="/heatmap">market heat map</a> is useful here, but do not stop at color. Ask whether the largest rectangles are dominating the result and whether the median stock tells the same story as the index.</p>
 
 <h3>3. Movers with a reason</h3>
 <p>A list of gainers and losers is not analysis. A mover becomes useful when you can attach a catalyst, a baseline expectation, and a relevant comparison. Earnings, guidance, an 8-K, an analyst change, a regulatory event, a product announcement, or a sector-wide move can all matter differently.</p>
@@ -506,7 +513,7 @@ export const analysisAppBlogContent: Record<string, string> = {
     <tr><td><strong>TradingView</strong></td><td>Charting</td><td>Use charts, basic indicators, watchlists, and community tools</td><td>More charts, indicators, alerts, history, layouts, and data options</td></tr>
     <tr><td><strong>Koyfin</strong></td><td>Dashboards</td><td>Build a limited set of dashboards and access core market views</td><td>More history, alerts, dashboards, formulas, transcripts, and exports</td></tr>
     <tr><td><strong>TIKR</strong></td><td>Fundamental research</td><td>Analyze US stocks with starter financials, estimates, transcripts, screens, and watchlists</td><td>Global coverage and deeper history, models, estimates, and exports</td></tr>
-    <tr><td><strong>Stocksbrew</strong></td><td>US market read and monitoring</td><td>Use public market tools and track up to three Watchlist names</td><td>Detailed calls, target, unlimited Watchlist, alerts, and agent access</td></tr>
+    <tr><td><strong>Stocksbrew</strong></td><td>Keeping up with US stocks you own</td><td>Read every stock report and call; ${FREE_COVERED_STOCKS} stocks covered in full, five price alerts</td><td>Every stock you track covered in full, alerts on our levels, earnings and changed calls</td></tr>
   </tbody>
 </table></div>
 

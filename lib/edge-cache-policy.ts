@@ -64,8 +64,11 @@ const RULES: ReadonlyArray<readonly [RegExp, EdgeCachePolicy]> = [
   [new RegExp(`^/stock/${SEG}(/(earnings|moves|research))?$`), MARKET],
   [new RegExp(`^/markets(/${SEG})?$`), MARKET],
   [new RegExp(`^/sectors(/${SEG})?$`), MARKET],
+  [/^\/heatmap$/, MARKET],
   [new RegExp(`^/themes(/${SEG})?$`), MARKET],
   [new RegExp(`^/compare/${SEG}$`), MARKET],
+  // The stock widget other sites frame (app/embed): the same for everyone, and the busiest page a blog post can send.
+  [new RegExp(`^/embed/stock/${SEG}(/(dark|light))?$`), MARKET],
   [new RegExp(`^/movers/${SEG}$`), CONTENT],
   [/^\/signals$/, SLOW],
   [/^\/filings$/, SLOW],
@@ -79,7 +82,7 @@ const RULES: ReadonlyArray<readonly [RegExp, EdgeCachePolicy]> = [
   [new RegExp(`^/blog(/${SEG})?$`), CONTENT],
   [new RegExp(`^/docs(/${SEG}){0,3}$`), CONTENT],
   [new RegExp(`^/legal(/${SEG})?$`), CONTENT],
-  [/^\/(about|security|developers)$/, CONTENT],
+  [/^\/(about|security|developers|widgets)$/, CONTENT],
 ];
 
 /** The policy for a signed-out GET of `pathname`, or null when the page must not be kept. */

@@ -895,12 +895,7 @@ export async function StockPageStream({ params }: Props) {
       <StockPageSchema
         ticker={displayStock.ticker}
         name={displayStock.name}
-        description={stockSeoDescription({
-          name: displayStock.name,
-          ticker: displayStock.ticker,
-          sector: displayStock.sector || "",
-          industry: displayStock.industry || "",
-        })}
+        description={stockSeoDescription({ name: displayStock.name, ticker: displayStock.ticker })}
         exchange={displayStock.exchange}
         sector={displayStock.sector}
         industry={displayStock.industry}

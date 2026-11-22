@@ -1,0 +1,289 @@
+/*
+ * The stock market heat map's tiles (components/heatmap/market-heatmap.tsx). Every tile is a size container and
+ * prints as much as its own rendered size holds: nothing on a sliver, the ticker on a small tile, then the move, then
+ * the logo and price, each step a little bigger. `l1`..`l6` is the ticker's length, so a short ticker shows on a
+ * tile too narrow for a long one. Nothing is cut: a part that does not fit is not drawn.
+ */
+
+.map {
+  position: relative;
+  width: 100%;
+}
+
+.block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 5px;
+  row-gap: 8px;
+  height: 22px;
+  min-width: 0;
+  padding: 3px 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--oa-fg);
+  border-radius: 3px;
+}
+/* Every part keeps its width: one that does not fit wraps onto the strip's hidden second line instead of being cut. */
+.head > * {
+  flex-shrink: 0;
+}
+.head:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.head:focus-visible {
+  outline: 2px solid var(--oa-ring);
+  outline-offset: -2px;
+}
+.name {
+  display: block;
+}
+.headMove {
+  margin-left: auto;
+  padding-left: 6px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.inside {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tile {
+  position: absolute;
+  container-type: size;
+  border: 1px solid var(--oa-card);
+  color: var(--oa-fg);
+  outline: none;
+}
+.tile:hover,
+.tile:focus-visible {
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--oa-fg);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.top {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.logo,
+.sym,
+.pct,
+.price {
+  display: none;
+}
+
+.logo {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+.logo > * {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.sym {
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.pct {
+  font-size: 10px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.price {
+  font-size: 10px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--oa-fg) 78%, transparent);
+}
+
+/* The ticker alone: as wide as its letters need at 10px, and one line tall. */
+@container (min-width: 13px) and (min-height: 14px) {
+  .l1 .sym {
+    display: block;
+  }
+}
+@container (min-width: 19px) and (min-height: 14px) {
+  .l2 .sym {
+    display: block;
+  }
+}
+@container (min-width: 26px) and (min-height: 14px) {
+  .l3 .sym {
+    display: block;
+  }
+}
+@container (min-width: 32px) and (min-height: 14px) {
+  .l4 .sym {
+    display: block;
+  }
+}
+@container (min-width: 38px) and (min-height: 14px) {
+  .l5 .sym {
+    display: block;
+  }
+}
+@container (min-width: 45px) and (min-height: 14px) {
+  .l6 .sym {
+    display: block;
+  }
+}
+
+/* The move and the price under it, together or not at all (owner rule 4: no move without its price). */
+@container (min-width: 45px) and (min-height: 40px) {
+  .sym,
+  .pct,
+  .price {
+    display: block;
+  }
+}
+
+/* A wide, short tile: the price beside the move on the second line. */
+@container (min-width: 92px) and (min-height: 27px) {
+  .sym,
+  .pct {
+    display: block;
+  }
+  .line {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .price {
+    display: block;
+  }
+}
+@container (min-height: 40px) {
+  .line {
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+}
+
+/* A mid tile: bigger words, the price, and the logo where it is wide enough. */
+@container (min-width: 62px) and (min-height: 44px) {
+  .sym {
+    font-size: 12px;
+    line-height: 14px;
+  }
+  .pct {
+    font-size: 12px;
+    line-height: 14px;
+    font-weight: 600;
+  }
+  .price {
+    display: block;
+  }
+}
+@container (min-width: 78px) and (min-height: 44px) {
+  .logo {
+    display: block;
+  }
+}
+
+@container (min-width: 104px) and (min-height: 72px) {
+  .body {
+    gap: 2px;
+  }
+  .logo {
+    width: 18px;
+    height: 18px;
+  }
+  .top {
+    gap: 5px;
+  }
+  .sym {
+    font-size: 15px;
+    line-height: 18px;
+  }
+  .pct {
+    font-size: 15px;
+    line-height: 18px;
+  }
+  .price {
+    font-size: 11px;
+    line-height: 14px;
+  }
+}
+
+@container (min-width: 160px) and (min-height: 112px) {
+  .body {
+    gap: 3px;
+  }
+  .logo {
+    width: 24px;
+    height: 24px;
+  }
+  .top {
+    gap: 6px;
+  }
+  .sym {
+    font-size: 20px;
+    line-height: 24px;
+  }
+  .pct {
+    font-size: 20px;
+    line-height: 24px;
+  }
+  .price {
+    font-size: 13px;
+    line-height: 16px;
+  }
+}
+
+/* The phone map: sectors one under another. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stackBlock {
+  display: flex;
+  flex-direction: column;
+}
+.stackInside {
+  position: relative;
+  width: 100%;
+}

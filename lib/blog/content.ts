@@ -1775,7 +1775,7 @@ export const blogContent: Record<string, string> = {
   <li><strong>Review the week's moves</strong> - Any position up or down more than 5%? Read the headlines for context.</li>
   <li><strong>Check upcoming earnings</strong> - Any of your stocks reporting this week? <a href="https://www.stocksbrew.online/earnings">stocksbrew's earnings calendar</a> shows this at a glance.</li>
   <li><strong>Review the week's accumulated signals</strong> - Revisit meaningful news, fundamental updates, and changes to the case for your holdings or candidates.</li>
-  <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="https://www.stocksbrew.online/heat">stocksbrew's market heat map</a> shows this visually.</li>
+  <li><strong>Review sector performance</strong> - Are the sectors you're exposed to trending up or down? <a href="/heatmap">stocksbrew's market heat map</a> shows this visually.</li>
 </ol>
 
 <p>This periodic check is where you catch the things a single alert does not explain.</p>
@@ -1958,9 +1958,9 @@ export const blogContent: Record<string, string> = {
 <h3>3. Sector Grouping</h3>
 <p>Most heat maps group stocks by sector. If you see an entire sector turning red, that's sector rotation. If you see isolated red in a sea of green, it's stock-specific news.</p>
 
-<h2 id="market-heat">Our Approach vs Traditional Heat Maps</h2>
+<h2 id="market-heat">The stocksbrew heat map</h2>
 
-<p>Most heat maps show <em>every</em> stock equally — including the 99% that aren't moving. Our <a href="/screener?tab=sectors">Market Heat</a> at stocksbrew is different: it shows stocks getting <strong>unusual attention</strong> based on price action, volume, and news activity. Fewer boxes, higher signal.</p>
+<p>Our <a href="/heatmap">heat map</a> works the way this guide describes: about 200 of the biggest US stocks, grouped by sector, each box sized by market cap and coloured by today's move.</p>
 
 <h2 id="common-patterns">Common Patterns to Spot</h2>
 
@@ -1981,9 +1981,9 @@ export const blogContent: Record<string, string> = {
 </ol>
 
 <div class="cta-section">
-  <h3>See Today's Market Heat</h3>
-  <p>See which stocks are getting unusual attention in real-time.</p>
-  <a href="https://stocksbrew.online/heat" class="cta-button">View Market Heat →</a>
+  <h3>See today's heat map</h3>
+  <p>The biggest US stocks by sector, sized by market cap and coloured by today's move.</p>
+  <a href="/heatmap" class="cta-button">Open the heat map →</a>
 </div>
 
 <p>Related: <a href="/blog/best-market-intelligence-tools-2026">Best Market Intelligence Tools</a>.</p>

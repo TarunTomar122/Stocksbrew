@@ -216,6 +216,10 @@ export default async function DevelopersPage() {
           <Link prefetch={false} href="/profile#agent-access" className={TEXT_LINK}>
             Your tokens
           </Link>
+          <br />
+          <Link prefetch={false} href="/widgets" className={TEXT_LINK}>
+            Free stock widget
+          </Link>
         </>
       }
     >
@@ -515,6 +519,10 @@ export default async function DevelopersPage() {
             . Looking for agents that watch your stocks inside the app, with no code? That is{" "}
             <Link prefetch={false} href="/agents" className={TEXT_LINK}>
               Agents
+            </Link>
+            . Want a stock&apos;s price and our call on your own site, no token needed? Use the free{" "}
+            <Link prefetch={false} href="/widgets" className={TEXT_LINK}>
+              stock widget
             </Link>
             .
           </Prose>

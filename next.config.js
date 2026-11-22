@@ -67,8 +67,8 @@ const nextConfig = {
       { source: "/sector/consumer-defensive", destination: "/sectors/consumer-staples", permanent: true },
       { source: "/sector", destination: "/sectors", permanent: true },
       { source: "/sector/:slug", destination: "/sectors", permanent: true },
-      { source: "/heat", destination: "/screener?tab=sectors", permanent: true },
-      { source: "/heat/:path*", destination: "/screener?tab=sectors", permanent: true },
+      { source: "/heat", destination: "/heatmap", permanent: true },
+      { source: "/heat/:path*", destination: "/heatmap", permanent: true },
       // Only the product comparisons moved. Other /compare/<slug> addresses stay
       // free for stock-against-stock pages.
       { source: "/compare/stocksbrew-vs-:tool", destination: "/docs/compare/stocksbrew-vs-:tool", permanent: true },
@@ -241,10 +241,15 @@ const nextConfig = {
       {
         source: "/(.*)",
         headers: [
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self' https://rankinpublic.xyz" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
+      },
+      // Only our own pages (and rankinpublic.xyz) may frame the site, except the stock widget (/embed/*,
+      // app/embed), which any site may put in an iframe. Tested in lib/embed/frame-headers.test.ts.
+      {
+        source: "/:path((?!embed(?:/|$)).*)",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self' https://rankinpublic.xyz" }],
       },
       // The owner's analytics (app/(app)/admin): never indexed, never cached by a shared cache.
       {

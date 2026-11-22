@@ -47,7 +47,7 @@ describe("public sitemap", { timeout: 90_000 }, () => {
     expect(xml).toContain("<sitemapindex");
     expect(new Set(files).size).toBe(files.length);
     // Families that do not depend on the store are always present. Stocks now follow the
-    // stored reads (stockHasCurrentRead), so that family can be empty when the store cannot be read.
+    // stored reads (stockIsIndexable), so that family can be empty when the store cannot be read.
     for (const family of ["pages", "docs", "blog", "themes"]) {
       expect(files).toContain(`https://www.stocksbrew.online/sitemaps/${family}.xml`);
     }
@@ -72,7 +72,7 @@ describe("public sitemap", { timeout: 90_000 }, () => {
     const paths = await allPaths();
     expect(new Set(paths).size).toBe(paths.length);
     for (const family of SITEMAP_FAMILIES) expect((await entries(family)).length, family).toBeLessThanOrEqual(50_000);
-    // The stocks family and the stock page's robots tag apply the same rule (stockHasCurrentRead) to the same snapshot.
+    // The stocks family and the stock page's robots tag apply the same rule (stockIsIndexable) to the same snapshot.
     const coverage = await getCoverage().catch(() => null);
     if (coverage) {
       expect((await entries("stocks")).map((entry) => entry.path)).toEqual(indexableStockSymbols(coverage).map((ticker) => `/stock/${ticker}`));

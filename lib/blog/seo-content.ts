@@ -1175,7 +1175,7 @@ export const seoBlogContent: Record<string, string> = {
 
 <h2 id="sectors">Sector Rotation During Earnings</h2>
 
-<p>Banks kick off season; tech dominates mindshare; retailers matter for consumer health. Watch sector ETFs during the cluster that matters to your book — financials (XLF), tech (XLK), consumer (XLY) — using the <a href="/screener?tab=sectors">market heatmap</a> for quick context.</p>
+<p>Banks kick off season; tech dominates mindshare; retailers matter for consumer health. Watch sector ETFs during the cluster that matters to your book — financials (XLF), tech (XLK), consumer (XLY) — using the <a href="/heatmap">market heatmap</a> for quick context.</p>
 
 <h2 id="mistakes">Earnings Season Mistakes</h2>
 
@@ -1282,7 +1282,7 @@ export const seoBlogContent: Record<string, string> = {
 <p>List holdings by % of portfolio. Flag anything above 10%. Plan a trim on winners, not losers, to rebalance.</p>
 
 <h3>Step 2: Sector map (5 min)</h3>
-<p>Group by sector. If technology + communication services exceed 40%, you are making one macro bet. Use the <a href="/screener?tab=sectors">sector heatmap</a> to see if that bet is crowded.</p>
+<p>Group by sector. If technology + communication services exceed 40%, you are making one macro bet. Use the <a href="/heatmap">sector heatmap</a> to see if that bet is crowded.</p>
 
 <h3>Step 3: Stance review (5 min)</h3>
 <p>For each holding, note current buy/hold/sell stance. Three sells in a row? Your basket may be worse than the index — consider simplifying.</p>

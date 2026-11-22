@@ -18,6 +18,7 @@ describe("edgeCachePolicy", () => {
       "/calendar/earnings/NVDA",
       "/sectors",
       "/sectors/technology",
+      "/heatmap",
       "/screener",
       "/markets",
       "/markets/etfs",
@@ -30,6 +31,9 @@ describe("edgeCachePolicy", () => {
       "/pricing",
       "/blog/how-to-analyze-earnings-report",
       "/docs/follow/what-a-13f-is",
+      "/embed/stock/NVDA",
+      "/embed/stock/BRK.B/dark",
+      "/widgets",
     ]) {
       expect(edgeCachePolicy(path), path).not.toBeNull();
     }
@@ -54,6 +58,8 @@ describe("edgeCachePolicy", () => {
       // Redirects to Market today from the 9:30 open: a cached 200 would outlive the switch.
       "/premarket",
       "/stock/NVDA/anything-else",
+      "/embed/stock/NVDA/blue",
+      "/embed",
     ]) {
       expect(edgeCachePolicy(path), path).toBeNull();
     }

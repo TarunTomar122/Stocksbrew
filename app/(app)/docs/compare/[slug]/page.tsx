@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Crumbs, DocsShell, InlineToc } from "@/components/docs/docs-shell";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { FOCUS, fmtDay } from "@/components/oa/kit";
-import { comparisonAnswer } from "@/lib/compare-data";
+import { comparisonAnswer, priceSourceName } from "@/lib/compare-data";
 import { COMPARISON_RECHECKED, DOC_COMPARISONS, docCompareHref, getDocComparison, movedCompareHref } from "@/lib/docs/compare";
 import { SITE_URL } from "@/lib/docs/site";
 import { getCompareRelated } from "@/lib/seo/compare-links";
@@ -83,7 +83,7 @@ export default function DocsComparePage({ params }: Props) {
           <p className="oa-caption mb-1">Read this first</p>
           <p className="text-pretty text-[15px] leading-6 text-oa-fg/90">
             What this page says about stocksbrew was rechecked against the product on November 10, 2026. What it says about {page.competitorName}&apos;s features is desk research and may
-            be out of date{pricesChecked ? `; its prices were read from its own pricing page on ${fmtDay(pricesChecked, true)}` : ""}. For what stocksbrew does today, see{" "}
+            be out of date{pricesChecked ? `; its prices were read from ${priceSourceName(page.slug).replace(/^its /, "its own ")} on ${fmtDay(pricesChecked, true)}` : ""}. For what stocksbrew does today, see{" "}
             <Link prefetch={false} href="/docs/start/what-stocksbrew-is" className={LINK}>
               What stocksbrew is and is not
             </Link>

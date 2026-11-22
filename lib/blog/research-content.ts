@@ -1,3 +1,6 @@
+import { FREE_COVERED_STOCKS } from "@/lib/entitlements";
+import { US_PRO_MONTHLY, US_PRO_YEARLY } from "@/lib/pricing";
+
 /** Source-backed, editor-reviewed articles that are closest to stocksbrew's product expertise. */
 export const researchBlogContent: Record<string, string> = {
   "how-to-analyze-earnings-report": `
@@ -216,12 +219,25 @@ export const researchBlogContent: Record<string, string> = {
 `,
 
   "finviz-vs-tradingview-vs-stocksbrew": `
-<p><strong>Researched July 16, 2026.</strong> We compared the products by the jobs an investor needs done: finding ideas, analyzing price action, monitoring owned or watched names, and reacting to material changes. Competitor facts come from the companies' official feature and pricing pages. We did not receive payment or affiliate commissions for inclusion.</p>
+<p>Pick Finviz if you want to find US stocks fast, and TradingView if you work from charts. Finviz's free screener is quick but shows delayed data and has no alerts; Elite costs $39.50 a month. TradingView's free plan allows one chart per tab and two indicators per chart, and paid plans start at $14.95 a month. stocksbrew does a third job: it watches the US stocks you already own and tells you what changed.</p>
 
-<div class="sample-brief">
-  <h4>Short answer</h4>
-  <p><strong>Finviz</strong> is the fastest of the three for filtering US stocks and scanning a market map. <strong>TradingView</strong> is the clear choice for charts, technical alerts, and multi-asset analysis. <strong>stocksbrew</strong> is for maintaining context on a small US watchlist—calls, earnings, news, and alerts—after you already have names to follow.</p>
-</div>
+<p><strong>First researched July 16, 2026, updated November 22, 2026.</strong> We compared the products by the jobs an investor needs done: finding ideas, analyzing price action, and keeping up with names you own. Finviz facts were rechecked on its <a href="https://finviz.com/elite" rel="noopener noreferrer">Elite page</a> on November 22, and TradingView on its <a href="https://www.tradingview.com/pricing/" rel="noopener noreferrer">pricing page</a> (US prices on November 11, free plan limits on November 22). We did not receive payment or affiliate commissions for inclusion.</p>
+
+<h2 id="finviz-vs-tradingview">Finviz vs TradingView at a glance</h2>
+
+<div class="table-scroll"><table>
+  <thead><tr><th></th><th>Finviz</th><th>TradingView</th></tr></thead>
+  <tbody>
+    <tr><td>Best at</td><td>Screening US stocks and the market map</td><td>Charts, indicators, Pine Script and alerts</td></tr>
+    <tr><td>Free plan</td><td>Delayed quotes, basic screener filters, 3 years of financials, no alerts</td><td>Basic: one chart per tab, two indicators per chart</td></tr>
+    <tr><td>Paid plans</td><td>Elite: $39.50 a month, or $299.50 a year (the first year was $149 when we checked)</td><td>Essential $14.95 a month up to Ultimate $239.95 a month, less when billed yearly</td></tr>
+    <tr><td>Markets</td><td>US stocks on NASDAQ, NYSE and AMEX</td><td>Stocks, ETFs, bonds, crypto, forex and futures, depending on data access</td></tr>
+    <tr><td>Alerts</td><td>Elite only: stock, price, screener, portfolio and calendar alerts</td><td>Price, drawing and Pine alerts, by app, email or webhook</td></tr>
+    <tr><td>Real-time data</td><td>Elite, including premarket and after hours</td><td>Depends on plan and exchange data you add</td></tr>
+  </tbody>
+</table></div>
+
+<p>If you only need one of the two, the question is where your process starts. A list of filters (market cap, margin, P/E, volume) points to Finviz. A price level, trendline or indicator points to TradingView.</p>
 
 <p>These products overlap at the edges, but they are not substitutes for the same core job. Asking which one is “best” without naming the workflow produces a bad recommendation.</p>
 
@@ -238,7 +254,7 @@ export const researchBlogContent: Record<string, string> = {
   <li><strong>Time cost:</strong> how much manual filtering remains after setup.</li>
 </ol>
 
-<p>We verified Finviz against its <a href="https://finviz.com/elite" rel="noopener noreferrer">official Elite page</a> and TradingView against its <a href="https://www.tradingview.com/features/" rel="noopener noreferrer">official feature overview</a>. stocksbrew details reflect the live product and <a href="/pricing">current pricing page</a>. Plans change, so use those linked pages for the final purchase decision.</p>
+<p>We verified Finviz against its <a href="https://finviz.com/elite" rel="noopener noreferrer">official Elite page</a> and TradingView against its <a href="https://www.tradingview.com/features/" rel="noopener noreferrer">official feature overview</a> and <a href="https://www.tradingview.com/pricing/" rel="noopener noreferrer">pricing page</a>. stocksbrew details reflect the live product and its <a href="/pricing">pricing page</a>. Plans change, so use those linked pages for the final purchase decision.</p>
 
 <h2 id="matrix">Decision matrix</h2>
 
@@ -247,16 +263,16 @@ export const researchBlogContent: Record<string, string> = {
   <tbody>
     <tr><td>Screen US equities</td><td><strong>Best fit</strong>: dense filters, maps, presets</td><td>Strong global screeners with many fields</td><td>Curated screens, not a general-purpose screener</td></tr>
     <tr><td>Technical charting</td><td>Useful charts; Elite adds deeper tooling</td><td><strong>Best fit</strong>: Supercharts, Pine, strategy tests</td><td>Not a charting workspace</td></tr>
-    <tr><td>Monitor a focused watchlist</td><td>Portfolio lists and event alerts</td><td>Watchlists and condition-based alerts</td><td><strong>Best fit</strong> when you want a written call and context per name</td></tr>
-    <tr><td>Market overview</td><td><strong>Best fit</strong>: compact maps and groups</td><td>Custom heatmaps across asset classes</td><td>US Market Pulse, movers, sectors, and Reddit context</td></tr>
-    <tr><td>Custom technical alerts</td><td>Price, news, filing, rating, insider, and screener alerts on Elite</td><td><strong>Best fit</strong>: price, drawings, Pine, app, email, webhook</td><td>Price zones and setup-change email alerts</td></tr>
+    <tr><td>Monitor a focused watchlist</td><td>Watchlists and portfolios; alerts on Elite</td><td>Watchlists and condition-based alerts</td><td><strong>Best fit</strong> when you want a call and a daily read per name</td></tr>
+    <tr><td>Market overview</td><td><strong>Best fit</strong>: compact maps and groups</td><td>Custom heatmaps across asset classes</td><td>Market today, movers, sectors and a heat map</td></tr>
+    <tr><td>Custom technical alerts</td><td>Stock, price, screener, portfolio and calendar alerts on Elite</td><td><strong>Best fit</strong>: price, drawings, Pine, app, email, webhook</td><td>Email alerts on price levels; on Pro also zones, earnings and changed calls</td></tr>
     <tr><td>Portfolio accounting</td><td>Portfolio lists, not tax accounting</td><td>Not a portfolio accounting tool</td><td>Holdings context, not tax accounting or brokerage execution</td></tr>
   </tbody>
 </table>
 
 <h2 id="finviz">Choose Finviz when discovery is the bottleneck</h2>
 
-<p>Finviz compresses a large amount of US equity data into scan-friendly tables and maps. Its official Elite page lists real-time quotes, extended-hours data, advanced/custom screener filters, ETF holdings, export/API access, and alerts for price, news, ratings, insider trades, SEC filings, portfolios, and screener matches.</p>
+<p>Finviz compresses a large amount of US equity data into scan-friendly tables and maps. Its official Elite page lists real-time quotes with premarket and after-hours data, advanced screener filters, 8 years of financial statements instead of 3, full ETF data, Excel and CSV export, and alerts on stocks, prices, screens, portfolios and the calendar. Members also see analyst rating changes marked on the chart.</p>
 
 <p><strong>Strengths:</strong> very fast market breadth scan, excellent US screener ergonomics, compact fundamentals, and a map that makes sector leadership visible.</p>
 
@@ -276,17 +292,17 @@ export const researchBlogContent: Record<string, string> = {
 
 <h2 id="stocksbrew">Choose stocksbrew when monitoring is the bottleneck</h2>
 
-<p>stocksbrew begins after discovery. Add the stocks you own or seriously watch, then use Watchlist for a current add/hold/trim call, target and risk zones, news and earnings context, and email alerts. Market Pulse, Earnings Intel, Should I Buy, and Compare Stocks support the same focused US-equity workflow.</p>
+<p>stocksbrew begins after discovery. Add the stocks you own or seriously watch to <a href="/portfolio">My stocks</a>, and each one gets a Buy more, Keep or Sell some call with its reason, news and earnings context. Stocks covered in full also get buy and sell levels. The daily <a href="/briefing">briefing</a> says what changed, <a href="/compare">Compare</a> puts two stocks side by side, and the <a href="/screener">screener</a> covers the stocks we research.</p>
 
-<p><strong>Strengths:</strong> readable context per tracked name, fewer tabs, product features tied to a watchlist, and a free tier for three Watchlist stocks.</p>
+<p><strong>Strengths:</strong> readable context per stock you follow, fewer tabs, and every stock report free to read, with ${FREE_COVERED_STOCKS} stocks covered in full on the free plan.</p>
 
 <p><strong>Trade-offs:</strong> stocksbrew is not a brokerage, a tax-grade portfolio tracker, a professional charting package, or an unrestricted market screener. Its calls are decision support, not individualized investment advice.</p>
 
 <p><strong>Best for:</strong> a busy US investor who already has a focused list and wants to know which name deserves attention today and why.</p>
 
-<h2 id="price">Price is part of the workflow—not the ranking</h2>
+<h2 id="price">Price is part of the workflow, not the ranking</h2>
 
-<p>As checked on July 16, 2026, Finviz lists Elite at $39.50 monthly or $299.50 annually after its trial. TradingView has multiple plan and market-data combinations, so verify the total on its pricing page for your exchanges and alert limits. stocksbrew lists Pro at $9 per month or $99 per year, with three Watchlist stocks on the free tier.</p>
+<p>As checked on November 22, 2026, Finviz lists Elite at $39.50 monthly or $299.50 a year, with a cheaper first year. TradingView plans run from $14.95 to $239.95 a month before exchange data, so verify the total for your exchanges and alert limits. stocksbrew Pro is $${US_PRO_MONTHLY} a month or $${US_PRO_YEARLY} a year; reading stock reports is free.</p>
 
 <p>Do not compare headline prices alone. The relevant cost is the cheapest plan that supports your actual alerts, market data, saved layouts, or watchlist size.</p>
 
@@ -296,7 +312,7 @@ export const researchBlogContent: Record<string, string> = {
 <ol>
   <li>Use Finviz once a week to screen for quality and valuation criteria.</li>
   <li>Read primary filings for the finalists.</li>
-  <li>Add only serious candidates and holdings to stocksbrew Watchlist.</li>
+  <li>Add only serious candidates and holdings to stocksbrew.</li>
   <li>Open TradingView only when price structure matters to sizing.</li>
 </ol>
 
@@ -311,20 +327,20 @@ export const researchBlogContent: Record<string, string> = {
 <ol>
   <li>Keep discovery rare and deliberate.</li>
   <li>Maintain the decision thesis in writing.</li>
-  <li>Use Watchlist and earnings alerts for monitoring.</li>
+  <li>Use the stocksbrew briefing and earnings alerts for monitoring.</li>
   <li>Return to Finviz or TradingView only when a thesis event requires deeper analysis.</li>
 </ol>
 
 <h2 id="verdict">Verdict</h2>
 
-<p>Pick <strong>Finviz</strong> if you need to find stocks. Pick <strong>TradingView</strong> if you need to analyze and automate charts. Pick <strong>stocksbrew</strong> if you need to maintain a small watchlist with written context. If you actively research individual US stocks, the most coherent stack is often Finviz for discovery, TradingView for charts, and stocksbrew for ongoing monitoring—using primary filings as the source of truth throughout.</p>
+<p>Pick <strong>Finviz</strong> if you need to find stocks. Pick <strong>TradingView</strong> if you need to analyze and automate charts. Pick <strong>stocksbrew</strong> if you need to keep up with a small list of US stocks. If you actively research individual US stocks, a sensible stack is Finviz for discovery, TradingView for charts and stocksbrew for keeping up, with primary filings as the source of truth throughout.</p>
 
-<p>Read our <a href="/docs/methodology">editorial and comparison methodology</a> for sourcing, corrections, and conflicts. You can also compare <a href="/docs/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz</a> and <a href="/docs/compare/stocksbrew-vs-tradingview">stocksbrew vs TradingView</a> in more detail.</p>
+<p>Read our <a href="/docs/methodology">editorial and comparison methodology</a> for sourcing, corrections, and conflicts. You can also compare <a href="/docs/compare/stocksbrew-vs-finviz">stocksbrew vs Finviz</a> and <a href="/docs/compare/stocksbrew-vs-tradingview">stocksbrew vs TradingView</a> in more detail, or see the <a href="/blog/best-stock-analysis-apps-2026">best stock analysis apps</a> and <a href="/blog/yahoo-finance-alternatives">Yahoo Finance alternatives</a>.</p>
 
 <div class="cta-section">
-  <h3>Try the monitoring layer</h3>
-  <p>Add three US stocks to Watchlist free. Keep your screener and charting workflow; use stocksbrew to track what changes afterward.</p>
-  <a href="/portfolio" class="cta-button">Open Watchlist →</a>
+  <h3>Keep your screener, add the follow-up</h3>
+  <p>Keep Finviz or TradingView for finding and charting. Add the US stocks you end up owning to stocksbrew and read what changed each day.</p>
+  <a href="/portfolio" class="cta-button">Add your stocks →</a>
 </div>
 `,
 };

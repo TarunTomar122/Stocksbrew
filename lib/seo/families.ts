@@ -1,8 +1,8 @@
 import { isCircularReason } from "@/lib/reason-quality";
 import { pairSlug } from "@/lib/seo/pair-slug";
-import { isFresh, stockHasCurrentRead, type StockReadFacts } from "@/lib/seo/stock-pages";
+import { isFresh, stockHasCall, stockIsIndexable, type StockReadFacts } from "@/lib/seo/stock-pages";
 
-export { isFresh, stockHasCurrentRead, type StockReadFacts };
+export { isFresh, stockHasCall, stockIsIndexable, type StockReadFacts };
 export { cleanTicker, pairHref, pairSlug, parsePairSlug, type ParsedPair } from "@/lib/seo/pair-slug";
 
 /**
@@ -193,10 +193,10 @@ export function buildPairs(
 
 export type PairStockFacts = StockReadFacts & { symbol: string };
 
-/** Pair index rule: both stock pages are indexable and both calls are at most PAIR_CALL_MAX_AGE_DAYS old. */
+/** Pair index rule: both stock pages are indexable and carry a call and thesis at most PAIR_CALL_MAX_AGE_DAYS old. */
 export function pairIsIndexable(first: PairStockFacts | null | undefined, second: PairStockFacts | null | undefined, today: string): boolean {
   if (!first || !second) return false;
-  return [first, second].every((row) => stockHasCurrentRead(row, today) && isFresh(row.call_at, today, PAIR_CALL_MAX_AGE_DAYS));
+  return [first, second].every((row) => stockIsIndexable(row, today) && stockHasCall(row) && isFresh(row.call_at, today, PAIR_CALL_MAX_AGE_DAYS));
 }
 
 /* ── Why a stock moved ────────────────────────────────────────────────── */
