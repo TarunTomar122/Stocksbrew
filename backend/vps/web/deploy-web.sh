@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the web app on this machine (the VPS has too little memory to build) and ship it to the VPS.
-#   bash backend/vps/web/deploy-web.sh [git-ref]      default: HEAD
+#   bash backend/vps/web/deploy-web.sh [git-ref]      default: HEAD; it must contain origin/main (ALLOW_STALE=1 skips)
 # Needs: ssh alias "vps", the production env at $WEB_ENV (default ~/.config/tikrr/web.env, mode 600; it holds
 # NEXT_PUBLIC_* values, which are baked into the build). Keeps the last 5 releases; rollback = point
 # /opt/tikrr-web/current at an older one and restart tikrr-web.
@@ -8,6 +8,17 @@ set -euo pipefail
 REF="${1:-HEAD}"
 WEB_ENV="${WEB_ENV:-$HOME/.config/tikrr/web.env}"
 REPO="$(git rev-parse --show-toplevel)"
+# Every build must contain origin/main: on Nov 22 "deploy-web.sh main" from a worktree resolved the never-pulled local
+# main and had Nov 18's build live for three minutes. An older build on purpose (a rollback by rebuild): ALLOW_STALE=1.
+git -C "$REPO" rev-parse --verify -q "$REF^{commit}" >/dev/null || { echo "unknown ref $REF" >&2; exit 1; }
+if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o ConnectTimeout=10 -o BatchMode=yes" git -C "$REPO" fetch -q origin main 2>/dev/null; then
+  if [ "${ALLOW_STALE:-}" != 1 ] && ! git -C "$REPO" merge-base --is-ancestor origin/main "$REF"; then
+    echo "$REF is missing $(git -C "$REPO" rev-list --count "$REF..origin/main") commit(s) on origin/main: deploy origin/main, or ALLOW_STALE=1 for an older build" >&2
+    exit 1
+  fi
+else
+  echo "warning: could not fetch origin; $REF not checked against origin/main" >&2
+fi
 SHA="$(git -C "$REPO" rev-parse --short "$REF")"
 # A dedicated worktree with its own real node_modules: a symlinked node_modules makes Next's standalone file
 # tracing write outside the build folder. Created once: git worktree add --detach ~/.cache/tikrr-web-build main

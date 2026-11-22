@@ -236,6 +236,13 @@ Newest first. One entry per tick: what changed, what was verified (with screensh
   Sec-Fetch-Site condition those 3 cross-site loads pass, and the rule still catches all 387 burst-hour loads and 676 other
   fakes (Chrome-UA scrapers, iPhone 13.2.3, Go-http-client, referrer spam). Took its copy (the 403 says to open the home
   page) and test suggestions; AGENTS.md's guard paragraph has the rule. 23 guard tests pass, typecheck and eslint clean.
+- Deployed 4955ff60 at 07:15:50 (forged shape 403 on both instances, a real Referer and the Facebook case 200; /,
+  /stock/AAPL, /briefing, /follow 200 in under 0.5 s). My first try, `deploy-web.sh main` at 07:13, built this worktree's
+  never-pulled local main (747f451f, Nov 18) and had it live for ~3 minutes, without the Nov 19 home rebuild, ShapBot
+  rule and Nov 20 /follow links. deploy-web.sh now fetches origin/main and refuses any ref that does not contain it
+  (ALLOW_STALE=1 for an older build on purpose); `deploy-web.sh origin/main` or HEAD on a fresh main both work.
+  Quality pass (subagent) on the first version of that check (it only caught a stale local branch, not a stale HEAD,
+  an unfetched origin/main or other branches) suggested this rule; taken.
 - Web: no restarts or OOM since the Nov 20 07:35 deploy, 537/541 MB after 47 h. Box: memory pressure ~0.01% avg300,
   root 81% (15 GB free), backup 22.5 h old, needrestart's interpreter scan still off, only dnsmasq failed (since Aug 26,
   not ours), nothing over 1.5 GB, swap full (normal). Every tikrr timer ran on time (weekend: market jobs idle until
