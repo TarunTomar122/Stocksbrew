@@ -81,6 +81,8 @@ export function middleware(request: NextRequest) {
             key: visitorKey(request.headers.get("cf-connecting-ip")),
             signedIn: request.cookies.has(SESSION_COOKIE_NAME),
             routerRequest: isRouterFetch(request.headers),
+            referer: request.headers.get("referer"),
+            secFetchSite: request.headers.get("sec-fetch-site"),
           }
         : undefined,
   });

@@ -8,6 +8,7 @@ import {
   crawlerOf,
   crawlerVerdict,
   isFilterView,
+  isForgedReferer,
   isRouterFetch,
   takeCrawlToken,
   takeVisitorToken,
@@ -157,7 +158,7 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
   const CHROME_152 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36";
   const visit = (
     url: string,
-    visitor: { key: string | null; signedIn?: boolean; routerRequest?: boolean },
+    visitor: { key: string | null; signedIn?: boolean; routerRequest?: boolean; referer?: string | null; secFetchSite?: string | null },
     now: number,
     visitorStore: Map<string, { tokens: number; at: number }>,
     ua = CHROME_152,
@@ -168,7 +169,13 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
         userAgent: ua,
         pathname: parsed.pathname,
         searchParams: parsed.searchParams,
-        visitor: { key: visitor.key, signedIn: visitor.signedIn ?? false, routerRequest: visitor.routerRequest ?? false },
+        visitor: {
+          key: visitor.key,
+          signedIn: visitor.signedIn ?? false,
+          routerRequest: visitor.routerRequest ?? false,
+          referer: visitor.referer,
+          secFetchSite: visitor.secFetchSite,
+        },
       },
       now,
       new Map(),
@@ -230,6 +237,44 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
     // A ticker with a dot is a page.
     expect(visit("/stock/BRK.B", { key: "198.51.100.3" }, 0, store)).toBeNull();
     expect(store.size).toBe(1);
+  });
+
+  it("refuses page loads with a made-up Referer (an origin with no path) that no link started", () => {
+    // Nov 21 19:10: 377 page loads in two minutes, each from a different address, all sent this way.
+    expect(isForgedReferer("https://www.stocksbrew.online", "none")).toBe(true);
+    expect(isForgedReferer("http://stocksbrew.online", null)).toBe(true);
+    expect(isForgedReferer(" HTTPS://www.stocksbrew.online:443 ", "None")).toBe(true);
+    expect(isForgedReferer("https://[::1]:8080", undefined)).toBe(true);
+    // What browsers send: a whole URL, so at least "/".
+    expect(isForgedReferer("https://www.stocksbrew.online/", "none")).toBe(false);
+    expect(isForgedReferer("https://www.google.com/", null)).toBe(false);
+    expect(isForgedReferer("https://www.stocksbrew.online/stock/NVDA?tab=news", "none")).toBe(false);
+    expect(isForgedReferer("https://x.com?", "none")).toBe(false);
+    expect(isForgedReferer("https://a.com, https://b.com", "none")).toBe(false);
+    expect(isForgedReferer("android-app://com.google.android.gm", null)).toBe(false);
+    expect(isForgedReferer(null, "none")).toBe(false);
+    expect(isForgedReferer("", null)).toBe(false);
+    // Facebook's Android app sets "http://m.facebook.com" itself; the navigation is marked cross-site.
+    expect(isForgedReferer("http://m.facebook.com", "cross-site")).toBe(false);
+    expect(isForgedReferer("https://chatgpt.com", "cross-site")).toBe(false);
+    expect(isForgedReferer("https://www.stocksbrew.online", "same-origin")).toBe(false);
+
+    const store = new Map();
+    const forged = { referer: "https://www.stocksbrew.online", secFetchSite: "none" };
+    expect(visit("/stock/IBM", { key: "198.51.100.6", ...forged }, 0, store)?.status).toBe(403);
+    // Refused before the address is counted, and even with no address or a session cookie.
+    expect(store.size).toBe(0);
+    expect(visit("/stock/IBM", { key: null, ...forged }, 0, store)?.status).toBe(403);
+    expect(visit("/stock/IBM", { key: "198.51.100.6", signedIn: true, ...forged }, 0, store)?.status).toBe(403);
+    // A real Referer, a cross-site app link, a router fetch or a static file goes on as before.
+    expect(visit("/stock/IBM", { key: "198.51.100.6", referer: "https://www.stocksbrew.online/", secFetchSite: "none" }, 0, store)).toBeNull();
+    expect(visit("/?fbclid=x", { key: "198.51.100.8", referer: "http://m.facebook.com", secFetchSite: "cross-site" }, 0, store)).toBeNull();
+    expect(visit("/stock/IBM", { key: "198.51.100.6", routerRequest: true, ...forged }, 0, store)).toBeNull();
+    expect(visit("/founder.jpg", { key: "198.51.100.6", ...forged }, 0, store)).toBeNull();
+    expect(visit("/robots.txt", { key: "198.51.100.6", ...forged }, 0, store)).toBeNull();
+    // Crawlers that send one (DuckDuckBot, GPTBot) keep their own rules.
+    const duck = "DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)";
+    expect(visit("/stock/IBM", { key: "198.51.100.7", referer: "http://www.stocksbrew.online" }, 0, store, duck)).toBeNull();
   });
 
   it("leaves self-declared crawlers to their own rules", () => {

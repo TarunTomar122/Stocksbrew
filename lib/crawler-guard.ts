@@ -8,7 +8,8 @@
  * - Every other crawler is refused filter views: a page address with a query string, other than the few the sitemap
  *   lists (robots.txt says the same, but crawlers re-read it only about once a day).
  * - Each crawler family gets a token bucket per web instance; past it, 429 with Retry-After, which they back off on.
- * - Scrapers that pass for a browser: each signed-out visitor address gets a page-load bucket per instance (VISITOR_RATE).
+ * - Scrapers that pass for a browser: each signed-out visitor address gets a page-load bucket per instance (VISITOR_RATE),
+ *   and a page load with a made-up Referer (an origin with no path on a navigation no link started) is refused (403).
  * Link previews (Slack, X, WhatsApp...) and fetches a person asked for (ChatGPT-User, Perplexity-User) are not
  * crawlers here: they are someone reading a page.
  */
@@ -225,7 +226,26 @@ export type CrawlerVerdict = { status: 403 | 429; reason: string } | null;
 const STATIC_FILE = /\.(png|jpe?g|gif|webp|avif|svg|ico|css|js|mjs|map|woff2?|ttf|otf|txt|xml|json|webmanifest|mp4|webm|pdf)$/i;
 
 /** A visitor who is not a self-declared crawler. Only page loads count: never the client router's fetches. */
-export type VisitorInput = { key: string | null; signedIn: boolean; routerRequest: boolean };
+export type VisitorInput = {
+  key: string | null;
+  signedIn: boolean;
+  routerRequest: boolean;
+  referer?: string | null;
+  secFetchSite?: string | null;
+};
+
+/** True for a page load with a Referer a browser does not send by itself: an http(s) origin with no path
+ * ("https://www.stocksbrew.online"; browsers end even an origin-only Referer in "/"), on a navigation the browser says
+ * no page started (Sec-Fetch-Site "none", or no such header). Nov 21 19:10: a scraper on residential proxies (a
+ * different address and country nearly every request, so no per-address bucket filled) sent 387 page loads in the hour,
+ * 377 of them in two minutes, all this way; both web instances stalled and every page took 5-19 s. In-app browsers can
+ * set a pathless Referer themselves (Facebook's Android app sends "http://m.facebook.com"), but those are marked
+ * cross-site, so they pass. App links (android-app://...) are not http(s) and are left alone. */
+export function isForgedReferer(referer: string | null | undefined, secFetchSite: string | null | undefined): boolean {
+  const site = secFetchSite?.trim().toLowerCase() ?? "";
+  if (site !== "" && site !== "none") return false;
+  return /^https?:\/\/[^/?#\s]+$/i.test(referer?.trim() ?? "");
+}
 
 /** True for the client router's own fetches (navigation, prefetch, refresh). Next 13.5 strips RSC, Next-Router-*
  * and _rsc before middleware sees the request, so this goes by what is left: the router sends Next-Url on every
@@ -248,7 +268,11 @@ export function crawlerVerdict(
   const crawler = crawlerOf(input.userAgent);
   if (!crawler) {
     const visitor = input.visitor;
-    if (!visitor?.key || visitor.routerRequest || STATIC_FILE.test(input.pathname)) return null;
+    if (!visitor || visitor.routerRequest || STATIC_FILE.test(input.pathname)) return null;
+    if (isForgedReferer(visitor.referer, visitor.secFetchSite)) {
+      return { status: 403, reason: "This request does not look like it came from a browser. Open https://www.stocksbrew.online/ directly." };
+    }
+    if (!visitor.key) return null;
     const allowed = visitor.signedIn
       ? takeVisitorToken(`session ${visitor.key}`, now, visitorStore, SIGNED_IN_RATE)
       : takeVisitorToken(visitor.key, now, visitorStore);

@@ -214,6 +214,41 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-22 07:00 UTC: daily health check
+- Ops health: 269 ok, 12 warn, 7 fail runs, 3 alert emails (Nov 21 07:11 "back to green" after the earnings-intel
+  rerun, 19:15 "Response time" red, 19:30 back to green). Fails: 07:00-07:05 the earnings-intel unit (fixed yesterday),
+  19:10-19:25 a scraper burst (below), 02:15 "Home page" 12.7 s / "Stock page" 9.3 s, which Caddy answered from Varnish
+  in 1 ms (the Cloudflare leg again). Warns: "System disk" until the 07:30 cleanup, "Response time" p95 3.4-5.4 s
+  (08:20-08:25, 12:55: two smaller bursts of the same kind), "Swap" with memory pressure 14% at 08:35 (the LocalDB
+  backup finishing), "Home/Stock page" 3.3-5.3 s three times.
+- Nov 21 19:10: 377 page loads in two minutes (311 in the minute, against ~5 a minute before), from residential proxies
+  in ~30 countries (BD, VN, DE, ZA, TH, ...; a different Cloudflare colo nearly every time), so no per-address bucket
+  filled. Both web instances stalled: every page took 5-19 s, even the 308 redirects; 22 loads gave up (status 0) and
+  29 "serve read timed out" in the app log. 332 of them sent `Referer: https://www.stocksbrew.online` (no path) with
+  `Sec-Fetch-Site: none`. A browser never sends a pathless Referer (even origin-only ends in "/"); outside the burst
+  only fakes did in 48 h (Chrome UAs with Sec-Fetch-Site none, an iOS 13.2.3 iPhone) plus DuckDuckBot.
+- Fixed: lib/crawler-guard.ts refuses (403) a non-crawler page load whose Referer is an http(s) origin with no path on
+  a navigation marked `Sec-Fetch-Site: none` (or with no such header), before the per-address bucket (`isForgedReferer`;
+  middleware.ts passes both headers). Crawlers keep their own rules (DuckDuckBot and GPTBot send pathless Referers);
+  router fetches, static files and robots/sitemaps are untouched. Quality pass (subagent) scanned 8 days of Caddy logs
+  (292k requests) and found the first version (any pathless Referer) would have refused Facebook's Android in-app browser
+  (`Referer: http://m.facebook.com`, cross-site, a real /?fbclid visit on Nov 18) and a ChatGPT-opened blog link; with the
+  Sec-Fetch-Site condition those 3 cross-site loads pass, and the rule still catches all 387 burst-hour loads and 676 other
+  fakes (Chrome-UA scrapers, iPhone 13.2.3, Go-http-client, referrer spam). Took its copy (the 403 says to open the home
+  page) and test suggestions; AGENTS.md's guard paragraph has the rule. 23 guard tests pass, typecheck and eslint clean.
+- Web: no restarts or OOM since the Nov 20 07:35 deploy, 537/541 MB after 47 h. Box: memory pressure ~0.01% avg300,
+  root 81% (15 GB free), backup 22.5 h old, needrestart's interpreter scan still off, only dnsmasq failed (since Aug 26,
+  not ours), nothing over 1.5 GB, swap full (normal). Every tikrr timer ran on time (weekend: market jobs idle until
+  Monday).
+- Traffic 17.8k requests, 267 over 5 s (227 in the 19:10 burst, 18 at 08:13 and 13 at 12:42, the rest single cold
+  renders), no 5xx. The 05:00 hour had 2.4k requests from the same kind of browser-like fleet, but cheap (p95 0.4 s).
+  Stock-page 404s 1.3k (the old-link replay from Nov 21, still there).
+- App errors: only the burst ones (29 serve timeouts at 19:10, 3 at 05:01, 1 at 08:13), 3 server-action probes
+  (`Next-Action: x`), one aborted render.
+- For the owner: the RDP brute force is still running (84k xrdp lines in the last hour, 3389 open, ufw off). With the
+  journal capped at 2G it now holds only ~2 days (oldest entry Nov 20 07:18). Closing 3389 (or `ufw` with 22/80/443)
+  would stop both.
+
 ### 2026-11-21 07:00 UTC: daily health check
 - Ops health: 149 ok, 46 warn, 93 fail runs, 2 alert emails (23:20 and the 05:20 reminder). Every fail is "Failed
   units: tikrr-earnings-intel.service" from 23:11 on. Warns: "System disk" in 139 runs since 19:25 (root 89%, 8.0-8.5 GB
