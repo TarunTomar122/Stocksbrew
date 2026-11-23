@@ -9,6 +9,7 @@
 
 import { etDayOf } from "@/lib/benchmark-day";
 import { isFiniteNumber, sectorSlug, squarify, type ScreenerRow } from "@/lib/screener-shared";
+import type { SnapshotRow } from "@/lib/types";
 
 export type HeatStock = {
   symbol: string;
@@ -33,6 +34,32 @@ export type HeatSector = {
   rising: number;
   moved: number;
 };
+
+/**
+ * The screener rows with the day's live quotes laid over them. The screener snapshot is rebuilt once, after the close,
+ * so on its own the map would show the last session all day; the live price snapshot (lib/firestore.ts
+ * getMarketSnapshot) is refreshed every hour while the market is open. A quote replaces a row's price, move and quote
+ * time only when it is newer than the row's, and the company value moves with the price.
+ */
+export function withLiveQuotes(rows: readonly ScreenerRow[], quotes: readonly SnapshotRow[]): ScreenerRow[] {
+  const bySymbol = new Map<string, SnapshotRow>();
+  for (const quote of quotes) {
+    if (quote?.market === "US" && quote.symbol) bySymbol.set(quote.symbol.toUpperCase(), quote);
+  }
+  if (bySymbol.size === 0) return [...rows];
+  return rows.map((row) => {
+    const quote = row.symbol ? bySymbol.get(row.symbol.toUpperCase()) : undefined;
+    const at = quote?.lastUpdated ? Date.parse(quote.lastUpdated) : Number.NaN;
+    const price = quote?.price?.current;
+    const pct = quote?.price?.changePct;
+    if (!quote || !Number.isFinite(at) || !isFiniteNumber(price) || price <= 0 || !isFiniteNumber(pct)) return row;
+    const was = row.price_at ? Date.parse(row.price_at) : Number.NaN;
+    if (Number.isFinite(was) && at <= was) return row;
+    const cap =
+      isFiniteNumber(row.market_cap) && isFiniteNumber(row.price) && row.price > 0 ? (row.market_cap * price) / row.price : row.market_cap;
+    return { ...row, price, day_pct: pct, price_at: quote.lastUpdated, market_cap: cap };
+  });
+}
 
 /** A price this many days older than the map's day leaves the stock off the map (a long weekend is 4). */
 export const STALE_DAYS = 5;

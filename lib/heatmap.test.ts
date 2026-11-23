@@ -15,9 +15,12 @@ import {
   mapGroups,
   sectorMovers,
   signedPct,
+  withLiveQuotes,
   type HeatStock,
 } from "@/lib/heatmap";
+import { quoteDay } from "@/lib/benchmark-day";
 import type { ScreenerRow } from "@/lib/screener-shared";
+import type { SnapshotRow } from "@/lib/types";
 
 const DAY = "2026-11-20";
 
@@ -50,6 +53,43 @@ const ROWS: ScreenerRow[] = [
 function area(box: { w: number; h: number }): number {
   return box.w * box.h;
 }
+
+function quote(symbol: string, current: number, changePct: number, lastUpdated: string): SnapshotRow {
+  return { instrumentId: `US_${symbol}`, market: "US", symbol, name: symbol, lastUpdated, price: { current, changePct } };
+}
+
+describe("withLiveQuotes", () => {
+  it("lays the day's newer quotes over the nightly rows and leaves the rest as they were", () => {
+    const monday = "2026-11-23T16:00:00+00:00";
+    const rows = withLiveQuotes(ROWS, [
+      quote("NVDA", 110, 10, monday),
+      // Older than the row: kept out.
+      quote("AAPL", 90, -10, "2026-11-19T21:00:00Z"),
+      // Broken prices and moves are ignored.
+      quote("MSFT", 0, 2, monday),
+      quote("JPM", 120, Number.NaN, monday),
+      { ...quote("XOM", 120, 3, monday), market: "IN" },
+    ]);
+    const nvda = rows.find((r) => r.symbol === "NVDA")!;
+    expect(nvda.price).toBe(110);
+    expect(nvda.day_pct).toBe(10);
+    expect(nvda.price_at).toBe(monday);
+    expect(nvda.market_cap).toBeCloseTo(4400e9);
+    for (const symbol of ["AAPL", "MSFT", "JPM", "XOM"]) expect(rows.find((r) => r.symbol === symbol)).toBe(ROWS.find((r) => r.symbol === symbol));
+    // The map's day follows most quotes; with one live quote it stays on the nightly day.
+    expect(quoteDay(rows)).toBe(DAY);
+    expect(withLiveQuotes(ROWS, [])).toEqual(ROWS);
+  });
+
+  it("moves the map to today once most stocks have today's quote, and greys the ones without", () => {
+    const monday = "2026-11-23T16:00:00+00:00";
+    const rows = withLiveQuotes(ROWS, ROWS.filter((r) => r.symbol !== "BAC").map((r) => quote(r.symbol!, 101, 1, monday)));
+    const day = quoteDay(rows);
+    expect(day).toBe("2026-11-23");
+    const bac = heatSectors(rows, day).flatMap((s) => s.stocks).find((s) => s.symbol === "BAC")!;
+    expect(bac.pct).toBeNull();
+  });
+});
 
 describe("heatSectors", () => {
   it("groups stocks with a company value by sector, biggest sector and company first", () => {

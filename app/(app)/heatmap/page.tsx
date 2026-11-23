@@ -4,10 +4,12 @@ import Link from "next/link";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { HeatMapStack, HeatMapWide, HeatScale, SectorCards } from "@/components/heatmap/market-heatmap";
 import { AppPage, Empty, PageHead, SourceLine, fmtDay } from "@/components/oa/kit";
-import { closeWords } from "@/lib/benchmark-day";
+import { closeWords, quoteDay } from "@/lib/benchmark-day";
 import { etToday, onDayWords } from "@/lib/day-words";
-import { heatSectors, heatSummary, layoutMap, layoutStack, mapGroups } from "@/lib/heatmap";
+import { getMarketSnapshot } from "@/lib/firestore";
+import { heatSectors, heatSummary, layoutMap, layoutStack, mapGroups, withLiveQuotes } from "@/lib/heatmap";
 import { ogImage } from "@/lib/og/url";
+import type { ScreenerRow } from "@/lib/screener-shared";
 import { getCoverage } from "@/lib/seo/family-data";
 
 /**
@@ -34,10 +36,21 @@ const PHONE_WIDTH = 360;
 /** A phone's map stays about two screens tall: the smallest tiles hold a ticker, the giants do not fill a screen each. */
 const PHONE_FIT = { minTile: 1200, maxHeight: 1700 };
 
+/**
+ * The covered stocks priced as of now and the day the map is on. The screener rows are rebuilt after each close; the
+ * live snapshot (one read a minute, shared app-wide) carries the hourly quotes while the market is open. Without it,
+ * the map shows the last close.
+ */
+async function heatData(): Promise<{ rows: ScreenerRow[]; day: string | null }> {
+  const [coverage, quotes] = await Promise.all([getCoverage(), getMarketSnapshot("US").catch(() => [])]);
+  const rows = withLiveQuotes(coverage.rows, quotes);
+  return { rows, day: quoteDay(rows, coverage.priceDay) };
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   // The map's own count: the biggest companies plus each sector's leaders (lib/heatmap.ts mapGroups).
-  const coverage = await getCoverage();
-  const count = mapGroups(heatSectors(coverage.rows, coverage.priceDay), WIDE_TILES).reduce((sum, group) => sum + group.stocks.length, 0);
+  const { rows, day } = await heatData();
+  const count = mapGroups(heatSectors(rows, day), WIDE_TILES).reduce((sum, group) => sum + group.stocks.length, 0);
   const description = `Today's stock market heat map: ${count} of the biggest US stocks by sector, sized by market value and coloured by the day's move, with each sector's top movers.`;
   const shareImage = ogImage(["page", "screener"], "US stock market heat map", { daily: true });
   return {
@@ -51,11 +64,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HeatmapPage() {
-  const coverage = await getCoverage();
-  const sectors = heatSectors(coverage.rows, coverage.priceDay);
+  const { rows, day } = await heatData();
+  const sectors = heatSectors(rows, day);
   const wide = layoutMap(mapGroups(sectors, WIDE_TILES), WIDE.width, WIDE.height);
   const phone = layoutStack(mapGroups(sectors, PHONE_TILES), PHONE_WIDTH, PHONE_FIT);
-  const day = coverage.priceDay;
   const today = etToday();
   const asOf = day ? closeWords(day, fmtDay(day, true)) : null;
   const live = asOf === "today, during trading";
