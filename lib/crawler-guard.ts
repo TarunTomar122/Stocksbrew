@@ -290,3 +290,11 @@ export function crawlerVerdict(
   if (!takeCrawlToken(crawler, now, store)) return { status: 429, reason: "Too many requests; slow down." };
   return null;
 }
+
+/** Pages answer GET and HEAD only: the app has no Server Actions and every form posts to /api (which the middleware
+ * does not see). Nov 23 01:46: a scanner POSTed form data to phpunit's eval-stdin.php under six prefixes; Next took
+ * each for a Server Action, rendered the not-found page, failed to decode the body and answered 500 (24 of them), so
+ * ops-health warned "Server errors" three runs in a row. Exploit probes (POST / with a made-up Next-Action) also land here. */
+export function isPageMethod(method: string): boolean {
+  return method === "GET" || method === "HEAD";
+}

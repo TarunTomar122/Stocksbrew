@@ -9,6 +9,7 @@ import {
   crawlerVerdict,
   isFilterView,
   isForgedReferer,
+  isPageMethod,
   isRouterFetch,
   takeCrawlToken,
   takeVisitorToken,
@@ -356,5 +357,13 @@ describe("robots.txt", () => {
       }
     }
     expect(robotsAllows(body, "MJ12bot", "/stock/NVDA")).toBe(false);
+  });
+});
+
+describe("isPageMethod", () => {
+  it("lets pages be read and refuses posts to them", () => {
+    expect(isPageMethod("GET")).toBe(true);
+    expect(isPageMethod("HEAD")).toBe(true);
+    for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) expect(isPageMethod(method)).toBe(false);
   });
 });

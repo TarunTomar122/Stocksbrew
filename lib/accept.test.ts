@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendVaryAccept, preferredType } from "./accept";
+import { appendVaryAccept, hasMarkdownVersion, preferredType } from "./accept";
 
 describe("Accept negotiation", () => {
   it("prefers markdown and respects q values and explicit rejection", () => {
@@ -14,5 +14,13 @@ describe("Accept negotiation", () => {
     appendVaryAccept(headers);
     appendVaryAccept(headers);
     expect(headers.get("Vary")).toBe("RSC, Accept");
+  });
+
+  it("has a Markdown version only for the home page", () => {
+    expect(hasMarkdownVersion("/")).toBe(true);
+    // ShapBot's Accept ("text/markdown, text/html;q=0.9") on a stock page: the HTML page, not a Markdown 404.
+    expect(preferredType("text/markdown, text/html;q=0.9, */*;q=0.8")).toBe("text/markdown");
+    expect(hasMarkdownVersion("/stock/NVDA")).toBe(false);
+    expect(hasMarkdownVersion("/insiders/NVDA")).toBe(false);
   });
 });

@@ -214,6 +214,32 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-23 07:00 UTC: daily health check
+- Ops health: 285 ok, 4 warn, 0 fail, no alert emails. Warns: "Swap" 07:10 Nov 22 (memory pressure 8.2%, gone by the
+  next run) and "Server errors" 01:50-02:00 (24 of ~1,000 requests, see below). Web instances: 0 restarts and no OOM
+  since the 18:01 deploy of d6fb2ab0 (466/491 MB). Box: pressure 0, root 80%, sdb 53%, swap full (Firecrawl's idle
+  pages), LocalDB backup 08:30 Nov 22, needrestart interpscan still off, no process over 0.5 GB. Only failed unit is
+  dnsmasq (failed since Aug 26, not ours). Weekend, so the market jobs last ran Friday; all ended in success.
+- Traffic: 31.8k requests in 24 h, 3 slow (>5 s), 25 5xx. Spike Nov 22 16:00 (9k): ShapBot, inside
+  the AI allowance, no slow pages. The forged-browser scraper (d6fb2ab0) is still at ~30 an hour and gets 403s.
+  AhrefsSiteAudit (signed web-bot-auth, so probably someone's Ahrefs Webmaster Tools audit) took 2.8k requests 03:00-05:00,
+  403 on everything not already in Varnish, since the guard blocks /Ahrefs/.
+- The 5xx: a scanner POSTed form data to phpunit's eval-stdin.php under six prefixes, four times each. Next took each for
+  a Server Action, rendered not-found, failed to decode the body and answered 500. Fixed: middleware.ts answers 405 to
+  any non-GET/HEAD request to a page (`isPageMethod`; the app has no Server Actions and every form posts to /api).
+- Found: any client that prefers `text/markdown` got a 404 "Page not found ... does not exist" on every page but `/`,
+  because the middleware rewrote it to /api/markdown, which only has the home page and llms.txt. ~2,400 a day to ShapBot
+  plus agent fetches (Exa, url2md). Fixed: only `/` is rewritten (`hasMarkdownVersion` in lib/accept.ts; /llms.txt is
+  Markdown for everyone already); elsewhere the HTML page is served, and the 406 lists Markdown only where it exists.
+- Quality pass (subagent): no non-GET request to a page path is legitimate (no rewrites, no Server Actions, the 11 route
+  handlers outside app/api are GET only, unsubscribe/webhooks/OAuth consent all post to /api). Varnish still passes any
+  Markdown Accept, so no wrong variant can be stored; ShapBot's stock-page loads are now uncached renders, held to the
+  AI allowance (0.5/s per instance). Accept/guard tests 28 pass, typecheck and eslint clean; the 16 failing suites in the
+  full run fail the same at clean HEAD (Firebase env, stock-read, word-budget).
+- Open for the owner: the OpenAI project behind the memo wording hit its "configured enforced spend limit" (5 times
+  Nov 22-23; the memo falls back to its rule sentences, nothing breaks). Raise the limit or leave it. And if the Ahrefs
+  site audit is yours, say so and AhrefsSiteAudit can be let through.
+
 ### 2026-11-22 07:00 UTC: daily health check
 - Ops health: 269 ok, 12 warn, 7 fail runs, 3 alert emails (Nov 21 07:11 "back to green" after the earnings-intel
   rerun, 19:15 "Response time" red, 19:30 back to green). Fails: 07:00-07:05 the earnings-intel unit (fixed yesterday),

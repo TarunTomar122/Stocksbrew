@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appendVaryAccept, preferredType } from "@/lib/accept";
-import { crawlerVerdict, isRouterFetch, visitorKey } from "@/lib/crawler-guard";
+import { appendVaryAccept, hasMarkdownVersion, preferredType } from "@/lib/accept";
+import { crawlerVerdict, isPageMethod, isRouterFetch, visitorKey } from "@/lib/crawler-guard";
 import { anonViewPath, isAnonViewPath, publicPathname } from "@/lib/anon-view";
 import { EDGE_CACHE_HEADER, edgeCacheHeaderFor, isRouterRequest } from "@/lib/edge-cache-policy";
 import { parsePairSlug } from "@/lib/seo/pair-slug";
@@ -17,6 +17,15 @@ export function middleware(request: NextRequest) {
     canonicalUrl.hostname = "www.stocksbrew.online";
     canonicalUrl.port = "";
     return NextResponse.redirect(canonicalUrl, 308);
+  }
+
+  // Pages are read, never posted to (lib/crawler-guard.ts isPageMethod): a scanner's POST gets a 405 here instead of
+  // a not-found render that ends in a 500.
+  if (!isPageMethod(request.method)) {
+    return new Response("Method Not Allowed\n", {
+      status: 405,
+      headers: { "Content-Type": "text/plain; charset=utf-8", Allow: "GET, HEAD", "Cache-Control": "private, no-store" },
+    });
   }
 
   // Stock-against-stock pages live at one address: lower case, tickers in
@@ -102,7 +111,8 @@ export function middleware(request: NextRequest) {
 
   const acceptHeader = request.headers.get("accept");
   const chosen = preferredType(acceptHeader);
-  if (chosen === "text/markdown") {
+  // Only the pages with a Markdown version are rewritten to it; elsewhere a Markdown-first client gets the HTML page.
+  if (chosen === "text/markdown" && hasMarkdownVersion(request.nextUrl.pathname)) {
     const markdownUrl = request.nextUrl.clone();
     markdownUrl.pathname = `/api/markdown${request.nextUrl.pathname}`;
     const response = NextResponse.rewrite(markdownUrl);
@@ -110,7 +120,8 @@ export function middleware(request: NextRequest) {
     return response;
   }
   if (chosen === null && acceptHeader) {
-    return new Response("Not Acceptable\n\nAvailable: text/html, text/markdown\n", {
+    const available = hasMarkdownVersion(request.nextUrl.pathname) ? "text/html, text/markdown" : "text/html";
+    return new Response(`Not Acceptable\n\nAvailable: ${available}\n`, {
       status: 406,
       headers: { "Content-Type": "text/plain; charset=utf-8", Vary: "Accept" },
     });

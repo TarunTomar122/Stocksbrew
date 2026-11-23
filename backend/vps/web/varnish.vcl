@@ -101,8 +101,8 @@ sub html_candidate {
     unset req.http.X-Cookie-Rest;
     unset req.http.Cookie;
   }
-  # The page is either HTML or (for AI agents) Markdown, chosen by middleware.ts from Accept. One HTML variant
-  # for every browser: Accept is set to text/html. Markdown and anything unusual go to the app.
+  # The home page is either HTML or (for AI agents) Markdown, chosen by middleware.ts from Accept; other pages are HTML
+  # only. One HTML variant for every browser: Accept is set to text/html. Markdown and anything unusual go to the app.
   if (req.http.Accept ~ "(?i)text/markdown") { return; }
   if (req.http.Accept && req.http.Accept !~ "(text/html|\*/\*)") { return; }
   set req.http.Accept = "text/html";

@@ -60,3 +60,13 @@ export function appendVaryAccept(headers: Headers): void {
   const tokens = existing.split(",").map((token) => token.trim().toLowerCase());
   if (!tokens.includes("accept")) headers.set("Vary", `${existing}, Accept`);
 }
+
+/** Pages with a Markdown version (app/api/markdown/[[...path]]/route.ts): the home page. /llms.txt is Markdown for
+ * everyone already (app/llms.txt/route.ts). Every other page is HTML only, so a client that prefers Markdown gets the
+ * HTML page there. Before Nov 23 it got a 404
+ * "Page not found" for every page but these: ~2,400 a day to ShapBot, and the odd agent fetch (Exa, url2md). */
+const MARKDOWN_PATHS = new Set(["/"]);
+
+export function hasMarkdownVersion(pathname: string): boolean {
+  return MARKDOWN_PATHS.has(pathname);
+}
