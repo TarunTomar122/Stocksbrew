@@ -34,7 +34,7 @@ type KindTargets = { pages: string[]; families: RevalidateFamily[]; tags: string
 export const REVALIDATE_KINDS: Readonly<Record<string, KindTargets>> = {
   // Quotes, moves and the home dashboard (price_core_* lanes, the post-close run).
   prices: {
-    pages: ["/", "/briefing", "/explore", "/screener", "/portfolio", "/markets", "/sectors", "/themes", "/premarket"],
+    pages: ["/", "/briefing", "/explore", "/screener", "/portfolio", "/markets", "/sectors", "/heatmap", "/themes", "/premarket"],
     families: ["stock", "markets", "sectors", "themes", "compare"],
     tags: ["markets", "daily-series", "extended-quotes", "results"],
   },

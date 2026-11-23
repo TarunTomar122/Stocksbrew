@@ -81,6 +81,14 @@ describe("withLiveQuotes", () => {
     expect(withLiveQuotes(ROWS, [])).toEqual(ROWS);
   });
 
+  it("takes the newest quote when a symbol appears twice", () => {
+    const monday = "2026-11-23T16:00:00+00:00";
+    const old = { ...quote("NVDA", 50, -50, "2026-08-31T20:00:00Z"), instrumentId: "US_OLD" };
+    for (const quotes of [[quote("NVDA", 110, 10, monday), old], [old, quote("NVDA", 110, 10, monday)]]) {
+      expect(withLiveQuotes(ROWS, quotes).find((r) => r.symbol === "NVDA")!.day_pct).toBe(10);
+    }
+  });
+
   it("moves the map to today once most stocks have today's quote, and greys the ones without", () => {
     const monday = "2026-11-23T16:00:00+00:00";
     const rows = withLiveQuotes(ROWS, ROWS.filter((r) => r.symbol !== "BAC").map((r) => quote(r.symbol!, 101, 1, monday)));

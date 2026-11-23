@@ -42,9 +42,13 @@ export type HeatSector = {
  * time only when it is newer than the row's, and the company value moves with the price.
  */
 export function withLiveQuotes(rows: readonly ScreenerRow[], quotes: readonly SnapshotRow[]): ScreenerRow[] {
+  // A symbol can appear twice (an old listing left under another id): the newest quote wins, whatever the order.
   const bySymbol = new Map<string, SnapshotRow>();
   for (const quote of quotes) {
-    if (quote?.market === "US" && quote.symbol) bySymbol.set(quote.symbol.toUpperCase(), quote);
+    if (quote?.market !== "US" || !quote.symbol) continue;
+    const key = quote.symbol.toUpperCase();
+    const held = bySymbol.get(key);
+    if (!held || (Date.parse(quote.lastUpdated ?? "") || 0) > (Date.parse(held.lastUpdated ?? "") || 0)) bySymbol.set(key, quote);
   }
   if (bySymbol.size === 0) return [...rows];
   return rows.map((row) => {

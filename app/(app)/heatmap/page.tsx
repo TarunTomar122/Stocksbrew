@@ -4,7 +4,7 @@ import Link from "next/link";
 import { JsonLd, breadcrumbLd } from "@/components/docs/json-ld";
 import { HeatMapStack, HeatMapWide, HeatScale, SectorCards } from "@/components/heatmap/market-heatmap";
 import { AppPage, Empty, PageHead, SourceLine, fmtDay } from "@/components/oa/kit";
-import { closeWords, quoteDay } from "@/lib/benchmark-day";
+import { closeWords, etDayOf, quoteDay } from "@/lib/benchmark-day";
 import { etToday, onDayWords } from "@/lib/day-words";
 import { getMarketSnapshot } from "@/lib/firestore";
 import { heatSectors, heatSummary, layoutMap, layoutStack, mapGroups, withLiveQuotes } from "@/lib/heatmap";
@@ -43,8 +43,12 @@ const PHONE_FIT = { minTile: 1200, maxHeight: 1700 };
  */
 async function heatData(): Promise<{ rows: ScreenerRow[]; day: string | null }> {
   const [coverage, quotes] = await Promise.all([getCoverage(), getMarketSnapshot("US").catch(() => [])]);
-  const rows = withLiveQuotes(coverage.rows, quotes);
-  return { rows, day: quoteDay(rows, coverage.priceDay) };
+  const live = withLiveQuotes(coverage.rows, quotes);
+  const day = quoteDay(live, coverage.priceDay);
+  // Until most stocks have today's quote (a batch still running, or partly failed), the map stays on the last close,
+  // and a stock already quoted today keeps that close's move rather than going grey.
+  const rows = live.map((row, i) => (row !== coverage.rows[i] && etDayOf(row.price_at) !== day ? coverage.rows[i] : row));
+  return { rows, day };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
