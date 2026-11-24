@@ -2,6 +2,8 @@ import { adminFirestore } from "@/lib/firebase-admin";
 import { sendTransactionalEmail } from "@/lib/brevo";
 import {
   SUBSCRIBERS,
+  addPurpose,
+  mergeTickers,
   planCapture,
   seedTickers,
   subscriberId,
@@ -17,11 +19,11 @@ import { buildSubscriberConfirmEmail, confirmUrl } from "@/lib/emails/subscriber
  */
 
 export type CaptureResult =
-  /** Stored; `confirmSent` says whether this signup sent a confirmation. */
-  | { status: "stored"; confirmSent: boolean; id: string }
+  /** Stored; `confirmSent` says whether this signup sent a confirmation, `addSent` an "add this stock?" email. */
+  | { status: "stored"; confirmSent: boolean; addSent: boolean; id: string }
   /** The address is an account's (or a linked record): nothing stored or sent. */
   | { status: "account" }
-  /** A confirmation was due but the per-instance send cap is spent: stored, nothing sent. */
+  /** A confirmation or an add email was due but the per-instance send cap is spent: stored, nothing sent. */
   | { status: "busy"; id: string };
 
 type Deps = {
@@ -50,12 +52,15 @@ export async function captureSubscriber(
   const id = subscriberId(input.email);
   const docRef = ref(db, id);
 
-  // Claim the confirmation inside the transaction (confirm_sent_at = now), so a second signup a moment later sees it.
-  let previousSentAt: string | null = null;
-  let send = false;
+  // Claim the email inside the transaction (confirm_sent_at or add_sent_at = now), so a second signup a moment later
+  // sees it. At most one email per signup: a waiting record gets the confirmation, a confirmed one the add email.
+  // Set inside the transaction callback: typed with `as`, so TS does not narrow them to their first value.
+  let previousSentAt = null as string | null;
+  let kind = null as "confirm" | "add" | null;
+  let addTicker = null as string | null;
   let busy = false;
-  let doc: SubscriberDoc | null = null;
-  // Asked once: a retried transaction must not spend a second confirmation from the cap.
+  let doc = null as SubscriberDoc | null;
+  // Asked once: a retried transaction must not spend a second email from the cap.
   let allowed: boolean | null = null;
   const mayConfirm = () => (allowed ??= deps.mayConfirm ? deps.mayConfirm() : true);
   const outcome = await db.runTransaction(async (tx) => {
@@ -63,26 +68,61 @@ export async function captureSubscriber(
     const existing = snap.exists ? ((snap.data() ?? {}) as Partial<SubscriberDoc>) : null;
     const plan = planCapture(existing, input, now);
     if (plan.kind === "linked") return "linked" as const;
-    previousSentAt = plan.doc.confirm_sent_at;
-    send = plan.sendConfirm && mayConfirm();
-    busy = plan.sendConfirm && !send;
-    doc = send ? { ...plan.doc, confirm_sent_at: new Date(now).toISOString() } : plan.doc;
+    const due = plan.sendConfirm ? "confirm" : plan.sendAdd ? "add" : null;
+    const field = due === "add" ? "add_sent_at" : "confirm_sent_at";
+    previousSentAt = plan.doc[field] ?? null;
+    kind = due && mayConfirm() ? due : null;
+    addTicker = kind === "add" ? plan.sendAdd : null;
+    busy = due !== null && kind === null;
+    doc = kind ? { ...plan.doc, [field]: new Date(now).toISOString() } : plan.doc;
     tx.set(docRef, doc as unknown as Record<string, unknown>);
     return "write" as const;
   });
   if (outcome === "linked") return { status: "account" };
   if (busy) return { status: "busy", id };
-  if (!send || !doc) return { status: "stored", confirmSent: false, id };
+  if (!kind || !doc) return { status: "stored", confirmSent: false, addSent: false, id };
 
-  const token = subscriberToken(id, "confirm");
-  const email = token ? buildSubscriberConfirmEmail({ tickers: (doc as SubscriberDoc).tickers, confirmUrl: confirmUrl(id, token) }) : null;
+  const sending = kind;
+  const ticker = addTicker;
+  const token = subscriberToken(id, sending === "add" && ticker ? addPurpose(ticker) : "confirm");
+  const email = token
+    ? buildSubscriberConfirmEmail({
+        tickers: doc.tickers,
+        confirmUrl: confirmUrl(id, token, ticker ?? undefined),
+        add: ticker ?? undefined,
+      })
+    : null;
   const sent = email ? await (deps.send ?? sendTransactionalEmail)(input.email, email.subject, email.html, email.text) : false;
   if (!sent) {
     // Not sent: give the claim back, so the next try within 24 hours can send it.
-    await docRef.set({ confirm_sent_at: previousSentAt }, { merge: true }).catch(() => undefined);
-    console.warn(`[email-capture] confirmation not sent for ${id.slice(0, 8)}${token ? "" : " (no EMAIL_UNSUBSCRIBE_SECRET)"}`);
+    const field = sending === "add" ? "add_sent_at" : "confirm_sent_at";
+    await docRef.set({ [field]: previousSentAt }, { merge: true }).catch(() => undefined);
+    console.warn(`[email-capture] ${sending} email not sent for ${id.slice(0, 8)}${token ? "" : " (no EMAIL_UNSUBSCRIBE_SECRET)"}`);
   }
-  return { status: "stored", confirmSent: sent, id };
+  return { status: "stored", confirmSent: sending === "confirm" && sent, addSent: sending === "add" && sent, id };
+}
+
+export type AddState = "added" | "already" | "linked" | "missing";
+
+/**
+ * The signed "add NVDA?" link was opened: the stock joins the list (up to MAX_SUBSCRIBER_TICKERS). The click proves
+ * the inbox wants the email, so a record stopped since the link went out starts again, as a confirmation does.
+ */
+export async function addSubscriberTicker(id: string, ticker: string, deps: Pick<Deps, "db" | "now"> = {}): Promise<{ state: AddState; tickers: string[] }> {
+  const db = deps.db ?? adminFirestore;
+  const stamp = new Date(deps.now ?? Date.now()).toISOString();
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref(db, id));
+    if (!snap.exists) return { state: "missing" as const, tickers: [] };
+    const doc = (snap.data() ?? {}) as Partial<SubscriberDoc>;
+    const current = mergeTickers(doc.tickers, null);
+    if (doc.linked_uid) return { state: "linked" as const, tickers: current };
+    const tickers = mergeTickers(current, ticker);
+    const changed = tickers.length !== current.length || !doc.confirmed_at || Boolean(doc.unsubscribed_at);
+    if (!changed) return { state: "already" as const, tickers };
+    tx.set(ref(db, id), { tickers, confirmed_at: doc.confirmed_at ?? stamp, unsubscribed_at: null, updated_at: stamp }, { merge: true });
+    return { state: "added" as const, tickers };
+  });
 }
 
 export type ConfirmState = "confirmed" | "already" | "linked" | "missing";

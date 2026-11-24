@@ -32,6 +32,7 @@ export function confirmHeadline(tickers: readonly string[]): string {
 
 /**
  * What the form says once a signup is in. The route answers every signup the same (new, waiting or already confirmed),
- * so the words must be true for all of them: a confirmed address gets no confirmation email, only the stock added.
+ * so the words must be true for all of them: a confirmed address gets no confirmation email, at most one "add NVDA to
+ * your morning email?" email for a new stock.
  */
 export const SENT_COPY = "Done. If this email is new, check your inbox.";

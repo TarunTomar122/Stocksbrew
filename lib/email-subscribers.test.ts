@@ -83,11 +83,21 @@ describe("planCapture", () => {
     expect(later.kind === "write" && later.sendConfirm).toBe(true);
   });
 
-  it("a confirmed address only gains the ticker; a stopped one is asked to confirm again", () => {
+  it("a confirmed address never gains a ticker from the form: it is asked by email, once a day; a stopped one is asked to confirm again", () => {
     const confirmed = { email: "sam@example.com", tickers: ["NVDA"], source: "stock" as const, confirmed_at: "2026-11-01T00:00:00Z", confirm_sent_at: "2026-11-01T00:00:00Z" };
     const plan = planCapture(confirmed, { ...input, ticker: "TSLA" }, NOW);
-    expect(plan.kind === "write" && plan.sendConfirm).toBe(false);
-    expect(plan.kind === "write" && plan.doc.tickers).toEqual(["NVDA", "TSLA"]);
+    if (plan.kind !== "write") throw new Error("expected a write");
+    expect(plan.sendConfirm).toBe(false);
+    expect(plan.sendAdd).toBe("TSLA");
+    expect(plan.doc.tickers).toEqual(["NVDA"]);
+    // a stock it already follows, or one asked for within 24 hours of the last add email: nothing to send
+    expect(planCapture(confirmed, input, NOW)).toMatchObject({ sendAdd: null, sendConfirm: false });
+    const asked = { ...confirmed, add_sent_at: new Date(NOW - 60_000).toISOString() };
+    expect(planCapture(asked, { ...input, ticker: "AMD" }, NOW)).toMatchObject({ sendAdd: null, doc: { tickers: ["NVDA"] } });
+    expect(planCapture(asked, { ...input, ticker: "AMD" }, NOW - 60_000 + CONFIRM_RESEND_MS)).toMatchObject({ sendAdd: "AMD" });
+    // a full list asks for nothing
+    const full = { ...confirmed, tickers: Array.from({ length: MAX_SUBSCRIBER_TICKERS }, (_, i) => `T${i}`) };
+    expect(planCapture(full, { ...input, ticker: "TSLA" }, NOW)).toMatchObject({ sendAdd: null });
     const stopped = planCapture({ ...confirmed, unsubscribed_at: "2026-11-10T00:00:00Z" }, input, NOW);
     expect(stopped.kind === "write" && stopped.sendConfirm).toBe(true);
     // still stopped until the new link is clicked

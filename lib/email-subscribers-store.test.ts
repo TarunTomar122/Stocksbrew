@@ -1,8 +1,9 @@
 vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {} }));
 vi.mock("@/lib/brevo", () => ({ sendTransactionalEmail: vi.fn(async () => true) }));
 
-import { subscriberId } from "@/lib/email-subscribers";
+import { addPurpose, subscriberId, subscriberToken } from "@/lib/email-subscribers";
 import {
+  addSubscriberTicker,
   captureSubscriber,
   confirmSubscriber,
   countSubscribers,
@@ -72,7 +73,7 @@ describe("captureSubscriber", () => {
     const db = fakeDb();
     const send = vi.fn(async () => true);
     const first = await captureSubscriber({ email: EMAIL, ticker: "NVDA", source: "stock" }, { db: db as never, send, now: NOW });
-    expect(first).toEqual({ status: "stored", confirmSent: true, id: ID });
+    expect(first).toEqual({ status: "stored", confirmSent: true, addSent: false, id: ID });
     expect(send).toHaveBeenCalledTimes(1);
     const [to, subject, html] = send.mock.calls[0] as unknown as [string, string, string];
     expect(to).toBe(EMAIL);
@@ -81,7 +82,7 @@ describe("captureSubscriber", () => {
     expect(html).toContain("NVDA");
 
     const again = await captureSubscriber({ email: EMAIL, ticker: "AMD", source: "earnings" }, { db: db as never, send, now: NOW + 60_000 });
-    expect(again).toEqual({ status: "stored", confirmSent: false, id: ID });
+    expect(again).toEqual({ status: "stored", confirmSent: false, addSent: false, id: ID });
     expect(send).toHaveBeenCalledTimes(1);
     expect(db.data.tm_email_subscribers!.get(ID)).toMatchObject({ tickers: ["NVDA", "AMD"], source: "stock", last_source: "earnings" });
   });
@@ -103,6 +104,57 @@ describe("captureSubscriber", () => {
     expect(result).toEqual({ status: "busy", id: ID });
     expect(send).not.toHaveBeenCalled();
     expect(db.data.tm_email_subscribers!.get(ID)!.confirm_sent_at).toBeNull();
+  });
+
+  it("never adds a stock to a confirmed list from the form: one signed 'add NVDA?' email, once a day", async () => {
+    const confirmed = { email: EMAIL, tickers: ["NVDA"], source: "stock", confirmed_at: "2026-11-01T00:00:00Z", confirm_sent_at: "2026-11-01T00:00:00Z" };
+    const db = fakeDb({ tm_email_subscribers: { [ID]: { ...confirmed } } });
+    const send = vi.fn(async () => true);
+    const first = await captureSubscriber({ email: EMAIL, ticker: "AMD", source: "stock" }, { db: db as never, send, now: NOW });
+    expect(first).toEqual({ status: "stored", confirmSent: false, addSent: true, id: ID });
+    expect(db.data.tm_email_subscribers!.get(ID)).toMatchObject({ tickers: ["NVDA"], add_sent_at: new Date(NOW).toISOString() });
+    const [to, subject, html, text] = send.mock.calls[0] as unknown as [string, string, string, string];
+    expect(to).toBe(EMAIL);
+    expect(subject).toBe("Add AMD to your morning email?");
+    const token = subscriberToken(ID, addPurpose("AMD"))!;
+    expect(html).toContain(`/email/confirm?s=${ID}&amp;t=${token}&amp;a=AMD`);
+    expect(text).toContain("Add AMD: ");
+    // the confirm token cannot add a stock, and the AMD token cannot add another one
+    expect(token).not.toBe(subscriberToken(ID, "confirm"));
+    expect(token).not.toBe(subscriberToken(ID, addPurpose("TSLA")));
+
+    // stuffing: more stocks inside 24 hours send nothing and change nothing
+    for (const ticker of ["TSLA", "PLTR", "META"]) {
+      expect(await captureSubscriber({ email: EMAIL, ticker, source: "stock" }, { db: db as never, send, now: NOW + 60_000 })).toEqual({ status: "stored", confirmSent: false, addSent: false, id: ID });
+    }
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(db.data.tm_email_subscribers!.get(ID)!.tickers).toEqual(["NVDA"]);
+
+    // the click adds it (and only it); a second click says already
+    expect(await addSubscriberTicker(ID, "AMD", { db: db as never, now: NOW + 120_000 })).toEqual({ state: "added", tickers: ["NVDA", "AMD"] });
+    expect(await addSubscriberTicker(ID, "AMD", { db: db as never, now: NOW + 180_000 })).toEqual({ state: "already", tickers: ["NVDA", "AMD"] });
+    expect(await addSubscriberTicker("f".repeat(64), "AMD", { db: db as never })).toEqual({ state: "missing", tickers: [] });
+  });
+
+  it("an add email follows the cap and gives its claim back when it did not go out", async () => {
+    const confirmed = { email: EMAIL, tickers: ["NVDA"], confirmed_at: "2026-11-01T00:00:00Z" };
+    const db = fakeDb({ tm_email_subscribers: { [ID]: { ...confirmed } } });
+    const send = vi.fn(async () => true);
+    expect(await captureSubscriber({ email: EMAIL, ticker: "AMD", source: "stock" }, { db: db as never, send, mayConfirm: () => false, now: NOW })).toEqual({ status: "busy", id: ID });
+    expect(send).not.toHaveBeenCalled();
+    const failed = await captureSubscriber({ email: EMAIL, ticker: "AMD", source: "stock" }, { db: db as never, send: vi.fn(async () => false), now: NOW });
+    expect(failed).toMatchObject({ addSent: false });
+    expect(db.data.tm_email_subscribers!.get(ID)!.add_sent_at).toBeNull();
+    expect(await captureSubscriber({ email: EMAIL, ticker: "AMD", source: "stock" }, { db: db as never, send, now: NOW + 1000 })).toMatchObject({ addSent: true });
+  });
+
+  it("an add link clicked after a stop starts the email again; a linked record is left alone", async () => {
+    const stopped = fakeDb({ tm_email_subscribers: { [ID]: { email: EMAIL, tickers: ["NVDA"], confirmed_at: "2026-11-01T00:00:00Z", unsubscribed_at: "2026-11-20T00:00:00Z" } } });
+    expect(await addSubscriberTicker(ID, "AMD", { db: stopped as never, now: NOW })).toEqual({ state: "added", tickers: ["NVDA", "AMD"] });
+    expect(stopped.data.tm_email_subscribers!.get(ID)!.unsubscribed_at).toBeNull();
+    const linked = fakeDb({ tm_email_subscribers: { [ID]: { email: EMAIL, tickers: ["NVDA"], confirmed_at: "x", linked_uid: "u1" } } });
+    expect(await addSubscriberTicker(ID, "AMD", { db: linked as never, now: NOW })).toEqual({ state: "linked", tickers: ["NVDA"] });
+    expect(linked.data.tm_email_subscribers!.get(ID)!.tickers).toEqual(["NVDA"]);
   });
 
   it("never stores or mails an address that already has an account", async () => {

@@ -17,7 +17,7 @@ const LINK = "text-[14px] font-semibold text-oa-primary underline-offset-2 hover
  * Confirms the morning email from the browser (POST /api/email/subscribe/confirm) and says what comes next.
  * `email_confirmed` goes to the first-party analytics once, on the first confirmation (not on a reload).
  */
-export function ConfirmSubscription({ id, token }: { id: string; token: string }) {
+export function ConfirmSubscription({ id, token, add = null }: { id: string; token: string; add?: string | null }) {
   const [state, setState] = React.useState<State>({ kind: "working" });
   const started = React.useRef(false);
 
@@ -29,20 +29,20 @@ export function ConfirmSubscription({ id, token }: { id: string; token: string }
         const res = await fetch("/api/email/subscribe/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ s: id, t: token }),
+          body: JSON.stringify(add ? { s: id, t: token, a: add } : { s: id, t: token }),
         });
         const body = (await res.json().catch(() => ({}))) as { state?: string; tickers?: unknown };
         const tickers = Array.isArray(body.tickers) ? body.tickers.filter((t): t is string => typeof t === "string") : [];
         if (res.ok && body.state === "linked") setState({ kind: "linked" });
-        else if (res.ok && (body.state === "confirmed" || body.state === "already")) {
+        else if (res.ok && (body.state === "confirmed" || body.state === "added" || body.state === "already")) {
           if (body.state === "confirmed") captureEvent("email_confirmed");
-          setState({ kind: "done", first: body.state === "confirmed", tickers });
+          setState({ kind: "done", first: body.state !== "already", tickers });
         } else setState({ kind: "error", gone: res.status === 404 });
       } catch {
         setState({ kind: "error", gone: false });
       }
     })();
-  }, [id, token]);
+  }, [id, token, add]);
 
   if (state.kind === "working") {
     return (

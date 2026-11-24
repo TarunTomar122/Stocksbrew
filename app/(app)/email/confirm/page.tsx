@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { AppPage, PageHead } from "@/components/oa/kit";
 import { ConfirmSubscription } from "@/components/email-confirm";
-import { verifySubscriberToken } from "@/lib/email-subscribers";
+import { addPurpose, normalizeTicker, verifySubscriberToken } from "@/lib/email-subscribers";
 
 export const metadata: Metadata = {
   title: "Confirm your email",
@@ -23,7 +23,10 @@ const one = (value: string | string[] | undefined): string => (Array.isArray(val
 export default function ConfirmEmailPage({ searchParams }: Props) {
   const id = one(searchParams?.s);
   const token = one(searchParams?.t);
-  if (!verifySubscriberToken(id, "confirm", token)) {
+  // `a`: the "add NVDA to your morning email?" link, signed for that one stock.
+  const rawAdd = one(searchParams?.a);
+  const add = rawAdd ? normalizeTicker(rawAdd) : null;
+  if ((rawAdd && !add) || !verifySubscriberToken(id, add ? addPurpose(add) : "confirm", token)) {
     return (
       <AppPage width="read">
         <PageHead full title="This link has expired or isn't complete" lede="Open the newest email from us, or sign up again on any stock page." />
@@ -35,7 +38,7 @@ export default function ConfirmEmailPage({ searchParams }: Props) {
   }
   return (
     <AppPage width="read">
-      <ConfirmSubscription id={id} token={token} />
+      <ConfirmSubscription id={id} token={token} add={add} />
     </AppPage>
   );
 }

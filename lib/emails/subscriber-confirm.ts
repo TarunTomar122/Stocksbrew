@@ -25,16 +25,23 @@ function esc(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-export function confirmUrl(id: string, token: string): string {
-  return `${APP_URL}/email/confirm?${new URLSearchParams({ s: id, t: token }).toString()}`;
+/** The confirm page's link; with `add`, the link that adds that one stock to a confirmed record. */
+export function confirmUrl(id: string, token: string, add?: string): string {
+  return `${APP_URL}/email/confirm?${new URLSearchParams({ s: id, t: token, ...(add ? { a: add } : {}) }).toString()}`;
 }
 
-export function buildSubscriberConfirmEmail(params: { tickers: readonly string[]; confirmUrl: string }): { subject: string; html: string; text: string } {
-  const subject = "Confirm your email from stocksbrew";
+/**
+ * The confirmation, or with `add` the one-stock version a confirmed address gets when a signup asks for a new stock:
+ * the form takes any address, so a stock joins a confirmed list only from a click in that inbox.
+ */
+export function buildSubscriberConfirmEmail(params: { tickers: readonly string[]; confirmUrl: string; add?: string }): { subject: string; html: string; text: string } {
+  const add = params.add;
+  const subject = add ? `Add ${add} to your morning email?` : "Confirm your email from stocksbrew";
   // The same promise as the form (lib/email-capture-copy.ts): before the open, only on days something happens.
-  const headline = confirmHeadline(params.tickers);
-  const line = whenLine(params.tickers);
-  const ignore = "Didn't ask for this? Ignore it and you won't hear from us.";
+  const headline = add ? `Add ${add} to your morning email?` : confirmHeadline(params.tickers);
+  const line = add ? whenLine([add]) : whenLine(params.tickers);
+  const button = add ? `Add ${add}` : "Confirm my email";
+  const ignore = add ? "Didn't ask for this? Ignore it and nothing changes." : "Didn't ask for this? Ignore it and you won't hear from us.";
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -56,7 +63,7 @@ export function buildSubscriberConfirmEmail(params: { tickers: readonly string[]
       <p style="margin:0;font-size:16px;line-height:1.5;color:${BODY}">${esc(line)}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 4px"><tr>
         <td bgcolor="${COPPER}" style="border-radius:10px;background:${COPPER}">
-          <a href="${esc(params.confirmUrl)}" style="display:inline-block;padding:13px 22px;font-size:16px;font-weight:700;color:${COPPER_FG};text-decoration:none;border-radius:10px">Confirm my email</a>
+          <a href="${esc(params.confirmUrl)}" style="display:inline-block;padding:13px 22px;font-size:16px;font-weight:700;color:${COPPER_FG};text-decoration:none;border-radius:10px">${esc(button)}</a>
         </td>
       </tr></table>
     </td></tr>
@@ -69,6 +76,6 @@ export function buildSubscriberConfirmEmail(params: { tickers: readonly string[]
 </table>
 </body>
 </html>`;
-  const text = `${headline}\n\n${line}\n\nConfirm my email: ${params.confirmUrl}\n\n--\n${ignore}\nResearch to help you decide, not investment advice. stocksbrew · ${CONTACT_EMAIL}`;
+  const text = `${headline}\n\n${line}\n\n${button}: ${params.confirmUrl}\n\n--\n${ignore}\nResearch to help you decide, not investment advice. stocksbrew · ${CONTACT_EMAIL}`;
   return { subject, html, text };
 }

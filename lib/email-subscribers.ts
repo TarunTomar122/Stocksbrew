@@ -31,6 +31,8 @@ export type SubscriberDoc = {
   updated_at: string;
   confirmed_at: string | null;
   confirm_sent_at: string | null;
+  /** When the last "add a stock?" email went to this confirmed record (24-hour resend rule, like confirm_sent_at). */
+  add_sent_at?: string | null;
   unsubscribed_at: string | null;
   linked_uid: string | null;
   linked_at: string | null;
@@ -77,7 +79,13 @@ export function isSubscriberId(value: unknown): value is string {
 
 /* ── signed links ───────────────────────────────────────────────────────── */
 
-export type TokenPurpose = "confirm" | "stop";
+/** `add:<TICKER>`: the link that adds one stock to a confirmed record (addPurpose). */
+export type TokenPurpose = "confirm" | "stop" | `add:${string}`;
+
+/** The purpose of the "add NVDA to your morning email?" link: signed per ticker, so it cannot add any other stock. */
+export function addPurpose(ticker: string): TokenPurpose {
+  return `add:${ticker}`;
+}
 
 /**
  * HMAC over `sub:<id>:<purpose>` with EMAIL_UNSUBSCRIBE_SECRET, the same secret the account unsubscribe links use.
@@ -109,17 +117,26 @@ export function mergeTickers(current: readonly string[] | undefined, ticker: str
 export type CapturePlan =
   /** The address belongs to an account: nothing is written, nothing is sent (the account has its own mail). */
   | { kind: "linked" }
-  | { kind: "write"; doc: SubscriberDoc; sendConfirm: boolean };
+  /** `sendAdd`: the ticker a confirmed record is asked to add by email, or null. */
+  | { kind: "write"; doc: SubscriberDoc; sendConfirm: boolean; sendAdd: string | null };
 
 const ms = (value: string | null | undefined): number | null => {
   const parsed = value ? Date.parse(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+/** No email of this kind went out in the last 24 hours (a stamp in the future counts as none). */
+function resendDue(sentAt: string | null | undefined, now: number): boolean {
+  const at = ms(sentAt);
+  return at == null || now - at >= CONFIRM_RESEND_MS || at > now;
+}
+
 /**
- * What one signup does to the record. A confirmed, active address only gains the ticker. An address still waiting
- * (or one that stopped the email and now asks again) gets a confirmation, but never a second one within 24 hours.
- * `confirm_sent_at` is only planned here: the store sets it once the email has really gone out.
+ * What one signup does to the record. An address still waiting (or one that stopped the email and now asks again)
+ * gains the ticker and gets a confirmation, but never a second one within 24 hours. A confirmed, active address never
+ * gains a ticker from the form, since anyone can type any address: it gets one "add NVDA to your morning email?"
+ * email with a signed link instead (under the same 24-hour rule; a ticker asked for inside it is dropped).
+ * `confirm_sent_at` and `add_sent_at` are only planned here: the store sets them when it claims the send.
  */
 export function planCapture(
   existing: Partial<SubscriberDoc> | null,
@@ -129,22 +146,25 @@ export function planCapture(
   if (existing?.linked_uid) return { kind: "linked" };
   const stamp = new Date(now).toISOString();
   const active = Boolean(existing?.confirmed_at) && !existing?.unsubscribed_at;
-  const sentAt = ms(existing?.confirm_sent_at);
-  const sendConfirm = !active && (sentAt == null || now - sentAt >= CONFIRM_RESEND_MS || sentAt > now);
+  const sendConfirm = !active && resendDue(existing?.confirm_sent_at, now);
+  const current = mergeTickers(existing?.tickers, null);
+  const isNew = Boolean(input.ticker) && !current.includes(input.ticker!) && current.length < MAX_SUBSCRIBER_TICKERS;
+  const sendAdd = active && isNew && resendDue(existing?.add_sent_at, now) ? input.ticker : null;
   const doc: SubscriberDoc = {
     email: input.email,
-    tickers: mergeTickers(existing?.tickers, input.ticker),
+    tickers: active ? current : mergeTickers(existing?.tickers, input.ticker),
     source: isCaptureSource(existing?.source) ? existing!.source : input.source,
     last_source: input.source,
     created_at: existing?.created_at ?? stamp,
     updated_at: stamp,
     confirmed_at: existing?.confirmed_at ?? null,
     confirm_sent_at: existing?.confirm_sent_at ?? null,
+    add_sent_at: existing?.add_sent_at ?? null,
     unsubscribed_at: existing?.unsubscribed_at ?? null,
     linked_uid: null,
     linked_at: null,
   };
-  return { kind: "write", doc, sendConfirm };
+  return { kind: "write", doc, sendConfirm, sendAdd };
 }
 
 /** Whether the morning email goes to this record. */
