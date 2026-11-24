@@ -162,6 +162,41 @@ def test_load_stocks_drops_levels(monkeypatch):
     assert got.standing_levels() == (None, None)
 
 
+def test_call_reason_loses_its_level_sentences():
+    """The brief's rationale can quote the call's levels; a call change card shows only with what is left."""
+    r = subscribers.redact_levels
+    assert r("Guidance raised. Add below 165 on a dip.") == "Guidance raised."
+    assert r("Guidance raised; the add zone is $165.20.") == "Guidance raised."
+    assert r("Buy more under 165.") == ""
+    assert r("Support near 150 held.") == ""
+    assert r("It trades at 90 times sales after a 40% run.") == "It trades at 90 times sales after a 40% run."
+    assert r("") == "" and r(None) == ""
+
+
+def test_a_call_change_with_only_a_level_reason_is_left_out(monkeypatch):
+    pltr = stock("PLTR", change_pct=1.0, price=159.0, prev_close=158.0)
+    monkeypatch.setattr(subscribers, "stocks_by_id", lambda src, ids, now: [pltr])
+
+    def fake_calls(src, stocks, now):
+        for st in stocks:
+            st.calls = calls("accumulate", "accumulate", "accumulate", "trim")
+            st.calls[-1].reason = "Sell some above 160 into the run."
+            st.previous_stance = "accumulate"
+
+    monkeypatch.setattr(subscribers, "_apply_calls", fake_calls)
+    for name in ("_apply_earnings", "_apply_premarket", "_apply_news"):
+        monkeypatch.setattr(subscribers, name, lambda *a, **k: None)
+    got = subscribers.load_stocks(object(), ["PLTR"], NOW)["PLTR"]
+    assert got.call_reason == ""
+    sub = subscribers.Subscriber(ID, "sam@example.com", ["PLTR"])
+    assert subscribers.build(sub, {"PLTR": got}, now=NOW, market={}) is None  # no card, and nothing else happened
+
+    # the same change with a level-free reason is a card
+    got.call_reason = "Guidance cut for next year."
+    email, _ = subscribers.build(sub, {"PLTR": got}, now=NOW, market={})
+    assert "Guidance cut for next year." in email.text and "160" not in email.text
+
+
 def test_market_version_uses_the_featured_stocks():
     sub = subscribers.Subscriber(ID, "sam@example.com", [])
     nvda = _stocks()["NVDA"]
@@ -191,6 +226,7 @@ class FakeSource:
 
 
 def test_job_sends_once_per_session_and_skips_account_addresses(monkeypatch):
+    monkeypatch.setenv("EMAIL_UNSUBSCRIBE_SECRET", "s3cret")
     stocks = _stocks()
     monkeypatch.setattr(subscribers, "load_stocks", lambda src, tickers, now: stocks)
     delivered = []
@@ -218,6 +254,16 @@ def test_job_sends_once_per_session_and_skips_account_addresses(monkeypatch):
     stats2: Counter = Counter()
     jobs._subscribers(src, None, now=NOW, dry_run=True, to=None, limit=0, market={}, stats=stats2)
     assert stats2["skipped_dupe"] == 1 and stats2["dry_run"] == 0
+
+
+def test_job_sends_nothing_without_a_stop_secret(monkeypatch):
+    """Every email needs a working stop link: with no EMAIL_UNSUBSCRIBE_SECRET it would be empty, so nothing goes."""
+    monkeypatch.delenv("EMAIL_UNSUBSCRIBE_SECRET", raising=False)
+    monkeypatch.setattr(subscribers, "load_stocks", lambda *a: pytest.fail("no stocks should be read"))
+    monkeypatch.setattr(send, "deliver", lambda **kw: pytest.fail("nothing should be sent"))
+    stats: Counter = Counter()
+    jobs._subscribers(FakeSource([row()]), None, now=NOW, dry_run=False, to=None, limit=0, market={}, stats=stats)
+    assert stats == Counter({"skipped_no_stop_secret": 1})
 
 
 def test_job_with_no_confirmed_signups_does_nothing(monkeypatch):

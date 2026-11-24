@@ -67,6 +67,12 @@ def instrument_id(ticker: str) -> str:
 
 # ------------------------------------------------------------------ links
 
+def can_sign() -> bool:
+    """Whether stop links can be signed. Without EMAIL_UNSUBSCRIBE_SECRET every stop link would be empty, so the job
+    sends nothing (backend/mail/jobs.py _subscribers)."""
+    return bool(os.environ.get("EMAIL_UNSUBSCRIBE_SECRET", ""))
+
+
 def stop_token(sub_id: str) -> str:
     secret = os.environ.get("EMAIL_UNSUBSCRIBE_SECRET", "").encode()
     if not secret:
@@ -147,6 +153,46 @@ def account_emails(src) -> set[str]:
     return out
 
 
+# ------------------------------------------------------------------ levels in prose
+
+# lib/entitlements.ts redactLevels, plus a stricter last rule: this email promises no level at all, so a level word
+# next to any bare figure after a preposition goes too ("support near 150"). Dropping a sentence only loses a line.
+_MONEY = re.compile(r"(?:[$₹]\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*\.\d{2}\b)")
+_LEVEL_WORDS = re.compile(
+    r"\b(?:add|adding|accumulat\w*|trim\w*|reduce|reducing|zones?|levels?|targets?|entry|buy below|sell above|"
+    r"breakout|break out|stop|support|resistance|pullback to|into|buy more|sell some)\b", re.I)
+# A figure that is a percent, a multiple or a count is not a price.
+_NOT_A_PRICE = (r"(?![\d.,]*\s*(?:%|x\b|times\b|percent\b|per\b|bps\b|basis\b|billion\b|million\b|thousand\b|bn\b|"
+                r"[mbk]\b|days?\b|weeks?\b|months?\b|years?\b|quarters?\b|shares?\b|analysts?\b|stocks?\b|names?\b))")
+_PLAIN_LEVEL = re.compile(
+    r"\b(?:add(?:ing)?|accumulat\w*|buy(?:ing)?(?:[- ]more)?|trim(?:ming)?|sell(?:ing)?(?:[- ]some)?|reduc(?:e|ing)|"
+    r"breakout|break(?:s|ing)? out)(?:\s+(?:zone|level|price|point|more|some|shares|it))?\s+(?:is\s+|of\s+|sits\s+)?"
+    r"(?:below|above|under|over|at|near|around|from|between|to|is|of|sits)\s+(?:the\s+|about\s+|roughly\s+)?"
+    r"[$₹]?\s?\d[\d,]*(?:\.\d+)?" + _NOT_A_PRICE, re.I)
+_FIGURE_AFTER_PREP = re.compile(
+    r"\b(?:below|above|under|over|at|near|around|from|between|to|is|of)\s+(?:the\s+|about\s+|roughly\s+)?"
+    r"\d[\d,]*(?:\.\d+)?" + _NOT_A_PRICE, re.I)
+
+
+def _names_level(sentence: str) -> bool:
+    if _PLAIN_LEVEL.search(sentence):
+        return True
+    if not _LEVEL_WORDS.search(sentence):
+        return False
+    return bool(_MONEY.search(sentence) or _FIGURE_AFTER_PREP.search(sentence))
+
+
+def redact_levels(text: str | None) -> str:
+    """The text without any sentence that names a price level; "" when nothing is left."""
+    clean = (text or "").strip()
+    if not clean:
+        return ""
+    kept = [s for s in re.split(r"(?<=[.!?;])\s+", clean) if not _names_level(s)]
+    out = " ".join(kept).strip()
+    # "Guidance raised; add below 165." keeps "Guidance raised;": end it as a sentence.
+    return out[:-1] + "." if out.endswith(";") else out
+
+
 # ------------------------------------------------------------------ stocks
 
 def load_stocks(src, tickers: list[str], now: datetime) -> dict[str, Stock]:
@@ -160,7 +206,9 @@ def load_stocks(src, tickers: list[str], now: datetime) -> dict[str, Stock]:
             c.trigger_type, c.trigger_value = "", None  # no level crossings without an account
         if s.calls:
             latest = s.calls[-1]
-            s.stance, s.call_text, s.call_reason = latest.stance, latest.text, latest.reason
+            # The rationale can quote the call's levels ("add below 165"): those sentences go, and a reason with
+            # nothing left is empty, so the call change card (shown only with a reason) is left out.
+            s.stance, s.call_text, s.call_reason = latest.stance, latest.text, redact_levels(latest.reason)
         s.add_below = s.trim_above = None
     _apply_earnings(src, stocks, now)
     _apply_premarket(src, stocks, now)

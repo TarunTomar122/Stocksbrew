@@ -155,7 +155,12 @@ def _subscribers(src, store, *, now, dry_run: bool, to: str | None, limit: int, 
     if not subs:
         print("[mail] subscribers: none confirmed")
         return
-    wanted = {t for s in subs for t in (s.tickers or subscribers.MARKET_TICKERS)}
+    if not subscribers.can_sign():
+        # Every email must carry a working stop link; without the secret it would be empty.
+        stats["skipped_no_stop_secret"] += len(subs)
+        print(f"[mail] subscribers: EMAIL_UNSUBSCRIBE_SECRET is not set, {len(subs)} not sent")
+        return
+    wanted ={t for s in subs for t in (s.tickers or subscribers.MARKET_TICKERS)}
     stocks = subscribers.load_stocks(src, sorted(wanted), now)
     done = 0
     for sub in subs:
@@ -170,10 +175,9 @@ def _subscribers(src, store, *, now, dry_run: bool, to: str | None, limit: int, 
                 continue
             email, key = built
             hist = send.History.load(src, sub.uid, now=now)
-            token = subscribers.stop_token(sub.id)
             out = send.deliver(store=store, uid=sub.uid, user={"email": sub.email}, email=email, dedupe_key=key,
                                history=hist, dry_run=dry_run, to_override=to,
-                               list_unsubscribe=subscribers.stop_url(sub.id, api=True) if token else None)
+                               list_unsubscribe=subscribers.stop_url(sub.id, api=True))
             stats[out.status] += 1
             print(f"[mail] {'subscriber':9} {sub.id[:6]} {out.status:13} {email.kind:16} {email.subject[:90]}")
         except send.LogFailed as exc:
