@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { DODO_BASE, dodoHeaders } from "@/lib/dodo";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
+import { readJsonObject } from "@/lib/request-json";
 
 const CANCEL_REASONS = new Set([
   "too_expensive",
@@ -29,8 +30,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const reason = CANCEL_REASONS.has(body.reason) ? body.reason : "other";
+  const body = (await readJsonObject(req)) ?? {};
+  const reason = typeof body.reason === "string" && CANCEL_REASONS.has(body.reason) ? body.reason : "other";
   const feedback = typeof body.feedback === "string" ? body.feedback.trim().slice(0, 1000) : "";
   const retentionCode = typeof body.retentionCode === "string" ? body.retentionCode.trim().slice(0, 64) : "";
 

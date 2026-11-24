@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { getUserDoc } from "@/lib/watchlist";
 import { syncUserSubscription } from "@/lib/subscription-sync";
+import { readJsonObject } from "@/lib/request-json";
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization") ?? "";
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await readJsonObject(req)) ?? {};
   const subscriptionId =
     typeof body.subscriptionId === "string" ? body.subscriptionId : undefined;
   const checkoutSessionId =

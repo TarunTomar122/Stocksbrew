@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { grantProSubscription } from "@/lib/subscription-sync";
+import { readJsonObject } from "@/lib/request-json";
 
 export async function POST(req: NextRequest) {
   if (process.env.NODE_ENV === "production") {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await readJsonObject(req)) ?? {};
   const plan = body.period === "yearly" ? "yearly" : "monthly";
   const subscriptionId = `dev_${uid}_${Date.now()}`;
 

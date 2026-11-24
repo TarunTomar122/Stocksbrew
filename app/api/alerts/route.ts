@@ -9,6 +9,7 @@ import {
   listStockAlerts,
   StockAlertError,
 } from "@/lib/stock-alerts";
+import { readJsonObject } from "@/lib/request-json";
 
 async function getSessionUser(req: NextRequest) {
   try {
@@ -32,10 +33,8 @@ export async function POST(req: NextRequest) {
   // Free keeps a few price alerts; every other kind is Pro. Both are checked in createStockAlert with the plan.
   const plan = planOf({ signedIn: true, isSubscribed: resolveIsSubscribed(userDoc) });
 
-  let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const body = await readJsonObject(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   const instrumentId = typeof body.instrument_id === "string" ? body.instrument_id.trim() : "";
   const ticker = typeof body.ticker === "string" ? body.ticker.trim().toUpperCase() : "";

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { SEO_PRIORITY_URLS, submitIndexNow } from "@/lib/seo/indexnow";
 import { isSitemapFamily, sitemapEntries, type SitemapFamily } from "@/lib/seo/sitemap";
+import { readJsonObject } from "@/lib/request-json";
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await readJsonObject(req)) ?? {};
   const payload = body as { urls?: unknown; include_defaults?: unknown; families?: unknown; changed_since?: unknown };
   const extra = Array.isArray(payload.urls)
     ? (payload.urls as unknown[]).filter((u): u is string => typeof u === "string")

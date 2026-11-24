@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
+import { readJsonObject } from "@/lib/request-json";
 
 export const runtime = "nodejs";
 
@@ -24,12 +25,8 @@ async function isWaitlistedEmail(email: string | null | undefined): Promise<bool
 }
 
 export async function POST(request: NextRequest) {
-  let body: { idToken?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
+  const body = await readJsonObject(request);
+  if (!body) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
   const idToken = body.idToken;
   if (!idToken || typeof idToken !== "string") {

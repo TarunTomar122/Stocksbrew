@@ -1,4 +1,5 @@
 import { runAgentApiRequest } from "@/lib/agent-api";
+import { readJsonObject } from "@/lib/request-json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,11 +13,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
+  const body = (await readJsonObject(request)) ?? {};
   return runAgentApiRequest(request, "add_to_radar", body);
 }
 
 export async function DELETE(request: Request) {
-  const body = await request.json().catch(() => ({}));
+  const body = (await readJsonObject(request)) ?? {};
   return runAgentApiRequest(request, "remove_from_radar", body);
 }

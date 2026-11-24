@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth-server";
 import { issueAuthorizationCode, OAuthRequestError, validateAuthorizationRequest } from "@/lib/agent-oauth";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { readJsonObject } from "@/lib/request-json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,12 +15,8 @@ function redirectWithError(redirectUri: string, state: string, error: string, de
 }
 
 export async function POST(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "invalid_request", error_description: "Invalid JSON body." }, { status: 400 });
-  }
+  const body = await readJsonObject(request);
+  if (!body) return Response.json({ error: "invalid_request", error_description: "Invalid JSON body." }, { status: 400 });
   const params = new URLSearchParams();
   for (const key of ["response_type", "client_id", "redirect_uri", "state", "code_challenge", "code_challenge_method", "scope", "resource"]) {
     if (typeof body[key] === "string") params.set(key, body[key] as string);

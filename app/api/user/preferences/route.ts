@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
+import { readJsonObject } from "@/lib/request-json";
 
 const ALLOWED_KEYS = new Set(["email_alerts_enabled", "email_digest_enabled", "email_weekly_enabled", "email_product_enabled"]);
 
@@ -8,12 +9,8 @@ export async function PATCH(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const body = await readJsonObject(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   const updates: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(body)) {

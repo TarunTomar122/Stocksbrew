@@ -12,6 +12,7 @@ import { getWatchlistView, type WatchlistRow } from "@/lib/watchlist-view";
 import { getInstrumentLabels, resolveInstrumentByTicker } from "@/lib/instrument-resolver";
 import { getStockIntelligenceDoc, getStockIntelPro } from "@/lib/stock";
 import { llmApiKey, llmApiUrl, llmModel } from "@/lib/server-llm";
+import { readJsonObject } from "@/lib/request-json";
 
 export const maxDuration = 60;
 
@@ -378,6 +379,19 @@ export async function POST(req: NextRequest) {
   }
 
   const uid = decoded.uid;
+  // Read the question before spending any allowance on it: a body without messages is a 400, not a 500.
+  // Same shape check as /api/ask/conversations: user or assistant turns with parts, at least one from the user.
+  const body = await readJsonObject(req);
+  const messages = (Array.isArray(body?.messages) ? (body.messages as unknown[]) : []).filter(
+    (m): m is UIMessage =>
+      typeof m === "object" &&
+      m !== null &&
+      ((m as UIMessage).role === "user" || (m as UIMessage).role === "assistant") &&
+      Array.isArray((m as UIMessage).parts),
+  );
+  if (!messages.some((m) => m.role === "user")) {
+    return NextResponse.json({ error: "bad_request", message: "Send the conversation as messages." }, { status: 400 });
+  }
   // The old chat spends the same daily allowance as Ask, from the same counter, so the two never add up to more.
   const plan = askPlanFor({ uid, isPro: resolveIsSubscribed(await getUserDoc(uid).catch(() => null)) });
   // The same rule as /api/ask: a counter we cannot read means "try again", never an uncounted model call.
@@ -393,8 +407,6 @@ export async function POST(req: NextRequest) {
   if (!quota.ok) {
     return NextResponse.json({ error: "limit_reached", limit: quota.limit, message: quota.message }, { status: 429 });
   }
-  const body = await req.json();
-  const { messages } = body as { messages: UIMessage[] };
   const latestUserMessage = [...messages].reverse().find((m) => m.role === "user");
   const latestUserText = flattenMessageText(latestUserMessage);
   const lastSuggestedAddTicker = extractLastSuggestedAddTicker(messages);

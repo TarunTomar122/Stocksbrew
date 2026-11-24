@@ -4,17 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAttributionSourceId } from "@/lib/attribution";
 import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
+import { readJsonObject } from "@/lib/request-json";
 
 export async function POST(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const body = await readJsonObject(req);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   if (body.skipped === true) {
     await adminFirestore.collection("users").doc(session.uid).set(

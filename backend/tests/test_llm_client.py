@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from backend.llm_client import (
+    LLMHTTPError,
     OPENAI_API_URL,
     begin_llm_usage_collection,
     end_llm_usage_collection,
@@ -153,6 +154,62 @@ class LlmClientProviderTest(unittest.TestCase):
                 post_chat_completion(messages=[{"role": "user", "content": "test"}])
 
         post.assert_called_once()
+
+    def _rate_limited(self, message: str, code: str) -> Mock:
+        response = Mock()
+        response.status_code = 429
+        response.headers = {}
+        response.json.return_value = {"error": {"message": message, "type": "requests", "code": code}}
+        return response
+
+    def test_spent_budget_fails_at_once_with_the_providers_reason(self) -> None:
+        response = self._rate_limited(
+            "Your project has reached its configured enforced spend limit.", "insufficient_quota"
+        )
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ) as post, patch("backend.llm_client.time.sleep") as sleep:
+            with self.assertRaises(LLMHTTPError) as caught:
+                post_chat_completion(messages=[{"role": "user", "content": "test"}], max_attempts=6)
+
+        post.assert_called_once()
+        sleep.assert_not_called()
+        self.assertIn("spend limit", str(caught.exception))
+        self.assertIn("insufficient_quota", str(caught.exception))
+        self.assertIsInstance(caught.exception, requests.RequestException)
+
+    def test_rate_limit_retries_then_names_the_last_status(self) -> None:
+        response = self._rate_limited("Rate limit reached for requests per min.", "rate_limit_exceeded")
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ) as post, patch("backend.llm_client.time.sleep") as sleep:
+            with self.assertRaises(LLMHTTPError) as caught:
+                post_chat_completion(messages=[{"role": "user", "content": "test"}], max_attempts=3)
+
+        self.assertEqual(post.call_count, 3)
+        # No pointless wait after the last attempt.
+        self.assertEqual(sleep.call_count, 2)
+        self.assertIn("LLM HTTP 429", str(caught.exception))
+        self.assertIn("rate_limit_exceeded", str(caught.exception))
+
+    def test_single_attempt_rate_limit_does_not_sleep(self) -> None:
+        response = self._rate_limited("Rate limit reached.", "rate_limit_exceeded")
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ), patch("backend.llm_client.time.sleep") as sleep:
+            with self.assertRaises(LLMHTTPError):
+                post_chat_completion(messages=[{"role": "user", "content": "test"}], max_attempts=1)
+        sleep.assert_not_called()
+
+    def test_http_date_retry_after_falls_back_to_backoff(self) -> None:
+        response = self._rate_limited("Rate limit reached.", "rate_limit_exceeded")
+        response.headers = {"Retry-After": "Wed, 25 Nov 2026 07:00:00 GMT"}
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+            "backend.llm_client.requests.post", return_value=response
+        ), patch("backend.llm_client.time.sleep") as sleep:
+            with self.assertRaises(LLMHTTPError):
+                post_chat_completion(messages=[{"role": "user", "content": "test"}], max_attempts=2)
+        sleep.assert_called_once_with(2.0)
 
     def test_luna_omits_temperature_and_sends_low_reasoning(self) -> None:
         response = Mock()

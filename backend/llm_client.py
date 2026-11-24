@@ -44,6 +44,44 @@ class LLMWallTimeout(TimeoutError):
     """Raised when a provider keeps a response open beyond the caller deadline."""
 
 
+class LLMHTTPError(requests.HTTPError):
+    """A provider answer that retrying inside this call will not fix: a spent budget
+    or quota, or a retryable status on the last attempt. The message carries the
+    provider's own reason, so a failed job's log says which (Nov 23: every brief
+    failed for two hours as "LLM request failed without an error" while the
+    OpenAI project sat at its spend limit)."""
+
+
+# A 429 that means money, not speed: waiting a few seconds never clears these.
+_SPENT_BUDGET_MARKERS = ("insufficient_quota", "spend limit", "billing_hard_limit", "exceeded your current quota")
+
+
+def _provider_error_detail(response: Any) -> str:
+    """The provider's error code and message, short enough for one log line."""
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        error = body["error"]
+        parts = [str(error.get("code") or error.get("type") or ""), str(error.get("message") or "")]
+        return " ".join(part for part in parts if part)[:400]
+    return str(getattr(response, "text", "") or "")[:400]
+
+
+def _retry_after_seconds(retry_after: str | None, attempt: int) -> float:
+    """Retry-After in seconds, capped at 30; an HTTP-date or junk value falls back to backoff."""
+    try:
+        return min(max(float(retry_after), 0.0), 30.0) if retry_after else float(min(2 ** attempt, 30))
+    except ValueError:
+        return float(min(2 ** attempt, 30))
+
+
+def _is_spent_budget(status_code: int, detail: str) -> bool:
+    lowered = detail.lower()
+    return status_code == 429 and any(marker in lowered for marker in _SPENT_BUDGET_MARKERS)
+
+
 class _wall_timeout:
     def __init__(self, seconds: int):
         self.seconds = max(1, int(seconds))
@@ -113,8 +151,23 @@ def post_chat_completion(
                     timeout=timeout,
                 )
             if response.status_code in RETRYABLE_STATUS_CODES:
-                retry_after = response.headers.get("Retry-After")
-                sleep_s = float(retry_after) if retry_after else min(2 ** attempt, 30)
+                detail = _provider_error_detail(response)
+                if _is_spent_budget(response.status_code, detail) or attempt >= max_attempts:
+                    logger.error(
+                        "LLM HTTP error stage=%s status=%s attempt=%s/%s model=%s body=%s",
+                        stage,
+                        response.status_code,
+                        attempt,
+                        max_attempts,
+                        resolved_model,
+                        detail,
+                    )
+                    raise LLMHTTPError(
+                        f"LLM HTTP {response.status_code} stage={stage} after {attempt} attempt(s): "
+                        f"{detail or 'no detail from the provider'}",
+                        response=response,
+                    )
+                sleep_s = _retry_after_seconds(response.headers.get("Retry-After"), attempt)
                 logger.warning(
                     "LLM HTTP retry stage=%s attempt=%s/%s status=%s sleep_s=%.1f model=%s",
                     stage,
@@ -157,6 +210,8 @@ def post_chat_completion(
                     ),
                 )
             return body
+        except LLMHTTPError:
+            raise
         except requests.RequestException as error:
             last_error = error
             status = getattr(getattr(error, "response", None), "status_code", None)

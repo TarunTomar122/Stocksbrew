@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getSessionUser } from "@/lib/auth-server";
+import { readJsonObject } from "@/lib/request-json";
 
 export async function POST(req: NextRequest) {
   try {
-    const { feedback } = await req.json();
+    const feedback = (await readJsonObject(req))?.feedback;
     const trimmed = typeof feedback === "string" ? feedback.trim() : "";
     if (!trimmed || trimmed.length > 2000) {
       return NextResponse.json({ error: "Feedback must be 1-2000 characters" }, { status: 400 });

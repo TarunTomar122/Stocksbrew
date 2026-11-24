@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getMarketsData } from "@/lib/markets";
 import { applyFollowChange, isMarketAssetId, normalizeFollowedIds } from "@/lib/markets-shared";
+import { readJsonObject } from "@/lib/request-json";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,8 @@ export async function POST(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "Sign in to watch a market" }, { status: 401 });
 
-  let body: { id?: unknown; watch?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
+  const body = await readJsonObject(req);
+  if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const id = typeof body.id === "string" ? body.id.toLowerCase() : "";
   if (!isMarketAssetId(id) || typeof body.watch !== "boolean") {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

@@ -6,6 +6,7 @@ import { recordLifecycleEvent } from "@/lib/lifecycle-events";
 import { captureServerEventSafe } from "@/lib/posthog-server-capture";
 import { isTrialEligible } from "@/lib/trial-eligibility";
 import { PAYWALL_VARIANT } from "@/lib/paywall-flag";
+import { readJsonObject } from "@/lib/request-json";
 
 export async function POST(req: NextRequest) {
   // 1. Verify Firebase ID token from Authorization header
@@ -31,14 +32,15 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Parse plan + market
-  const body = await req.json().catch(() => ({}));
+  const body = (await readJsonObject(req)) ?? {};
   const period: "monthly" | "yearly" = body.period === "yearly" ? "yearly" : "monthly";
   const market: "US" | "IN" = body.market === "IN" ? "IN" : "US";
   // Which page or lock sent them (analytics only): short slugs, anything else dropped.
   const sourceSlug = (value: unknown): string | null =>
     typeof value === "string" && /^[a-z0-9_:-]{1,40}$/i.test(value) ? value : null;
-  const checkoutSurface = sourceSlug(body?.source?.surface);
-  const checkoutFeature = sourceSlug(body?.source?.feature);
+  const source = body.source && typeof body.source === "object" ? (body.source as Record<string, unknown>) : {};
+  const checkoutSurface = sourceSlug(source.surface);
+  const checkoutFeature = sourceSlug(source.feature);
   // India doesn't offer yearly, so fall back to monthly silently.
   const effectivePeriod: "monthly" | "yearly" = market === "IN" ? "monthly" : period;
   const productId = productIdFor(effectivePeriod, market);

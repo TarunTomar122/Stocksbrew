@@ -6,6 +6,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { fundRequestStateOf } from "@/lib/funds/adding";
 import { fundOnDemandTag, queueFundRequest } from "@/lib/funds/on-demand";
 import { fundKindOf } from "@/lib/funds/tickers";
+import { readJsonObject } from "@/lib/request-json";
 
 const INVALID_REQUEST_TOKENS = new Set([
   "TO",
@@ -66,8 +67,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const query = String(body.query ?? "").trim().toUpperCase();
+  const body = (await readJsonObject(req)) ?? {};
+  const query = typeof body.query === "string" ? body.query.trim().toUpperCase() : "";
   const email = normalizeEmail(body.email);
   if (!query || query.length > 20 || isLikelyJunkRequest(query) || !email) {
     return NextResponse.json({ error: "Valid query and email are required" }, { status: 400 });
@@ -82,8 +83,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const query: string = (body.query ?? "").trim().toUpperCase();
+  const body = (await readJsonObject(req)) ?? {};
+  const query = typeof body.query === "string" ? body.query.trim().toUpperCase() : "";
   const suppliedEmail = String(body.email ?? "").trim();
   const email = normalizeEmail(suppliedEmail);
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/agent-auth";
 import { getAgentUsage } from "@/lib/agent-quota";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
+import { readJsonObject } from "@/lib/request-json";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +37,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const auth = await requireProSession();
   if (auth.error) return auth.error;
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
+  const body = await readJsonObject(request);
+  if (!body) return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   const label = String(body.label || "My agent").trim().slice(0, 80);
   try {
     const issued = await issuePersonalAgentToken(auth.session.uid, label);

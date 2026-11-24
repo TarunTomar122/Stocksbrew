@@ -214,6 +214,40 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-24 07:00 UTC: daily health check
+- Ops health: 270 ok, 10 fail, 9 warn, 2 alert emails ("1 check red", then "all back to green"). The fails: Failed
+  units = tikrr-open-briefs.service, 15:30-16:15 Nov 23. Cause: the OpenAI project hit its "configured enforced spend
+  limit" (the same thing flagged yesterday for the memo). Every LLM call from ~14:00 to 16:10 got 429: stock and
+  no-news briefs, anomaly explainers, the radar narrative. open-briefs failed 4 times in a row, systemd gave up at
+  15:29, and the 16:15 run (started by hand after the limit went up) built all 31 shards. No 429 since 16:20. Warns:
+  swap 16:20 (pressure 5.1%), and p95 response time / home page at 17:35, 01:20 and 06:50 (the scraper bursts below).
+- Web: 0 restarts and no OOM since the 16:28 deploy of 3b908a54 (552/490 MB). Box: pressure ~0.2%, root 83%, sdb 54%,
+  swap full (Firecrawl), LocalDB backup 08:36 Nov 23, needrestart interpscan still off, nothing over 0.55 GB. Only failed
+  unit is dnsmasq (since Aug 26, not ours). All tikrr timers ran on schedule.
+- Traffic: 23.9k requests in 24 h, 26 slow (>5 s), 1 5xx. Slow pages come in bursts: ~25 times a day a proxy fleet
+  loads 40-50 nav pages in the same second, one per IP and country, as Mac Chrome 131-136 with matching client hints,
+  no Referer, Sec-Fetch-Site none. The forged-browser and per-address rules can't see it (every request is a new
+  address and the hints are consistent); the guard still 403s 2,953 of its 5,029 such loads. Each burst puts p95 at ~5 s
+  for a minute. Left alone: a single typed-URL visit looks exactly like one of these requests.
+- The 5xx: a curl `POST /api/auth/session` with the body `null`: "Cannot read properties of null (reading 'idToken')".
+  Fixed across the API: `readJsonObject` (lib/request-json.ts) returns null for bad JSON or anything but an object, and
+  the 17 routes that read `body.x` unguarded now answer 400 (session, agent tokens, preferences, attribution, MCP
+  authorize, alerts, market watch, feedback, the four subscription routes, stock requests, IndexNow, chat, and the
+  agent API's v1 radar/alerts writes, which spent agent quota before crashing). Chat checks its messages (user or
+  assistant turns with parts) before spending the Ask allowance. Stock requests take only a string query (the quality
+  pass caught `{"query":true}` turning into a TRUE request).
+- Fixed: a 429 that means money now says so. backend/llm_client.py raises `LLMHTTPError` with the provider's code and
+  message, at once for a spent budget or quota (no retries, no sleeps), and on the last attempt of any retryable status.
+  Before, a stock brief (max_attempts=1) slept 2 s and died as "LLM request failed without an error", 713 times.
+  An HTTP-date Retry-After no longer escapes the retry loop as a ValueError.
+- Quality pass (subagent): every in-app caller of the changed routes sends a JSON object (MCP consent page included);
+  no caller of post_chat_completion catches RuntimeError or HTTPError specifically, so only the message changes. Fixed
+  what it found (stock-request junk tickers, chat `[null]` after quota, v1 radar/alerts). Typecheck and eslint clean,
+  backend LLM tests 148 pass, vitest 16 failing files = the same pre-existing set (Firebase env, llms, og metadata,
+  word-budget). Left: llm_enrichment.py has its own retry loop and still retries a spent-budget 429; a batch could
+  also stop at the first spent-budget error instead of one instant 429 per ticker.
+- Open for the owner: the OpenAI project limit. It ran out twice in two days. If it's a hard cap on purpose, a
+  bit more headroom (or a usage alert below the cap) would keep the briefs from stopping mid-session.
 ### 2026-11-23 07:00 UTC: daily health check
 - Ops health: 285 ok, 4 warn, 0 fail, no alert emails. Warns: "Swap" 07:10 Nov 22 (memory pressure 8.2%, gone by the
   next run) and "Server errors" 01:50-02:00 (24 of ~1,000 requests, see below). Web instances: 0 restarts and no OOM
