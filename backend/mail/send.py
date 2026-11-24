@@ -188,7 +188,10 @@ def deliver(
     history: History,
     dry_run: bool,
     to_override: str | None = None,
+    list_unsubscribe: str | None = None,
 ) -> Outcome:
+    """``list_unsubscribe``: the one-click stop URL for an address with no account (backend/mail/subscribers.py);
+    without it the header carries the account's signed link."""
     to = to_override or str(user.get("email") or user.get("email_lower") or "").strip().lower()
     if not to:
         return Outcome("no_email", email.subject)
@@ -205,7 +208,9 @@ def deliver(
         return Outcome("dry_run", email.subject)
 
     headers: dict[str, str] = {}
-    if unsubscribe_token(uid, email.category):
+    if list_unsubscribe:
+        headers = {"List-Unsubscribe": f"<{list_unsubscribe}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"}
+    elif unsubscribe_token(uid, email.category):
         # RFC 8058 one-click only makes sense with a signed link the API accepts
         headers = {
             "List-Unsubscribe": f"<{unsubscribe_link(uid, email.category, api=True)}>",

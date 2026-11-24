@@ -36,7 +36,18 @@ export type WeekColumn = { key: string; cards: WeekCard[] };
  * quiet day with nothing left to show stretches to it (level.ts). A sparse week (`level` false: no day needs folding)
  * is not leveled, each card as high as what it holds. A phone keeps the server's fold.
  */
-export function WeekGrid({ columns, template, level: leveled = true }: { columns: WeekColumn[]; template: string; level?: boolean }) {
+export function WeekGrid({
+  columns,
+  template,
+  level: leveled = true,
+  phoneSlot,
+}: {
+  columns: WeekColumn[];
+  template: string;
+  level?: boolean;
+  /** Below lg only, where the days stack: placed right after today's card (order-2; today is order-1). */
+  phoneSlot?: React.ReactNode;
+}) {
   const grid = React.useRef<HTMLDivElement>(null);
   // null: the server's cuts. Set from lg up once measured.
   const [measuredLevel, setLevel] = React.useState<{ target: number; cuts: number[][]; columns: WeekColumn[] } | null>(null);
@@ -158,6 +169,7 @@ export function WeekGrid({ columns, template, level: leveled = true }: { columns
           })}
         </div>
       ))}
+      {phoneSlot ? <div className="order-2 lg:hidden">{phoneSlot}</div> : null}
     </div>
   );
 }

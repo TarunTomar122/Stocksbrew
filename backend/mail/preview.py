@@ -242,9 +242,25 @@ def write(out_dir: Path, rendered, info) -> Path:
     return index
 
 
+def render_subscriber(tickers: list[str], now: datetime | None = None, src=None) -> tuple[list[tuple[str, Email | None, str]], dict]:
+    """The no-account morning brief (backend/mail/subscribers.py) for these tickers, or the market version for none.
+    A made-up signup id: its stop link is real in shape, not a real record's."""
+    from backend.mail import subscribers
+
+    now = now or datetime.now(timezone.utc)
+    src = src or _source()
+    sub = subscribers.Subscriber(id="0" * 64, email="preview@example.com", tickers=subscribers.clean_tickers(tickers))
+    stocks = subscribers.load_stocks(src, sub.tickers or subscribers.MARKET_TICKERS, now)
+    market = {s.ticker: s for s in stocks_by_id(src, ["US_SPY"], now=now)}
+    built = subscribers.build(sub, stocks, now=now, market=market)
+    label = f"No-account brief ({', '.join(sub.tickers) or 'market'})"
+    return [(label, built[0] if built else None, "Trading days, with the daily, only when something happened")], {"generated_at": now.isoformat()}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--uid", required=True)
+    ap.add_argument("--uid")
+    ap.add_argument("--subscriber", help="render the no-account brief instead: comma-separated tickers, or 'market'")
     ap.add_argument("--out", required=True)
     ap.add_argument("--snapshot", help="record reads to this JSON file, or replay it if it exists (same data before and after a change)")
     ap.add_argument("--now", help="render as of this ISO time, e.g. 2026-11-11T13:30:00+00:00 (use with --snapshot)")
@@ -255,7 +271,13 @@ def main() -> None:
         from backend.mail.source import SnapshotSource
 
         src = SnapshotSource(args.snapshot) if Path(args.snapshot).exists() else SnapshotSource(args.snapshot, _source())
-    rendered, info = render_all(args.uid, now=now, src=src)
+    if args.subscriber:
+        tickers = [] if args.subscriber == "market" else [t.strip().upper() for t in args.subscriber.split(",") if t.strip()]
+        rendered, info = render_subscriber(tickers, now=now, src=src)
+    elif args.uid:
+        rendered, info = render_all(args.uid, now=now, src=src)
+    else:
+        raise SystemExit("--uid or --subscriber is required")
     if src is not None:
         src.save()
     index = write(Path(args.out), rendered, info)

@@ -143,6 +143,8 @@ export const KEY_EVENTS = {
   thesis_created: "thesis_created",
   proposal_decided: "proposal_decided",
   checkout_clicked: "checkout_started",
+  email_captured: "email_captured",
+  email_confirmed: "email_confirmed",
 } as const;
 
 export type KeyEventName = (typeof KEY_EVENTS)[keyof typeof KEY_EVENTS];
@@ -160,7 +162,7 @@ export type EventProps = {
   found?: boolean;
   /** proposal_decided: "accepted" | "dismissed". */
   decision?: "accepted" | "dismissed";
-  /** agent_on: the template id; basket_created: its source kind. */
+  /** agent_on: the template id; basket_created: its source kind; email_captured: the page kind ("news", "stock"). */
   kind?: string;
 };
 
@@ -176,7 +178,7 @@ export function cleanProps(event: KeyEventName, raw: unknown): EventProps {
     if (typeof props.found === "boolean") out.found = props.found;
   } else if (event === "proposal_decided") {
     if (props.decision === "accepted" || props.decision === "dismissed") out.decision = props.decision;
-  } else if (event === "agent_on" || event === "basket_created") {
+  } else if (event === "agent_on" || event === "basket_created" || event === "email_captured") {
     const kind = typeof props.template === "string" ? props.template : typeof props.kind === "string" ? props.kind : "";
     if (SLUG_RE.test(kind.toLowerCase())) out.kind = kind.toLowerCase();
   }

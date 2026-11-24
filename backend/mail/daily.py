@@ -249,9 +249,12 @@ def items_for(person: Person, now: datetime, spy: Stock | None = None) -> list[I
             why = kit.recent_move(s.closes)
             items.append(Item(s, "level_trim", 100, kit.level_phrase(s.price, trim_lvl, "trim") + f" {when}.", why, level=trim_lvl))
             continue
+        # A changed call is only news with its named reason, short enough to be the card's one line (owner rule 9:
+        # no flips without a named reason). Without one the stock is judged on its move like any other.
         if (s.previous_stance and s.calls and s.stable_before_change()
                 and direction(s.previous_stance) != direction(s.stance)
-                and (today - date.fromisoformat(s.calls[-1].day)).days <= 3):
+                and (today - date.fromisoformat(s.calls[-1].day)).days <= 3
+                and s.call_reason and kit.fits(s.call_reason)):
             before = kit.call_label(s.previous_stance)
             after = _call(s)
             items.append(Item(s, "call_change", 90, f"We moved our call from {before} to {after}.", s.call_reason))
@@ -354,16 +357,19 @@ def headline_for(items: list[Item], today: date) -> str:
     if i.kind in ("level_add", "level_trim") and i.level and st.price:
         word = "buy-more" if i.kind == "level_add" else "sell-some"
         gap = (st.price - i.level) / i.level * 100
+        # the level itself is on the card's call pill: the headline only says how close the close came to it
         if abs(gap) <= 0.2:
-            return f"{st.ticker} closed right at our {word} price of {kit.money(i.level)}."
-        return f"{st.ticker} closed {kit.pct(abs(gap), signed=False)} {'under' if gap < 0 else 'over'} our {word} price of {kit.money(i.level)}."
+            return f"{st.ticker} closed right at our {word} price."
+        return f"{st.ticker} closed {kit.pct(abs(gap), signed=False)} {'under' if gap < 0 else 'over'} our {word} price."
     if i.kind == "call_change":
         return f"We moved {st.ticker} to {_call(st)}."
     if i.kind == "big_move":
-        return f"{st.ticker} {kit.verb(st.change_pct)} {kit.pct(st.change_pct, signed=False)}, {i.meta.split(' for ')[0]}." if i.meta \
-            else f"{st.ticker} {kit.verb(st.change_pct)} {kit.pct(st.change_pct, signed=False)}."
+        # the move and how unusual it was are the card's figure and tag; the headline names it without them
+        # just the fact: "more than usual" is the section's heading
+        when = session_word(st.price_at, today)
+        return f"{st.ticker} {'jumped' if (st.change_pct or 0) > 0 else 'dropped'} {when}."
     if i.kind == "premarket":
-        return f"{st.ticker} is {'up' if (st.premarket_pct or 0) > 0 else 'down'} {kit.pct(st.premarket_pct, signed=False)} before the open."
+        return f"{st.ticker} is {'up' if (st.premarket_pct or 0) > 0 else 'down'} sharply before the open."
     return f"{st.ticker} reports {earnings_when(st.earnings_date, st.earnings_time, today)}." if st.earnings_date else f"{st.ticker} reports soon."
 
 
@@ -383,6 +389,9 @@ def card_for(i: Item, today: date) -> kit.Card:
     if i.kind == "big_move":
         # the figure already says how much; the card leads with why, when we know it
         line, why = (i.detail, "") if i.detail else (i.headline, "")
+    if i.kind == "call_change":
+        # the pill says the change ("Buy more → Keep"), so the card's one line is the named reason
+        line, why = i.detail, ""
     if i.kind in ("level_add", "level_trim", "earnings") and s.premarket_pct is not None and abs(s.premarket_pct) >= 1:
         # this morning's move is the freshest fact: it takes the card's one line, and the rest waits behind it
         move = f"{'Up' if s.premarket_pct > 0 else 'Down'} {kit.pct(s.premarket_pct, signed=False)}"
@@ -395,7 +404,8 @@ def card_for(i: Item, today: date) -> kit.Card:
         period=period,
         # a pre-market move sits under no price: the last close is yesterday's, and the two would read as one quote
         price=None if i.kind == "premarket" else s.price,
-        call=kit.call_pill_text(label, level),
+        call=(f"{kit.call_label(s.previous_stance)} → {label}" if i.kind == "call_change" and s.previous_stance
+              else kit.call_pill_text(label, level)),
         line=line,
         why=why,
         meta=i.meta if i.kind == "earnings" else "",
@@ -415,8 +425,20 @@ SECTIONS = [
 ]
 
 
+@dataclass
+class NoAccount:
+    """The same brief for an address with no account (backend/mail/subscribers.py): its own button, one quiet line
+    to sign up carrying its stocks, and a footer with its own stop link instead of the account's settings."""
+    open_label: str
+    open_url: str
+    signup_label: str
+    signup_url: str
+    stop_url: str
+    reason: str
+
+
 def build_daily(person: Person, *, now: datetime | None = None, market: dict[str, Stock] | None = None,
-                unsubscribe_token: str | None = None) -> kit.Email | None:
+                unsubscribe_token: str | None = None, no_account: NoAccount | None = None) -> kit.Email | None:
     """Return the email, or None on a quiet day."""
     now = now or datetime.now(timezone.utc)
     today = now.astimezone(ET).date()
@@ -487,9 +509,13 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
                             line=f"Reports {earnings_when(s.earnings_date, s.earnings_time, today)}.", own=True)
                    for s in coming[:4]])
 
-    doc.button("Open today's briefing", kit.app_url("/briefing"))
+    if no_account:
+        # one action (owner rule 5b): the signup line is a quiet link in the footer, beside the stop link
+        doc.button(no_account.open_label, no_account.open_url)
+    else:
+        doc.button("Open today's briefing", kit.app_url("/briefing"))
 
-    if not person.is_pro:
+    if not person.is_pro and not no_account:
         hidden = person.uncovered_stocks()
         if hidden:
             # one quiet line under the button; the briefing button stays the one action
@@ -502,11 +528,14 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
     preheader = ". ".join(b for b in pre_bits if b) + "."
     return kit.render(
         doc,
-        kind="daily_brief",
+        kind="subscriber_brief" if no_account else "daily_brief",
         category="daily",
         subject=subject_for(items, today),
         preheader=preheader,
         unsubscribe_token=unsubscribe_token,
         meta={"date": today.isoformat(), "items": [(i.stock.ticker, i.kind) for i in items]},
         dateline=f"{today.strftime('%A')} · before the open",
+        reason=no_account.reason if no_account else None,
+        stop_url=no_account.stop_url if no_account else None,
+        footer_link=(no_account.signup_label, no_account.signup_url) if no_account else None,
     )

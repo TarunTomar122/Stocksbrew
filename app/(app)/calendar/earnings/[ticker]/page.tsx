@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { notFound } from "next/navigation";
 
+import { EmailCapture } from "@/components/email-capture";
 import { EarningsStats, LastQuarterPanel, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
 import { AppPage, Empty, FOCUS, PageHead, Panel, Ticker, fmtDay } from "@/components/oa/kit";
 import { loadEarningsDetail, type EarningsDetail } from "@/lib/calendar";
@@ -142,6 +143,7 @@ export default async function EarningsDetailPage({ params }: Props) {
               <ReportHistory detail={detail} today={today} />
             </div>
           ) : null}
+          <EmailCapture source="earnings" ticker={ticker} className="mb-5" />
         </>
       )}
 

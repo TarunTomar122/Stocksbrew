@@ -89,9 +89,37 @@ def test_flip_flopping_calls_are_not_news():
     s = stock("FLP", stance="accumulate", previous_stance="hold", call_text="Accumulate")
     s.calls = calls("accumulate", "hold", "accumulate", "hold", "accumulate")
     assert daily.items_for(person([s]), NOW) == []
-    t = stock("STB", stance="accumulate", previous_stance="hold", call_text="Accumulate")
+    t = stock("STB", stance="accumulate", previous_stance="hold", call_text="Accumulate",
+              call_reason="Orders grew 30% and the backlog doubled.")
     t.calls = calls("hold", "hold", "hold", "accumulate")
     assert [i.kind for i in daily.items_for(person([t]), NOW)] == ["call_change"]
+
+
+def test_a_changed_call_needs_its_named_reason():
+    """Owner rule 9: no call flip without a named reason. Without one (or one too long for the card) it is no card."""
+    for reason in ("", " ".join(["word"] * 30)):
+        t = stock("STB", stance="accumulate", previous_stance="hold", call_text="Accumulate", call_reason=reason)
+        t.calls = calls("hold", "hold", "hold", "accumulate")
+        assert daily.items_for(person([t]), NOW) == []
+    t = stock("STB", stance="accumulate", previous_stance="hold", call_text="Accumulate",
+              call_reason="Orders grew 30% and the backlog doubled.")
+    t.calls = calls("hold", "hold", "hold", "accumulate")
+    email = daily.build_daily(person([t]), now=NOW)
+    # the pill carries the change, the card's line the reason
+    assert "Keep → Buy more" in email.html
+    assert "Orders grew 30% and the backlog doubled." in email.html
+    # call words are only Buy more / Keep / Sell some
+    assert not re.search(r"\b(Hold|Accumulate|Trim|Avoid)\b", email.text)
+
+
+def test_the_headline_names_the_move_and_the_card_carries_its_figures():
+    s = stock("BIG", change_pct=9.0, price=150.0, prev_close=137.6)
+    email = daily.build_daily(person([s]), now=NOW)
+    h1 = re.search(r"<h1[^>]*>(.*?)</h1>", email.html, re.S).group(1)
+    assert "%" not in h1 and "x a normal" not in h1
+    # just the fact: "more than usual" is already the section heading under it
+    assert h1 == "BIG jumped yesterday."
+    assert "oved more than usual" in email.html  # "Moved", or "Also moved" for a move with no named reason
 
 
 def test_free_daily_only_covers_five_and_says_so():

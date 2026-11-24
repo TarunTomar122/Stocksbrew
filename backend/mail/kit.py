@@ -912,20 +912,32 @@ def render(
     meta: dict | None = None,
     reason: str | None = None,
     dateline: str = "",
+    stop_url: str | None = None,
+    footer_link: tuple[str, str] | None = None,
 ) -> Email:
     """Wrap a doc in the shell. ``reason`` replaces the category's "why you get this" line.
 
     ``dateline`` sits beside the logo (the date the email is about), so no small label
     has to sit above the headline.
+
+    ``stop_url``: for an address with no account (backend/mail/subscribers.py), whose footer has no "Email settings"
+    (there is no account to open), only its own signed stop link.
+
+    ``footer_link`` (label, url): one quiet text link in the footer, before the stop link, for a second thing the
+    email offers without a second button.
     """
     reason = reason or CATEGORY_REASON.get(category, CATEGORY_REASON["product"])
-    unsub = unsubscribe_url(category, unsubscribe_token)
-    label = {"daily": "the daily brief", "weekly": "the weekly memo", "alerts": "alert emails"}.get(category, "these emails")
+    unsub = stop_url or unsubscribe_url(category, unsubscribe_token)
+    label = "this email" if stop_url else {"daily": "the daily brief", "weekly": "the weekly memo", "alerts": "alert emails"}.get(category, "these emails")
     small = f"margin:0 0 6px;font-size:{t.TEXT_XS}px;line-height:1.6;color:{t.MUTED}"
+    settings_html = "" if stop_url else (
+        f"<a class='sbm' href='{esc(settings_url())}' style='color:{t.MUTED};text-decoration:underline'>Email settings</a> &middot; ")
+    if footer_link:
+        settings_html = (f"<a class='sbm' href='{esc(footer_link[1])}' style='color:{t.MUTED};text-decoration:underline'>"
+                         f"{esc(footer_link[0])}</a> &middot; ") + settings_html
     footer_html = (
         f"<p class='sbm' style='{small}'>{esc(reason)} "
-        f"<a class='sbm' href='{esc(settings_url())}' style='color:{t.MUTED};text-decoration:underline'>Email settings</a>"
-        f" &middot; <a class='sbm' href='{esc(unsub)}' style='color:{t.MUTED};text-decoration:underline'>Stop {esc(label)}</a></p>"
+        f"{settings_html}<a class='sbm' href='{esc(unsub)}' style='color:{t.MUTED};text-decoration:underline'>Stop {esc(label)}</a></p>"
         f"<p class='sbm' style='{small}'>Research to help you decide, not investment advice. stocksbrew &middot; "
         f"<a class='sbm' href='mailto:{esc(CONTACT_EMAIL)}' style='color:{t.MUTED};text-decoration:underline'>{esc(CONTACT_EMAIL)}</a>"
         + (f" &middot; {esc(POSTAL_ADDRESS)}" if POSTAL_ADDRESS else "")
@@ -987,8 +999,9 @@ def render(
 </html>"""
     text = (
         (f"{dateline}\n\n" if dateline else "")
-        + f"{doc.text_body()}\n\n--\n{reason}\nEmail settings: {settings_url()}\n"
-        f"Stop {label}: {unsub}\nResearch to help you decide, not investment advice. stocksbrew · {CONTACT_EMAIL}"
+        + f"{doc.text_body()}\n\n--\n{reason}\n" + (f"{footer_link[0]}: {footer_link[1]}\n" if footer_link else "")
+        + ("" if stop_url else f"Email settings: {settings_url()}\n")
+        + f"Stop {label}: {unsub}\nResearch to help you decide, not investment advice. stocksbrew · {CONTACT_EMAIL}"
         + (f"\n{POSTAL_ADDRESS}" if POSTAL_ADDRESS else "")
     )
     return Email(kind=kind, category=category, subject=subject, preheader=preheader, html=page, text=text, meta=meta or {})

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppPage, PageHead, fmtStampET } from "@/components/oa/kit";
+import { EmailCapture } from "@/components/email-capture";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { CompanyFeed } from "@/components/wire/company-feed";
 import { TalkedAbout } from "@/components/wire/news-read";
@@ -184,6 +185,9 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
           headlines in its own card below. No separate list of stories by theme: it showed the same headlines again,
           away from their stocks. */}
       {buzz.length ? <TalkedAbout rows={buzz} filters={effective} className="mb-6" /> : null}
+
+      {/* No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). */}
+      {session || wire.items.length === 0 ? null : <EmailCapture source="news" className="mb-6" />}
 
       <WireFilterBar filters={effective} topicCounts={topicCounts} mineCount={mineCount} signedIn={Boolean(session)} />
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
 import { ReportsAhead } from "@/components/calendar/reports-ahead";
+import { EmailCapture } from "@/components/email-capture";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
@@ -126,6 +127,9 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
   );
 
   const markPreRead = preReadIsException(days);
+  // No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). In the week view it
+  // sits right after the week, and on a phone right after today's card (WeekView `after`).
+  const capture = session ? null : <EmailCapture source="calendar" />;
 
   const tabs = (["week", "month", "list"] as const).map((view) => ({
     id: view,
@@ -162,9 +166,10 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         </Panel>
       ) : (
         <>
-          {effective.view === "week" ? <WeekView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
+          {effective.view === "week" ? <WeekView days={days} filters={effective} today={today} markPreRead={markPreRead} after={capture} /> : null}
           {effective.view === "month" ? <MonthView days={days} filters={effective} today={today} /> : null}
           {effective.view === "list" ? <ListView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
+          {effective.view !== "week" && capture ? <div className="mt-4">{capture}</div> : null}
           <ReportsAhead confirmed={ahead.confirmed} expected={ahead.expected} />
         </>
       )}

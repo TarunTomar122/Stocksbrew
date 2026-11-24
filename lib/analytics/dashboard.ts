@@ -133,7 +133,14 @@ export function buildDashboard(input: { range: RangeId; now: number; current: Da
 
   const metric = (value: number | null, previousValue: number | null, spark: number[]): Metric => ({ value, previous: previousValue, spark });
   const created = agentsCreatedIn(facts, startCur, endCur);
-  const steps = funnel(facts, { start: startCur, end: endCur, visitors: totals.v, signinStarted: totals.events.signin_started?.v ?? 0 });
+  const steps = funnel(facts, {
+    start: startCur,
+    end: endCur,
+    visitors: totals.v,
+    signinStarted: totals.events.signin_started?.v ?? 0,
+    emailCaptured: totals.events.email_captured?.v ?? 0,
+    emailConfirmed: totals.events.email_confirmed?.v ?? 0,
+  });
   const rates = stepRates(steps);
 
   return {

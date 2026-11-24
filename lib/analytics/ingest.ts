@@ -226,6 +226,9 @@ export const ACCOUNT_EVENTS: ReadonlySet<KeyEventName> = new Set<KeyEventName>([
   "thesis_created",
   "proposal_decided",
   "checkout_started",
+  // the no-account email (lib/email-subscribers.ts): its record has a created_at and confirmed_at of its own
+  "email_captured",
+  "email_confirmed",
 ]);
 
 function storedEvent(item: Pending, salt: string): StoredEvent {
