@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { SurprisePct, earningsHref, resultWord } from "@/components/calendar/calendar-view";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
-import { Delta, Empty, NUM, Panel, SourceLine, StreamRow, Tag, ToneGlyph, Verdict, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
+import { Delta, Empty, NUM, Panel, SourceLine, StreamRow, Tag, Verdict, fmtCompact, fmtDay, fmtMoney, toneText } from "@/components/oa/kit";
 import type { EarningsDetail } from "@/lib/calendar";
 import {
   SESSION_LABEL,
@@ -37,6 +37,9 @@ const COLUMNS: DataColumn[] = [
     hint: "Close to close over the first session that could react to the report. Marked 2d when the report time was not given and the move covers two sessions.",
   },
 ];
+
+/** The report time in a few words, so the table fits its panel (the strip above says it in full). */
+const SHORT_SESSION = { bmo: "Before the open", amc: "After the close" } as const;
 
 /** The hover title on an estimated date: where it comes from, kept off the page itself (owner rule 4). */
 const ESTIMATE_TITLE = "Not announced yet. Our estimate from the days the company reported in past years.";
@@ -73,25 +76,23 @@ function historyRows(events: EarningsItem[], today: string): DataRow[] {
           </span>,
           // An estimated day has no announced time: nothing is said about one.
           <span key="w" className="text-[12.5px] text-oa-muted-fg">
-            {item.estimated ? "" : item.session === "unknown" && item.date < today ? "Time not given" : SESSION_LABEL[item.session]}
+            {item.estimated ? "" : item.session === "unknown" ? (item.date < today ? "Not given" : "Not announced") : SHORT_SESSION[item.session]}
           </span>,
           <span key="e" className={`${NUM} ${item.epsEstimate === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(item.epsEstimate) || "n/a"}</span>,
           item.epsActual !== null ? (
             <span
               key="a"
               title={item.epsEstimate !== null ? `${fmtEps(item.epsActual)} against ${fmtEps(item.epsEstimate)} expected` : undefined}
-              className={`${NUM} inline-flex items-center justify-end gap-1.5 text-oa-fg`}
+              className={`${NUM} inline-flex flex-col items-end gap-0.5 text-oa-fg sm:flex-row sm:items-center`}
             >
-              {/* The surprise column is hidden on phones, so the mark rides beside the figure there. */}
-              {result && result.tone !== "flat" ? (
-                <span className="inline-flex sm:hidden">
-                  <span aria-hidden="true" className="inline-flex">
-                    <ToneGlyph tone={result.tone} />
-                  </span>
-                  <span className="sr-only">{result.word}</span>
+              {fmtEps(item.epsActual)}
+              {/* The estimate and surprise columns are hidden on phones, so the result and its size ride under the figure there. */}
+              {result ? (
+                <span className="inline-flex items-baseline gap-1 whitespace-nowrap text-[11.5px] sm:hidden">
+                  <span className={toneText(result.tone)}>{result.word}</span>
+                  <SurprisePct item={item} />
                 </span>
               ) : null}
-              {fmtEps(item.epsActual)}
             </span>
           ) : (
             <span key="a" className="text-[12.5px] text-oa-muted-fg">
