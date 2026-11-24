@@ -46,9 +46,10 @@ export async function POST(req: NextRequest) {
   const body = await readJsonObject(req);
   if (!body) return answer({ ok: false, error: "invalid_body" }, 400);
 
-  // The honeypot and the timing check: answered like a real signup, so the bot learns nothing.
+  // The honeypot and the timing check: answered like a real signup, so the bot learns nothing. The form always sends
+  // `ms`; a missing or broken one is a script that skipped it, treated like a fast submit.
   if (typeof body.website === "string" && body.website.trim()) return answer({ ok: true });
-  if (typeof body.ms === "number" && Number.isFinite(body.ms) && body.ms >= 0 && body.ms < MIN_FILL_MS) return answer({ ok: true });
+  if (typeof body.ms !== "number" || !Number.isFinite(body.ms) || body.ms < MIN_FILL_MS) return answer({ ok: true });
 
   const email = normalizeEmail(body.email);
   if (!email) return answer({ ok: false, error: "email" }, 400);
@@ -63,10 +64,8 @@ export async function POST(req: NextRequest) {
       { email, ticker, source: body.source },
       { mayConfirm: () => confirmations("all").ok },
     );
-    if (result.status === "busy") {
-      console.warn("[email-capture] confirmation cap reached; signup stored without a confirmation");
-      return answer({ ok: false, error: "busy" }, 429, { "Retry-After": "600" });
-    }
+    // Busy answers like every other signup: a different answer would say the address is new or waiting.
+    if (result.status === "busy") console.warn("[email-capture] email cap reached; signup stored without an email");
     return answer({ ok: true });
   } catch (error) {
     console.error("[email-capture] store failed:", (error as Error)?.message);

@@ -29,7 +29,7 @@ const OK = { email: "Sam@Example.com", source: "stock", ticker: "nvda", website:
 
 beforeEach(() => {
   capture.mockReset();
-  capture.mockResolvedValue({ status: "stored", confirmSent: true, id: "x" });
+  capture.mockResolvedValue({ status: "stored", confirmSent: true, addSent: false, id: "x" });
   instrumentExists.mockReset();
   instrumentExists.mockResolvedValue(false);
 });
@@ -60,13 +60,21 @@ describe("POST /api/email/subscribe", () => {
   });
 
   it("a market signup (no ticker) is fine", async () => {
-    expect((await call({ email: "sam@example.com", source: "news" })).status).toBe(200);
+    expect((await call({ email: "sam@example.com", source: "news", ms: 5000 })).status).toBe(200);
     expect(capture).toHaveBeenCalledWith({ email: "sam@example.com", ticker: null, source: "news" }, expect.any(Object));
   });
 
   it("answers a filled honeypot or a too-fast form like a real signup, and stores nothing", async () => {
     expect(await call({ ...OK, website: "https://spam.example" }).then((r) => [r.status, r.body])).toEqual([200, { ok: true }]);
     expect(await call({ ...OK, ms: 120 }).then((r) => [r.status, r.body])).toEqual([200, { ok: true }]);
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it("treats a missing or broken timing like a too-fast form: the real form always sends it", async () => {
+    const { ms: _ms, ...noTiming } = OK;
+    for (const body of [noTiming, { ...OK, ms: null }, { ...OK, ms: "5000" }, { ...OK, ms: -1 }]) {
+      expect(await call(body).then((r) => [r.status, r.body])).toEqual([200, { ok: true }]);
+    }
     expect(capture).not.toHaveBeenCalled();
   });
 
@@ -84,13 +92,21 @@ describe("POST /api/email/subscribe", () => {
   it("is idempotent from the outside: an account's address or a repeat answers the same", async () => {
     capture.mockResolvedValueOnce({ status: "account" });
     expect((await call(OK)).body).toEqual({ ok: true });
-    capture.mockResolvedValueOnce({ status: "stored", confirmSent: false, id: "x" });
+    capture.mockResolvedValueOnce({ status: "stored", confirmSent: false, addSent: false, id: "x" });
     expect((await call(OK)).body).toEqual({ ok: true });
+    // a confirmed address asked by email to add the stock
+    capture.mockResolvedValueOnce({ status: "stored", confirmSent: false, addSent: true, id: "x" });
+    expect(await call(OK).then((r) => [r.status, r.body])).toEqual([200, { ok: true }]);
   });
 
-  it("says busy when the confirmation cap is spent, and 503 when the store fails", async () => {
+  it("answers a spent email cap like any signup (a 429 would say the address is new or waiting), and 503 when the store fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     capture.mockResolvedValueOnce({ status: "busy", id: "x" });
-    expect((await call(OK)).status).toBe(429);
+    const busy = await call({ ...OK, email: "waiting.person@example.com" });
+    expect([busy.status, busy.body, busy.headers.get("retry-after")]).toEqual([200, { ok: true }, null]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("waiting.person");
+    warn.mockRestore();
     capture.mockRejectedValueOnce(new Error("down"));
     const res = await call(OK);
     expect(res.status).toBe(503);
