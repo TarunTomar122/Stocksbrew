@@ -60,6 +60,26 @@ describe("beacon parsing", () => {
     expect(JSON.stringify(parsed)).not.toMatch(/example\.com|shares/);
   });
 
+  it("keeps the email capture events with only the page kind, never the address", () => {
+    const parsed = parseBeacon(
+      {
+        sid: "abcdefgh12345678",
+        e: [
+          { n: "email_captured", p: "/stock/NVDA", x: { kind: "stock", email: "sam@example.com" }, a: 10 },
+          { n: "email_confirmed", p: "/email/confirm", a: 10 },
+          { n: "email_captured", p: "/news", x: { kind: "Not A Slug!" }, a: 10 },
+        ],
+      },
+      [],
+    )!;
+    expect(parsed.events.map((e) => [e.n, e.props])).toEqual([
+      ["email_captured", { kind: "stock" }],
+      ["email_confirmed", {}],
+      ["email_captured", {}],
+    ]);
+    expect(JSON.stringify(parsed)).not.toContain("example.com");
+  });
+
   it("refuses bodies that are not a beacon", () => {
     expect(parseBeacon(null, [])).toBeNull();
     expect(parseBeacon({ sid: "x", e: [] }, [])).toBeNull();

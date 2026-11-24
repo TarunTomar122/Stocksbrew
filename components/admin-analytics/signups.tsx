@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { NUM, Tag } from "@/components/oa/kit/cells";
+import type { SubscriberCounts } from "@/lib/email-subscribers-store";
 import { agoText, dayText, dayWordsUtc, stampText, visibleRows, type Method, type PlanKind, type SignupRow, type SignupsView } from "@/lib/analytics/signups";
 
 import { Avatar } from "./avatar";
@@ -108,7 +109,7 @@ function shared<T>(rows: readonly SignupRow[], pick: (row: SignupRow) => T | nul
   return rows.length > 1 && new Set(values).size === 1 ? { value: values[0]!, count: values.length } : null;
 }
 
-export function SignupsDashboard({ view, now, all = false }: { view: SignupsView; now: number; all?: boolean }) {
+export function SignupsDashboard({ view, emails = null, now, all = false }: { view: SignupsView; emails?: SubscriberCounts | null; now: number; all?: boolean }) {
   const { today, week, month } = view;
   const rows = visibleRows(view, all);
   const proSub = [view.pro.paying ? `${fmtCount(view.pro.paying)} paying` : "none paying", view.pro.trial ? `${fmtCount(view.pro.trial)} on trial` : null].filter(Boolean).join(", ");
@@ -135,7 +136,7 @@ export function SignupsDashboard({ view, now, all = false }: { view: SignupsView
         </p>
       ) : null}
 
-      <dl className="oa-surface grid grid-cols-2 overflow-hidden border border-oa-border bg-oa-card md:grid-cols-4 2xl:grid-cols-8">
+      <dl className="oa-surface grid grid-cols-2 overflow-hidden border border-oa-border bg-oa-card md:grid-cols-5 2xl:grid-cols-10">
         <SignupTile label="Today" value={fmtCount(today.count)} sub={`${fmtCount(today.yesterday)} by now yesterday`} visual={<Bars values={today.hours} label="Sign-ups by hour today" />} />
         <SignupTile label="7 days" value={fmtCount(week.count)} sub={`${fmtCount(week.previous)} the week before`} visual={<Bars values={week.days} label="Sign-ups by day, 7 days" />} />
         <SignupTile label="30 days" value={fmtCount(month.count)} sub={`${fmtCount(month.previous)} the 30 days before`} visual={<Bars values={month.days} label="Sign-ups by day, 30 days" />} />
@@ -158,6 +159,19 @@ export function SignupsDashboard({ view, now, all = false }: { view: SignupsView
           title="Accounts with at least one agent switched on"
         />
         <SignupTile label="Pro" value={fmtCount(view.pro.count)} sub={proSub} />
+        {/* The no-account morning email: confirmed addresses still on it, and the ones that have not clicked yet. */}
+        <SignupTile
+          label="Email, no account"
+          value={emails ? fmtCount(emails.confirmed) : "\u00a0"}
+          sub={emails ? `${fmtCount(emails.week)} left one in 7 days` : "didn't load"}
+          title="Confirmed addresses getting the morning email without an account"
+        />
+        <SignupTile
+          label="Waiting to confirm"
+          value={emails ? fmtCount(emails.waiting) : "\u00a0"}
+          sub={emails ? `${fmtCount(emails.linked)} made an account, ${fmtCount(emails.stopped)} stopped` : undefined}
+          title="Left an email but have not clicked the confirmation link"
+        />
       </dl>
 
       <Box

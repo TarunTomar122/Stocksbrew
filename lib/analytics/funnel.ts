@@ -16,7 +16,8 @@ export type RealFacts = {
   lifecycle: LifecycleFact[];
 };
 
-export type FunnelStep = { id: string; label: string; count: number; source: "beacon" | "records" };
+/** `of`: the step its rate is measured against, when that is not the step before (a side path such as the email). */
+export type FunnelStep = { id: string; label: string; count: number; source: "beacon" | "records"; of?: string };
 
 export function parseMs(value: unknown): number | null {
   if (value == null) return null;
@@ -53,7 +54,10 @@ export function agentsCreatedIn(facts: RealFacts, start: number, end: number): R
  * → switched an agent on → started checkout → Pro. From "signed up" on, every
  * step counts the same people: accounts made in the range, and what they did since.
  */
-export function funnel(facts: RealFacts, input: { start: number; end: number; visitors: number; signinStarted: number }): FunnelStep[] {
+export function funnel(
+  facts: RealFacts,
+  input: { start: number; end: number; visitors: number; signinStarted: number; emailCaptured?: number; emailConfirmed?: number },
+): FunnelStep[] {
   const cohort = signupsIn(facts, input.start, input.end);
   const ids = new Set(cohort.map((user) => user.uid));
   const withAgent = new Set(facts.agents.map((agent) => agent.uid).filter((uid) => ids.has(uid)));
@@ -61,7 +65,14 @@ export function funnel(facts: RealFacts, input: { start: number; end: number; vi
   const pro = new Set(facts.lifecycle.filter((e) => e.type === "subscription_converted" && !e.dev && ids.has(e.uid)).map((e) => e.uid));
   return [
     { id: "visit", label: "Visited", count: input.visitors, source: "beacon" },
-    { id: "signin", label: "Started sign-in", count: input.signinStarted, source: "beacon" },
+    // The no-account email (components/email-capture.tsx) is a side path off the visit: people, from the beacon.
+    ...(input.emailCaptured == null
+      ? []
+      : [
+          { id: "email", label: "Left an email", count: input.emailCaptured, source: "beacon" as const, of: "visit" },
+          { id: "email_confirmed", label: "Confirmed the email", count: input.emailConfirmed ?? 0, source: "beacon" as const, of: "email" },
+        ]),
+    { id: "signin", label: "Started sign-in", count: input.signinStarted, source: "beacon", ...(input.emailCaptured == null ? {} : { of: "visit" }) },
     { id: "signup", label: "Signed up", count: cohort.length, source: "records" },
     { id: "stocks", label: "Added stocks", count: cohort.filter((user) => user.tracked > 0).length, source: "records" },
     { id: "agent", label: "Switched an agent on", count: withAgent.size, source: "records" },
@@ -70,11 +81,12 @@ export function funnel(facts: RealFacts, input: { start: number; end: number; vi
   ];
 }
 
-/** Share of the step before that reached this one, or null for the first step or an empty one before it. */
+/** Share of the step before (or of the step named by `of`) that reached this one; null for the first step or an empty base. */
 export function stepRates(steps: readonly FunnelStep[]): Array<number | null> {
   return steps.map((step, index) => {
     if (index === 0) return null;
-    const before = steps[index - 1]!.count;
+    const base = step.of ? steps.find((other) => other.id === step.of) : steps[index - 1];
+    const before = base?.count ?? 0;
     return before > 0 ? step.count / before : null;
   });
 }

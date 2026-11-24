@@ -172,7 +172,8 @@ export function PageHead({
             {compact}
           </div>
         ) : null}
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {/* max-w-full: on a phone the actions wrap inside the page width instead of running off it. */}
+        {actions ? <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
       {lede ? <p className="oa-head-lede mt-1 max-w-4xl text-pretty text-[14px] leading-5 text-oa-muted-fg">{lede}</p> : null}
       {(note || full) && meta ? <div className="oa-head-fallback mt-1">{meta}</div> : null}

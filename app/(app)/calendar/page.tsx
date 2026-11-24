@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
+import { EmailCapture } from "@/components/email-capture";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
@@ -160,6 +161,9 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
           {effective.view === "list" ? <ListView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
         </>
       )}
+
+      {/* No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). */}
+      {session || data.failed ? null : <EmailCapture source="calendar" title="Get this each morning" className="mt-4" />}
 
       {/* GATE: our add/hold/trim call per reporting company is not shown here; it belongs to the entitled view once lib/entitlements.ts lands. */}
     </AppPage>

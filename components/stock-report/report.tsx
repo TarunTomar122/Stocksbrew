@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { todayET } from "@/lib/calendar-shared";
 
+import { EmailCapture } from "@/components/email-capture";
 import { MarketStatusInline } from "@/components/market-status";
 import { RangeBar } from "@/components/oa/kit";
 import { CALL_PLAIN, countWord, plainAction, wholeSentences } from "@/lib/plain-copy";
@@ -714,6 +715,9 @@ export function StockReport({
               <div className="px-3.5 py-3.5 sm:px-4">{data.briefFallback ?? <p className="text-[14px] leading-5 text-oa-muted-fg">We have not written a brief on {stock.ticker} yet.</p>}</div>
             )}
           </Panel>
+          {/* No account needed: this stock's morning email, under the news it is about. Signed out only (the
+              component also hides itself once the browser knows someone is signed in). */}
+          {anon && market === "US" ? <EmailCapture source="stock" ticker={stock.ticker} title={`Get ${stock.ticker} news each morning`} /> : null}
           {market === "US" ? (
             <Suspense fallback={null}>
               <FilingChanges ticker={stock.ticker} />

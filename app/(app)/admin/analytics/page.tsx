@@ -14,6 +14,7 @@ import { analyticsNamespace } from "@/lib/analytics/db";
 import { parseDeviceFilter, parseSpeedRange } from "@/lib/analytics/speed";
 import { loadSpeed } from "@/lib/analytics/speed-load";
 import { loadSignups } from "@/lib/analytics/signups-load";
+import { loadSubscriberCounts } from "@/lib/email-subscribers-store";
 import { loadOpsHealth } from "@/lib/ops-health";
 
 export const dynamic = "force-dynamic";
@@ -37,14 +38,21 @@ const TABS = [
  */
 /** The Signups tab's data part; only rendered after the admin cookie check above. */
 async function SignupsSection({ all }: { all: boolean }) {
-  const view = await loadSignups().catch((error) => {
-    console.warn("[analytics] signups failed to load:", (error as Error)?.message);
-    return null;
-  });
+  const [view, emails] = await Promise.all([
+    loadSignups().catch((error) => {
+      console.warn("[analytics] signups failed to load:", (error as Error)?.message);
+      return null;
+    }),
+    // The no-account morning email (lib/email-subscribers.ts): counts only, never an address.
+    loadSubscriberCounts().catch((error) => {
+      console.warn("[analytics] email signups failed to load:", (error as Error)?.message);
+      return null;
+    }),
+  ]);
   // Without Auth an empty list proves nothing, so it is a load failure, not "no accounts".
   if (!view || (view.total === 0 && view.authMissing)) return <Empty title="Couldn't load the accounts">The store didn&apos;t answer. Reload in a minute.</Empty>;
   if (view.total === 0) return <Empty title="No accounts yet" />;
-  return <SignupsDashboard view={view} now={Date.now()} all={all} />;
+  return <SignupsDashboard view={view} emails={emails} now={Date.now()} all={all} />;
 }
 
 export default async function AdminAnalyticsPage({ searchParams }: { searchParams?: { range?: string; tab?: string; dev?: string; all?: string } }) {

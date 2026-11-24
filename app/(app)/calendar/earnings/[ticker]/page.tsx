@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { notFound } from "next/navigation";
 
+import { EmailCapture } from "@/components/email-capture";
 import { EarningsStats, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
 import { AppPage, FOCUS, PageHead, Ticker } from "@/components/oa/kit";
 import { loadEarningsDetail } from "@/lib/calendar";
@@ -83,12 +84,15 @@ export default async function EarningsDetailPage({ params }: Props) {
           </span>
         }
         actions={
+          <>
           <Link prefetch={false}
             href={`/stock/${encodeURIComponent(ticker)}`}
             className={`inline-flex h-9 items-center rounded-md border border-oa-border bg-oa-card px-3 text-[13.5px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
           >
             Open the {ticker} report
           </Link>
+          <EmailCapture source="earnings" ticker={ticker} title={`Get the next briefing on ${ticker}`} variant="inline" />
+          </>
         }
       />
 

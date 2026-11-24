@@ -6,6 +6,10 @@
                                            # earnings reminders the day before a report,
                                            # and the rebalance note when STRATEGY_REBALANCE_NOTES=1
     python -m backend.mail.jobs lifecycle  # hourly
+    python -m backend.mail.jobs subscribers  # the daily for addresses with no account (backend/mail/subscribers.py);
+                                             # the daily job runs it too, after the accounts
+
+`subscribers --sub <id prefix>` limits it to one signup (with `--to`, sent to your address instead, logging nothing).
 
 Every job is a dry run unless `--send` (or `--to`) is given. `--send` only
 works where LOCALDB_PATH is set (the VPS), so a laptop can never send from or
@@ -23,7 +27,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
-from backend.mail import alerts, daily, lifecycle, rebalance, send, weekly
+from backend.mail import alerts, daily, lifecycle, rebalance, send, subscribers, weekly
 from backend.mail.data import ET, load_person, parse_ts, stocks_by_id, tracked_counts, with_example
 from backend.mail.source import HttpSource, Source, StoreSource
 from backend.mail.weekly import WEEK_NEWS_HOURS
@@ -58,15 +62,20 @@ def users(src: Source, only_uid: str | None) -> Iterable[tuple[str, dict]]:
     return [(p.split("/")[-1], d) for p, d in src.query("users", [], limit=10000, select=USER_FIELDS)]
 
 
-def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit: int, now: datetime) -> Counter:
+def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit: int, now: datetime,
+        only_sub: str | None = None) -> Counter:
     src, store = open_source(sending=not dry_run and not to)
     stats: Counter = Counter()
     market = {s.ticker: s for s in stocks_by_id(src, ["US_SPY"], now=now)}
     popular: list = []
     et_now = now.astimezone(ET)
 
-    if job == "daily" and et_now.weekday() >= 5 and not only_uid:
+    if job in ("daily", "subscribers") and et_now.weekday() >= 5 and not only_uid and not only_sub:
         print("weekend, no daily")
+        return stats
+    if job == "subscribers":
+        _subscribers(src, store, now=now, dry_run=dry_run and not to, to=to, limit=limit, market=market,
+                     stats=stats, only_sub=only_sub)
         return stats
     if job == "lifecycle":
         popular = stocks_by_id(src, [i for i, _ in tracked_counts(src, limit=8)], now=now)
@@ -125,7 +134,56 @@ def run(job: str, *, dry_run: bool, only_uid: str | None, to: str | None, limit:
         except Exception as exc:  # one bad account must not stop the batch
             stats["error"] += 1
             print(f"[mail] {job} {uid[:6]} failed: {exc!r}")
+    # The same morning brief for addresses with no account, after the accounts (never on a one-account run).
+    if job == "daily" and not only_uid and not stats["aborted"] and os.environ.get("SUBSCRIBER_MAIL", "1") != "0":
+        try:
+            _subscribers(src, store, now=now, dry_run=dry_run and not to, to=None, limit=0,
+                         market=market, stats=stats)
+        except Exception as exc:  # the accounts' run already finished; this must not fail it
+            stats["error"] += 1
+            print(f"[mail] subscribers failed: {exc!r}")
     return stats
+
+
+def _subscribers(src, store, *, now, dry_run: bool, to: str | None, limit: int, market, stats: Counter,
+                 only_sub: str | None = None) -> None:
+    """The no-account daily (backend/mail/subscribers.py): one email per confirmed address, on days its stocks (or the
+    market set) had something happen, through the same deliver() as the accounts. Addresses are never printed."""
+    subs = subscribers.load(src, subscribers.account_emails(src))
+    if only_sub:
+        subs = [s for s in subs if s.id.startswith(only_sub)]
+    if not subs:
+        print("[mail] subscribers: none confirmed")
+        return
+    wanted = {t for s in subs for t in (s.tickers or subscribers.MARKET_TICKERS)}
+    stocks = subscribers.load_stocks(src, sorted(wanted), now)
+    done = 0
+    for sub in subs:
+        if limit and done >= limit:
+            break
+        done += 1
+        stats["subscribers_checked"] += 1
+        try:
+            built = subscribers.build(sub, stocks, now=now, market=market)
+            if built is None:
+                stats["nothing"] += 1
+                continue
+            email, key = built
+            hist = send.History.load(src, sub.uid, now=now)
+            token = subscribers.stop_token(sub.id)
+            out = send.deliver(store=store, uid=sub.uid, user={"email": sub.email}, email=email, dedupe_key=key,
+                               history=hist, dry_run=dry_run, to_override=to,
+                               list_unsubscribe=subscribers.stop_url(sub.id, api=True) if token else None)
+            stats[out.status] += 1
+            print(f"[mail] {'subscriber':9} {sub.id[:6]} {out.status:13} {email.kind:16} {email.subject[:90]}")
+        except send.LogFailed as exc:
+            stats["error"] += 1
+            stats["aborted"] += 1
+            print(f"[mail] subscribers stopped: {exc}")
+            return
+        except Exception as exc:  # one bad record must not stop the batch
+            stats["error"] += 1
+            print(f"[mail] subscriber {sub.id[:6]} failed: {exc!r}")
 
 
 def _run_one(job, build, src, store, uid, user, *, now, dry_run, to, stats: Counter) -> None:
@@ -341,16 +399,17 @@ def _swap_available(user: dict, now: datetime) -> bool:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("job", choices=["daily", "weekly", "alerts", "lifecycle"])
+    ap.add_argument("job", choices=["daily", "weekly", "alerts", "lifecycle", "subscribers"])
     ap.add_argument("--send", action="store_true", help="actually send (VPS only)")
     ap.add_argument("--uid", help="only this account")
     ap.add_argument("--to", help="send this account's email to this address instead; logs nothing")
+    ap.add_argument("--sub", help="subscribers job: only the signup whose id starts with this")
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()
-    if args.to and not args.uid:
-        sys.exit("--to needs --uid")
+    if args.to and not (args.uid or (args.job == "subscribers" and args.sub)):
+        sys.exit("--to needs --uid (or, for the subscribers job, --sub)")
     stats = run(args.job, dry_run=not args.send, only_uid=args.uid, to=args.to, limit=args.limit,
-                now=datetime.now(timezone.utc))
+                now=datetime.now(timezone.utc), only_sub=args.sub)
     print(dict(stats))
     if stats["aborted"]:
         sys.exit(1)  # show up as a failed unit in systemctl, not a quiet success

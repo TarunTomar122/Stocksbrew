@@ -51,6 +51,8 @@ const EVENT_ROWS: Array<[string, string]> = [
   ["signin_started", "Sign-ins started"],
   ["signin_completed", "Sign-ins"],
   ["signup_completed", "New accounts"],
+  ["email_captured", "Emails left"],
+  ["email_confirmed", "Emails confirmed"],
   ["stocks_added", "Stocks added"],
   ["agent_on", "Agents made"],
   ["basket_created", "Baskets made"],

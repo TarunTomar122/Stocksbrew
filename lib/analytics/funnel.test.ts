@@ -82,6 +82,23 @@ describe("funnel from the records", () => {
     expect(rates[6]).toBeCloseTo(1 / 2);
   });
 
+  it("shows the no-account email as a side path off the visit, each rate against its own base", async () => {
+    const facts = await loadFacts();
+    const steps = funnel(facts, { start: START, end: END, visitors: 120, signinStarted: 9, emailCaptured: 6, emailConfirmed: 4 });
+    expect(steps.slice(0, 4).map((s) => [s.id, s.count])).toEqual([
+      ["visit", 120],
+      ["email", 6],
+      ["email_confirmed", 4],
+      ["signin", 9],
+    ]);
+    const rates = stepRates(steps);
+    expect(rates[1]).toBeCloseTo(6 / 120);
+    expect(rates[2]).toBeCloseTo(4 / 6);
+    // sign-in is still measured against the visits, not the confirmed emails
+    expect(rates[3]).toBeCloseTo(9 / 120);
+    expect(rates[4]).toBeCloseTo(3 / 9);
+  });
+
   it("gives no rate after an empty step", () => {
     expect(stepRates([
       { id: "a", label: "a", count: 0, source: "beacon" },

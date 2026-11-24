@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
+import { seedFromSubscription } from "@/lib/email-subscriber-seed";
 import { adminAuth, adminFirestore } from "@/lib/firebase-admin";
 import { readJsonObject } from "@/lib/request-json";
 
@@ -69,6 +70,11 @@ export async function POST(request: NextRequest) {
         waitlist_promoted_at: waitlisted ? FieldValue.serverTimestamp() : null,
       });
       waitlistPromoted = waitlisted;
+      // An address that had the no-account morning email: link it, and start the account on its stocks
+      // (lib/email-subscriber-seed.ts). Only a verified address, so nobody can claim someone else's signup.
+      if (decoded.email && decoded.email_verified === true) {
+        await seedFromSubscription({ uid: decoded.uid, email: decoded.email });
+      }
     } else {
       const data = existing.data() || {};
       const updates: Record<string, unknown> = { ...profile };

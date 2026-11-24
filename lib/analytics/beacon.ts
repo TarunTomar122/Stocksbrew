@@ -86,6 +86,7 @@ const PROPS_BY_EVENT: Record<string, readonly string[]> = {
   search: ["query", "found"],
   agent_on: ["template"],
   basket_created: ["kind"],
+  email_captured: ["kind"],
   proposal_decided: ["decision"],
 };
 

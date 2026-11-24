@@ -35,7 +35,7 @@ function marketFromInstrumentId(instrumentId: string): "US" | "IN" {
 async function queueWatchlistRefresh(
   uid: string,
   sourceVersion: number,
-  requestedBy: "track_post" | "track_delete" | "track_post_skipped" | "agent",
+  requestedBy: "track_post" | "track_delete" | "track_post_skipped" | "agent" | "email_seed",
 ) {
   const now = new Date().toISOString();
   await adminFirestore.collection("tm_watchlist_view_refresh_control").doc(uid).set({
@@ -70,7 +70,7 @@ export async function addRadarStock(input: {
   /** The browser calls /api/watchlist/refresh itself and waits for it, so no server rebuild is queued here. */
   skipRebuild?: boolean;
   mutationId?: string;
-  requestedBy?: "track_post" | "track_post_skipped" | "agent";
+  requestedBy?: "track_post" | "track_post_skipped" | "agent" | "email_seed";
 }) {
   const requestedType: RadarPositionType = input.positionType === "holding" ? "holding" : "watchlist";
   const now = new Date().toISOString();

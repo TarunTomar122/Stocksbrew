@@ -12,6 +12,8 @@ export async function sendTransactionalEmail(
   to: string,
   subject: string,
   htmlBody: string,
+  /** The plain-text part, when the email has one. */
+  textBody?: string,
 ): Promise<boolean> {
   if (!emailsEnabled()) {
     console.warn(`[email] disabled — skipped: ${subject.slice(0, 100)}`);
@@ -36,6 +38,7 @@ export async function sendTransactionalEmail(
         to: [{ email: to }],
         subject,
         htmlContent: htmlBody,
+        ...(textBody ? { textContent: textBody } : {}),
       }),
     });
     if (res.ok) return true;

@@ -415,8 +415,20 @@ SECTIONS = [
 ]
 
 
+@dataclass
+class NoAccount:
+    """The same brief for an address with no account (backend/mail/subscribers.py): its own button, one quiet line
+    to sign up carrying its stocks, and a footer with its own stop link instead of the account's settings."""
+    open_label: str
+    open_url: str
+    signup_label: str
+    signup_url: str
+    stop_url: str
+    reason: str
+
+
 def build_daily(person: Person, *, now: datetime | None = None, market: dict[str, Stock] | None = None,
-                unsubscribe_token: str | None = None) -> kit.Email | None:
+                unsubscribe_token: str | None = None, no_account: NoAccount | None = None) -> kit.Email | None:
     """Return the email, or None on a quiet day."""
     now = now or datetime.now(timezone.utc)
     today = now.astimezone(ET).date()
@@ -487,9 +499,14 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
                             line=f"Reports {earnings_when(s.earnings_date, s.earnings_time, today)}.", own=True)
                    for s in coming[:4]])
 
-    doc.button("Open today's briefing", kit.app_url("/briefing"))
+    if no_account:
+        doc.button(no_account.open_label, no_account.open_url)
+        # one quiet line under the button, as the Pro line is for a Free account
+        doc.link(no_account.signup_label, no_account.signup_url)
+    else:
+        doc.button("Open today's briefing", kit.app_url("/briefing"))
 
-    if not person.is_pro:
+    if not person.is_pro and not no_account:
         hidden = person.uncovered_stocks()
         if hidden:
             # one quiet line under the button; the briefing button stays the one action
@@ -502,11 +519,13 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
     preheader = ". ".join(b for b in pre_bits if b) + "."
     return kit.render(
         doc,
-        kind="daily_brief",
+        kind="subscriber_brief" if no_account else "daily_brief",
         category="daily",
         subject=subject_for(items, today),
         preheader=preheader,
         unsubscribe_token=unsubscribe_token,
         meta={"date": today.isoformat(), "items": [(i.stock.ticker, i.kind) for i in items]},
         dateline=f"{today.strftime('%A')} · before the open",
+        reason=no_account.reason if no_account else None,
+        stop_url=no_account.stop_url if no_account else None,
     )
