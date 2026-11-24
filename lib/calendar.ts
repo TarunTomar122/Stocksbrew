@@ -219,25 +219,55 @@ export type EarningsDetail = {
   postRead: EarningsIntelDoc | null;
   /** The last report that has happened, while it is recent (lib/seo/earnings-pages.ts), with its revenue when read. */
   lastQuarter: LastQuarter | null;
-  /** That report's results release on SEC (the company's 8-K, item 2.02), from tm_earnings_history. */
-  releaseFiling: { url: string; date: string } | null;
-  /** Our call going into that report, in the reader's words. Calls are free on every plan (lib/entitlements.ts). */
+  /**
+   * The company's latest report that has happened, from our table or, when the table missed it, from its results 8-K
+   * on SEC (tm_earnings_history). `inTable` says whether the table holds its figures; `filingUrl` is the release on SEC.
+   */
+  latestReport: LatestReport | null;
+  /** The newest report in our table that has happened, and its release on SEC, when that is not `latestReport`. */
+  tableReportFiling: { date: string; url: string } | null;
+  /** Revenue from the latest report's release, when it was read (tm_earnings_day). */
+  latestRevenue: LastQuarterRevenue | null;
+  /** Our call going into the latest report, in the reader's words. Calls are free on every plan (lib/entitlements.ts). */
   callAtReport: { word: string; date: string } | null;
 };
 
-/** A results 8-K from tm_earnings_history within a few days of the report date (the calendar can be a day off). */
-function releaseNear(reports: unknown, day: string): { url: string; date: string } | null {
-  if (!Array.isArray(reports)) return null;
-  let best: { url: string; date: string; gap: number } | null = null;
+export type LatestReport = { date: string; session: EarningsItem["session"]; filingUrl: string | null; inTable: boolean };
+
+/** Two report days this close are the same report (the calendar can be a day or two off the 8-K). */
+const SAME_REPORT_DAYS = 3;
+
+function daysApart(a: string, b: string): number {
+  return Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000;
+}
+
+type Release = { date: string; url: string; session: EarningsItem["session"] };
+
+/** Results releases from a tm_earnings_history doc that have happened, newest first. */
+function releasesOf(reports: unknown, today: string): Release[] {
+  if (!Array.isArray(reports)) return [];
+  const out: Release[] = [];
   for (const raw of reports) {
-    const report = raw as { date?: unknown; url?: unknown; release?: unknown };
+    const report = raw as { date?: unknown; url?: unknown; release?: unknown; session?: unknown };
     const date = typeof report.date === "string" ? report.date.slice(0, 10) : "";
     const url = typeof report.url === "string" ? report.url : "";
-    if (!date || report.release === false || !/^https:\/\/www\.sec\.gov\//.test(url)) continue;
-    const gap = Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86_400_000;
-    if (gap <= 3 && (!best || gap < best.gap)) best = { url, date, gap };
+    if (!date || date > today || report.release === false || !/^https:\/\/www\.sec\.gov\//.test(url)) continue;
+    out.push({ date, url, session: report.session === "bmo" || report.session === "amc" ? report.session : "unknown" });
   }
-  return best ? { url: best.url, date: best.date } : null;
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** The latest report: the table's newest past one, or a newer release the table missed. */
+export function latestReportOf(events: EarningsItem[], releases: Release[], today: string): LatestReport | null {
+  const done = events
+    .filter((item) => !item.estimated && (item.date < today || (item.date === today && item.epsActual !== null)))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const newest = releases[0];
+  if (done && (!newest || newest.date <= done.date || daysApart(newest.date, done.date) <= SAME_REPORT_DAYS)) {
+    const filing = releases.find((release) => daysApart(release.date, done.date) <= SAME_REPORT_DAYS);
+    return { date: done.date, session: done.session, filingUrl: filing?.url ?? null, inTable: true };
+  }
+  return newest ? { date: newest.date, session: newest.session, filingUrl: newest.url, inTable: false } : null;
 }
 
 /**
@@ -302,16 +332,23 @@ async function loadDetailUncached(ticker: string, today: string, strict = false)
 
   // What changed last quarter: its revenue, its release on SEC and our call going in. Always soft: none of the three
   // may turn the page (or full research, which reads this strictly) into an error.
+  const [historySnap, calls] = await Promise.all([
+    adminFirestore.collection("tm_earnings_history").doc(ticker).get().catch(() => null),
+    readStockCallHistory(instrumentId).catch(() => []),
+  ]);
+  const releases = releasesOf(historySnap?.exists ? (historySnap.data() as RawDoc | undefined)?.reports : null, today);
+  const latestReport = latestReportOf(events, releases, today);
   const lastItem = lastQuarterOf(events, today)?.item ?? null;
-  const [daySnap, historySnap, calls] = lastItem
-    ? await Promise.all([
-        adminFirestore.collection("tm_earnings_day").doc(earningsDayDocId(ticker, lastItem.date)).get().catch(() => null),
-        adminFirestore.collection("tm_earnings_history").doc(ticker).get().catch(() => null),
-        readStockCallHistory(instrumentId).catch(() => []),
-      ])
-    : [null, null, []];
-  const revenue = daySnap?.exists ? revenueOf(daySnap.data()) : null;
-  const lastQuarter = lastQuarterOf(events, today, (date) => (lastItem && date === lastItem.date ? revenue : null));
+  // Revenue for the latest report (shown) and for the table's last quarter (the index rule); usually the same day.
+  const revenueDays = [...new Set([latestReport?.date, lastItem?.date].filter((day): day is string => Boolean(day)))];
+  const daySnaps = await Promise.all(
+    revenueDays.map((day) => adminFirestore.collection("tm_earnings_day").doc(earningsDayDocId(ticker, day)).get().catch(() => null)),
+  );
+  const revenueBy = new Map(revenueDays.map((day, index) => [day, daySnaps[index]?.exists ? revenueOf(daySnaps[index]!.data()) : null]));
+  const lastQuarter = lastQuarterOf(events, today, (date) => revenueBy.get(date) ?? null);
+  // The table's own newest report, when the latest one came from SEC alone: its result is in the table, its link here.
+  const tableDone = latestReport && !latestReport.inTable ? latestReportOf(events, [], today) : null;
+  const tableRelease = tableDone ? releases.find((release) => daysApart(release.date, tableDone.date) <= SAME_REPORT_DAYS) : undefined;
 
   return {
     ticker,
@@ -328,12 +365,14 @@ async function loadDetailUncached(ticker: string, today: string, strict = false)
     preRead: pre?.report?.headline && pre.event_date ? pre : null,
     postRead: post?.report?.headline && post.event_date ? post : null,
     lastQuarter,
-    releaseFiling: lastItem && historySnap?.exists ? releaseNear((historySnap.data() as RawDoc | undefined)?.reports, lastItem.date) : null,
-    callAtReport: lastItem ? callBefore(calls, lastItem) : null,
+    latestReport,
+    tableReportFiling: tableDone && tableRelease ? { date: tableDone.date, url: tableRelease.url } : null,
+    latestRevenue: latestReport ? revenueBy.get(latestReport.date) ?? null : null,
+    callAtReport: latestReport ? callBefore(calls, latestReport) : null,
   };
 }
 
-const loadDetailCached = unstable_cache(loadDetailUncached, ["calendar-earnings-detail-v3"], { revalidate: 300 });
+const loadDetailCached = unstable_cache(loadDetailUncached, ["calendar-earnings-detail-v4"], { revalidate: 300 });
 
 export function loadEarningsDetail(ticker: string, today: string = todayET()): Promise<EarningsDetail | null> {
   return loadDetailCached(ticker.trim().toUpperCase(), today);

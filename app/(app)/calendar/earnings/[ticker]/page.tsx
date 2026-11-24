@@ -3,7 +3,7 @@ import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { notFound } from "next/navigation";
 
 import { EarningsStats, LastQuarterPanel, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
-import { AppPage, FOCUS, PageHead, Ticker, fmtDay } from "@/components/oa/kit";
+import { AppPage, Empty, FOCUS, PageHead, Panel, Ticker, fmtDay } from "@/components/oa/kit";
 import { loadEarningsDetail, type EarningsDetail } from "@/lib/calendar";
 import { calendarHref, fmtEps, parseCalendarFilters, summarizeReports, todayET } from "@/lib/calendar-shared";
 import { earningsPageFacts, earningsPageIsIndexable } from "@/lib/seo/earnings-pages";
@@ -45,9 +45,9 @@ function describe(name: string, detail: EarningsDetail | null, today: string): s
   }
   const last = detail.lastQuarter?.item;
   if (last && last.epsActual !== null && last.epsEstimate !== null) {
-    parts.push(`Last quarter: EPS ${fmtEps(last.epsActual)} against ${fmtEps(last.epsEstimate)} expected${last.reaction ? `, stock ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% after` : ""}.`);
+    parts.push(`Last quarter: EPS ${fmtEps(last.epsActual)} against ${fmtEps(last.epsEstimate)} expected${last.reaction ? `, stock ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% on day one` : ""}.`);
   } else if (last?.reaction) {
-    parts.push(`The stock moved ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% after its last report.`);
+    parts.push(`The stock moved ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% on day one after its last report.`);
   }
   return parts.length ? parts.join(" ") : fallback;
 }
@@ -90,6 +90,12 @@ export default async function EarningsDetailPage({ params }: Props) {
   // The calendar's weeks hold announced dates only, so an estimated one links to the week of the last report instead.
   const anchor = (summary.next && !summary.next.estimated ? summary.next.date : null) ?? summary.last?.date ?? today;
   const headlines = (wire?.items ?? []).filter((item) => item.tickers.includes(ticker)).slice(0, 6);
+  const latestDay = detail.latestReport?.date ?? null;
+  const postDay = detail.postRead?.event_date.slice(0, 10) ?? null;
+  const postRead =
+    detail.postRead && latestDay && postDay && Math.abs(Date.parse(`${postDay}T00:00:00Z`) - Date.parse(`${latestDay}T00:00:00Z`)) <= 3 * 86_400_000
+      ? detail.postRead
+      : null;
 
   return (
     <AppPage>
@@ -122,31 +128,29 @@ export default async function EarningsDetailPage({ params }: Props) {
         }
       />
 
-      <EarningsStats detail={detail} today={today} />
-
-      <LastQuarterPanel detail={detail} today={today} />
-
-      <div className="mb-5">
-        <ReportHistory detail={detail} today={today} />
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-w-0 flex-col gap-5">
-          {/* A read written for a report that has already happened is not shown as a pre-read: the result is in the table. */}
-          {/* Months ahead of an estimated date there is no read to promise; it appears once one is written. */}
-          {summary.next && (!summary.next.estimated || upcomingRead) ? (
-            <PreEarningsRead read={entitled ? upcomingRead : null} exists={upcomingRead !== null} forDate={upcomingRead?.event_date?.slice(0, 10) ?? null} />
+      {detail.events.length === 0 && !detail.latestReport ? (
+        // Nothing to show at all: one line for the page, not a strip and a table of empty cards.
+        <Panel className="mb-5">
+          <Empty title={`No earnings dates for ${ticker} yet`} className="!py-6" />
+        </Panel>
+      ) : (
+        <>
+          <EarningsStats detail={detail} today={today} />
+          <LastQuarterPanel detail={detail} today={today} />
+          {detail.events.length ? (
+            <div className="mb-5">
+              <ReportHistory detail={detail} today={today} />
+            </div>
           ) : null}
-          {detail.postRead ? <PostEarningsRead read={detail.postRead} latestReportDate={summary.last?.date ?? null} /> : null}
-          {!summary.next && !detail.postRead ? (
-            <p className="oa-surface border border-oa-border bg-oa-card px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">
-              No earnings write-up for {ticker} yet.
-            </p>
-          ) : null}
-        </div>
-        <aside className="flex min-w-0 flex-col gap-5">
-          <TickerHeadlines ticker={ticker} items={headlines} />
-        </aside>
+        </>
+      )}
+
+      <div className="flex min-w-0 flex-col gap-5">
+        {/* Only a read that exists for the coming report; no placeholder card when there is none. */}
+        {summary.next && upcomingRead ? <PreEarningsRead read={entitled ? upcomingRead : null} exists forDate={upcomingRead.event_date.slice(0, 10)} /> : null}
+        {/* The write-up only when it is about the latest report; an older one is not shown with a note explaining it. */}
+        {postRead ? <PostEarningsRead read={postRead} /> : null}
+        <TickerHeadlines ticker={ticker} items={headlines} />
       </div>
     </AppPage>
   );

@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { SurprisePct, earningsHref, resultWord } from "@/components/calendar/calendar-view";
 import { DataTable, type DataColumn, type DataRow } from "@/components/oa/kit/data-table";
-import { Delta, Empty, NUM, Panel, SourceLine, StatStrip, StreamRow, Tag, ToneGlyph, Verdict, VsBar, fmtCompact, fmtDay, fmtMoney, type StatItem } from "@/components/oa/kit";
+import { Delta, Empty, NUM, Panel, SourceLine, StreamRow, Tag, ToneGlyph, Verdict, fmtCompact, fmtDay, fmtMoney } from "@/components/oa/kit";
 import type { EarningsDetail } from "@/lib/calendar";
 import {
   SESSION_LABEL,
@@ -11,13 +11,11 @@ import {
   reactionBasisLabel,
   relativeDay,
   summarizeReports,
-  surprisePctOf,
   weekdayName,
   type EarningsItem,
 } from "@/lib/calendar-shared";
 import { fmtUsd } from "@/lib/earnings-day-shared";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
-import { lastQuarterHasData } from "@/lib/seo/earnings-pages";
 import { cleanEarningsProse, EPS_OUTCOME_LINES, STOCK_OUTCOME_LINES, type PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
 import { sentenceOutcome, type ToneWord } from "@/lib/tone";
 import { etTime, type WireItem } from "@/lib/wire-shared";
@@ -28,42 +26,62 @@ const COLUMNS: DataColumn[] = [
   { id: "date", label: "Report date" },
   { id: "period", label: "Quarter ending", hideOnMobile: true },
   { id: "when", label: "When", hideOnMobile: true },
-  { id: "est", label: "EPS est", align: "right" },
+  // Phones keep the date, the result and the move; the estimate rides in the result's mark and the hover title.
+  { id: "est", label: "EPS est", align: "right", hideOnMobile: true },
   { id: "actual", label: "EPS actual", align: "right" },
   { id: "surprise", label: "Surprise", align: "right", hideOnMobile: true },
-  { id: "move", label: "Stock move", align: "right", hint: "Close to close around the report. Two sessions when the report time was not given." },
+  {
+    id: "move",
+    label: "Day-one move",
+    align: "right",
+    hint: "Close to close over the first session that could react to the report. Marked 2d when the report time was not given and the move covers two sessions.",
+  },
 ];
+
+/** The hover title on an estimated date: where it comes from, kept off the page itself (owner rule 4). */
+const ESTIMATE_TITLE = "Not announced yet. Our estimate from the days the company reported in past years.";
+
+/** The one word set for a report date still ahead, everywhere on the page and on phones too. */
+export function DateStatus({ estimated }: { estimated: boolean }) {
+  return estimated ? (
+    <Tag caps={false}>
+      <span title={ESTIMATE_TITLE}>Estimated</span>
+    </Tag>
+  ) : (
+    <Tag tone="primary" caps={false}>
+      Confirmed
+    </Tag>
+  );
+}
 
 function historyRows(events: EarningsItem[], today: string): DataRow[] {
   return [...events]
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((item) => {
       const result = resultWord(item);
+      const ahead = item.epsActual === null && item.date >= today;
       return {
         key: item.id,
         sort: [item.date, item.fiscalEnding, item.session, item.epsEstimate, item.epsActual, item.surprisePct, item.reaction?.pct ?? null],
         cells: [
-          <span key="d" className="flex items-center gap-2">
-            <span className={`${NUM} text-oa-fg`}>{fmtDay(item.date, true)}</span>
-            {item.epsActual === null && item.date >= today ? (
-              item.estimated ? (
-                <Tag className="inline-flex" caps={false}>
-                  <span title={ESTIMATE_TITLE}>Estimated</span>
-                </Tag>
-              ) : (
-                <Tag tone="primary" className="hidden sm:inline-flex">Upcoming</Tag>
-              )
-            ) : null}
+          <span key="d" className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <span className={`${NUM} whitespace-nowrap ${item.estimated ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtDay(item.date, true)}</span>
+            {ahead ? <DateStatus estimated={item.estimated === true} /> : null}
           </span>,
           <span key="p" className={`${NUM} text-oa-muted-fg`}>
             {fmtDay(item.fiscalEnding, true)}
           </span>,
+          // An estimated day has no announced time: nothing is said about one.
           <span key="w" className="text-[12.5px] text-oa-muted-fg">
-            {item.session === "unknown" && item.date < today ? "Time not given" : SESSION_LABEL[item.session]}
+            {item.estimated ? "" : item.session === "unknown" && item.date < today ? "Time not given" : SESSION_LABEL[item.session]}
           </span>,
           <span key="e" className={`${NUM} ${item.epsEstimate === null ? "text-oa-muted-fg" : "text-oa-fg"}`}>{fmtEps(item.epsEstimate) || "n/a"}</span>,
           item.epsActual !== null ? (
-            <span key="a" className={`${NUM} inline-flex items-center justify-end gap-1.5 text-oa-fg`}>
+            <span
+              key="a"
+              title={item.epsEstimate !== null ? `${fmtEps(item.epsActual)} against ${fmtEps(item.epsEstimate)} expected` : undefined}
+              className={`${NUM} inline-flex items-center justify-end gap-1.5 text-oa-fg`}
+            >
               {/* The surprise column is hidden on phones, so the mark rides beside the figure there. */}
               {result && result.tone !== "flat" ? (
                 <span className="inline-flex sm:hidden">
@@ -77,7 +95,7 @@ function historyRows(events: EarningsItem[], today: string): DataRow[] {
             </span>
           ) : (
             <span key="a" className="text-[12.5px] text-oa-muted-fg">
-              {item.date >= today ? "not yet" : "not recorded"}
+              {ahead ? "" : "not recorded"}
             </span>
           ),
           result || item.surprisePct !== null ? (
@@ -94,202 +112,169 @@ function historyRows(events: EarningsItem[], today: string): DataRow[] {
               {item.reaction.basis === "2d" ? <span className={`${NUM} text-[10.5px] text-oa-muted-fg`}>2d</span> : null}
             </span>
           ) : (
-            <span key="m" />
+            <span key="m" className="text-[12.5px] text-oa-muted-fg">
+              {ahead ? "" : "not measured"}
+            </span>
           ),
         ],
       };
     });
 }
 
-/** The hover title on an estimated date: where it comes from, kept off the page itself (owner rule 4). */
-const ESTIMATE_TITLE = "Not announced yet. Our estimate from the days the company reported in past years.";
+type Figure = { label: string; value: React.ReactNode; line?: React.ReactNode };
 
-/** "after the market closes", or nothing when the time is not known. */
-function sessionPhrase(item: EarningsItem): string {
-  if (item.session === "unknown") return item.estimated ? "" : SESSION_LABEL.unknown.toLowerCase();
-  return SESSION_LABEL[item.session].toLowerCase();
+const WIDE_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" };
+
+/**
+ * Figures side by side, divided by hairlines: two to a row on a phone, all in one row from lg. An odd last figure spans
+ * its phone row, so no tile sits beside an empty slot.
+ */
+function FigureGrid({ figures }: { figures: Figure[] }) {
+  if (!figures.length) return null;
+  const single = figures.length === 1;
+  return (
+    <dl className={`grid ${single ? "grid-cols-1" : "grid-cols-2"} ${WIDE_COLS[Math.min(figures.length, 5)]}`}>
+      {figures.map((figure, index) => (
+        <div
+          key={figure.label}
+          className={`-mb-px -mr-px min-w-0 border-b border-r border-oa-border px-4 py-3 ${!single && figures.length % 2 === 1 && index === figures.length - 1 ? "col-span-2 lg:col-span-1" : ""}`}
+        >
+          <dt className="oa-caption">{figure.label}</dt>
+          <dd className={`${NUM} mt-1 text-[17px] font-medium leading-6 text-oa-fg`}>{figure.value}</dd>
+          {figure.line ? <dd className="mt-1 text-[12.5px] leading-[18px] text-oa-muted-fg">{figure.line}</dd> : null}
+        </div>
+      ))}
+    </dl>
+  );
 }
 
-/** True when the last-quarter panel will show, so the strip does not say its figures again. */
-function showsLastQuarter(detail: EarningsDetail): boolean {
-  return lastQuarterHasData(detail.lastQuarter);
+/** "in 92 days", "tomorrow", "today". */
+function inDays(day: string, today: string): string {
+  return relativeDay(day, today).toLowerCase();
 }
 
+/**
+ * The head of the page: the next report first, said as Confirmed or Estimated. An announced date carries its weekday
+ * and time; an estimate only how far off it is. Then the estimate for that report, the usual move and the price.
+ * Past results live in the table below, never here.
+ */
 export function EarningsStats({ detail, today }: { detail: EarningsDetail; today: string }) {
   const summary = summarizeReports(detail.events, today);
-  const stats: StatItem[] = [];
   const next = summary.next;
-  stats.push(
-    next
-      ? {
-          label: "Next report",
-          value: (
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {fmtDay(next.date)}
-              {/* Said plainly on the date itself: announced by the company, or our estimate. */}
-              {next.estimated ? (
-                <Tag caps={false}>
-                  <span title={ESTIMATE_TITLE}>Estimated</span>
-                </Tag>
-              ) : (
-                <Tag tone="primary" caps={false}>
-                  Confirmed
-                </Tag>
-              )}
-            </span>
-          ),
-          sub: [`${weekdayName(next.date, true)}, ${relativeDay(next.date, today).toLowerCase()}`, sessionPhrase(next)].filter(Boolean).join(" · "),
-        }
-      : { label: "Next report", value: "No date yet", sub: "not announced yet", tone: "flat" },
-  );
-  if (next && next.epsEstimate !== null) {
-    stats.push({ label: "EPS expected", value: fmtEps(next.epsEstimate), sub: `quarter ending ${fmtDay(next.fiscalEnding, true) || "not given"}` });
-  }
-  // The last report's figures live in the last-quarter panel when it shows; only an older one stays up here.
-  if (summary.last && !showsLastQuarter(detail)) {
-    const result = resultWord(summary.last);
-    stats.push({
-      label: "Last result",
+  const figures: Figure[] = [];
+  if (next) {
+    const when = next.estimated
+      ? inDays(next.date, today)
+      : [`${weekdayName(next.date, true)}, ${inDays(next.date, today)}`, next.session === "unknown" ? "" : SESSION_LABEL[next.session].toLowerCase()]
+          .filter(Boolean)
+          .join(" · ");
+    figures.push({
+      label: "Next report",
       value: (
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {fmtEps(summary.last.epsActual)}
-          {result ? <Verdict tone={result.tone}>{result.word}</Verdict> : null}
+          {fmtDay(next.date)}
+          <DateStatus estimated={next.estimated === true} />
         </span>
       ),
-      sub:
-        summary.last.epsEstimate !== null
-          ? // A non-breaking space keeps "Nov 2" together on phones.
-            `vs ${fmtEps(summary.last.epsEstimate)} expected on ${fmtDay(summary.last.date).replace(" ", "\u00a0")}`
-          : `reported ${fmtDay(summary.last.date).replace(" ", "\u00a0")}`,
+      line: when,
     });
-    if (summary.last.reaction) {
-      stats.push({
-        label: "Stock move on it",
-        value: <Delta value={summary.last.reaction.pct} />,
-        sub: summary.last.reaction.basis === "2d" ? "two sessions around the report" : "one session",
-      });
-    }
+  } else {
+    figures.push({ label: "Next report", value: <span className="text-oa-muted-fg">Not announced</span> });
+  }
+  if (next && next.epsEstimate !== null) {
+    figures.push({ label: "EPS expected", value: fmtEps(next.epsEstimate), line: next.fiscalEnding ? `quarter ending ${fmtDay(next.fiscalEnding, true)}` : undefined });
   }
   if (summary.avgAbsMove !== null && summary.moves >= 2) {
-    stats.push({
-      label: "Typical move",
-      value: `±${summary.avgAbsMove.toFixed(1)}%`,
-      sub: `average over ${summary.moves} reports`,
-    });
+    figures.push({ label: "Typical day-one move", value: `±${summary.avgAbsMove.toFixed(1)}%`, line: `average over ${summary.moves} reports` });
   }
   if (detail.quote?.price != null) {
-    stats.push({
+    figures.push({
       label: "Price",
       value: fmtMoney(detail.quote.price),
-      sub: (
+      line: (
         <>
           <Delta value={detail.quote.dayPct} /> today{detail.quote.marketCap ? ` · ${fmtCompact(detail.quote.marketCap, "$")} cap` : ""}
         </>
       ),
     });
   }
-  return <StatStrip stats={stats} className="mb-5" />;
+  return (
+    <div className="oa-surface mb-5 overflow-hidden border border-oa-border bg-oa-card">
+      <FigureGrid figures={figures} />
+    </div>
+  );
 }
 
-/** "next session", "on the report day", "over two sessions": which close-to-close window the move covers. */
-function moveWindow(item: EarningsItem): string {
-  const reaction = item.reaction;
-  if (!reaction) return "";
-  if (reaction.basis === "2d") return "over two sessions";
-  const session = item.session === "unknown" ? reaction.session ?? "unknown" : item.session;
-  return session === "amc" ? "the next session" : "on the report day";
+/** "today", "yesterday", "on Monday" within the week, else "Nov 17" (owner rule 4). */
+function dayWords(day: string, today: string): string {
+  const ago = dayDiff(day, today) ?? 99;
+  return ago === 0 ? "today" : ago === 1 ? "yesterday" : ago <= 6 ? `on ${weekdayName(day, true)}` : fmtDay(day);
+}
+
+/** "Nov 17 release on SEC", "Monday's release on SEC". */
+function releaseWords(day: string, today: string): string {
+  const ago = dayDiff(day, today) ?? 99;
+  const when = ago === 0 ? "Today's" : ago === 1 ? "Yesterday's" : ago <= 6 ? `${weekdayName(day, true)}'s` : fmtDay(day);
+  return `${when} release on SEC`;
+}
+
+function SecLink({ day, url, today }: { day: string; url: string; today: string }) {
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="font-medium text-oa-primary hover:underline">
+      {/* A phone keeps the panel title whole: the short form there, the day from sm up. */}
+      <span className="sm:hidden">8-K on SEC</span>
+      <span className="max-sm:hidden">{releaseWords(day, today)}</span>
+    </a>
+  );
 }
 
 /**
- * What the last report said, from figures we hold: EPS against the estimate (with both on one scale), revenue when the
- * release was read, how the stock moved after it, and our call going in. The release itself is one link in the header.
- * Shown only when at least one figure is there (lib/seo/earnings-pages.ts lastQuarterHasData).
+ * What the latest report adds to the table: its revenue, when the release was read, and our call going in. EPS and the
+ * move are in the table, so they are not said again here. When the table missed the report (we only have the 8-K), the
+ * panel says so and links it. Not shown when it would hold nothing.
  */
 export function LastQuarterPanel({ detail, today }: { detail: EarningsDetail; today: string }) {
-  const last = detail.lastQuarter;
-  if (!lastQuarterHasData(last)) return null;
-  const item = last.item;
-  const result = resultWord(item);
-  const surprise = surprisePctOf(item);
-  // Recent days in words, older ones as a date (owner rule 4).
-  const ago = dayDiff(item.date, today) ?? 99;
-  const when = ago === 0 ? "today" : ago === 1 ? "yesterday" : ago <= 6 ? `on ${weekdayName(item.date, true)}` : fmtDay(item.date);
-  const cells: Array<{ label: string; value: React.ReactNode; line?: React.ReactNode }> = [];
-  if (item.epsActual !== null) {
-    cells.push({
-      label: "EPS",
-      value: (
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {result ? <Verdict tone={result.tone}>{result.word}</Verdict> : fmtEps(item.epsActual)}
-          {result && surprise !== null && result.tone !== "flat" ? <span>{`${Math.abs(surprise).toFixed(1)}%`}</span> : null}
-        </span>
-      ),
-      line:
-        item.epsEstimate !== null ? (
-          <VsBar value={item.epsActual} versus={item.epsEstimate} labels={["Reported", "Expected"]} format={(n) => fmtEps(n)} className="mt-1 max-w-[16rem]" />
-        ) : (
-          "no estimate to compare"
-        ),
-    });
-  }
-  if (last.revenue) {
-    cells.push({
+  const latest = detail.latestReport;
+  if (!latest) return null;
+  const figures: Figure[] = [];
+  if (detail.latestRevenue) {
+    figures.push({
       label: "Revenue",
-      value: fmtUsd(last.revenue.value).replace(" billion", "B").replace(" million", "M"),
-      line: last.revenue.yoyPct !== null ? (
-        <span>
-          <Delta value={last.revenue.yoyPct} digits={1} /> from a year ago
-        </span>
-      ) : undefined,
+      value: fmtUsd(detail.latestRevenue.value).replace(" billion", "B").replace(" million", "M"),
+      line:
+        detail.latestRevenue.yoyPct !== null ? (
+          <span>
+            <Delta value={detail.latestRevenue.yoyPct} digits={1} /> from a year ago
+          </span>
+        ) : undefined,
     });
   }
-  if (item.reaction) {
-    cells.push({ label: "Stock after it", value: <Delta value={item.reaction.pct} />, line: <span title={`${reactionBasisLabel(item.reaction, item.session)}.`}>{moveWindow(item)}</span> });
-  }
-  if (detail.callAtReport) {
-    cells.push({ label: "Our call going in", value: detail.callAtReport.word });
-  }
+  if (detail.callAtReport) figures.push({ label: "Our call going in", value: detail.callAtReport.word });
+  if (latest.inTable && !figures.length) return null;
   return (
     <Panel
-      label="Last quarter"
-      // When it was reported sits with the one link to the release, so the short label never gets cut on a phone.
-      right={
-        detail.releaseFiling ? (
-          <a href={detail.releaseFiling.url} target="_blank" rel="noopener noreferrer" className="font-medium text-oa-primary hover:underline">
-            {ago === 0 ? "Today's" : ago === 1 ? "Yesterday's" : ago <= 6 ? `${weekdayName(item.date, true)}'s` : fmtDay(item.date)} release on SEC
-          </a>
-        ) : (
-          <span>Reported {when}</span>
-        )
-      }
+      label={latest.inTable ? `Last quarter, reported ${dayWords(latest.date, today)}` : "Last quarter"}
+      right={!latest.inTable && latest.filingUrl ? <SecLink day={latest.date} url={latest.filingUrl} today={today} /> : null}
       flush
       className="mb-5"
     >
-      <dl className={`grid ${cells.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${cells.length >= 4 ? "lg:grid-cols-4" : cells.length === 3 ? "lg:grid-cols-3" : ""}`}>
-        {cells.map((cell, index) => (
-          // A third cell spans the row on a phone, so no tile sits beside an empty slot.
-          <div
-            key={cell.label}
-            className={`-mb-px -mr-px min-w-0 border-b border-r border-oa-border px-4 py-3 ${cells.length === 3 && index === 2 ? "col-span-2 lg:col-span-1" : ""}`}
-          >
-            <dt className="oa-caption">{cell.label}</dt>
-            <dd className={`${NUM} mt-1 text-[17px] font-medium leading-6 text-oa-fg`}>{cell.value}</dd>
-            {cell.line ? <dd className="mt-1 text-[12.5px] leading-[18px] text-oa-muted-fg">{cell.line}</dd> : null}
-          </div>
-        ))}
-      </dl>
+      {!latest.inTable ? (
+        <p className="border-b border-oa-border px-4 py-3 text-[14px] leading-5 text-oa-muted-fg">
+          We have the filing but not its EPS or the stock&apos;s move.
+        </p>
+      ) : null}
+      <FigureGrid figures={figures} />
     </Panel>
   );
 }
 
 export function ReportHistory({ detail, today }: { detail: EarningsDetail; today: string }) {
+  const latest = detail.latestReport;
+  // The release of the newest report the table holds, linked once in the header.
+  const filing = latest?.inTable && latest.filingUrl ? { date: latest.date, url: latest.filingUrl } : detail.tableReportFiling;
   return (
-    <Panel label="Past and upcoming reports" right={<span className={NUM}>{detail.events.length}</span>} flush>
-      {detail.events.length ? (
-        <DataTable columns={COLUMNS} rows={historyRows(detail.events, today)} initialSort={{ id: "date", dir: "desc" }} stickyHeader={false} pageSize={12} />
-      ) : (
-        <Empty title="No earnings dates yet">No report dates for {detail.ticker}, past or scheduled.</Empty>
-      )}
+    <Panel label="Past and upcoming reports" right={filing ? <SecLink day={filing.date} url={filing.url} today={today} /> : null} flush>
+      <DataTable columns={COLUMNS} rows={historyRows(detail.events, today)} initialSort={{ id: "date", dir: "desc" }} stickyHeader={false} pageSize={12} />
     </Panel>
   );
 }
@@ -418,19 +403,13 @@ export function PreEarningsRead({
 
 const CASE_LABEL = { bull: "Better case", base: "Base case", bear: "Worse case" } as const;
 
-export function PostEarningsRead({ read, latestReportDate }: { read: EarningsIntelDoc; latestReportDate: string | null }) {
+/** The write-up of the latest report. The page shows it only when it is about that report (no "this covers an older one" note). */
+export function PostEarningsRead({ read }: { read: EarningsIntelDoc }) {
   const report = read.report;
   const scenarios = (report.scenarios_30_90d ?? []).filter((scenario) => scenario?.thesis);
-  const covered = read.event_date.slice(0, 10);
-  const older = Boolean(latestReportDate && latestReportDate > covered);
   return (
     <Panel label="After the report" right={<span className="oa-mono text-[11.5px]">{fmtDay(read.event_date, true)} report</span>}>
       <div className="flex flex-col gap-4">
-        {older ? (
-          <p className="oa-surface border border-oa-border bg-oa-bg px-3 py-2 text-[13.5px] leading-5 text-oa-fg">
-            This covers the {fmtDay(covered, true)} report. The {fmtDay(latestReportDate, true)} numbers are in the table above.
-          </p>
-        ) : null}
         <div>
           <p className="text-balance text-[18px] font-medium leading-6 text-oa-fg">{text(report.headline)}</p>
           <p className="mt-1.5 text-pretty text-[14.5px] leading-6 text-oa-muted-fg">{text(report.summary)}</p>
@@ -442,7 +421,6 @@ export function PostEarningsRead({ read, latestReportDate }: { read: EarningsInt
           <Prose label="Guidance" verdict={sentenceOutcome(text(report.facts?.guidance_signal), "guidance")}>
             {text(report.facts?.guidance_signal)}
           </Prose>
-          <Prose label="How the stock reacted">{text(report.facts?.price_reaction)}</Prose>
           <Prose label="What changed">{text(report.interpretation?.what_changed)}</Prose>
           <Prose label="What the price now assumes">{text(report.interpretation?.what_market_is_pricing)}</Prose>
           <Prose label="What it means for the business">{text(report.interpretation?.fundamental_implication)}</Prose>
@@ -475,7 +453,14 @@ export function PostEarningsRead({ read, latestReportDate }: { read: EarningsInt
   );
 }
 
+/**
+ * The stock's latest headlines across the page's width (two columns from lg), under the write-up rather than in a rail
+ * that ended far above it. Not shown at all when none names the stock.
+ */
 export function TickerHeadlines({ ticker, items }: { ticker: string; items: WireItem[] }) {
+  if (!items.length) return null;
+  // An even count, so the two columns end level.
+  const shown = items.length > 1 && items.length % 2 === 1 ? items.slice(0, -1) : items;
   return (
     <Panel
       label="Latest headlines"
@@ -486,8 +471,8 @@ export function TickerHeadlines({ ticker, items }: { ticker: string; items: Wire
       }
       flush
     >
-      {items.length ? (
-        items.map((item) => (
+      <div className="grid lg:grid-cols-2">
+        {shown.map((item) => (
           <StreamRow
             key={item.id}
             time={
@@ -501,10 +486,8 @@ export function TickerHeadlines({ ticker, items }: { ticker: string; items: Wire
             external
             meta={<span className="oa-mono">{item.source}</span>}
           />
-        ))
-      ) : (
-        <Empty className="!py-5">No headline in the last 14 days names {ticker}.</Empty>
-      )}
+        ))}
+      </div>
     </Panel>
   );
 }

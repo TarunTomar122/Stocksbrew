@@ -20,7 +20,7 @@ function Tile({ report }: { report: ReportAhead }) {
     <Link
       prefetch={false}
       href={earningsHref(report.ticker)}
-      title={`${report.company}: ${report.estimated ? "expected around" : "reports on"} ${weekdayName(report.date, true)}, ${fmtDay(report.date, true)}`}
+      title={report.estimated ? `${report.company}: expected around ${fmtDay(report.date, true)}, not announced yet` : `${report.company}: reports on ${weekdayName(report.date, true)}, ${fmtDay(report.date, true)}`}
       className={`flex min-w-0 flex-col gap-0.5 rounded-md px-3 py-2 hover:bg-oa-accent ${FOCUS}`}
     >
       <span className={`${NUM} inline-flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-oa-fg`}>
@@ -28,9 +28,20 @@ function Tile({ report }: { report: ReportAhead }) {
         <span className="truncate">{report.ticker}</span>
       </span>
       <span className={`${NUM} pl-[22px] text-[12.5px] ${report.estimated ? "text-oa-muted-fg" : "text-oa-fg"}`}>
-        {/* The weekday from a tablet up; three tiles to a phone row only fit the date on one line. */}
-        <span className="max-sm:hidden">{weekdayName(report.date)}, </span>
-        {fmtDay(report.date)}
+        {report.estimated ? (
+          // Our estimate: "~Jan 27", muted, with no weekday, so it never reads as an announced day.
+          <>
+            <span aria-hidden="true">~</span>
+            <span className="sr-only">around </span>
+            {fmtDay(report.date)}
+          </>
+        ) : (
+          <>
+            {/* The weekday from a tablet up; three tiles to a phone row only fit the date on one line. */}
+            <span className="max-sm:hidden">{weekdayName(report.date)}, </span>
+            {fmtDay(report.date)}
+          </>
+        )}
       </span>
     </Link>
   );
