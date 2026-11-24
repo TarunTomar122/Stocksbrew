@@ -97,7 +97,12 @@ def test_ticker_brief_has_its_own_links_and_no_account_bits(monkeypatch):
     assert "Email settings" not in email.html and "/profile" not in email.html
     assert kit.esc(subscribers.stop_url(ID)) in email.html and subscribers.stop_url(ID) in email.text
     assert "Stop this email" in email.html
-    assert f"Make it yours: pick {subscribers.FREE_COVERED_STOCKS} stocks free" in email.html
+    # one action (rule 5b): the signup is a quiet footer link beside the stop link, not a second action under the button
+    signup = f"Make it yours: pick {subscribers.FREE_COVERED_STOCKS} stocks free"
+    body, footer = email.html.split("You get this because", 1)
+    assert signup not in body and signup in footer
+    assert footer.index(signup) < footer.index("Stop this email")
+    assert f"{signup}: " in email.text.split("--", 1)[1]
     assert "try=NVDA%2CAMD" in email.html
     assert "Open today&#x27;s news" in email.html or "Open today's news" in email.html
     assert "Cover all your stocks with Pro" not in email.html

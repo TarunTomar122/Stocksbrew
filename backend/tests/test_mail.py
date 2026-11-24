@@ -117,7 +117,9 @@ def test_the_headline_names_the_move_and_the_card_carries_its_figures():
     email = daily.build_daily(person([s]), now=NOW)
     h1 = re.search(r"<h1[^>]*>(.*?)</h1>", email.html, re.S).group(1)
     assert "%" not in h1 and "x a normal" not in h1
-    assert "BIG jumped yesterday" in h1
+    # just the fact: "more than usual" is already the section heading under it
+    assert h1 == "BIG jumped yesterday."
+    assert "oved more than usual" in email.html  # "Moved", or "Also moved" for a move with no named reason
 
 
 def test_free_daily_only_covers_five_and_says_so():

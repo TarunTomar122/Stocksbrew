@@ -365,8 +365,9 @@ def headline_for(items: list[Item], today: date) -> str:
         return f"We moved {st.ticker} to {_call(st)}."
     if i.kind == "big_move":
         # the move and how unusual it was are the card's figure and tag; the headline names it without them
+        # just the fact: "more than usual" is the section's heading
         when = session_word(st.price_at, today)
-        return f"{st.ticker} {'jumped' if (st.change_pct or 0) > 0 else 'dropped'} {when}, far more than usual."
+        return f"{st.ticker} {'jumped' if (st.change_pct or 0) > 0 else 'dropped'} {when}."
     if i.kind == "premarket":
         return f"{st.ticker} is {'up' if (st.premarket_pct or 0) > 0 else 'down'} sharply before the open."
     return f"{st.ticker} reports {earnings_when(st.earnings_date, st.earnings_time, today)}." if st.earnings_date else f"{st.ticker} reports soon."
@@ -509,9 +510,8 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
                    for s in coming[:4]])
 
     if no_account:
+        # one action (owner rule 5b): the signup line is a quiet link in the footer, beside the stop link
         doc.button(no_account.open_label, no_account.open_url)
-        # one quiet line under the button, as the Pro line is for a Free account
-        doc.link(no_account.signup_label, no_account.signup_url)
     else:
         doc.button("Open today's briefing", kit.app_url("/briefing"))
 
@@ -537,4 +537,5 @@ def build_daily(person: Person, *, now: datetime | None = None, market: dict[str
         dateline=f"{today.strftime('%A')} · before the open",
         reason=no_account.reason if no_account else None,
         stop_url=no_account.stop_url if no_account else None,
+        footer_link=(no_account.signup_label, no_account.signup_url) if no_account else None,
     )
