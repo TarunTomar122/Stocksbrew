@@ -612,13 +612,22 @@ function liveHoldingValues(rows: WatchlistRow[]): Map<string, number> {
  * shares and price when the stored row has none, so they never come back empty after a scheduled build.
  */
 export async function getMyAgentRadar(uid: string, input: { limit?: number; offset?: number } = {}) {
+  return (await readMyAgentRadar(uid, input)).data;
+}
+
+/** A tracked stock's identity, for deciding what the whole list's write-ups may show (gateRadarForFree). */
+type TrackedStock = { instrument_id: string; ticker: string };
+
+/** getMyAgentRadar plus every tracked stock, not only the page returned: the write-ups cover the whole list. */
+async function readMyAgentRadar(uid: string, input: { limit?: number; offset?: number } = {}) {
   const view = await getWatchlistView(uid).catch(() => null);
   // The view is passed on, so the live rows don't read it a second time.
   const live = await loadRadarRowsForUser(uid, view).catch(() => null);
   const liveRows = live ? orderLike(live.rows, view?.rows ?? []) : null;
   const allRows: WatchlistRow[] = liveRows ?? view?.rows ?? [];
+  const everyStock: TrackedStock[] = allRows.map((row) => ({ instrument_id: row.instrument_id, ticker: row.ticker }));
   if (!view && allRows.length === 0) {
-    return envelope({
+    const data = envelope({
       data_status: "not_enough_current_evidence",
       evidence_message: "not enough current evidence to load this Watchlist view.",
       tracked_count: 0,
@@ -626,6 +635,7 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
       brief: null,
       pulse: null,
     }, null);
+    return { data, everyStock };
   }
   const tracked = new Set(allRows.map((row) => row.instrument_id));
   // The view's write-ups (brief, pulse, portfolio diagnosis, risks, changes) describe the book it was built from. When
@@ -650,7 +660,7 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
       const id = (item as { instrument_id?: unknown })?.instrument_id;
       return typeof id !== "string" || tracked.has(id);
     });
-  return envelope({
+  const data = envelope({
     data_status: "available",
     tracked_count: allRows.length,
     holdings_count: holdingsCount,
@@ -726,6 +736,7 @@ export async function getMyAgentRadar(uid: string, input: { limit?: number; offs
       };
     }),
   }, asOf);
+  return { data, everyStock };
 }
 
 export async function getAgentRadarChanges(uid: string, input: { since?: string } = {}) {
@@ -893,8 +904,29 @@ function fullReportNote(included: boolean) {
 }
 
 /**
- * get_stock_intelligence for a stock a Free account does not cover: the call, its headline, the scores and the
- * market data stay; the reasoning and every price level go. The same cut Ask makes (lib/ask-tools.ts quote card).
+ * The call on a stock the account does not cover: what it is and how long it has stood, without its reasoning
+ * (execution, summary, watch out, invalidation, why it changed, what would change it) or levels. Picked field by
+ * field, so a field the engine adds later stays out until it is listed here. Ask's quote card gives no more.
+ */
+export function callWithoutReasoning(call: unknown): Record<string, unknown> | null {
+  if (!call || typeof call !== "object" || Array.isArray(call)) return null;
+  const source = call as Record<string, unknown>;
+  const word = (value: unknown) => (typeof value === "string" && value.trim() ? value : null);
+  const action = source.action && typeof source.action === "object" ? (source.action as Record<string, unknown>) : null;
+  const stability = source.stability && typeof source.stability === "object" ? (source.stability as Record<string, unknown>) : null;
+  return {
+    stance: word(source.stance),
+    action: action ? { label: word(action.label) } : null,
+    horizon: word(source.horizon),
+    confidence: word(source.confidence),
+    stability: stability ? { since: word(stability.since) } : null,
+  };
+}
+
+/**
+ * get_stock_intelligence for a stock a Free account does not cover: the call (callWithoutReasoning), its headline
+ * without levels, the scores and the market data stay; the reasoning and every price level go. The same cut Ask
+ * makes (lib/ask-tools.ts quote card).
  */
 export function withoutFullRead<T extends Awaited<ReturnType<typeof getStockAgentIntelligence>>>(data: T): T & { full_report: ReturnType<typeof fullReportNote> } {
   const intel = data.stocksbrew_intelligence;
@@ -904,7 +936,7 @@ export function withoutFullRead<T extends Awaited<ReturnType<typeof getStockAgen
       ...intel,
       headline: typeof intel.headline === "string" ? stripLevelsDeep(intel.headline) : null,
       thesis: null,
-      call: intel.call ? stripLevelsDeep(intel.call) : null,
+      call: callWithoutReasoning(intel.call),
       drivers: [],
       catalysts: [],
       risks: [],
@@ -924,29 +956,39 @@ const RADAR_WRITE_UPS = [
   "today_setup",
   "portfolio",
   "attention_items",
-  "suggestions",
-  "blind_spot_suggestions",
-  "momentum_lift_suggestions",
-  "pillar_lift_suggestions",
   "risk_summary",
   "event_radar",
   "changes",
 ] as const;
 
+/** Write-ups about stocks that are not on the list at all, so never covered by it: always without levels on Free. */
+const RADAR_SUGGESTIONS = ["suggestions", "blind_spot_suggestions", "momentum_lift_suggestions", "pillar_lift_suggestions"] as const;
+
 /**
- * get_my_radar for a Free account: covered rows in full, the others without levels or prose that quotes one. When any
- * row is uncovered, the watchlist-wide write-ups lose their level sentences too, as the chat's portfolio context does.
+ * get_my_radar for a Free account: covered rows in full, the others with the bare call and no levels or prose that
+ * quotes one. The watchlist-wide write-ups lose their level sentences unless every tracked stock is covered, as the
+ * chat's portfolio context does. That is decided over `everyStock`, the whole list, not the page of rows returned:
+ * the write-ups cover the whole list, so an offset past the end or a limit of 1 must not unlock them.
  */
-export function gateRadarForFree<T extends { rows?: unknown }>(data: T, levels: LevelsCheck): T {
+export function gateRadarForFree<T extends { rows?: unknown }>(
+  data: T,
+  levels: LevelsCheck,
+  everyStock?: ReadonlyArray<{ instrument_id?: unknown; ticker?: unknown }>,
+): T {
   if (!Array.isArray(data.rows)) return data;
-  let anyHidden = false;
-  const rows = (data.rows as Array<Record<string, unknown>>).map((row) => {
-    const shown = levels(String(row.instrument_id ?? ""), String(row.ticker ?? ""));
-    if (!shown) anyHidden = true;
-    return shown ? { ...row, full_report: true } : { ...stripLevelsDeep(row), full_report: false };
-  });
+  const shown = (row: { instrument_id?: unknown; ticker?: unknown }) => levels(String(row.instrument_id ?? ""), String(row.ticker ?? ""));
+  const pageRows = data.rows as Array<Record<string, unknown>>;
+  const rows = pageRows.map((row) =>
+    shown(row)
+      ? { ...row, full_report: true }
+      : { ...stripLevelsDeep(row), ...("call" in row ? { call: callWithoutReasoning(row.call) } : {}), full_report: false },
+  );
+  const whole = everyStock ?? pageRows;
+  // An empty list unlocks nothing: with no tracked stock there is nothing the write-ups may cover.
+  const allShown = whole.length > 0 && whole.every(shown) && pageRows.every(shown);
   const out: Record<string, unknown> = { ...data, rows };
-  if (anyHidden) {
+  for (const key of RADAR_SUGGESTIONS) if (key in out) out[key] = stripLevelsDeep(out[key]);
+  if (!allShown) {
     for (const key of RADAR_WRITE_UPS) if (key in out) out[key] = stripLevelsDeep(out[key]);
     out.full_report = fullReportNote(false);
   }
@@ -1016,11 +1058,11 @@ export async function executeAgentTool(
       data = await getAgentScreens({ market: args.market === "IN" ? "IN" : "US" });
       break;
     case "get_my_radar": {
-      const read = await getMyAgentRadar(principal.uid, {
+      const { data: read, everyStock } = await readMyAgentRadar(principal.uid, {
         limit: typeof args.limit === "number" ? args.limit : undefined,
         offset: typeof args.offset === "number" ? args.offset : undefined,
       });
-      data = free ? gateRadarForFree(read, await freeLevelsCheck(principal.uid)) : read;
+      data = free ? gateRadarForFree(read, await freeLevelsCheck(principal.uid), everyStock) : read;
       break;
     }
     case "get_radar_changes":

@@ -21,6 +21,12 @@ vi.mock("@/lib/instrument-resolver", () => ({
   resolveInstrumentByTicker: async (ticker: string) => ({ ticker, instrument_id: `US_${ticker}`, name: ticker, market: "US" }),
   getInstrumentLabels: async () => new Map(),
 }));
+const radar = vi.hoisted(() => ({ view: null as Record<string, unknown> | null }));
+vi.mock("@/lib/watchlist-view", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/watchlist-view")>()),
+  getWatchlistView: async () => radar.view,
+}));
+vi.mock("@/lib/radar-rows", () => ({ loadRadarRowsForUser: async () => null }));
 vi.mock("@/lib/on-demand-queue", () => ({ getOnDemandNewsStatus: async () => null }));
 vi.mock("@/lib/extended-quotes-server", () => ({ getExtendedQuote: async () => null }));
 vi.mock("@/lib/stock", async (importOriginal) => ({
@@ -155,9 +161,15 @@ describe("what Free sees on a stock it does not cover", () => {
       setup_state: "steady",
       call: {
         stance: "hold",
+        execution: "Hold here and add below 165 on a pullback.",
+        horizon: "3-6 months",
+        confidence: "high",
         action: { label: "Keep", summary: "Keep it. Buy more below $165.20." },
         zones: { accumulate_below: 165.2, trim_above: 210 },
-        stability: { since: "2026-11-02", what_would_change: "A miss on data centre revenue.", levels_set_on: "2026-11-02" },
+        watch_out: "Export rules on H20 shipments.",
+        invalidation: "A close under the 200-day.",
+        change_reason: "Guidance raised.",
+        stability: { since: "2026-11-02", since_reason: "Guidance raised.", what_would_change: "A miss on data centre revenue.", levels_set_on: "2026-11-02" },
       },
       target_price: 210,
       target_upside_pct: 16.7,
@@ -182,12 +194,16 @@ describe("what Free sees on a stock it does not cover", () => {
     expect(intel.drivers).toEqual([]);
     expect(intel.risks).toEqual([]);
     expect(intel.key_points).toEqual([]);
+    // Only what the call is and how long it has stood, as Ask gives an uncovered viewer: no reasoning at all.
     expect(intel.call).toEqual({
       stance: "hold",
-      action: { label: "Keep", summary: "Keep it." },
-      stability: { since: "2026-11-02", what_would_change: "A miss on data centre revenue." },
+      action: { label: "Keep" },
+      horizon: "3-6 months",
+      confidence: "high",
+      stability: { since: "2026-11-02" },
     });
-    expect(JSON.stringify(out)).not.toContain("165.2");
+    const json = JSON.stringify(out);
+    for (const gone of ["165", "Export rules", "200-day", "Guidance raised", "data centre revenue", "Keep it."]) expect(json).not.toContain(gone);
     expect(out.scores).toEqual({ overall: 72 });
     expect(out.full_report).toMatchObject({ included: false });
   });
@@ -209,9 +225,100 @@ describe("what Free sees on a stock it does not cover", () => {
     expect(out.rows).toEqual([
       { instrument_id: "US_MSFT", ticker: "MSFT", call: { zones: { accumulate_below: 400 } }, full_report: true },
       { instrument_id: "US_AAPL", ticker: "AAPL", call: { zones: { accumulate_below: 200 } }, full_report: true },
-      { instrument_id: "US_NVDA", ticker: "NVDA", call: {}, summary: null, full_report: false },
+      {
+        instrument_id: "US_NVDA",
+        ticker: "NVDA",
+        call: { stance: null, action: null, horizon: null, confidence: null, stability: null },
+        summary: null,
+        full_report: false,
+      },
     ]);
     expect(out.brief).toEqual({ narrative: "MSFT reports Tuesday." });
+  });
+
+  it("cuts a level written as a bare number, not only a price with a dollar sign", () => {
+    expect(stripLevelsDeep("Hold NVDA. Add below 165 on a dip. Demand is strong.")).toBe("Hold NVDA. Demand is strong.");
+    expect(stripLevelsDeep("The add zone is 165.5; trim above 210.")).toBeNull();
+    expect(stripLevelsDeep("Buy more between 160 and 165.")).toBeNull();
+    // Percents, multiples and counts are not levels.
+    expect(stripLevelsDeep("Trim above 20% of the book. Selling at 30 times earnings.")).toBe("Trim above 20% of the book. Selling at 30 times earnings.");
+  });
+
+  // The write-ups cover the whole watchlist, so they are gated on every tracked stock, not the page of rows returned.
+  const everyStock = [
+    { instrument_id: "US_MSFT", ticker: "MSFT" },
+    { instrument_id: "US_NVDA", ticker: "NVDA" },
+  ];
+  const covers = (id: string) => id === "US_MSFT";
+  const writeUps = {
+    pulse: { line: "NVDA sits near its add zone at $165.00." },
+    brief: { narrative: "NVDA is near its add zone at $165.00. MSFT reports Tuesday." },
+    attention_items: [{ instrument_id: "US_NVDA", reason: "Add below $165.00." }],
+    event_radar: [{ instrument_id: "US_NVDA", note: "Trim above $210.00." }],
+    changes: { items: ["NVDA add level moved to $165.00."] },
+  };
+
+  it("keeps the write-ups gated when the offset runs past the end of the list", () => {
+    const out = gateRadarForFree({ rows: [], ...writeUps }, covers, everyStock) as Record<string, unknown>;
+    expect(JSON.stringify(out)).not.toContain("165");
+    expect(JSON.stringify(out)).not.toContain("210");
+    expect(out.brief).toEqual({ narrative: "MSFT reports Tuesday." });
+    expect(out.full_report).toMatchObject({ included: false });
+  });
+
+  it("keeps the write-ups gated when limit 1 returns only a covered row", () => {
+    const out = gateRadarForFree(
+      { rows: [{ instrument_id: "US_MSFT", ticker: "MSFT", call: { zones: { accumulate_below: 400 } } }], ...writeUps },
+      covers,
+      everyStock,
+    ) as Record<string, unknown>;
+    expect(out.rows).toEqual([{ instrument_id: "US_MSFT", ticker: "MSFT", call: { zones: { accumulate_below: 400 } }, full_report: true }]);
+    expect(JSON.stringify(out)).not.toContain("165");
+    expect(out.full_report).toMatchObject({ included: false });
+  });
+
+  it("opens the write-ups only when every tracked stock is covered, and never the suggestions", () => {
+    const out = gateRadarForFree(
+      { rows: [], ...writeUps, suggestions: [{ ticker: "AMD", note: "Add below $140.00." }] },
+      () => true,
+      everyStock,
+    ) as Record<string, unknown>;
+    expect(out.brief).toEqual(writeUps.brief);
+    expect(out).not.toHaveProperty("full_report");
+    expect(JSON.stringify(out.suggestions)).not.toContain("140");
+  });
+
+  it("gives an uncovered watchlist row the bare call, without its reasoning", () => {
+    const out = gateRadarForFree(
+      { rows: [{ instrument_id: "US_NVDA", ticker: "NVDA", call: { stance: "hold", execution: "Wait for 165.", action: { label: "Keep", summary: "Keep it." } } }] },
+      covers,
+      everyStock,
+    );
+    expect((out.rows as Array<Record<string, unknown>>)[0].call).toEqual({ stance: "hold", action: { label: "Keep" }, horizon: null, confidence: null, stability: null });
+  });
+
+  it("gates get_my_radar end to end on the whole list when the page holds only a covered stock", async () => {
+    store.current!.docs.set(`users/${UID}`, { tracked_stocks: ["US_MSFT", "US_NVDA"], covered_stocks: ["US_MSFT"] });
+    radar.view = {
+      rows: [
+        { instrument_id: "US_MSFT", ticker: "MSFT", position_type: "watchlist" },
+        { instrument_id: "US_NVDA", ticker: "NVDA", position_type: "watchlist" },
+      ],
+      brief: { narrative: "NVDA is near its add zone at $165.00. MSFT reports Tuesday.", signals: [], status: "ready" },
+    };
+    try {
+      const page = (await executeAgentTool(principal("free"), "get_my_radar", { limit: 1 })) as Record<string, unknown>;
+      expect((page.rows as unknown[]).length).toBe(1);
+      expect(page.brief).toMatchObject({ narrative: "MSFT reports Tuesday." });
+      const past = (await executeAgentTool(principal("free"), "get_my_radar", { offset: 50 })) as Record<string, unknown>;
+      expect(past.rows).toEqual([]);
+      expect(past.brief).toMatchObject({ narrative: "MSFT reports Tuesday." });
+      // Pro reads the brief whole.
+      const pro = (await executeAgentTool(principal("pro"), "get_my_radar", { offset: 50 })) as Record<string, unknown>;
+      expect(JSON.stringify(pro.brief)).toContain("$165.00");
+    } finally {
+      radar.view = null;
+    }
   });
 
   it("reads coverage from the member's own doc: a covered stock in full on Free, an uncovered one without levels", async () => {

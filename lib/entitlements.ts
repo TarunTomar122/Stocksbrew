@@ -657,6 +657,18 @@ export function lockCopy(feature: FeatureId): { title: string; body: string } {
 const MONEY = /(?:[$₹]\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*\.\d{2}\b)/;
 const LEVEL_WORDS =
   /\b(?:add|adding|accumulat\w*|trim\w*|reduce|reducing|zones?|levels?|targets?|entry|buy below|sell above|breakout|break out|stop|support|resistance|pullback to|into)\b/i;
+/**
+ * One of our level actions right before a bare number, which MONEY misses: "add below 165", "trim above 210.5",
+ * "the add zone is 165", "buy more between 160 and 165". A percent, a multiple or a count ("trim above 20%",
+ * "selling at 30 times earnings", "reduce to 5 billion") is not a level.
+ */
+const PLAIN_LEVEL =
+  /\b(?:add(?:ing)?|accumulat\w*|buy(?:ing)?(?:[- ]more)?|trim(?:ming)?|sell(?:ing)?(?:[- ]some)?|reduc(?:e|ing)|breakout|break(?:s|ing)? out)(?:\s+(?:zone|level|price|point|more|some|shares|it))?\s+(?:is\s+|of\s+|sits\s+)?(?:below|above|under|over|at|near|around|from|between|to|is|of|sits)\s+(?:the\s+|about\s+|roughly\s+)?[$₹]?\s?\d[\d,]*(?:\.\d+)?(?![\d.,]*\s*(?:%|x\b|times\b|percent\b|per\b|bps\b|basis\b|billion\b|million\b|thousand\b|bn\b|[mbk]\b|days?\b|weeks?\b|months?\b|years?\b|quarters?\b|shares?\b|analysts?\b|stocks?\b|names?\b))/i;
+
+/** A sentence that names one of our price levels: a price with level words, or a level action on a bare number. */
+function namesLevel(sentence: string, words: RegExp): boolean {
+  return (MONEY.test(sentence) && words.test(sentence)) || PLAIN_LEVEL.test(sentence);
+}
 
 /**
  * Drop every sentence that pairs a price with level words ("The add level is
@@ -669,7 +681,7 @@ export function redactLevels(text: string | null | undefined): string | null {
   if (!clean) return null;
   const kept = clean
     .split(/(?<=[.!?;])\s+/)
-    .filter((sentence) => !(MONEY.test(sentence) && LEVEL_WORDS.test(sentence)));
+    .filter((sentence) => !namesLevel(sentence, LEVEL_WORDS));
   const out = kept.join(" ").trim();
   return out || null;
 }
@@ -689,7 +701,7 @@ export function redactOurLevels(text: string | null | undefined, fallback = ""):
   if (!clean) return fallback;
   const kept = clean
     .split(/(?<=[.!?;])\s+/)
-    .filter((sentence) => !(MONEY.test(sentence) && OUR_LEVEL_PHRASES.test(sentence)));
+    .filter((sentence) => !namesLevel(sentence, OUR_LEVEL_PHRASES));
   return kept.join(" ").trim() || fallback;
 }
 
