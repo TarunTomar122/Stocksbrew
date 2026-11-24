@@ -17,6 +17,12 @@ import { captureEvent } from "@/lib/posthog";
  * that carries the words, for a page header (the earnings page, beside "Open the report").
  */
 
+/**
+ * What the form says once a signup is in. The route answers every signup the same (new, waiting or already confirmed),
+ * so the words must be true for all of them: a confirmed address gets no confirmation email, only the stock added.
+ */
+export const SENT_COPY = "Done. If this email is new, check your inbox.";
+
 type Status = "idle" | "sending" | "sent" | "error";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
@@ -113,7 +119,7 @@ export function EmailCapture({
       <span className="text-[color:var(--signal-bullish)]">
         <CheckIcon />
       </span>
-      Check your inbox
+      {SENT_COPY}
     </p>
   );
 
