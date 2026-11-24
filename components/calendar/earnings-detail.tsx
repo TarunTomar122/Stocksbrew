@@ -86,11 +86,14 @@ function historyRows(events: EarningsItem[], today: string): DataRow[] {
               className={`${NUM} inline-flex flex-col items-end gap-0.5 text-oa-fg sm:flex-row sm:items-center`}
             >
               {fmtEps(item.epsActual)}
-              {/* The estimate and surprise columns are hidden on phones, so the result and its size ride under the figure there. */}
+              {/* The estimate and surprise columns are hidden on phones, so the estimate and the result ride under the figure there. */}
+              {item.epsEstimate !== null ? (
+                <span className="whitespace-nowrap text-[11.5px] text-oa-muted-fg sm:hidden">vs {fmtEps(item.epsEstimate)}</span>
+              ) : null}
               {result ? (
-                <span className="inline-flex items-baseline gap-1 whitespace-nowrap text-[11.5px] sm:hidden">
-                  <span className={toneText(result.tone)}>{result.word}</span>
-                  <SurprisePct item={item} />
+                // The chip alone: with both figures above it the size is plain, and a percentage beside it pushed the move off a phone.
+                <span className="inline-flex sm:hidden">
+                  <Verdict tone={result.tone}>{result.word}</Verdict>
                 </span>
               ) : null}
             </span>
