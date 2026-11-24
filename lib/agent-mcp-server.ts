@@ -50,7 +50,6 @@ function toolError(error: unknown): CallToolResult {
 const FREE_NOTES: Partial<Record<AgentToolName, string>> = {
   get_stock_intelligence: "On Free, the price zones and the reasoning come only on stocks the member covers; full_report says which.",
   get_my_radar: "On Free, rows the member does not cover come without price zones; full_report says which.",
-  compare_stocks: `On Free, compare ${FREE_AGENT_COMPARE_LIMIT} stocks at a time.`,
 };
 
 function describeFor(plan: AgentPlan, name: AgentToolName, description: string): string {
@@ -138,9 +137,9 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
 
   register("compare_stocks", {
     title: "Compare stocks",
-    description: "Compare 2 to 5 stocks across valuation, growth, quality, momentum, targets, returns, and technical context.",
+    description: `Compare stocks across valuation, growth, quality, momentum, targets, returns, and technical context: ${FREE_AGENT_COMPARE_LIMIT} at a time on Free, up to 5 on Pro.`,
     inputSchema: {
-      tickers: z.array(z.string().min(1).max(20)).min(2).max(5),
+      tickers: z.array(z.string().min(1).max(20)).min(2).max(5).describe(`Tickers to compare: ${FREE_AGENT_COMPARE_LIMIT} on Free, up to 5 on Pro`),
     },
     annotations: readOnly,
   }, toolHandler(principal, "compare_stocks"));

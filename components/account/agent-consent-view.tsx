@@ -4,7 +4,7 @@ import { AgentConsentActions } from "@/components/account/agent-consent";
 import { AppPage, PageHead, Panel, Tag } from "@/components/oa/kit";
 import { AGENT_FREE_DAILY_CALL_LIMIT, type AgentScope } from "@/lib/agent-access-config";
 import { FREE_AGENT_TOOLS } from "@/lib/agent-tiers";
-import { SCOPE_INFO } from "@/lib/docs/developers";
+import { SCOPE_INFO, SCOPE_PRO_NOTE } from "@/lib/docs/developers";
 
 const LINK = "font-medium text-oa-fg underline decoration-oa-border underline-offset-2";
 
@@ -28,6 +28,8 @@ export function AgentConsentView({
   authorizationParams: Record<string, string>;
 }) {
   const writes = scopes.some((scope) => SCOPE_INFO[scope].writes);
+  // A Free account approves the same scopes as Pro; the parts it cannot use yet say so, and start working if it upgrades.
+  const onFree = signedIn && !subscribed;
   return (
     <AppPage width="read">
       <PageHead
@@ -44,7 +46,14 @@ export function AgentConsentView({
                 {scope}
                 {SCOPE_INFO[scope].writes ? <span className="ml-1.5 text-oa-primary">write</span> : null}
               </span>
-              <span className="text-pretty text-[15px] leading-6 text-oa-fg">{SCOPE_INFO[scope].text}</span>
+              <span className="text-pretty text-[15px] leading-6 text-oa-fg">
+                {SCOPE_INFO[scope].text}
+                {onFree && SCOPE_PRO_NOTE[scope] ? (
+                  <span className="block text-[13.5px] leading-5 text-oa-muted-fg">
+                    {SCOPE_PRO_NOTE[scope] === "all" ? "Pro only." : `Pro only: ${SCOPE_PRO_NOTE[scope]}.`}
+                  </span>
+                ) : null}
+              </span>
             </li>
           ))}
         </ul>
@@ -58,7 +67,7 @@ export function AgentConsentView({
             <li>You need to sign in first.</li>
           ) : !subscribed ? (
             <li>
-              On Free your agent gets {FREE_AGENT_TOOLS.length} tools and {AGENT_FREE_DAILY_CALL_LIMIT} calls a day.{" "}
+              On Free your agent gets {FREE_AGENT_TOOLS.length} tools and {AGENT_FREE_DAILY_CALL_LIMIT} calls a day. If you go Pro, this approval covers the rest with no reconnecting.{" "}
               <Link prefetch={false} href="/developers#plans" className={LINK}>
                 What Pro adds
               </Link>

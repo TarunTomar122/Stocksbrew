@@ -288,7 +288,7 @@ export function AccountView({ data }: { data: AccountData }) {
           title="Agents and API tokens"
           lede={
             <>
-              Two different things share the word. Agents inside the app watch your stocks for you. Developer access lets your own agent or script read your research over MCP, REST or the CLI.{" "}
+              Two different things share the word. Agents inside the app watch your stocks for you. Developer access lets your own agent or script read your research and change your watchlist over MCP, REST or the CLI.{" "}
               <Link prefetch={false} href="/developers" className={TEXT_LINK}>
                 Developer docs
               </Link>

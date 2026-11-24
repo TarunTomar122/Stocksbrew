@@ -17,6 +17,19 @@ export const SCOPE_INFO: Record<AgentScope, { text: string; writes: boolean }> =
   "alerts:write": { text: "Create a price alert or deactivate an alert.", writes: true },
 };
 
+/**
+ * What each scope covers that a Free account cannot use yet (lib/agent-tiers.ts), in the consent screen's words.
+ * "all" when the whole scope is Pro, null when Free gets all of it. `developers.test.ts` checks it against the tiers.
+ */
+export const SCOPE_PRO_NOTE: Record<AgentScope, string | null> = {
+  "stocks:read": "full stock detail and reading a watch request",
+  "market:read": "the copy tests",
+  "radar:read": "what changed, what your funds hold, dividends, the stress test and idea baskets",
+  "radar:write": null,
+  "alerts:read": "all",
+  "alerts:write": "all",
+};
+
 export const TOOL_SCOPE: Record<AgentToolName, AgentScope> = {
   search_stocks: "stocks:read",
   get_stock_intelligence: "stocks:read",

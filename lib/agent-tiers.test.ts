@@ -50,7 +50,7 @@ import { getAgentStressTest } from "@/lib/agent-feature-tools";
 import { executeAgentTool, gateRadarForFree, withoutFullRead } from "@/lib/agent-intelligence";
 import { AgentQuotaError, consumeAgentQuota } from "@/lib/agent-quota";
 import { FREE_AGENT_TOOLS, agentDailyLimit, isFreeAgentTool, requireAgentPlan, stripLevelsDeep } from "@/lib/agent-tiers";
-import { TOOL_SCOPE } from "@/lib/docs/developers";
+import { SCOPE_PRO_NOTE, TOOL_SCOPE } from "@/lib/docs/developers";
 
 const UID = "tier-test-uid";
 
@@ -89,6 +89,19 @@ describe("which tools each plan gets", () => {
     expect(() => requireAgentPlan("free", "compare_stocks", { tickers: ["MSFT", "msft ", "GOOGL"] })).not.toThrow();
     expect(() => requireAgentPlan("free", "compare_stocks", { tickers: ["MSFT", "GOOGL", "AMZN"] })).toThrow(/Free compares 2 stocks/);
     expect(() => requireAgentPlan("pro", "compare_stocks", { tickers: ["MSFT", "GOOGL", "AMZN"] })).not.toThrow();
+  });
+});
+
+describe("the consent screen's Pro notes", () => {
+  it("marks every scope that holds a Pro tool, as the whole scope only when no free tool uses it", () => {
+    for (const scope of AGENT_SCOPES) {
+      const tools = Object.entries(TOOL_SCOPE).filter(([, needed]) => needed === scope).map(([name]) => name);
+      const pro = tools.filter((name) => !isFreeAgentTool(name));
+      const note = SCOPE_PRO_NOTE[scope];
+      if (pro.length === 0) expect(note, scope).toBeNull();
+      else if (pro.length === tools.length) expect(note, scope).toBe("all");
+      else expect(note && note !== "all", scope).toBe(true);
+    }
   });
 });
 
