@@ -139,7 +139,7 @@ export function createStocksbrewMcpServer(principal: AgentPrincipal): McpServer 
     title: "Compare stocks",
     description: `Compare stocks across valuation, growth, quality, momentum, targets, returns, and technical context: ${FREE_AGENT_COMPARE_LIMIT} at a time on Free, up to 5 on Pro.`,
     inputSchema: {
-      tickers: z.array(z.string().min(1).max(20)).min(2).max(5).describe(`Tickers to compare: ${FREE_AGENT_COMPARE_LIMIT} on Free, up to 5 on Pro`),
+      tickers: z.array(z.string().min(1).max(20)).min(2).max(5).describe("Tickers to compare"),
     },
     annotations: readOnly,
   }, toolHandler(principal, "compare_stocks"));
