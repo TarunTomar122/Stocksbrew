@@ -81,7 +81,7 @@ const jsonLd = {
         "Agents that watch prices, earnings, SEC filings, news, Congress trades and insider trades",
         "Ask: sourced answers about any stock or your portfolio",
         "Financials, valuation, filings, earnings, analyst targets and news for US stocks",
-        "API, MCP server and CLI for your own AI agent (Pro)",
+        "API, MCP server and CLI for your own AI agent (a free tier, everything on Pro)",
       ],
       // Two plans, three prices. A single price of 0 made engines describe the whole product as free.
       offers: {

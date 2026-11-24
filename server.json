@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "online.stocksbrew/stocksbrew",
+  "title": "stocksbrew",
+  "description": "US stock research for your agent: the call on a stock, filings, the market, screens, your watchlist",
+  "version": "1.4.0",
+  "websiteUrl": "https://www.stocksbrew.online/developers",
+  "repository": {
+    "url": "https://github.com/TarunTomar122/Stocksbrew",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.stocksbrew.online/api/mcp"
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 import {
-  AGENT_DAILY_CALL_LIMIT,
   AGENT_MAX_ACTIVE_TOKENS,
   AGENT_OAUTH_CLIENT_COLLECTION,
   AGENT_TOKEN_COLLECTION,
@@ -7,6 +6,7 @@ import {
 import { listPersonalAgentTokens } from "@/lib/agent-auth";
 import { listJobs } from "@/lib/agent-jobs-data";
 import { getAgentUsage } from "@/lib/agent-quota";
+import { agentDailyLimit } from "@/lib/agent-tiers";
 import type { SessionUser } from "@/lib/auth-server";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getFollowSources, normalizeFollowed } from "@/lib/follow";
@@ -172,10 +172,9 @@ export async function loadAccountData(session: SessionUser, mcpUrl: string): Pro
   const trackedStrategies = readTrackedStrategies(user);
 
   const [tokens, usage, connected, jobs, sources, strategies] = await Promise.all([
-    plan.isPro ? listPersonalAgentTokens(session.uid).catch(() => [] as TokenSummary[]) : Promise.resolve([] as TokenSummary[]),
-    plan.isPro
-      ? getAgentUsage(session.uid).catch(() => ({ used: 0, limit: AGENT_DAILY_CALL_LIMIT }))
-      : Promise.resolve({ used: 0, limit: AGENT_DAILY_CALL_LIMIT }),
+    // Every plan gets tokens: Free reaches the free tools at its own daily allowance (lib/agent-tiers.ts).
+    listPersonalAgentTokens(session.uid).catch(() => [] as TokenSummary[]),
+    getAgentUsage(session.uid, new Date(), plan.isPro ? "pro" : "free").catch(() => ({ used: 0, limit: agentDailyLimit(plan.isPro ? "pro" : "free") })),
     loadConnectedAgents(session.uid).catch(() => null),
     listJobs(session.uid).catch(() => null),
     followedSlugs.length > 0 ? getFollowSources().catch(() => []) : Promise.resolve([]),
@@ -247,7 +246,7 @@ export function sampleAccountData(kind: "free" | "pro", mcpUrl: string): Account
           ]
         : [],
       maxActiveTokens: AGENT_MAX_ACTIVE_TOKENS,
-      usage: { used: pro ? 37 : 0, limit: AGENT_DAILY_CALL_LIMIT },
+      usage: { used: pro ? 37 : 4, limit: agentDailyLimit(pro ? "pro" : "free") },
       connected: pro
         ? [{ clientId: "sample-client", name: "Claude Code", connectedAt: "2026-10-20T10:00:00.000Z", lastUsedAt: "2026-11-09T12:05:00.000Z", expiresAt: "2026-12-09T12:05:00.000Z" }]
         : [],

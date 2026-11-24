@@ -8,6 +8,8 @@ import { SideTocPage, TEXT_LINK } from "@/components/docs/side-toc";
 import { Empty, FOCUS, PageHead, Panel, StatStrip, Tag, fmtDay } from "@/components/oa/kit";
 import { FEATURES, FREE_COVERED_STOCKS, describeRule, type Feature } from "@/lib/entitlements";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
+import { AGENT_DAILY_CALL_LIMIT, AGENT_FREE_DAILY_CALL_LIMIT } from "@/lib/agent-access-config";
+import { FREE_AGENT_TOOLS } from "@/lib/agent-tiers";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
@@ -166,7 +168,7 @@ export function AccountView({ data }: { data: AccountData }) {
           { label: "Plan", value: plan.isPro ? "Pro" : "Free", sub: plan.cancelAtPeriodEnd ? "ending this period" : plan.kind === "gift" ? "granted" : plan.billing ?? undefined },
           { label: "Holdings", value: data.portfolio.holdings, sub: `${data.portfolio.watching} watching` },
           { label: "Agents", value: data.agents ? data.agents.enabled : "n/a", sub: data.agents ? `${data.agents.total} set up` : "could not load" },
-          { label: "API calls today", value: plan.isPro ? data.developer.usage.used : "n/a", sub: plan.isPro ? `of ${data.developer.usage.limit}` : "Pro only" },
+          { label: "API calls today", value: data.developer.usage.used, sub: `of ${data.developer.usage.limit}` },
         ]}
       />
 
@@ -310,74 +312,64 @@ export function AccountView({ data }: { data: AccountData }) {
             )}
           </Panel>
 
-          {plan.isPro ? (
-            <>
-              <Panel label="Today's API allowance" flush>
-                <div className="px-4 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className={`${NUM} text-[19px] font-medium text-oa-fg`}>
-                      {data.developer.usage.used}
-                      <span className="text-[14px] font-normal text-oa-muted-fg"> of {data.developer.usage.limit} calls</span>
-                    </p>
-                    <p className={`${NUM} text-[11.5px] text-oa-muted-fg`}>resets 00:00 UTC</p>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-oa-bg" role="img" aria-label={`${data.developer.usage.used} of ${data.developer.usage.limit} calls used today`}>
-                    <div className="h-full rounded-full bg-oa-primary" style={{ width: `${usagePct}%` }} />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-oa-border px-4 py-2.5">
-                  <div className="min-w-0">
-                    <p className="oa-caption">MCP server</p>
-                    <code className={`${NUM} block break-all text-[13px] text-oa-fg`}>{data.developer.mcpUrl}</code>
-                  </div>
-                  <CopyButton value={data.developer.mcpUrl} label="Copy URL" />
-                </div>
-              </Panel>
-
-              <Panel label="Connected agents (OAuth)" flush>
-                {data.developer.connected == null ? (
-                  <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">We could not load connected agents just now.</p>
-                ) : data.developer.connected.length === 0 ? (
-                  <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">
-                    No agent is connected. Add the MCP server URL above in Claude Code, Cursor or another client and approve the sign-in.
-                  </p>
-                ) : (
-                  <ul>
-                    {data.developer.connected.map((agent) => (
-                      <li key={agent.clientId} className="border-b border-oa-border px-4 py-2.5 last:border-b-0">
-                        <p className="text-[15px] font-medium leading-6 text-oa-fg">{agent.name}</p>
-                        <p className={`${NUM} text-[12px] leading-4 text-oa-muted-fg`}>
-                          connected {agent.connectedAt ? fmtDay(agent.connectedAt, true) : "date unknown"} · last used {agent.lastUsedAt ? fmtDay(agent.lastUsedAt, true) : "never"} · access lapses{" "}
-                          {agent.expiresAt ? fmtDay(agent.expiresAt, true) : "unknown"} if unused
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5 text-oa-muted-fg">
-                  Disconnecting an OAuth agent from here is not built yet. Remove the server in the client, or email us and we will revoke it.
+          <Panel label="Today's API allowance" flush>
+            <div className="px-4 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className={`${NUM} text-[19px] font-medium text-oa-fg`}>
+                  {data.developer.usage.used}
+                  <span className="text-[14px] font-normal text-oa-muted-fg"> of {data.developer.usage.limit} calls</span>
                 </p>
-              </Panel>
-
-              <Panel label="Personal tokens" flush>
-                <TokenManager initial={data.developer.tokens} maxActive={data.developer.maxActiveTokens} mcpUrl={data.developer.mcpUrl} disabled={off} />
-              </Panel>
-            </>
-          ) : (
-            <Panel label="Developer access" flush>
-              <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="max-w-[36rem] text-pretty text-[14.5px] leading-6 text-oa-fg/90">
-                  The API, the MCP server and the CLI are part of Pro: {describeRule(FEATURES.agent_api.pro)}. They read your research and your portfolio. They cannot trade.
-                </p>
-                <div className="flex shrink-0 items-center gap-2">
-                  <UpgradeButton disabled={off} />
-                  <Link prefetch={false} href="/developers" className={`inline-flex h-8 items-center rounded-lg px-2 text-[14px] font-medium text-oa-muted-fg hover:text-oa-fg ${FOCUS}`}>
-                    Read the docs
-                  </Link>
-                </div>
+                <p className={`${NUM} text-[11.5px] text-oa-muted-fg`}>resets 00:00 UTC</p>
               </div>
-            </Panel>
-          )}
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-oa-bg" role="img" aria-label={`${data.developer.usage.used} of ${data.developer.usage.limit} calls used today`}>
+                <div className="h-full rounded-full bg-oa-primary" style={{ width: `${usagePct}%` }} />
+              </div>
+            </div>
+            {!plan.isPro ? (
+              <div className="flex flex-col gap-2 border-t border-oa-border px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-pretty text-[14px] leading-6 text-oa-fg/90">
+                  Free: {FREE_AGENT_TOOLS.length} tools, {AGENT_FREE_DAILY_CALL_LIMIT} calls a day. Pro opens every tool, {AGENT_DAILY_CALL_LIMIT} a day.
+                </p>
+                <UpgradeButton disabled={off} />
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-oa-border px-4 py-2.5">
+              <div className="min-w-0">
+                <p className="oa-caption">MCP server</p>
+                <code className={`${NUM} block break-all text-[13px] text-oa-fg`}>{data.developer.mcpUrl}</code>
+              </div>
+              <CopyButton value={data.developer.mcpUrl} label="Copy URL" />
+            </div>
+          </Panel>
+
+          <Panel label="Connected agents (OAuth)" flush>
+            {data.developer.connected == null ? (
+              <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">We could not load connected agents just now.</p>
+            ) : data.developer.connected.length === 0 ? (
+              <p className="px-4 py-3 text-[14px] leading-6 text-oa-muted-fg">
+                No agent is connected. Add the MCP server URL above in Claude Code, Cursor or another client and approve the sign-in.
+              </p>
+            ) : (
+              <ul>
+                {data.developer.connected.map((agent) => (
+                  <li key={agent.clientId} className="border-b border-oa-border px-4 py-2.5 last:border-b-0">
+                    <p className="text-[15px] font-medium leading-6 text-oa-fg">{agent.name}</p>
+                    <p className={`${NUM} text-[12px] leading-4 text-oa-muted-fg`}>
+                      connected {agent.connectedAt ? fmtDay(agent.connectedAt, true) : "date unknown"} · last used {agent.lastUsedAt ? fmtDay(agent.lastUsedAt, true) : "never"} · access lapses{" "}
+                      {agent.expiresAt ? fmtDay(agent.expiresAt, true) : "unknown"} if unused
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="border-t border-oa-border px-4 py-2.5 text-[13.5px] leading-5 text-oa-muted-fg">
+              Disconnecting an OAuth agent from here is not built yet. Remove the server in the client, or email us and we will revoke it.
+            </p>
+          </Panel>
+
+          <Panel label="Personal tokens" flush>
+            <TokenManager initial={data.developer.tokens} maxActive={data.developer.maxActiveTokens} mcpUrl={data.developer.mcpUrl} disabled={off} />
+          </Panel>
         </Section>
 
         {/* ── Following ────────────────────────────────────────────────── */}

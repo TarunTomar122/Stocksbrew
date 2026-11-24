@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { OaButton } from "@/components/oa/button";
 import { signInWithGoogle } from "@/lib/sign-in";
-import { useProCheckout } from "@/lib/use-pro-checkout";
 
 /**
  * The buttons on the OAuth consent screen. Approve and cancel both post to
@@ -14,16 +13,13 @@ import { useProCheckout } from "@/lib/use-pro-checkout";
 export function AgentConsentActions({
   authorizationParams,
   signedIn,
-  subscribed,
 }: {
   authorizationParams: Record<string, string>;
   signedIn: boolean;
-  subscribed: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState<"signin" | "approve" | "deny" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const { openCheckout, busy: checkoutBusy } = useProCheckout("paywall");
 
   async function signIn() {
     setBusy("signin");
@@ -68,10 +64,6 @@ export function AgentConsentActions({
         {!signedIn ? (
           <OaButton loading={busy === "signin"} disabled={busy != null} onClick={() => void signIn()}>
             Sign in with Google to continue
-          </OaButton>
-        ) : !subscribed ? (
-          <OaButton loading={checkoutBusy} disabled={busy != null} onClick={() => void openCheckout()}>
-            Get Pro to connect
           </OaButton>
         ) : (
           <OaButton loading={busy === "approve"} disabled={busy != null} onClick={() => void decide("approve")}>

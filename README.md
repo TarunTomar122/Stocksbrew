@@ -188,6 +188,19 @@ remotion/           the launch video
 
 Reading is free: the call and when it was made, filings, fund pages, strategy rules and backtests are open to everyone, signed in or not. A plan decides how much the product works for you: the number of covered stocks (5 on Free, all on Pro), which get price zones, the reasons behind the call, explained moves and alerts, plus small counts elsewhere (Ask questions, agents, backtests per day). Every limit lives in one table in [`lib/entitlements.ts`](lib/entitlements.ts); the server reads it to decide what to load (`lib/entitlements-server.ts`, `canSeeLevels`), the lock cards take their words from it, and `/pricing` renders it. Gated data is removed on the server before it reaches the browser, never just hidden.
 
+## Connect an agent (MCP)
+
+The MCP server is remote, over streamable HTTP, with OAuth: `https://www.stocksbrew.online/api/mcp`.
+
+```bash
+claude mcp add --transport http stocksbrew https://www.stocksbrew.online/api/mcp
+# then /mcp inside Claude Code, and approve the sign-in in the browser
+```
+
+In Cursor, Codex or the Claude and ChatGPT web apps, add a remote server with that URL. A client that wants a bearer header can use a personal token from Account (`/profile#agent-access`) instead.
+
+Any account can connect. Free gets 11 tools (search, the call on a stock, compare two, filing risk changes, the market brief, Explore, screens and your own watchlist) and 50 calls a day; Pro gets every tool and 200 calls a day. A Pro tool on Free answers `pro_required` with an `upgrade_url` and does not count as a call. The tool list is in [`lib/agent-tiers.ts`](lib/agent-tiers.ts), the full reference at [/developers](https://www.stocksbrew.online/developers). [`server.json`](server.json) describes the server for the official MCP registry.
+
 ## Deployment
 
 The production setup is one Vercel project for the web app and one small Linux server for everything else.

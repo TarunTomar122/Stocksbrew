@@ -126,7 +126,7 @@ export function TokenManager({ initial, maxActive, mcpUrl, disabled = false }: {
         body: JSON.stringify({ label: label.trim() || "My agent" }),
       });
       const data = (await response.json().catch(() => ({}))) as { token?: string; token_record?: TokenRow; message?: string; error?: string };
-      if (!response.ok || !data.token || !data.token_record) throw new Error(data.message || (data.error === "pro_required" ? "Tokens need an active Pro plan." : "Could not create a token."));
+      if (!response.ok || !data.token || !data.token_record) throw new Error(data.message || "Could not create a token.");
       setFresh(data.token);
       setTokens((current) => [data.token_record as TokenRow, ...current]);
       setLabel("");

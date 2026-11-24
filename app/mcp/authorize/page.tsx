@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { AgentConsentActions } from "@/components/account/agent-consent";
 import { AppPage, PageHead, Panel, Tag } from "@/components/oa/kit";
-import { normalizeAgentScopes } from "@/lib/agent-access-config";
+import { AGENT_FREE_DAILY_CALL_LIMIT, normalizeAgentScopes } from "@/lib/agent-access-config";
+import { FREE_AGENT_TOOLS } from "@/lib/agent-tiers";
 import { OAuthRequestError, validateAuthorizationRequest } from "@/lib/agent-oauth";
 import { getSessionUser } from "@/lib/auth-server";
 import { SCOPE_INFO } from "@/lib/docs/developers";
@@ -74,9 +75,19 @@ export default async function McpAuthorizePage({ searchParams }: Props) {
           <li>Only approve a client you started yourself and trust.</li>
           <li>Access lasts until you stop using it for 30 days. Its calls count against your daily allowance.</li>
           {writes ? <li>A well-behaved agent asks before it adds a stock or sets an alert. You can undo either in the app.</li> : null}
-          {!session ? <li>You need to sign in first.</li> : !subscribed ? <li>Connecting an agent is part of Pro.</li> : null}
+          {!session ? (
+            <li>You need to sign in first.</li>
+          ) : !subscribed ? (
+            <li>
+              You are on Free: {FREE_AGENT_TOOLS.length} tools and {AGENT_FREE_DAILY_CALL_LIMIT} calls a day.{" "}
+              <Link prefetch={false} href="/developers#plans" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">
+                Pro opens every tool
+              </Link>
+              .
+            </li>
+          ) : null}
         </ul>
-        <AgentConsentActions authorizationParams={Object.fromEntries(params.entries())} signedIn={Boolean(session)} subscribed={subscribed} />
+        <AgentConsentActions authorizationParams={Object.fromEntries(params.entries())} signedIn={Boolean(session)} />
         <p className="text-[13.5px] leading-5 text-oa-muted-fg">
           Signed in as {session?.email ?? "nobody yet"}. Connected agents are listed under{" "}
           <Link prefetch={false} href="/profile#agent-access" className="font-medium text-oa-fg underline decoration-oa-border underline-offset-2">

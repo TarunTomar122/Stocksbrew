@@ -20,6 +20,8 @@ import {
   type Rule,
 } from "@/lib/entitlements";
 import { getViewer } from "@/lib/entitlements-server";
+import { FREE_AGENT_TOOLS } from "@/lib/agent-tiers";
+import { TOOL_SCOPE } from "@/lib/docs/developers";
 import { countWord } from "@/lib/plain-copy";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
 import { CALL_COVERAGE } from "@/lib/brand-copy";
@@ -124,8 +126,17 @@ const EVERY_STOCK: Partial<Record<FeatureId, string>> = {
   backtest_history: "Every year we have",
 };
 
+/** The agent row differs in tools as well as calls, so its cells name both (lib/agent-tiers.ts). */
+const AGENT_API_CELLS = {
+  free: `${FREE_AGENT_TOOLS.length} tools, ${limitFor("agent_api", "free")} calls a day`,
+  pro: `All ${Object.keys(TOOL_SCOPE).length} tools, ${limitFor("agent_api", "pro")} calls a day`,
+};
+
 /** One cell of the comparison table. */
 function Cell({ rule, strong = false, id }: { rule: Rule; strong?: boolean; id?: FeatureId }) {
+  if (id === "agent_api" && rule.kind === "meter") {
+    return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium" : ""} text-oa-fg`}>{strong ? AGENT_API_CELLS.pro : AGENT_API_CELLS.free}</span>;
+  }
   if (id && rule.kind === "open" && EVERY_STOCK[id]) {
     return <span className={`text-[14px] leading-5 sm:text-[15px] ${strong ? "font-medium" : ""} text-oa-fg`}>{EVERY_STOCK[id]}</span>;
   }

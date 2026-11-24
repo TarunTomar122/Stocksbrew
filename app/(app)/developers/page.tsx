@@ -8,12 +8,14 @@ import {
   AGENT_ACCESS_TOKEN_TTL_SECONDS,
   AGENT_ACCESS_VERSION,
   AGENT_DAILY_CALL_LIMIT,
+  AGENT_FREE_DAILY_CALL_LIMIT,
   AGENT_MAX_ACTIVE_TOKENS,
   AGENT_PER_MINUTE_CALL_LIMIT,
   AGENT_REFRESH_TOKEN_TTL_SECONDS,
   AGENT_SCOPES,
 } from "@/lib/agent-access-config";
 import { AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
+import { FREE_AGENT_COMPARE_LIMIT, FREE_AGENT_TOOLS, isFreeAgentTool } from "@/lib/agent-tiers";
 import { loadToolReference, type ToolReference } from "@/lib/docs/developer-tools";
 import { API_ERRORS, COVERAGE_STATES, SCOPE_INFO, TOOL_GROUPS, TOOL_REST, TOOL_SCOPE } from "@/lib/docs/developers";
 import { SITE_URL } from "@/lib/docs/site";
@@ -42,6 +44,7 @@ const MCP = `${SITE_URL}/api/mcp`;
 
 const TOC = [
   { id: "quickstart", label: "Quickstart" },
+  { id: "plans", label: "Free and Pro" },
   { id: "auth", label: "Auth and tokens" },
   { id: "limits", label: "Rate limits" },
   { id: "responses", label: "What comes back" },
@@ -140,6 +143,7 @@ function ToolCard({ tool }: { tool: ToolReference }) {
         </h4>
         <span className="text-[13.5px] text-oa-muted-fg">{tool.title}</span>
         <span className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Tag>{isFreeAgentTool(tool.name) ? "free" : "pro"}</Tag>
           <Tag tone="neutral">{scope}</Tag>
           {tool.readOnly ? <Tag>read</Tag> : <Tag tone="primary">{tool.destructive ? "write · removes" : "write"}</Tag>}
         </span>
@@ -202,7 +206,9 @@ export default async function DevelopersPage() {
   const restQuick = `export STOCKSBREW_TOKEN="sbp.…"   # create one under Account, shown once\n\ncurl -s "${API}/stocks/NVDA" \\\n  -H "Authorization: Bearer $STOCKSBREW_TOKEN"`;
   const cliQuick = `npm install -g stocksbrew-cli\nexport STOCKSBREW_TOKEN="sbp.…"\n\nstocksbrew stock NVDA\nstocksbrew search "nvidia"\nstocksbrew market`;
   const rateHeaders = `HTTP/1.1 429 Too Many Requests\nRetry-After: 60\nCache-Control: no-store\n\n{"error":"minute_limit","message":"Per-minute agent limit of ${AGENT_PER_MINUTE_CALL_LIMIT} calls reached."}`;
-  const usageShape = `"usage": { "used": 12, "remaining": ${AGENT_DAILY_CALL_LIMIT - 12}, "limit": ${AGENT_DAILY_CALL_LIMIT}, "period": "day" }`;
+  const usageShape = `"usage": { "used": 12, "remaining": ${AGENT_FREE_DAILY_CALL_LIMIT - 12}, "limit": ${AGENT_FREE_DAILY_CALL_LIMIT}, "period": "day", "plan": "free" }`;
+  const proRefusal = `{"error":"pro_required","message":"stress_test is part of stocksbrew Pro. …","upgrade_url":"${SITE_URL}/pricing"}`;
+  const freeNames = (FREE_AGENT_TOOLS as readonly string[]).filter((name) => byName.has(name as ToolReference["name"]));
 
   return (
     <SideTocPage
@@ -258,9 +264,9 @@ export default async function DevelopersPage() {
         className="mb-8"
         stats={[
           { label: "Tools", value: tools.length > 0 ? tools.length : "n/a", sub: tools.length > 0 ? `${readCount} read, ${tools.length - readCount} write` : "could not load the list" },
-          { label: "Per day", value: AGENT_DAILY_CALL_LIMIT, sub: "calls, resets at midnight UTC" },
-          { label: "Per minute", value: AGENT_PER_MINUTE_CALL_LIMIT, sub: "calls" },
-          { label: "Plan", value: "Pro", sub: "required for every call" },
+          { label: "Free", value: FREE_AGENT_TOOLS.length, sub: `tools, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day` },
+          { label: "Pro", value: "All", sub: `tools, ${AGENT_DAILY_CALL_LIMIT} calls a day` },
+          { label: "Per minute", value: AGENT_PER_MINUTE_CALL_LIMIT, sub: "calls on either plan" },
         ]}
       />
 
@@ -303,7 +309,37 @@ export default async function DevelopersPage() {
           <CodeBlock label="shell" code={cliQuick} />
         </PageSection>
 
-        <PageSection id="auth" title="Auth and tokens" lede="Every call needs a bearer token that belongs to an account with an active Pro plan. There are two kinds.">
+        <PageSection id="plans" title="Free and Pro" lede="Any stocksbrew account can connect. The plan decides which tools answer and how many calls a day.">
+          <FactList
+            rows={[
+              [
+                "Free",
+                `${FREE_AGENT_TOOLS.length} tools, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day. Search, our call on any stock, compare ${FREE_AGENT_COMPARE_LIMIT} at a time, filing risk changes, the market brief, Explore, screens and your own watchlist. Price zones and the full brief come on the stocks you cover, same as the app.`,
+              ],
+              [
+                "Pro",
+                `Every tool, ${AGENT_DAILY_CALL_LIMIT} calls a day. Adds full stock detail, what changed on your watchlist, alerts, what your funds hold, dividends, stress and copy tests, idea baskets and plain-English watch requests.`,
+              ],
+              ["A Pro tool on Free", "It answers pro_required with an upgrade_url and does not count as a call. Over MCP that is an error for that one tool. The others keep working."],
+              ["Changing plan", "Counts from the next call. No new token, no reconnecting."],
+            ]}
+          />
+          {freeNames.length > 0 ? (
+            <p className="oa-mono text-[12.5px] leading-5 text-oa-muted-fg">
+              free: {freeNames.map((name, index) => (
+                <span key={name}>
+                  {index > 0 ? ", " : ""}
+                  <a href={`#${name}`} className="hover:text-oa-fg hover:underline">
+                    {name}
+                  </a>
+                </span>
+              ))}
+            </p>
+          ) : null}
+          <CodeBlock label="a Pro tool on Free" code={proRefusal} />
+        </PageSection>
+
+        <PageSection id="auth" title="Auth and tokens" lede="Every call needs a bearer token from a stocksbrew account, Free or Pro. There are two kinds.">
           <FactList
             rows={[
               [
@@ -322,7 +358,7 @@ export default async function DevelopersPage() {
                 </>,
               ],
               ["Revoking", "Revoke a personal token under Account and it stops working on the next call. If a token is exposed, revoke it and create another."],
-              ["When Pro ends", "Calls return pro_required. Tokens are not deleted, so they work again if the plan is renewed."],
+              ["When Pro ends", "Tokens keep working on the free tools. The Pro ones answer pro_required until the plan is renewed."],
             ]}
           />
 
@@ -371,10 +407,10 @@ export default async function DevelopersPage() {
           />
         </PageSection>
 
-        <PageSection id="limits" title="Rate limits" lede="Two limits, counted per account across MCP, REST and the CLI together. Every call counts, including one that returns an error from our data.">
+        <PageSection id="limits" title="Rate limits" lede="Two limits, counted per account across MCP, REST and the CLI together. Every call counts, including one that returns an error from our data, except a Pro tool refused on Free.">
           <FactList
             rows={[
-              ["Daily", `${AGENT_DAILY_CALL_LIMIT} calls per day. The day is a UTC day: the counter resets at 00:00 UTC.`],
+              ["Daily", `${AGENT_FREE_DAILY_CALL_LIMIT} calls a day on Free, ${AGENT_DAILY_CALL_LIMIT} on Pro. The day is a UTC day: the counter resets at 00:00 UTC.`],
               ["Burst", `${AGENT_PER_MINUTE_CALL_LIMIT} calls per minute, by clock minute.`],
               ["When you hit one", "HTTP 429 with a Retry-After header in seconds: 60 for the minute limit, the time until midnight UTC for the daily limit. Over MCP the tool returns an error result with the same code."],
               ["Knowing where you stand", "Every successful response carries a usage object. Today's count is also shown under Account."],
@@ -391,7 +427,7 @@ export default async function DevelopersPage() {
               [<code key="2" className="oa-mono">as_of</code>, "The time of the freshest input behind the response. Null when there is nothing to date."],
               [<code key="3" className="oa-mono">freshness</code>, "status, age_hours and a relative label. Use it to tell the person how old the data is."],
               [<code key="4" className="oa-mono">notice</code>, "A short standing notice: informational use, data may be delayed or wrong, not advice, not a broker."],
-              [<code key="5" className="oa-mono">usage</code>, "Calls used and remaining today."],
+              [<code key="5" className="oa-mono">usage</code>, "Calls used and remaining today, and the plan they count on."],
               ["the data", "The tool's own fields beside those. A field we do not hold is null or an empty list. It is never filled with a guess."],
             ]}
           />
