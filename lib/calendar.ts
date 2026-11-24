@@ -2,20 +2,30 @@ import { sharedCache } from "@/lib/shared-cache";
 import { unstable_cache } from "next/cache";
 
 import {
+  ESTIMATED_MARKET,
   addDays,
+  byMarketCap,
+  nextReport,
   normalizeAgentEvent,
   normalizeEarnings,
   todayET,
+  withoutStaleEstimates,
   type CalendarItem,
   type EarningsItem,
   type Reaction,
 } from "@/lib/calendar-shared";
+import { earningsDayDocId, toReport } from "@/lib/earnings-day-shared";
 import type { EarningsIntelDoc } from "@/lib/earnings-intel";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getLatestPriceCores, getLatestPriceFundamentals, getMarketSnapshot } from "@/lib/firestore";
+import { CALL_PLAIN } from "@/lib/plain-copy";
 import type { PreEarningsIntelDoc } from "@/lib/pre-earnings-intel-shared";
 import { typicalDailyMove } from "@/lib/calendar-insights";
 import { getScreenerRows } from "@/lib/screener";
+import { LAST_QUARTER_MAX_AGE_DAYS, earningsPageFacts, lastQuarterOf, type EarningsPageFacts, type LastQuarter, type LastQuarterRevenue } from "@/lib/seo/earnings-pages";
+import { SEO_STOCK_PAGES } from "@/lib/seo/stock-pages";
+import { readStockCallHistory } from "@/lib/stock-events";
+import { callWord } from "@/lib/stock-chart";
 
 /**
  * Server loaders for `/calendar`.
@@ -88,7 +98,7 @@ async function loadRangeUncached(from: string, to: string, today: string): Promi
     getMarketSnapshot("US").catch(() => []),
   ]);
 
-  let earnings = earningsRaw.map(normalizeEarnings).filter((item): item is EarningsItem => item !== null);
+  let earnings = earningsRaw.map((raw) => normalizeEarnings(raw)).filter((item): item is EarningsItem => item !== null);
   let uncoveredDropped = 0;
   if (earnings.length > COVERED_ONLY_ABOVE && snapshot.length) {
     const covered = new Set(snapshot.map((row) => String(row.symbol ?? "").toUpperCase()));
@@ -207,7 +217,51 @@ export type EarningsDetail = {
   preRead: PreEarningsIntelDoc | null;
   /** The stored write-up of the last report we covered. */
   postRead: EarningsIntelDoc | null;
+  /** The last report that has happened, while it is recent (lib/seo/earnings-pages.ts), with its revenue when read. */
+  lastQuarter: LastQuarter | null;
+  /** That report's results release on SEC (the company's 8-K, item 2.02), from tm_earnings_history. */
+  releaseFiling: { url: string; date: string } | null;
+  /** Our call going into that report, in the reader's words. Calls are free on every plan (lib/entitlements.ts). */
+  callAtReport: { word: string; date: string } | null;
 };
+
+/** A results 8-K from tm_earnings_history within a few days of the report date (the calendar can be a day off). */
+function releaseNear(reports: unknown, day: string): { url: string; date: string } | null {
+  if (!Array.isArray(reports)) return null;
+  let best: { url: string; date: string; gap: number } | null = null;
+  for (const raw of reports) {
+    const report = raw as { date?: unknown; url?: unknown; release?: unknown };
+    const date = typeof report.date === "string" ? report.date.slice(0, 10) : "";
+    const url = typeof report.url === "string" ? report.url : "";
+    if (!date || report.release === false || !/^https:\/\/www\.sec\.gov\//.test(url)) continue;
+    const gap = Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86_400_000;
+    if (gap <= 3 && (!best || gap < best.gap)) best = { url, date, gap };
+  }
+  return best ? { url: best.url, date: best.date } : null;
+}
+
+/**
+ * The call that stood going into a report: the last one written before the report day, or on it for a report after
+ * the close (calls are written during the session).
+ */
+export function callBefore(records: ReadonlyArray<{ date: string; stance: string }>, report: Pick<EarningsItem, "date" | "session">): { word: string; date: string } | null {
+  let found: { word: string; date: string } | null = null;
+  for (const record of records) {
+    const day = record.date.slice(0, 10);
+    if (day > report.date || (day === report.date && report.session !== "amc")) continue;
+    const word = callWord(record.stance);
+    if (word && (!found || day >= found.date)) found = { word: CALL_PLAIN[word], date: day };
+  }
+  return found;
+}
+
+function revenueOf(data: unknown): LastQuarterRevenue | null {
+  const report = toReport(data);
+  const value = report?.revenue?.value;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  const yoy = report?.revenue?.yoy_pct;
+  return { value, yoyPct: typeof yoy === "number" && Number.isFinite(yoy) ? yoy : null };
+}
 
 /** `strict`: a failed read throws instead of reading as "none on file" (full research needs the difference). */
 async function loadDetailUncached(ticker: string, today: string, strict = false): Promise<EarningsDetail | null> {
@@ -221,10 +275,11 @@ async function loadDetailUncached(ticker: string, today: string, strict = false)
     soft(adminFirestore.collection("tm_earnings_intel").doc(`US__${instrumentId}__latest`).get(), null),
   ]);
 
-  const events = (eventSnap?.docs ?? [])
-    .map((doc) => normalizeEarnings(doc.data() as RawDoc))
-    .filter((item): item is EarningsItem => item !== null)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Our estimated next day comes along (said "expected" wherever it shows), unless it has passed or a date was announced.
+  const events = withoutStaleEstimates(
+    (eventSnap?.docs ?? []).map((doc) => normalizeEarnings(doc.data() as RawDoc, { estimates: true })).filter((item): item is EarningsItem => item !== null),
+    today,
+  ).sort((a, b) => a.date.localeCompare(b.date));
   const core = cores.get(instrumentId);
   if (!events.length && !core) return null;
 
@@ -245,6 +300,19 @@ async function loadDetailUncached(ticker: string, today: string, strict = false)
   const post = postSnap?.exists ? (postSnap.data() as EarningsIntelDoc) : null;
   const providerName = (core?.provider_metadata as { name?: string } | undefined)?.name;
 
+  // What changed last quarter: its revenue, its release on SEC and our call going in. Always soft: none of the three
+  // may turn the page (or full research, which reads this strictly) into an error.
+  const lastItem = lastQuarterOf(events, today)?.item ?? null;
+  const [daySnap, historySnap, calls] = lastItem
+    ? await Promise.all([
+        adminFirestore.collection("tm_earnings_day").doc(earningsDayDocId(ticker, lastItem.date)).get().catch(() => null),
+        adminFirestore.collection("tm_earnings_history").doc(ticker).get().catch(() => null),
+        readStockCallHistory(instrumentId).catch(() => []),
+      ])
+    : [null, null, []];
+  const revenue = daySnap?.exists ? revenueOf(daySnap.data()) : null;
+  const lastQuarter = lastQuarterOf(events, today, (date) => (lastItem && date === lastItem.date ? revenue : null));
+
   return {
     ticker,
     name: providerName || events[events.length - 1]?.company || ticker,
@@ -259,10 +327,13 @@ async function loadDetailUncached(ticker: string, today: string, strict = false)
       : null,
     preRead: pre?.report?.headline && pre.event_date ? pre : null,
     postRead: post?.report?.headline && post.event_date ? post : null,
+    lastQuarter,
+    releaseFiling: lastItem && historySnap?.exists ? releaseNear((historySnap.data() as RawDoc | undefined)?.reports, lastItem.date) : null,
+    callAtReport: lastItem ? callBefore(calls, lastItem) : null,
   };
 }
 
-const loadDetailCached = unstable_cache(loadDetailUncached, ["calendar-earnings-detail-v2"], { revalidate: 300 });
+const loadDetailCached = unstable_cache(loadDetailUncached, ["calendar-earnings-detail-v3"], { revalidate: 300 });
 
 export function loadEarningsDetail(ticker: string, today: string = todayET()): Promise<EarningsDetail | null> {
   return loadDetailCached(ticker.trim().toUpperCase(), today);
@@ -271,6 +342,106 @@ export function loadEarningsDetail(ticker: string, today: string = todayET()): P
 /** The same detail, read fresh, where any failed read throws (full research tells an outage from "no reports"). */
 export function loadEarningsDetailStrict(ticker: string, today: string = todayET()): Promise<EarningsDetail | null> {
   return loadDetailUncached(ticker.trim().toUpperCase(), today, true);
+}
+
+/* ── Reports ahead, and the earnings pages' index facts ───────────────── */
+
+/** How far ahead "reports ahead" and the earnings sitemap look. Our estimates reach about four months out. */
+export const AHEAD_DAYS = 200;
+
+/** Announced and estimated reports between two days, estimates that cannot stand dropped. Throws on a failed read. */
+async function readReportsAhead(from: string, to: string, today: string): Promise<EarningsItem[]> {
+  const [confirmed, estimated] = await Promise.all([
+    queryRange(EARNINGS, "event_date", from, to, "US", true),
+    queryRange(EARNINGS, "event_date", from, to, ESTIMATED_MARKET, true),
+  ]);
+  const items = [...confirmed, ...estimated]
+    .map((raw) => normalizeEarnings(raw, { estimates: true }))
+    .filter((item): item is EarningsItem => item !== null);
+  return withoutStaleEstimates(items, today);
+}
+
+export type ReportAhead = Pick<EarningsItem, "ticker" | "company" | "date" | "session" | "marketCap" | "estimated">;
+
+async function loadReportsAheadUncached(from: string, today: string, limit: number): Promise<{ confirmed: ReportAhead[]; expected: ReportAhead[] }> {
+  const items = await readReportsAhead(from, addDays(today, AHEAD_DAYS), today);
+  // Each company once, at its next report (an announced date before our estimate).
+  const byTicker = new Map<string, EarningsItem[]>();
+  for (const item of items) byTicker.set(item.ticker, [...(byTicker.get(item.ticker) ?? []), item]);
+  const next = [...byTicker.values()].map((rows) => nextReport(rows, from)).filter((item): item is EarningsItem => item !== null);
+  const caps = await loadMarketCaps(next.map((item) => item.ticker));
+  for (const item of next) item.marketCap = caps.get(item.ticker) ?? null;
+  // The biggest companies, each once (GOOG and GOOGL are one report), then in date order so the list reads as a calendar.
+  const pick = (rows: EarningsItem[]): ReportAhead[] => {
+    const seen = new Set<string>();
+    const biggest = rows
+      .filter((item) => item.marketCap !== null)
+      .sort(byMarketCap)
+      .filter((item) => {
+        const company = item.company.toLowerCase().replace(/\b(class [a-z]|inc\.?|corp\.?|corporation|co\.?)\b|[^a-z0-9]/g, "");
+        if (seen.has(company)) return false;
+        seen.add(company);
+        return true;
+      })
+      .slice(0, limit);
+    return biggest
+      .sort((a, b) => a.date.localeCompare(b.date) || byMarketCap(a, b))
+      .map(({ ticker, company, date, session, marketCap, estimated }) => ({ ticker, company, date, session, marketCap, ...(estimated ? { estimated } : {}) }));
+  };
+  return { confirmed: pick(next.filter((item) => !item.estimated)), expected: pick(next.filter((item) => item.estimated)) };
+}
+
+const loadReportsAheadCached = sharedCache(loadReportsAheadUncached, ["calendar-reports-ahead-v2"], { revalidate: 1800 });
+
+/**
+ * The biggest companies' next reports from `from` on, split into announced dates and our estimates, `limit` of each,
+ * biggest first. For /calendar's links to the busiest earnings pages. Empty on a failed read.
+ */
+export async function loadReportsAhead(from: string, today: string, limit = 12): Promise<{ confirmed: ReportAhead[]; expected: ReportAhead[] }> {
+  try {
+    return await loadReportsAheadCached(from, today, limit);
+  } catch (error) {
+    console.warn("[calendar] reports ahead read failed:", error);
+    return { confirmed: [], expected: [] };
+  }
+}
+
+/**
+ * Index facts for every covered stock's earnings page, for the sitemap: the same rows the page reads (its next report,
+ * announced or estimated, and its last quarter with reaction and revenue), put through the same `earningsPageFacts`.
+ * Throws on a failed read so the sitemap can say it is short.
+ */
+export async function loadEarningsPageFacts(today: string): Promise<Map<string, EarningsPageFacts>> {
+  const since = addDays(today, -LAST_QUARTER_MAX_AGE_DAYS);
+  const [ahead, behind, reactionsRaw, dayReports] = await Promise.all([
+    readReportsAhead(today, addDays(today, AHEAD_DAYS), today),
+    queryRange(EARNINGS, "event_date", since, addDays(today, -1), "US", true),
+    queryRange(REACTIONS, "event_date", since, today, undefined, true),
+    adminFirestore.collection("tm_earnings_day").where("event_date", ">=", since).get(),
+  ]);
+  const reactions = new Map<string, Reaction>();
+  for (const raw of reactionsRaw) {
+    const reaction = toReaction(raw, today);
+    if (reaction) reactions.set(`${String(raw.ticker ?? "").toUpperCase()}_${String(raw.event_date ?? "")}`, reaction);
+  }
+  const revenue = new Map<string, LastQuarterRevenue>();
+  for (const doc of dayReports.docs) {
+    const report = toReport(doc.data());
+    const value = report ? revenueOf(doc.data()) : null;
+    if (report && value) revenue.set(`${report.ticker}_${report.event_date}`, value);
+  }
+  const byTicker = new Map<string, EarningsItem[]>();
+  for (const item of [...ahead, ...behind.map((raw) => normalizeEarnings(raw)).filter((item): item is EarningsItem => item !== null)]) {
+    if (byTicker.get(item.ticker)?.some((known) => known.id === item.id)) continue;
+    item.reaction = reactions.get(item.id) ?? null;
+    byTicker.set(item.ticker, [...(byTicker.get(item.ticker) ?? []), item]);
+  }
+  const out = new Map<string, EarningsPageFacts>();
+  for (const stock of SEO_STOCK_PAGES) {
+    const events = byTicker.get(stock.ticker) ?? [];
+    out.set(stock.ticker, earningsPageFacts(stock.ticker, events, today, (date) => revenue.get(`${stock.ticker}_${date}`) ?? null));
+  }
+  return out;
 }
 
 /* ── History behind the read ───────────────────────────────────────────── */

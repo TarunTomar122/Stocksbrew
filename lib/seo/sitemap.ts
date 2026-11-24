@@ -137,24 +137,27 @@ async function stockBuiltDates(): Promise<Map<string, string>> {
   return dates;
 }
 
-/** Indexable stocks with an earnings report still ahead. Those are the per-ticker earnings pages that are indexable for certain. */
-async function upcomingEarningsTickers(indexable: readonly string[], options: SitemapReadOptions = {}): Promise<string[]> {
-  const today = todayET();
-  const until = new Date(`${today}T00:00:00Z`);
-  until.setUTCDate(until.getUTCDate() + 120);
-  const upcoming = new Set<string>();
+/**
+ * The earnings pages that are indexable, by the page's own rule (earningsPageIsIndexable, lib/seo/earnings-pages.ts):
+ * a next report still ahead, announced or estimated, and real figures from the last quarter. Each entry's lastmod is
+ * the last report's day, when the page's figures last changed.
+ */
+async function indexableEarningsPages(today: string, options: SitemapReadOptions = {}): Promise<SitemapEntry[]> {
   try {
     // Loaded here, not at the top: the calendar reader only works inside a server render.
-    const { loadCalendarRange } = await import("@/lib/calendar");
-    const range = await loadCalendarRange(today, until.toISOString().slice(0, 10), today);
-    for (const item of range.items) {
-      if (item.kind === "earnings" && item.epsActual === null) upcoming.add(item.ticker.toUpperCase());
+    const { loadEarningsPageFacts } = await import("@/lib/calendar");
+    const { earningsPageIsIndexable } = await import("@/lib/seo/earnings-pages");
+    const facts = await loadEarningsPageFacts(today);
+    const entries: SitemapEntry[] = [];
+    for (const [ticker, fact] of [...facts.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      if (earningsPageIsIndexable(fact, today)) entries.push({ path: `/calendar/earnings/${encodeURIComponent(ticker)}`, lastmod: fact.lastQuarter?.item.date });
     }
+    return entries;
   } catch (error) {
     // No calendar, no earnings pages listed for this build, and the caller is told so.
     options.onDegraded?.(`earnings calendar: ${reason(error)}`);
+    return [];
   }
-  return indexable.filter((ticker) => upcoming.has(ticker));
 }
 
 export async function sitemapEntries(family: SitemapFamily, today: string = todayET(), options: SitemapReadOptions = {}): Promise<SitemapEntry[]> {
@@ -235,11 +238,9 @@ export async function sitemapEntries(family: SitemapFamily, today: string = toda
       }
       break;
     }
-    case "earnings": {
-      const coverage = await getCoverage();
-      for (const ticker of await upcomingEarningsTickers(indexableStockSymbols(coverage, today), options)) entries.push({ path: `/calendar/earnings/${ticker}` });
+    case "earnings":
+      entries.push(...(await indexableEarningsPages(today, options)));
       break;
-    }
     case "reports": {
       // One page per company report, once the release is read (lib/earnings-day-shared.ts isIndexable).
       try {

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 
 import { CalendarControls, ListView, MonthView, PeriodNav, WeekView, preReadIsException } from "@/components/calendar/calendar-view";
+import { ReportsAhead } from "@/components/calendar/reports-ahead";
 import { AppPage, Empty, PageHead, Panel, Segmented } from "@/components/oa/kit";
 import { MarketingSchema } from "@/components/seo/marketing-schema";
 import { getSessionUser } from "@/lib/auth-server";
-import { loadCalendarRange, loadReportContext } from "@/lib/calendar";
+import { loadCalendarRange, loadReportContext, loadReportsAhead } from "@/lib/calendar";
 import { bigReportTickers, biggestReports } from "@/lib/calendar-insights";
 import {
   CALENDAR_TYPES,
+  addDays,
   bucketByDay,
   calendarHref,
   filterItems,
@@ -33,7 +35,7 @@ const FAQS = [
   {
     question: "Where do the dates come from?",
     answer:
-      "Earnings dates, IPOs and ex-dividend dates come from Nasdaq's public calendars. Economic releases come from the schedules the Bureau of Labor Statistics, the Bureau of Economic Analysis and the Federal Reserve publish.",
+      "Earnings dates, IPOs and ex-dividend dates come from Nasdaq's public calendars, and from Yahoo Finance once a company has confirmed a date Nasdaq does not list yet. Where no date is announced, we estimate the next one from the days the company reported in past years and call it expected, never confirmed. Economic releases come from the schedules the Bureau of Labor Statistics, the Bureau of Economic Analysis and the Federal Reserve publish.",
   },
   {
     question: "Why can a stock fall after beating earnings estimates?",
@@ -91,9 +93,14 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
   const range = viewRange(filters);
 
   const session = await getSessionUser().catch(() => null);
-  const [data, tracked] = await Promise.all([
+  // The biggest reports after the days on screen, linking to their earnings pages; dates we only expect are kept out of
+  // the day grid and listed there under their own heading.
+  const aheadFrom = [addDays(today, 1), addDays(range.to, 1)].sort().pop()!;
+  const showAhead = (filters.type === null || filters.type === "earnings") && !filters.mine;
+  const [data, tracked, ahead] = await Promise.all([
     loadCalendarRange(range.from, range.to, today),
     session ? getTrackedStocks(session.uid).catch(() => []) : Promise.resolve([] as string[]),
+    showAhead ? loadReportsAhead(aheadFrom, today) : Promise.resolve({ confirmed: [], expected: [] }),
   ]);
   const mine = new Set(tracked.map((id) => id.replace(/^[A-Z]{2}_/, "").toUpperCase()));
   const mineSet = session && mine.size > 0 ? mine : null;
@@ -158,6 +165,7 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
           {effective.view === "week" ? <WeekView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
           {effective.view === "month" ? <MonthView days={days} filters={effective} today={today} /> : null}
           {effective.view === "list" ? <ListView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
+          <ReportsAhead confirmed={ahead.confirmed} expected={ahead.expected} />
         </>
       )}
 

@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { canSeeLevels, getViewer } from "@/lib/entitlements-server";
 import { notFound } from "next/navigation";
 
-import { EarningsStats, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
-import { AppPage, FOCUS, PageHead, Ticker } from "@/components/oa/kit";
-import { loadEarningsDetail } from "@/lib/calendar";
-import { calendarHref, parseCalendarFilters, summarizeReports, todayET } from "@/lib/calendar-shared";
+import { EarningsStats, LastQuarterPanel, PostEarningsRead, PreEarningsRead, ReportHistory, TickerHeadlines } from "@/components/calendar/earnings-detail";
+import { AppPage, FOCUS, PageHead, Ticker, fmtDay } from "@/components/oa/kit";
+import { loadEarningsDetail, type EarningsDetail } from "@/lib/calendar";
+import { calendarHref, fmtEps, parseCalendarFilters, summarizeReports, todayET } from "@/lib/calendar-shared";
+import { earningsPageFacts, earningsPageIsIndexable } from "@/lib/seo/earnings-pages";
 import { loadWire } from "@/lib/wire";
 import { normalizeTicker } from "@/lib/wire-shared";
 import { ogImage } from "@/lib/og/url";
@@ -23,17 +24,45 @@ function readTicker(raw: string): string | null {
   }
 }
 
+function pageFacts(detail: EarningsDetail, today: string) {
+  const last = detail.lastQuarter;
+  return earningsPageFacts(detail.ticker, detail.events, today, (date) => (last && last.item.date === date ? last.revenue : null));
+}
+
+/** The search snippet: the next date said as announced or expected, then the last quarter's figures we hold. */
+function describe(name: string, detail: EarningsDetail | null, today: string): string {
+  const fallback = `${name} earnings: the next report date, past results against estimates, and how the stock moved on each report.`;
+  if (!detail) return fallback;
+  const next = summarizeReports(detail.events, today).next;
+  const parts: string[] = [];
+  if (next) {
+    const time = next.session === "amc" ? ", after the close" : next.session === "bmo" ? ", before the open" : "";
+    parts.push(
+      next.estimated
+        ? `${name} is expected to report next around ${fmtDay(next.date, true)} (our estimate; not announced yet).`
+        : `${name} reports next on ${fmtDay(next.date, true)}${time}.`,
+    );
+  }
+  const last = detail.lastQuarter?.item;
+  if (last && last.epsActual !== null && last.epsEstimate !== null) {
+    parts.push(`Last quarter: EPS ${fmtEps(last.epsActual)} against ${fmtEps(last.epsEstimate)} expected${last.reaction ? `, stock ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% after` : ""}.`);
+  } else if (last?.reaction) {
+    parts.push(`The stock moved ${last.reaction.pct >= 0 ? "up" : "down"} ${Math.abs(last.reaction.pct).toFixed(1)}% after its last report.`);
+  }
+  return parts.length ? parts.join(" ") : fallback;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ticker = readTicker(params.ticker);
   if (!ticker) return { title: "Earnings", robots: { index: false, follow: true } };
-  const detail = await loadEarningsDetail(ticker).catch(() => null);
+  const today = todayET();
+  const detail = await loadEarningsDetail(ticker, today).catch(() => null);
   const name = detail?.name && detail.name !== ticker ? `${detail.name} (${ticker})` : ticker;
-  const description = `${name} earnings: the next report date and EPS estimate, past results against estimates, and how the stock moved on each report.`;
-  // The page is worth indexing when it has something of its own to say: a
-  // report date still ahead, or a write-up of a past report. A bare table of
-  // old numbers stays out of the index.
-  const hasNextDate = detail ? summarizeReports(detail.events, todayET()).next !== null : false;
-  const indexable = Boolean(detail) && (hasNextDate || Boolean(detail?.postRead));
+  // The same rule as the earnings sitemap (lib/seo/earnings-pages.ts): a next date still ahead, announced or
+  // estimated, and real figures from the last quarter.
+  const facts = detail ? pageFacts(detail, today) : null;
+  const indexable = earningsPageIsIndexable(facts, today);
+  const description = describe(name, detail, today);
   const title = `${name} Earnings Date, Results and Stock Reaction`;
   return {
     title,
@@ -51,14 +80,15 @@ export default async function EarningsDetailPage({ params }: Props) {
   if (!ticker) notFound();
   const today = todayET();
 
-  const [detail, wire] = await Promise.all([loadEarningsDetail(ticker), loadWire({ ticker }).catch(() => null)]);
+  const [detail, wire] = await Promise.all([loadEarningsDetail(ticker, today), loadWire({ ticker }).catch(() => null)]);
   if (!detail) notFound();
 
   // The pre-earnings read comes with covering a stock (lib/entitlements.ts: `pre_earnings_read`).
   const entitled = canSeeLevels(await getViewer(), ticker);
   const summary = summarizeReports(detail.events, today);
   const upcomingRead = detail.preRead && detail.preRead.event_date.slice(0, 10) >= today ? detail.preRead : null;
-  const anchor = summary.next?.date ?? summary.last?.date ?? today;
+  // The calendar's weeks hold announced dates only, so an estimated one links to the week of the last report instead.
+  const anchor = (summary.next && !summary.next.estimated ? summary.next.date : null) ?? summary.last?.date ?? today;
   const headlines = (wire?.items ?? []).filter((item) => item.tickers.includes(ticker)).slice(0, 6);
 
   return (
@@ -94,6 +124,8 @@ export default async function EarningsDetailPage({ params }: Props) {
 
       <EarningsStats detail={detail} today={today} />
 
+      <LastQuarterPanel detail={detail} today={today} />
+
       <div className="mb-5">
         <ReportHistory detail={detail} today={today} />
       </div>
@@ -101,7 +133,8 @@ export default async function EarningsDetailPage({ params }: Props) {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-5">
           {/* A read written for a report that has already happened is not shown as a pre-read: the result is in the table. */}
-          {summary.next ? (
+          {/* Months ahead of an estimated date there is no read to promise; it appears once one is written. */}
+          {summary.next && (!summary.next.estimated || upcomingRead) ? (
             <PreEarningsRead read={entitled ? upcomingRead : null} exists={upcomingRead !== null} forDate={upcomingRead?.event_date?.slice(0, 10) ?? null} />
           ) : null}
           {detail.postRead ? <PostEarningsRead read={detail.postRead} latestReportDate={summary.last?.date ?? null} /> : null}

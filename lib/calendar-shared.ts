@@ -275,7 +275,15 @@ export type EarningsItem = {
    * words for the row's hover title. Set by the calendar page (lib/calendar-insights.ts biggestReports).
    */
   lastReport?: { pct: number; note: string } | null;
+  /**
+   * Set only on our own estimate of the next report day (backend/agentdata/earnings_dates.py, market
+   * `US_ESTIMATED`): the company has not announced it. Readers that show one must say "expected".
+   */
+  estimated?: true;
 };
+
+/** The market value our estimated report days are stored under, so no reader of "US" rows takes one for a date. */
+export const ESTIMATED_MARKET = "US_ESTIMATED";
 
 export type EconomicItem = {
   kind: "economic";
@@ -330,10 +338,12 @@ export function sessionOf(raw: unknown): Session {
 }
 
 /** A `tm_earnings_events` document as a calendar row. Null for other markets, retired dates and broken rows. */
-export function normalizeEarnings(raw: Record<string, unknown>): EarningsItem | null {
+export function normalizeEarnings(raw: Record<string, unknown>, options: { estimates?: boolean } = {}): EarningsItem | null {
   const date = parseDay(str(raw.event_date).slice(0, 10));
   const ticker = str(raw.ticker).toUpperCase();
-  if (!date || !ticker || str(raw.market) !== "US") return null;
+  // Estimated days only for a reader that asks for them and says "expected" (the earnings pages, /calendar's ahead list).
+  const estimated = str(raw.market) === ESTIMATED_MARKET;
+  if (!date || !ticker || (str(raw.market) !== "US" && !(estimated && options.estimates))) return null;
   const epsActual = num(raw.reported_eps);
   const epsEstimate = num(raw.eps_estimate) ?? num(raw.estimated_eps);
   let label = str(raw.surprise_label).toLowerCase();
@@ -363,7 +373,29 @@ export function normalizeEarnings(raw: Record<string, unknown>): EarningsItem | 
     marketCap: null,
     reaction: null,
     hasPreRead: false,
+    ...(estimated ? { estimated: true as const } : {}),
   };
+}
+
+/** A report that is still to come: on or after today, with no result yet. */
+function isAhead(item: EarningsItem, today: string): boolean {
+  return item.date >= today && item.epsActual === null;
+}
+
+/**
+ * Rows of one or more companies with every estimate that cannot stand dropped: one whose day has passed, and one for a
+ * company that already has a date it announced still ahead (a confirmed date always wins). Between two runs of the
+ * date job both can be stored for a moment; a reader never shows them side by side.
+ */
+export function withoutStaleEstimates(items: EarningsItem[], today: string): EarningsItem[] {
+  const confirmedAhead = new Set(items.filter((item) => !item.estimated && isAhead(item, today)).map((item) => item.ticker));
+  return items.filter((item) => !item.estimated || (item.date >= today && !confirmedAhead.has(item.ticker)));
+}
+
+/** A company's next report: the first date it announced that is still ahead, else our estimate of it. */
+export function nextReport(events: EarningsItem[], today: string): EarningsItem | null {
+  const ahead = [...events].filter((item) => isAhead(item, today)).sort((a, b) => a.date.localeCompare(b.date));
+  return ahead.find((item) => !item.estimated) ?? ahead.find((item) => item.estimated) ?? null;
 }
 
 /** A `tm_agent_calendar` document as a calendar row. */
@@ -618,7 +650,7 @@ export function reactionBasisLabel(reaction: Reaction, session: Session): string
 /* ── One company's reports ─────────────────────────────────────────────── */
 
 export type ReportSummary = {
-  /** The next report on or after today that has no result yet. */
+  /** The next report on or after today that has no result yet: an announced date first, else our estimate (`estimated`). */
   next: EarningsItem | null;
   /** The most recent report with a result. */
   last: EarningsItem | null;
@@ -635,7 +667,7 @@ export function summarizeReports(events: EarningsItem[], today: string): ReportS
   const withResult = ordered.filter((item) => item.epsActual !== null);
   const measured = ordered.filter((item) => item.reaction !== null);
   return {
-    next: ordered.find((item) => item.date >= today && item.epsActual === null) ?? null,
+    next: nextReport(ordered, today),
     last: withResult[withResult.length - 1] ?? null,
     reported: withResult.length,
     beats: withResult.filter((item) => resultWord(item)?.tone === "up").length,
