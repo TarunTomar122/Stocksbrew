@@ -95,6 +95,24 @@ export async function issueAgentToken(input: {
   return { token: generated.raw, id: generated.id, expiresAt, prefix: generated.prefix };
 }
 
+/** How many token rows the settings list shows: every active one, then the newest revoked ones up to this. */
+const LISTED_TOKENS = 25;
+/** A safety bound on one account's token rows read at once (revoked ones pile up; active ones are capped at 5). */
+const TOKEN_READ_LIMIT = 1000;
+
+async function readPersonalAgentTokens(uid: string): Promise<Array<AgentTokenDoc & { id: string }>> {
+  const snap = await adminFirestore
+    .collection(AGENT_TOKEN_COLLECTION)
+    .where("uid", "==", uid)
+    .where("kind", "==", "personal")
+    .limit(TOKEN_READ_LIMIT)
+    .get();
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...(doc.data() as AgentTokenDoc) }))
+    .filter((doc) => doc.kind === "personal")
+    .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+}
+
 export async function listPersonalAgentTokens(uid: string): Promise<Array<{
   id: string;
   label: string;
@@ -104,16 +122,13 @@ export async function listPersonalAgentTokens(uid: string): Promise<Array<{
   revoked_at: string | null;
   calls_total: number;
 }>> {
-  const snap = await adminFirestore
-    .collection(AGENT_TOKEN_COLLECTION)
-    .where("uid", "==", uid)
-    .where("kind", "==", "personal")
-    .limit(25)
-    .get();
-  return snap.docs
-    .map((doc) => ({ id: doc.id, ...(doc.data() as AgentTokenDoc) }))
-    .filter((doc) => doc.kind === "personal")
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  // Revoked tokens are dropped only after every active one is in, so old revoked rows never hide an active token.
+  const all = await readPersonalAgentTokens(uid);
+  const active = all.filter((doc) => !doc.revoked_at);
+  const revoked = all.filter((doc) => doc.revoked_at).slice(0, Math.max(0, LISTED_TOKENS - active.length));
+  const shown = new Set([...active, ...revoked].map((doc) => doc.id));
+  return all
+    .filter((doc) => shown.has(doc.id))
     .map((doc) => ({
       id: doc.id,
       label: doc.label,
@@ -126,7 +141,8 @@ export async function listPersonalAgentTokens(uid: string): Promise<Array<{
 }
 
 export async function countActivePersonalAgentTokens(uid: string): Promise<number> {
-  const tokens = await listPersonalAgentTokens(uid);
+  // Counted over every token row, not the listed page: 25 revoked rows must not hide active ones from the cap.
+  const tokens = await readPersonalAgentTokens(uid);
   return tokens.filter((token) => !token.revoked_at).length;
 }
 

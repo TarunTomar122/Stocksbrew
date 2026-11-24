@@ -11,25 +11,42 @@ function noStore(body: Record<string, unknown>, status: number, extraHeaders?: R
   });
 }
 
+function authError(error: AgentAuthError): Response {
+  const metadata = `${publicAppUrl()}/.well-known/oauth-protected-resource`;
+  const scope = AGENT_SCOPES.join(" ");
+  return noStore(
+    { error: error.code, message: error.message },
+    error.status,
+    { "WWW-Authenticate": `Bearer resource_metadata="${metadata}", scope="${scope}"` },
+  );
+}
+
 export async function runAgentApiRequest(
   request: Request,
   tool: AgentToolName,
   args: Record<string, unknown>,
 ): Promise<Response> {
+  let principal;
   try {
-    const principal = await requireAgentPrincipal(request);
+    principal = await requireAgentPrincipal(request);
+  } catch (error) {
+    if (!(error instanceof AgentAuthError)) {
+      // The token or the account could not be read (a store blip): 503 and retry, as /api/mcp answers. Never a 500
+      // that reads as our bug, and never a 401 that sends the client to make a new token.
+      console.error("agent_api_auth_failed", { tool, error });
+      return noStore(
+        { error: "temporarily_unavailable", message: "Authentication could not be completed. Retry in a moment." },
+        503,
+        { "Retry-After": "30" },
+      );
+    }
+    return authError(error);
+  }
+  try {
     const result = await executeAgentTool(principal, tool, args);
     return noStore(result, 200);
   } catch (error) {
-    if (error instanceof AgentAuthError) {
-      const metadata = `${publicAppUrl()}/.well-known/oauth-protected-resource`;
-      const scope = AGENT_SCOPES.join(" ");
-      return noStore(
-        { error: error.code, message: error.message },
-        error.status,
-        { "WWW-Authenticate": `Bearer resource_metadata="${metadata}", scope="${scope}"` },
-      );
-    }
+    if (error instanceof AgentAuthError) return authError(error);
     if (error instanceof AgentQuotaError) {
       return noStore(
         { error: error.code, message: error.message, ...(error.upgradeUrl ? { upgrade_url: error.upgradeUrl } : {}) },

@@ -73,7 +73,8 @@ sub vcl_recv {
   if (req.restarts == 0) { unset req.http.X-Varnish-Refresh; unset req.http.X-Varnish-Stale-If-Error; }
 
   if (req.method != "GET" && req.method != "HEAD") { return (pass); }
-  if (req.url ~ "^/(_next/static/|api/logo/|api/og/|api/market-daily-cover/|api/markdown/|api/taste|api/ask/example|api/premarket/quotes|api/earnings-day|sitemap\.xml|sitemaps/|robots\.txt|llms\.txt|feed\.xml|docs/search-index\.json)") {
+  # api/logo-proxy: logos by ticker or allow-listed URL (emails, cards), public, max-age=86400 like api/logo/.
+  if (req.url ~ "^/(_next/static/|api/logo/|api/logo-proxy\?|api/og/|api/market-daily-cover/|api/markdown/|api/taste|api/ask/example|api/premarket/quotes|api/earnings-day|sitemap\.xml|sitemaps/|robots\.txt|llms\.txt|feed\.xml|docs/search-index\.json)") {
     # Public, identical for everyone: cookies (analytics, the session) don't change these responses.
     unset req.http.Cookie;
     unset req.http.Authorization;

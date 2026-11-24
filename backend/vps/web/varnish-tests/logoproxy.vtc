@@ -1,0 +1,41 @@
+varnishtest "api/logo-proxy is kept like api/logo/: cookies dropped, its own Cache-Control, one copy per query"
+
+server s1 {
+	rxreq
+	expect req.url == "/api/logo-proxy?ticker=NVDA&fallback=1"
+	expect req.http.Cookie == <undef>
+	txresp -hdr "Content-Type: image/png" -hdr "Cache-Control: public, max-age=86400, stale-while-revalidate=604800" -body "nvda"
+	rxreq
+	expect req.url == "/api/logo-proxy?ticker=AMD&fallback=1"
+	txresp -hdr "Content-Type: image/png" -hdr "Cache-Control: public, max-age=86400, stale-while-revalidate=604800" -body "amd"
+	# A path that only starts like it is not the logo proxy: passed, never kept.
+	rxreq
+	expect req.url == "/api/logo-proxyx"
+	expect req.http.Cookie == "tikrr_session=abc"
+	txresp -hdr "Cache-Control: public, max-age=86400" -body "other"
+	rxreq
+	expect req.url == "/api/logo-proxyx"
+	txresp -body "other again"
+} -start
+
+varnish v1 @VCL@ -start
+
+client c1 {
+	txreq -url "/api/logo-proxy?ticker=NVDA&fallback=1" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	expect resp.body == "nvda"
+	txreq -url "/api/logo-proxy?ticker=NVDA&fallback=1"
+	rxresp
+	expect resp.body == "nvda"
+	expect resp.http.X-Cache == "HIT"
+
+	txreq -url "/api/logo-proxy?ticker=AMD&fallback=1"
+	rxresp
+	expect resp.body == "amd"
+
+	txreq -url "/api/logo-proxyx" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	txreq -url "/api/logo-proxyx" -hdr "Cookie: tikrr_session=abc"
+	rxresp
+	expect resp.body == "other again"
+} -run
