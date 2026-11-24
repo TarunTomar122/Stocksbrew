@@ -717,7 +717,7 @@ export function StockReport({
           </Panel>
           {/* No account needed: this stock's morning email, under the news it is about. Signed out only (the
               component also hides itself once the browser knows someone is signed in). */}
-          {anon && market === "US" ? <EmailCapture source="stock" ticker={stock.ticker} title={`Get ${stock.ticker} news each morning`} /> : null}
+          {anon && market === "US" ? <EmailCapture source="stock" ticker={stock.ticker} /> : null}
           {market === "US" ? (
             <Suspense fallback={null}>
               <FilingChanges ticker={stock.ticker} />

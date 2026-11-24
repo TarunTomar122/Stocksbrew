@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { ImageResponse } from "next/dist/server/web/spec-extension/image-response";
 import { NextRequest, NextResponse } from "next/server";
 
+import { isLogoKey, logoKey } from "@/lib/stock-logo-sources";
+
 export const runtime = "nodejs";
 
 /**
@@ -145,6 +147,28 @@ function logoCandidates(ticker: string, preferredUrl?: string | null): string[] 
   return [...new Set(out)];
 }
 
+/**
+ * The tile the app itself shows (tm_stock_logos, backend/agentdata/stock_logos.py), as a PNG: emails need one, and the
+ * stored tiles are WebP. Tried before the third-party chain, which can be wrong: Finnhub's GOOGL logo is a red "A"
+ * that reads as Adobe's, so the daily email showed it for Alphabet (Nov 24). Null when there is no stored tile or the
+ * store is slow, and the chain takes over.
+ */
+async function storedTilePng(ticker: string): Promise<Buffer | null> {
+  const key = logoKey(ticker);
+  if (!isLogoKey(key)) return null;
+  try {
+    const { adminFirestore } = await import("@/lib/firebase-admin");
+    const read = adminFirestore.collection("tm_stock_logos").doc(key).get();
+    const snap = await Promise.race([read, new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))]);
+    const doc = snap && snap.exists ? (snap.data() as { status?: string; data_b64?: string } | undefined) : undefined;
+    if (doc?.status !== "ok" || !doc.data_b64) return null;
+    const sharp = (await import("sharp")).default;
+    return await sharp(Buffer.from(doc.data_b64, "base64")).png().toBuffer();
+  } catch {
+    return null;
+  }
+}
+
 async function fetchLogoBytes(url: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
   try {
     let current = url;
@@ -192,6 +216,8 @@ export async function GET(req: NextRequest) {
   const useFallback = req.nextUrl.searchParams.get("fallback") === "1";
 
   if (ticker) {
+    const stored = preferredUrl ? null : await storedTilePng(ticker);
+    if (stored) return imageResponse(new Uint8Array(stored).buffer as ArrayBuffer, "image/png");
     for (const candidate of logoCandidates(ticker, preferredUrl)) {
       const image = await fetchLogoBytes(candidate);
       if (image) {

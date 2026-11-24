@@ -105,6 +105,18 @@ def test_ticker_brief_has_its_own_links_and_no_account_bits(monkeypatch):
     assert email.html.count("<a href") >= 1
 
 
+def test_a_ticker_signup_only_ever_sees_its_own_stocks():
+    """Stocks are read once per run for everyone: another signup's PLTR call change must never reach an NVDA-only email."""
+    pltr = stock("PLTR", change_pct=11.0, price=159.0, prev_close=143.0, stance="trim", previous_stance="accumulate",
+                 call_text="Sell some", call_reason="It trades at 90 times sales after a 40% run.")
+    pltr.calls = calls("accumulate", "accumulate", "accumulate", "trim")
+    stocks = {**_stocks(), "PLTR": pltr}
+    sub = subscribers.Subscriber(ID, "sam@example.com", ["NVDA"])
+    email, _ = subscribers.build(sub, stocks, now=NOW, market={})
+    assert "PLTR" not in email.html and "PLTR" not in email.text and "Calls we changed" not in email.html
+    assert [t for t, _ in email.meta["items"]] == ["NVDA"]
+
+
 def test_one_stock_signup_opens_that_stock():
     sub = subscribers.Subscriber(ID, "sam@example.com", ["NVDA"])
     email, _ = subscribers.build(sub, _stocks(), now=NOW, market={})

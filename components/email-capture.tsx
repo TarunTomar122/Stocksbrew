@@ -3,30 +3,23 @@
 import * as React from "react";
 
 import { useUser } from "@/lib/auth-context";
+import { SENT_COPY, capturePromise } from "@/lib/email-capture-copy";
 import type { CaptureSource } from "@/lib/email-subscribers";
 import { captureEvent } from "@/lib/posthog";
 
 /**
- * "Email me this each morning", no account needed: one email field and one button (POST /api/email/subscribe, double
- * opt-in). On a ticker page it signs the visitor up for that stock; a second ticker page adds to the same signup.
+ * The no-account morning email: one quiet strip with one line of promise, one email field and one button
+ * (POST /api/email/subscribe, double opt-in). On a ticker page it signs the visitor up for that stock; a second ticker
+ * page adds to the same signup. The words are lib/email-capture-copy.ts's, shared with the confirmation email.
  *
  * Signed-in visitors never see it: their account already gets the morning email, under their own settings. The
  * server's session cookie decides it on the first paint (initialAuthed), so it never flashes for them.
- *
- * `strip`: a quiet bar with a short title, for /news, /calendar and the stock page. `inline`: the field and a button
- * that carries the words, for a page header (the earnings page, beside "Open the report").
  */
-
-/**
- * What the form says once a signup is in. The route answers every signup the same (new, waiting or already confirmed),
- * so the words must be true for all of them: a confirmed address gets no confirmation email, only the stock added.
- */
-export const SENT_COPY = "Done. If this email is new, check your inbox.";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
 const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--oa-ring)_60%,transparent)]";
-const FIELD = `h-9 min-w-0 rounded-md border border-oa-border bg-oa-card px-3 text-[14px] text-oa-fg placeholder:text-oa-muted-fg ${FOCUS}`;
+const FIELD = `h-9 min-w-0 flex-1 rounded-md border border-oa-border bg-oa-card px-3 text-[14px] text-oa-fg placeholder:text-oa-muted-fg sm:w-60 sm:flex-none ${FOCUS}`;
 
 function MailIcon({ className = "" }: { className?: string }) {
   return (
@@ -44,20 +37,7 @@ function CheckIcon() {
   );
 }
 
-export function EmailCapture({
-  source,
-  ticker,
-  title,
-  variant = "strip",
-  className = "",
-}: {
-  source: CaptureSource;
-  ticker?: string;
-  /** The few words that say what they get, e.g. "Get this each morning" (the inline variant's button). */
-  title: string;
-  variant?: "strip" | "inline";
-  className?: string;
-}) {
+export function EmailCapture({ source, ticker, className = "" }: { source: CaptureSource; ticker?: string; className?: string }) {
   const { user, initialAuthed } = useUser();
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState("");
@@ -66,6 +46,7 @@ export function EmailCapture({
   const [ready, setReady] = React.useState(false);
   const shownAt = React.useRef(0);
   const fieldId = React.useId();
+  const promise = capturePromise(ticker);
 
   React.useEffect(() => {
     shownAt.current = Date.now();
@@ -114,92 +95,53 @@ export function EmailCapture({
     }
   }
 
-  const sent = (
-    <p role="status" className="flex h-9 items-center gap-1.5 text-[14px] font-medium text-oa-fg">
-      <span className="text-[color:var(--signal-bullish)]">
-        <CheckIcon />
-      </span>
-      {SENT_COPY}
-    </p>
-  );
-
-  const honeypot = (
-    <div aria-hidden className="absolute -left-[9999px] top-auto size-px overflow-hidden">
-      <label>
-        Website
-        <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
-      </label>
-    </div>
-  );
-
-  const field = (
-    <>
-      <label htmlFor={fieldId} className="sr-only">
-        Your email
-      </label>
-      <input
-        id={fieldId}
-        name="email"
-        type="email"
-        inputMode="email"
-        autoComplete="email"
-        required
-        maxLength={254}
-        placeholder="Your email"
-        aria-invalid={status === "error" ? true : undefined}
-        aria-describedby={error ? `${fieldId}-error` : undefined}
-        className={`${FIELD} ${variant === "inline" ? "w-full sm:w-36" : "flex-1 sm:w-60 sm:flex-none"}`}
-      />
-    </>
-  );
-
-  const errorLine = error ? (
-    <p id={`${fieldId}-error`} role="alert" className="text-[13px] leading-4 text-[color:var(--signal-bearish)]">
-      {error}
-    </p>
-  ) : null;
-
-  if (variant === "inline") {
-    return (
-      <div className={`flex w-full flex-col gap-1 sm:w-auto ${className}`}>
-        {status === "sent" ? (
-          sent
-        ) : (
-          <form onSubmit={submit} method="post" action="/api/email/subscribe" className="relative flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-            {honeypot}
-            {field}
-            <button
-              type="submit"
-              disabled={!ready || status === "sending"}
-              className={`inline-flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-oa-border bg-oa-card px-3 text-[13.5px] font-medium text-oa-fg transition-colors hover:bg-oa-accent disabled:opacity-60 sm:w-auto ${FOCUS}`}
-            >
-              {title}
-            </button>
-          </form>
-        )}
-        {errorLine}
-      </div>
-    );
-  }
-
   return (
     <section
-      aria-label={title}
+      aria-label={promise}
       className={`oa-surface flex flex-col gap-2 border border-oa-border bg-oa-card px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 ${className}`}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="flex items-center gap-2 text-[14.5px] font-medium leading-5 text-oa-fg">
           <MailIcon className="text-oa-primary" />
-          {title}
+          {promise}
         </p>
-        {errorLine}
+        {error ? (
+          <p id={`${fieldId}-error`} role="alert" className="text-[13px] leading-4 text-[color:var(--signal-bearish)]">
+            {error}
+          </p>
+        ) : null}
       </div>
       {status === "sent" ? (
-        sent
+        <p role="status" className="flex min-h-9 items-center gap-1.5 text-[14px] font-medium text-oa-fg">
+          <span className="text-[color:var(--signal-bullish)]">
+            <CheckIcon />
+          </span>
+          {SENT_COPY}
+        </p>
       ) : (
         <form onSubmit={submit} method="post" action="/api/email/subscribe" className="relative flex w-full items-center gap-2 sm:w-auto">
-          {honeypot}
-          {field}
+          <div aria-hidden className="absolute -left-[9999px] top-auto size-px overflow-hidden">
+            <label>
+              Website
+              <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+            </label>
+          </div>
+          <label htmlFor={fieldId} className="sr-only">
+            Your email
+          </label>
+          <input
+            id={fieldId}
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            maxLength={254}
+            placeholder="Your email"
+            aria-invalid={status === "error" ? true : undefined}
+            aria-describedby={error ? `${fieldId}-error` : undefined}
+            className={FIELD}
+          />
           <button
             type="submit"
             disabled={!ready || status === "sending"}

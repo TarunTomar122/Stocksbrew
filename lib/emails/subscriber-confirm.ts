@@ -3,6 +3,8 @@
  * look (backend/mail/theme.py, kit.render): warm paper, one card, copper as the one accent, one button.
  */
 
+import { confirmHeadline, whenLine } from "@/lib/email-capture-copy";
+
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://")
   ? process.env.NEXT_PUBLIC_APP_URL!.replace(/\/$/, "")
   : "https://www.stocksbrew.online";
@@ -23,21 +25,15 @@ function esc(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-/** "NVDA", "NVDA and AMD", "NVDA, AMD and TSLA". */
-export function joinTickers(tickers: readonly string[]): string {
-  if (tickers.length <= 1) return tickers[0] ?? "";
-  return `${tickers.slice(0, -1).join(", ")} and ${tickers[tickers.length - 1]}`;
-}
-
 export function confirmUrl(id: string, token: string): string {
   return `${APP_URL}/email/confirm?${new URLSearchParams({ s: id, t: token }).toString()}`;
 }
 
 export function buildSubscriberConfirmEmail(params: { tickers: readonly string[]; confirmUrl: string }): { subject: string; html: string; text: string } {
-  const what = params.tickers.length ? joinTickers(params.tickers) : "the market";
-  const subject = "Confirm your morning email from stocksbrew";
-  const headline = `Confirm, and we'll email you about ${what} before the open.`;
-  const line = "Only on trading days when something happens.";
+  const subject = "Confirm your email from stocksbrew";
+  // The same promise as the form (lib/email-capture-copy.ts): before the open, only on days something happens.
+  const headline = confirmHeadline(params.tickers);
+  const line = whenLine(params.tickers);
   const ignore = "Didn't ask for this? Ignore it and you won't hear from us.";
   const html = `<!doctype html>
 <html lang="en">

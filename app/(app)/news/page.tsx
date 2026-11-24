@@ -187,7 +187,7 @@ export default async function NewsPage({ searchParams }: { searchParams?: Search
       {buzz.length ? <TalkedAbout rows={buzz} filters={effective} className="mb-6" /> : null}
 
       {/* No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). */}
-      {session || wire.items.length === 0 ? null : <EmailCapture source="news" title="Get this each morning" className="mb-6" />}
+      {session || wire.items.length === 0 ? null : <EmailCapture source="news" className="mb-6" />}
 
       <WireFilterBar filters={effective} topicCounts={topicCounts} mineCount={mineCount} signedIn={Boolean(session)} />
 

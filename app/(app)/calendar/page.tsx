@@ -120,6 +120,9 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
   );
 
   const markPreRead = preReadIsException(days);
+  // No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). In the week view it
+  // sits right after the week, and on a phone right after today's card (WeekView `after`).
+  const capture = session ? null : <EmailCapture source="calendar" />;
 
   const tabs = (["week", "month", "list"] as const).map((view) => ({
     id: view,
@@ -156,14 +159,12 @@ export default async function CalendarPage({ searchParams }: { searchParams?: Se
         </Panel>
       ) : (
         <>
-          {effective.view === "week" ? <WeekView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
+          {effective.view === "week" ? <WeekView days={days} filters={effective} today={today} markPreRead={markPreRead} after={capture} /> : null}
           {effective.view === "month" ? <MonthView days={days} filters={effective} today={today} /> : null}
           {effective.view === "list" ? <ListView days={days} filters={effective} today={today} markPreRead={markPreRead} /> : null}
+          {effective.view !== "week" && capture ? <div className="mt-4">{capture}</div> : null}
         </>
       )}
-
-      {/* No account needed: the morning email, for a signed-out reader (a signed-in one already gets it). */}
-      {session || data.failed ? null : <EmailCapture source="calendar" title="Get this each morning" className="mt-4" />}
 
       {/* GATE: our add/hold/trim call per reporting company is not shown here; it belongs to the entitled view once lib/entitlements.ts lands. */}
     </AppPage>

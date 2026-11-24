@@ -84,15 +84,12 @@ export default async function EarningsDetailPage({ params }: Props) {
           </span>
         }
         actions={
-          <>
           <Link prefetch={false}
             href={`/stock/${encodeURIComponent(ticker)}`}
             className={`inline-flex h-9 items-center rounded-md border border-oa-border bg-oa-card px-3 text-[13.5px] font-medium text-oa-fg hover:bg-oa-accent ${FOCUS}`}
           >
             Open the {ticker} report
           </Link>
-          <EmailCapture source="earnings" ticker={ticker} title={`Get the next briefing on ${ticker}`} variant="inline" />
-          </>
         }
       />
 
@@ -101,6 +98,7 @@ export default async function EarningsDetailPage({ params }: Props) {
       <div className="mb-5">
         <ReportHistory detail={detail} today={today} />
       </div>
+      <EmailCapture source="earnings" ticker={ticker} className="mb-5" />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-5">

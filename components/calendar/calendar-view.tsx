@@ -779,8 +779,9 @@ function dayCard({ bucket, today, filters, blocks, budget }: { bucket: DayBucket
   return {
     day: bucket.day,
     label: `${weekdayName(bucket.day, true)}, ${fmtShortDay(bucket.day)}`,
-    // Each day is its own card; a past day sits after the coming ones on a phone.
-    className: past ? "order-2 bg-oa-bg" : "order-1 bg-oa-card",
+    // Each day is its own card. On a phone today comes first, then the page's slot after it (WeekGrid `phoneSlot`), the
+    // days to come, and the past days last.
+    className: past ? "order-4 bg-oa-bg" : bucket.day === today ? "order-1 bg-oa-card" : "order-3 bg-oa-card",
     head,
     blocks: blocks.map((block, index) => ({ key: blockKey(block.node, index), node: block.node, row: block.weight > 0 })),
     ssrCut: foldDay(blocks, budget, FOLD_HEIGHTS).shown.length,
@@ -814,12 +815,15 @@ export function WeekView({
   filters,
   today,
   markPreRead,
+  after,
 }: {
   days: Map<string, DayBuckets>;
   filters: CalendarFilters;
   today: string;
   /** Mark the reports that have a pre-read (only when that is the exception). */
   markPreRead: boolean;
+  /** Shown after the week; on a phone, where the days stack, right after today's card when today is in the week. */
+  after?: React.ReactNode;
 }) {
   const shown = windowDays(filters.center);
   // A weekend or a holiday inside the window (or right after it) is skipped, unless it holds events: then one line
@@ -834,6 +838,7 @@ export function WeekView({
   // and the range still say which days these are.
   const buckets = shown.map((day) => days.get(day) ?? emptyDay(day)).filter((bucket) => bucket.total > 0);
   const columns = buckets.map((bucket) => ({ bucket, blocks: dayBlocks(bucket, { today, mark: markPreRead }) }));
+  const todayShown = buckets.some((bucket) => bucket.day === today);
   // The server's fold (the phone's, and the desktop's until WeekGrid measures): one height for the window, the busy
   // days folded to the quietest one's (fold-day.ts weekBudget), never below DAY_MIN.
   const budget = Math.max(DAY_MIN, weekBudget(columns.map((column) => column.blocks), { min: 0, max: DAY_MAX }));
@@ -860,6 +865,7 @@ export function WeekView({
         <WeekGrid
           template={template}
           level={!sparse}
+          phoneSlot={after && todayShown ? after : undefined}
           columns={groups.map((group) => ({
             key: group[0]!.bucket.day,
             cards: group.map(({ bucket, blocks }) => dayCard({ bucket, today, filters, blocks, budget })),
@@ -880,6 +886,7 @@ export function WeekView({
           .
         </p>
       ) : null}
+      {after ? <div className={`mt-4 ${todayShown ? "max-lg:hidden" : ""}`}>{after}</div> : null}
     </>
   );
 }

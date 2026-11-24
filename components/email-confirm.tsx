@@ -3,16 +3,11 @@
 import Link from "next/link";
 import * as React from "react";
 
+import { whenLine } from "@/lib/email-capture-copy";
 import { FREE_COVERED_STOCKS } from "@/lib/paywall-flag";
 import { captureEvent } from "@/lib/posthog";
 
 type State = { kind: "working" } | { kind: "done"; first: boolean; tickers: string[] } | { kind: "linked" } | { kind: "error"; gone: boolean };
-
-/** "NVDA", "NVDA and AMD", "NVDA, AMD and TSLA". */
-function joinTickers(tickers: readonly string[]): string {
-  if (tickers.length <= 1) return tickers[0] ?? "";
-  return `${tickers.slice(0, -1).join(", ")} and ${tickers[tickers.length - 1]}`;
-}
 
 const TITLE = "text-balance text-[19px] font-semibold leading-6 tracking-[-0.01em] text-oa-fg sm:text-[22px] sm:leading-7";
 const LEDE = "mt-1 max-w-4xl text-pretty text-[14px] leading-5 text-oa-muted-fg";
@@ -75,12 +70,11 @@ export function ConfirmSubscription({ id, token }: { id: string; token: string }
       </header>
     );
   }
-  const what = state.tickers.length ? joinTickers(state.tickers) : "the market";
   const picks = state.tickers.slice(0, FREE_COVERED_STOCKS);
   return (
     <header className="px-2 sm:px-0">
       <h1 className={TITLE}>{state.first ? "You're in" : "You're already in"}</h1>
-      <p className={LEDE}>We&apos;ll email you about {what} before the open, on days something happens.</p>
+      <p className={LEDE}>{whenLine(state.tickers)}</p>
       <Link href={picks.length ? `/?try=${picks.join(",")}` : "/"} className={`${LINK} mt-4 inline-block`}>
         Make it yours: pick {FREE_COVERED_STOCKS} stocks free
       </Link>

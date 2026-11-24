@@ -11,7 +11,7 @@ import { getSeoStockPage } from "@/lib/seo/stock-pages";
 export const dynamic = "force-dynamic";
 
 /**
- * POST { email, source, ticker?, website, ms }: "email me this each morning", no account needed
+ * POST { email, source, ticker?, website, ms }: the no-account morning email (before the open, on days something happens)
  * (components/email-capture.tsx). Double opt-in: the address gets a confirmation link and nothing else until it is
  * clicked (lib/email-subscribers-store.ts).
  *
