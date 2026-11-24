@@ -169,7 +169,7 @@ export function SignupsDashboard({ view, emails = null, now, all = false }: { vi
         <SignupTile
           label="Waiting to confirm"
           value={emails ? fmtCount(emails.waiting) : "\u00a0"}
-          sub={emails ? `${fmtCount(emails.linked)} made an account, ${fmtCount(emails.stopped)} stopped` : undefined}
+          sub={emails ? `${fmtCount(emails.linked)} linked, ${fmtCount(emails.stopped)} stopped` : undefined}
           title="Left an email but have not clicked the confirmation link"
         />
       </dl>

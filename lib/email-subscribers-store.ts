@@ -55,13 +55,16 @@ export async function captureSubscriber(
   let send = false;
   let busy = false;
   let doc: SubscriberDoc | null = null;
+  // Asked once: a retried transaction must not spend a second confirmation from the cap.
+  let allowed: boolean | null = null;
+  const mayConfirm = () => (allowed ??= deps.mayConfirm ? deps.mayConfirm() : true);
   const outcome = await db.runTransaction(async (tx) => {
     const snap = await tx.get(docRef);
     const existing = snap.exists ? ((snap.data() ?? {}) as Partial<SubscriberDoc>) : null;
     const plan = planCapture(existing, input, now);
     if (plan.kind === "linked") return "linked" as const;
     previousSentAt = plan.doc.confirm_sent_at;
-    send = plan.sendConfirm && (deps.mayConfirm ? deps.mayConfirm() : true);
+    send = plan.sendConfirm && mayConfirm();
     busy = plan.sendConfirm && !send;
     doc = send ? { ...plan.doc, confirm_sent_at: new Date(now).toISOString() } : plan.doc;
     tx.set(docRef, doc as unknown as Record<string, unknown>);
