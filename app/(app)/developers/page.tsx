@@ -15,7 +15,7 @@ import {
   AGENT_SCOPES,
 } from "@/lib/agent-access-config";
 import { AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
-import { FREE_AGENT_COMPARE_LIMIT, FREE_AGENT_TOOLS, isFreeAgentTool } from "@/lib/agent-tiers";
+import { FREE_AGENT_TOOLS, isFreeAgentTool } from "@/lib/agent-tiers";
 import { loadToolReference, type ToolReference } from "@/lib/docs/developer-tools";
 import { API_ERRORS, COVERAGE_STATES, SCOPE_INFO, TOOL_GROUPS, TOOL_REST, TOOL_SCOPE } from "@/lib/docs/developers";
 import { SITE_URL } from "@/lib/docs/site";
@@ -54,6 +54,12 @@ const TOC = [
   { id: "cli", label: "CLI" },
   { id: "rules", label: "What it is not for" },
 ];
+
+/** The tool reference in two parts, so the plan is said once per heading. */
+const PLAN_SECTIONS = [
+  { id: "on-free", title: "On Free", free: true },
+  { id: "pro-only", title: "Pro only", free: false },
+] as const;
 
 const PROMPTS: { title: string; prompt: string; uses: string }[] = [
   {
@@ -136,14 +142,13 @@ function ToolCard({ tool }: { tool: ToolReference }) {
   return (
     <article id={tool.name} className="oa-surface scroll-mt-24 border border-oa-border bg-oa-card">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-oa-border px-4 py-2.5">
-        <h4 className="oa-mono text-[14.5px] font-medium text-oa-fg">
+        <h5 className="oa-mono text-[14.5px] font-medium text-oa-fg">
           <a href={`#${tool.name}`} className="rounded hover:underline">
             {tool.name}
           </a>
-        </h4>
+        </h5>
         <span className="text-[13.5px] text-oa-muted-fg">{tool.title}</span>
         <span className="ml-auto flex flex-wrap items-center gap-1.5">
-          <Tag>{isFreeAgentTool(tool.name) ? "free" : "pro"}</Tag>
           <Tag tone="neutral">{scope}</Tag>
           {tool.readOnly ? <Tag>read</Tag> : <Tag tone="primary">{tool.destructive ? "write · removes" : "write"}</Tag>}
         </span>
@@ -151,7 +156,21 @@ function ToolCard({ tool }: { tool: ToolReference }) {
       <div className="flex flex-col gap-3 px-4 py-3">
         <p className="text-pretty text-[14.5px] leading-6 text-oa-fg/90">{tool.description}</p>
         {tool.params.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phone: one argument per block, so the notes wrap instead of running off the card. */}
+          <ul className="sm:hidden">
+            {tool.params.map((param) => (
+              <li key={param.name} className="border-b border-oa-border py-1.5 text-[13.5px] leading-5 last:border-b-0">
+                <p>
+                  <span className="oa-mono text-oa-fg">{param.name}</span>
+                  <span className="oa-mono text-oa-muted-fg"> {param.type}</span>
+                  <span className="text-oa-muted-fg"> · {param.required ? "required" : "optional"}</span>
+                </p>
+                <p className="text-pretty text-oa-fg/85">{[param.description, param.constraints].filter(Boolean).join(". ")}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="overflow-x-auto max-sm:hidden">
             <table className="w-full border-collapse text-left text-[13.5px] leading-5">
               <thead>
                 <tr>
@@ -176,6 +195,7 @@ function ToolCard({ tool }: { tool: ToolReference }) {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <p className="text-[13.5px] text-oa-muted-fg">No arguments.</p>
         )}
@@ -208,7 +228,6 @@ export default async function DevelopersPage() {
   const rateHeaders = `HTTP/1.1 429 Too Many Requests\nRetry-After: 60\nCache-Control: no-store\n\n{"error":"minute_limit","message":"Per-minute agent limit of ${AGENT_PER_MINUTE_CALL_LIMIT} calls reached."}`;
   const usageShape = `"usage": { "used": 12, "remaining": ${AGENT_FREE_DAILY_CALL_LIMIT - 12}, "limit": ${AGENT_FREE_DAILY_CALL_LIMIT}, "period": "day", "plan": "free" }`;
   const proRefusal = `{"error":"pro_required","message":"stress_test is part of stocksbrew Pro. …","upgrade_url":"${SITE_URL}/pricing"}`;
-  const freeNames = (FREE_AGENT_TOOLS as readonly string[]).filter((name) => byName.has(name as ToolReference["name"]));
 
   return (
     <SideTocPage
@@ -309,33 +328,15 @@ export default async function DevelopersPage() {
           <CodeBlock label="shell" code={cliQuick} />
         </PageSection>
 
-        <PageSection id="plans" title="Free and Pro" lede="Any stocksbrew account can connect. The plan decides which tools answer and how many calls a day.">
+        <PageSection id="plans" title="Free and Pro" lede="Any account can connect. The plan sets the tools and the calls a day.">
           <FactList
             rows={[
-              [
-                "Free",
-                `${FREE_AGENT_TOOLS.length} tools, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day. Search, our call on any stock, compare ${FREE_AGENT_COMPARE_LIMIT} at a time, filing risk changes, the market brief, Explore, screens and your own watchlist. Price zones and the full brief come on the stocks you cover, same as the app.`,
-              ],
-              [
-                "Pro",
-                `Every tool, ${AGENT_DAILY_CALL_LIMIT} calls a day. Adds full stock detail, what changed on your watchlist, alerts, what your funds hold, dividends, stress and copy tests, idea baskets and plain-English watch requests.`,
-              ],
-              ["A Pro tool on Free", "It answers pro_required with an upgrade_url and does not count as a call. Over MCP that is an error for that one tool. The others keep working."],
-              ["Changing plan", "Counts from the next call. No new token, no reconnecting."],
+              ["Free", `${FREE_AGENT_TOOLS.length} tools, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day.`],
+              ["Pro", `All ${tools.length > 0 ? tools.length : "the"} tools, ${AGENT_DAILY_CALL_LIMIT} calls a day.`],
+              ["A Pro tool on Free", "Answers pro_required with an upgrade link. Not counted."],
+              ["Changing plan", "Applies on the next call."],
             ]}
           />
-          {freeNames.length > 0 ? (
-            <p className="oa-mono text-[12.5px] leading-5 text-oa-muted-fg">
-              free: {freeNames.map((name, index) => (
-                <span key={name}>
-                  {index > 0 ? ", " : ""}
-                  <a href={`#${name}`} className="hover:text-oa-fg hover:underline">
-                    {name}
-                  </a>
-                </span>
-              ))}
-            </p>
-          ) : null}
           <CodeBlock label="a Pro tool on Free" code={proRefusal} />
         </PageSection>
 
@@ -407,10 +408,11 @@ export default async function DevelopersPage() {
           />
         </PageSection>
 
-        <PageSection id="limits" title="Rate limits" lede="Two limits, counted per account across MCP, REST and the CLI together. Every call counts, including one that returns an error from our data, except a Pro tool refused on Free.">
+        <PageSection id="limits" title="Rate limits" lede="Two limits per account, shared by MCP, REST and the CLI.">
           <FactList
             rows={[
-              ["Daily", `${AGENT_FREE_DAILY_CALL_LIMIT} calls a day on Free, ${AGENT_DAILY_CALL_LIMIT} on Pro. The day is a UTC day: the counter resets at 00:00 UTC.`],
+              ["Daily", `${AGENT_FREE_DAILY_CALL_LIMIT} calls on Free, ${AGENT_DAILY_CALL_LIMIT} on Pro, reset at 00:00 UTC.`],
+              ["What counts", "Every call, errors from our data included. A Pro tool refused on Free does not."],
               ["Burst", `${AGENT_PER_MINUTE_CALL_LIMIT} calls per minute, by clock minute.`],
               ["When you hit one", "HTTP 429 with a Retry-After header in seconds: 60 for the minute limit, the time until midnight UTC for the daily limit. Over MCP the tool returns an error result with the same code."],
               ["Knowing where you stand", "Every successful response carries a usage object. Today's count is also shown under Account."],
@@ -454,15 +456,24 @@ export default async function DevelopersPage() {
               , and an MCP client can always ask the server for it.
             </p>
           ) : (
-            TOOL_GROUPS.map((group) => (
-              <div key={group.title} className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-baseline gap-x-3">
-                  <h3 className="text-[16.5px] font-medium text-oa-fg">{group.title}</h3>
-                  <p className="text-[14px] text-oa-muted-fg">{group.blurb}</p>
-                </div>
-                {group.tools.map((name) => {
-                  const tool = byName.get(name);
-                  return tool ? <ToolCard key={name} tool={tool} /> : null;
+            // The plan is said once per heading, not on every card: the free tools first, then the ones Pro adds.
+            PLAN_SECTIONS.map((plan) => (
+              <div key={plan.id} id={plan.id} className="flex scroll-mt-24 flex-col gap-5">
+                <h3 className="border-b border-oa-border pb-2 text-[18px] font-semibold text-oa-fg">{plan.title}</h3>
+                {TOOL_GROUPS.map((group) => {
+                  const shown = group.tools.filter((name) => isFreeAgentTool(name) === plan.free && byName.has(name));
+                  if (shown.length === 0) return null;
+                  return (
+                    <div key={group.title} className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-baseline gap-x-3">
+                        <h4 className="text-[16px] font-medium text-oa-fg">{group.title}</h4>
+                        <p className="text-[14px] text-oa-muted-fg">{group.blurb}</p>
+                      </div>
+                      {shown.map((name) => (
+                        <ToolCard key={name} tool={byName.get(name)!} />
+                      ))}
+                    </div>
+                  );
                 })}
               </div>
             ))

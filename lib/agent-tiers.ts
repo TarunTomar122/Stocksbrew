@@ -11,7 +11,7 @@ import type { AgentToolName } from "@/lib/agent-intelligence";
  * Free vs Pro for the API, the MCP server and the CLI. Enforced in the dispatcher (executeAgentTool), so MCP, REST
  * and the CLI all read this one list.
  *
- * Any signed-in account can get a token. Free gets the reads the pipeline writes once for everyone (search, the
+ * Any signed-in account can get a token. Free gets what the pipeline writes once for everyone (search, the
  * call, compare, filings, the market, Explore, screens) plus the account's own watchlist, at
  * AGENT_FREE_DAILY_CALL_LIMIT calls a day. None of them runs a model. They follow the app's own line
  * (lib/entitlements.ts): price zones and the whole brief only on the stocks a Free account covers, two stocks per
@@ -60,7 +60,7 @@ export function agentUpgradeUrl(): string {
 
 /** The free-tier allowance in one line, for error messages. */
 function freeLine(): string {
-  return `Free includes ${FREE_AGENT_TOOLS.length} tools (stock and market reads and your own watchlist) and ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day.`;
+  return `Free includes ${FREE_AGENT_TOOLS.length} tools (market data, our call on any stock and your own watchlist) and ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day.`;
 }
 
 /**

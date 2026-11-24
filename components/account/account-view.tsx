@@ -8,8 +8,8 @@ import { SideTocPage, TEXT_LINK } from "@/components/docs/side-toc";
 import { Empty, FOCUS, PageHead, Panel, StatStrip, Tag, fmtDay } from "@/components/oa/kit";
 import { FEATURES, FREE_COVERED_STOCKS, describeRule, type Feature } from "@/lib/entitlements";
 import { US_PRO_MONTHLY } from "@/lib/pricing";
-import { AGENT_DAILY_CALL_LIMIT, AGENT_FREE_DAILY_CALL_LIMIT } from "@/lib/agent-access-config";
-import { FREE_AGENT_TOOLS } from "@/lib/agent-tiers";
+import { AGENT_DAILY_CALL_LIMIT } from "@/lib/agent-access-config";
+import { TOOL_SCOPE } from "@/lib/docs/developers";
 import Link from "next/link";
 import { AppLink } from "@/components/oa/app-link";
 import { FREE_COVERED_WORD } from "@/lib/paywall-flag";
@@ -328,7 +328,7 @@ export function AccountView({ data }: { data: AccountData }) {
             {!plan.isPro ? (
               <div className="flex flex-col gap-2 border-t border-oa-border px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-pretty text-[14px] leading-6 text-oa-fg/90">
-                  Free: {FREE_AGENT_TOOLS.length} tools, {AGENT_FREE_DAILY_CALL_LIMIT} calls a day. Pro opens every tool, {AGENT_DAILY_CALL_LIMIT} a day.
+                  Pro: all {Object.keys(TOOL_SCOPE).length} tools, {AGENT_DAILY_CALL_LIMIT} calls a day.
                 </p>
                 <UpgradeButton disabled={off} />
               </div>

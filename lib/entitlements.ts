@@ -510,7 +510,7 @@ const TABLE = {
     pro: meter(AGENT_DAILY_CALL_LIMIT, "day", "calls"),
     lock: {
       title: "That tool is part of Pro",
-      body: `Free connects your agent to stock and market reads and your own watchlist, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day, reset at midnight UTC. Pro opens every tool, ${AGENT_DAILY_CALL_LIMIT} calls a day.`,
+      body: `Free connects your agent to market data, our call on any stock and your own watchlist, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day, reset at midnight UTC. Pro opens every tool, ${AGENT_DAILY_CALL_LIMIT} calls a day.`,
     },
   },
 } as const satisfies Record<string, Feature>;
