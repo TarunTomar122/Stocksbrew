@@ -288,6 +288,21 @@ def test_nasdaq_wins_over_yahoo():
     assert stats["confirmed_nasdaq"] == 1
 
 
+def test_a_yahoo_row_dated_today_is_never_retired():
+    # The job runs after the close: a Yahoo-only row dated today is the report going out right now.
+    # yahoo_confirmed() never returns today, so without the guard it was retired (yahoo_retired: 1)
+    # and the reactions step, earnings_day and the stock page missed the report.
+    held = [_event("NVDA", TODAY.isoformat(), market="US", source="yahoo_quote", time="amc")]
+    for yahoo in ({"NVDA": _yahoo_row(f"{TODAY.isoformat()}T16:20:00")}, {"NVDA": {"isEarningsDateEstimate": True}}, {"NVDA": {}}):
+        writes, stats = _plan(events=held, histories={}, yahoo=yahoo)
+        assert writes == []
+        assert stats.get("yahoo_retired", 0) == 0 and stats["confirmed_yahoo"] == 1
+    # A future day Yahoo no longer lists is still retired.
+    later = [_event("NVDA", (TODAY + timedelta(days=1)).isoformat(), market="US", source="yahoo_quote")]
+    writes, stats = _plan(events=later, histories={}, yahoo={"NVDA": {"isEarningsDateEstimate": True}})
+    assert stats["yahoo_retired"] == 1 and writes[0][1]["market"] == "US_SUPERSEDED"
+
+
 def test_a_yahoo_date_too_close_to_the_last_report_is_ignored():
     writes, stats = _plan(yahoo={"NVDA": _yahoo_row("2026-12-02T16:20:00")})
     assert [doc["market"] for _, doc in writes] == ["US_ESTIMATED"]

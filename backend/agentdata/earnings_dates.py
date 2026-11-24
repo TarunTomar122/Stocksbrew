@@ -391,7 +391,10 @@ def plan(
             if nasdaq and day not in {str(other.get("event_date")) for _, other in nasdaq}:
                 writes.append((path, _retire("nasdaq_calendar lists another date", now_iso)))
                 stats["yahoo_retired"] += 1
-            elif answered and (from_yahoo is None or from_yahoo["date"] != day):
+            elif answered and day > today_iso and (from_yahoo is None or from_yahoo["date"] != day):
+                # Only a future day Yahoo stopped listing. yahoo_confirmed never returns today, and
+                # the job runs after the close: a row dated today is the report going out right now,
+                # which the reactions step, earnings_day and the stock page still need.
                 writes.append((path, _retire("no longer confirmed for this date by yahoo_quote", now_iso)))
                 stats["yahoo_retired"] += 1
             else:
