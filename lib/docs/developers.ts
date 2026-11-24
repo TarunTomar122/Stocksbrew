@@ -12,7 +12,7 @@ export const SCOPE_INFO: Record<AgentScope, { text: string; writes: boolean }> =
   "stocks:read": { text: "Read stock research: the call, zones, fundamentals, risks, what a company changed in its filed risks, full stock detail and comparisons, and read a watch request in plain words.", writes: false },
   "market:read": { text: "Read the market brief, Explore sections, screens, the copy tests and the Market Daily archive.", writes: false },
   "radar:read": { text: "Read your own portfolio: the stocks you hold and watch, what changed, what your funds hold, your dividends, your stress test and your idea baskets.", writes: false },
-  "radar:write": { text: "Add a stock to your portfolio or remove one.", writes: true },
+  "radar:write": { text: "Add a stock to your watchlist or remove one.", writes: true },
   "alerts:read": { text: "Read your active alerts.", writes: false },
   "alerts:write": { text: "Create a price alert or deactivate an alert.", writes: true },
 };
