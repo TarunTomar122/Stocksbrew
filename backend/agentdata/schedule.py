@@ -18,7 +18,7 @@ Groups and what they keep fresh:
 * ``hourly``       SEC filings, Form 4 insiders, the calendar's releases, IPOs and dividends, then the
                    serving docs
 * ``after_close``  daily prices, strategy baskets and their live record, earnings
-                   dates and reactions, the screener snapshot, then the filing changes, the standing agents,
+                   dates (Nasdaq's, then Yahoo-confirmed and estimated ones) and reactions, the screener snapshot, then the filing changes, the standing agents,
                    the reason checks and the thesis checks (TypeScript, see "Node jobs" below),
                    then the stock pages' serving docs
 * ``weekly``       13F fund portfolios, who holds each stock, House trade reports, Senate
@@ -94,6 +94,9 @@ GROUPS: dict[str, list[tuple[str, list[str]]]] = {
         # Three years of 8-K earnings release dates and times from EDGAR (about 800 requests, ~2 minutes),
         # read by the reactions step below and the earnings season planner.
         ("earnings history", ["backend.agentdata.earnings_history"]),
+        # The next report date for every covered stock Nasdaq has no date for yet: a date Yahoo says the company
+        # confirmed, else our estimate from the history above (market US_ESTIMATED). About 20 Yahoo requests.
+        ("earnings dates", ["backend.agentdata.earnings_dates"]),
         ("earnings reactions", ["backend.agentdata.earnings_reactions"]),
         # Past dividends per stock for the dividend planner; a bad source reply never overwrites a good history.
         ("dividend history", ["backend.agentdata.dividend_history"]),
@@ -178,6 +181,7 @@ STEP_TIMEOUT_SECONDS: dict[tuple[str, str], int] = {
     ("after_close", "strategies"): 15 * 60,  # [~1 min on cached prices]
     ("after_close", "earnings calendar"): 15 * 60,  # [3-4 min]
     ("after_close", "earnings history"): 15 * 60,  # [~2 min]
+    ("after_close", "earnings dates"): 10 * 60,  # [~1 min from a laptop, Nov 24: ~950 history reads, 19 Yahoo requests]
     ("after_close", "earnings reactions"): 10 * 60,  # [1-1.5 min]
     ("after_close", "dividend history"): 20 * 60,  # [~800 Yahoo requests, ~8 min]
     ("after_close", "screener snapshot"): 10 * 60,  # [1-1.5 min]

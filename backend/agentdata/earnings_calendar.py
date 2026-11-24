@@ -17,6 +17,13 @@ Rules:
 * A date that Nasdaq no longer lists for a symbol is marked superseded by moving
   it out of the ``US`` market value every reader filters on. Only documents this
   job created (``source == "nasdaq_calendar"``) and only future dates.
+* Nasdaq's date is a confirmed one (``date_status: "confirmed"``). When it lands on
+  a day that held our estimate or a Yahoo date (``earnings_dates.py``), Nasdaq takes
+  the row over: market back to ``US``, source ``nasdaq_calendar``.
+
+Look-ahead: on 2026-11-24 Nasdaq listed reports up to 2027-01-15 (about seven
+weeks) and answered "No record found" for every day after, so the window stays
+at eight weeks; ``earnings_dates.py`` covers the rest.
 
 Run: ``python3 -m backend.agentdata.earnings_calendar``
 """
@@ -37,6 +44,13 @@ SOURCE = "nasdaq_calendar"
 # The old calendar covers everything up to 2026-08-13. Never touch that range.
 FIRST_WRITABLE_DATE = "2026-08-14"
 SUPERSEDED_MARKET = "US_SUPERSEDED"
+# Rows written by earnings_dates.py: a date Yahoo says the company confirmed (market "US"), and our own
+# estimate from the company's history, kept under its own market value so no "US" reader mistakes it for a date.
+YAHOO_SOURCE = "yahoo_quote"
+ESTIMATE_SOURCE = "stocksbrew_estimate"
+ESTIMATED_MARKET = "US_ESTIMATED"
+DATE_STATUS_CONFIRMED = "confirmed"
+DATE_STATUS_ESTIMATED = "estimated"
 _API = "https://api.nasdaq.com/api/calendar/earnings?date={day}"
 _MONTHS = {name.lower(): index for index, name in enumerate(calendar.month_abbr) if name}
 _TIME_LABELS = {"time-pre-market": "bmo", "time-after-hours": "amc"}
@@ -153,9 +167,13 @@ def build_event(
         "eps_estimate": row["eps_estimate"] if row["eps_estimate"] is not None else existing.get("eps_estimate"),
         "time": time_label,
         "market": "US",
+        "date_status": DATE_STATUS_CONFIRMED,
         "captured_at": now_iso,
-        "source": existing.get("source") or SOURCE,
+        # Nasdaq takes over a day that was only our estimate or Yahoo's, so its own retire rule covers it from now on.
+        "source": SOURCE if existing.get("source") in {None, "", YAHOO_SOURCE, ESTIMATE_SOURCE} else existing["source"],
     }
+    if existing.get("source") == ESTIMATE_SOURCE or existing.get("market") == ESTIMATED_MARKET:
+        event["estimate_basis"] = None
     reported = row.get("reported_eps")
     # Fill results only where no other job has: Alpha Vantage / yfinance actuals win.
     if reported is not None and existing.get("reported_eps") is None:

@@ -1009,8 +1009,11 @@ def build(store: DocStore, *, today: str | None = None) -> dict[str, Any]:
         store,
         "tm_earnings_events",
         [{"field": "event_date", "op": ">=", "value": today}],
-        ["ticker", "event_date", "time"],
+        ["ticker", "event_date", "time", "market"],
     ):
+        # Confirmed dates only: retired rows (US_SUPERSEDED) and our estimates (US_ESTIMATED) are not "Earnings Jan 28".
+        if event.get("market") != "US":
+            continue
         ticker = str(event.get("ticker") or "").upper()
         day = str(event.get("event_date") or "")[:10]
         if ticker and len(day) == 10 and day >= today and (ticker not in calendar or day < calendar[ticker][0]):

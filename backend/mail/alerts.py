@@ -662,12 +662,16 @@ def load_earnings_calendar(src: Source, now: datetime) -> dict[tuple[str, str], 
     for _, d in src.query("tm_earnings_events", [("event_date", "==", tomorrow)], limit=5000,
                           select=["ticker", "event_date", "time", "market"]):
         ticker = str(d.get("ticker") or "").upper()
+        market = str(d.get("market") or "US").upper()
+        # A retired date (US_SUPERSEDED) or our estimate (US_ESTIMATED) never triggers "reports tomorrow".
+        if "_" in market:
+            continue
         try:
             day = date.fromisoformat(str(d.get("event_date"))[:10])
         except ValueError:
             continue
         if ticker:
-            out[(str(d.get("market") or "US").upper(), ticker)] = (day, str(d.get("time") or "").lower())
+            out[(market, ticker)] = (day, str(d.get("time") or "").lower())
     return out
 
 

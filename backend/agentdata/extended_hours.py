@@ -278,6 +278,8 @@ def reporters(store: DocStore, days: Iterable[str]) -> dict[str, dict[str, Any]]
     out: dict[str, dict[str, Any]] = {}
     for day in days:
         for _path, data in query(store, "tm_earnings_events", filters=[("event_date", "==", day)], limit=5000):
+            if data.get("market") != "US":
+                continue  # a retired date (US_SUPERSEDED) or our estimate (US_ESTIMATED) is not a report today
             ticker = str(data.get("ticker") or "").strip().upper()
             when = str(data.get("time") or "").lower()
             if not ticker or not _plain_ticker(ticker):

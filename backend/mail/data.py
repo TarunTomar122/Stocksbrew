@@ -352,6 +352,9 @@ def _apply_earnings(src: Source, stocks: list[Stock], now: datetime) -> None:
     )
     by_ticker: dict[str, tuple[date, str]] = {}
     for _, d in rows:
+        # Confirmed dates only: a retired date (US_SUPERSEDED) or our estimate (US_ESTIMATED) never reaches an email.
+        if str(d.get("market") or "US").upper() != "US":
+            continue
         t = str(d.get("ticker") or "").upper()
         try:
             day = date.fromisoformat(str(d.get("event_date"))[:10])
