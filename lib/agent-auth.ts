@@ -15,6 +15,7 @@ import {
   secureHashMatches,
   type AgentTokenKind,
 } from "@/lib/agent-auth-core";
+import type { AgentPlan } from "@/lib/agent-tiers";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
@@ -33,13 +34,19 @@ export type AgentTokenDoc = {
   calls_total?: number;
 };
 
-export type AgentPrincipal = {
+/** Who a stored token belongs to and what it was granted, before the account's plan is read. */
+export type AgentTokenPrincipal = {
   uid: string;
   tokenId: string;
   kind: AgentTokenKind;
   scopes: AgentScope[];
   label: string;
   clientId: string | null;
+};
+
+/** A verified caller of the agent tools. `plan` decides which tools and how many calls a day (lib/agent-tiers.ts). */
+export type AgentPrincipal = AgentTokenPrincipal & {
+  plan: AgentPlan;
 };
 
 export class AgentAuthError extends Error {
@@ -148,7 +155,7 @@ export async function revokePersonalAgentToken(uid: string, tokenId: string): Pr
 export async function verifyStoredAgentToken(
   raw: string,
   allowedKinds: AgentTokenKind[] = ["personal", "access"],
-): Promise<AgentPrincipal> {
+): Promise<AgentTokenPrincipal> {
   const parsed = parseOpaqueAgentToken(raw);
   if (!parsed || !allowedKinds.includes(parsed.kind)) {
     throw new AgentAuthError("The bearer token is invalid.");
@@ -174,7 +181,7 @@ export async function verifyStoredAgentToken(
   };
 }
 
-export async function consumeRefreshAgentToken(raw: string, expectedClientId: string): Promise<AgentPrincipal> {
+export async function consumeRefreshAgentToken(raw: string, expectedClientId: string): Promise<AgentTokenPrincipal> {
   const parsed = parseOpaqueAgentToken(raw);
   if (!parsed || parsed.kind !== "refresh") {
     throw new AgentAuthError("The refresh token is invalid.");
@@ -205,20 +212,23 @@ export async function consumeRefreshAgentToken(raw: string, expectedClientId: st
   });
 }
 
+/**
+ * The caller behind a bearer token, with its plan. Every signed-in account may call: a Free account gets the free
+ * tools (lib/agent-tiers.ts), which the dispatcher enforces per call. A user doc that cannot be read is an error,
+ * not Free, so a Pro member is never told a tool needs Pro because of a blip.
+ */
 export async function requireAgentPrincipal(request: Request): Promise<AgentPrincipal> {
   const raw = bearerTokenFromHeader(request.headers.get("authorization"));
   if (!raw) throw new AgentAuthError("A bearer token is required.");
   const principal = await verifyStoredAgentToken(raw);
-  const user = await getUserDoc(principal.uid).catch(() => null);
-  if (!resolveIsSubscribed(user)) {
-    throw new AgentAuthError("An active stocksbrew Pro subscription is required.", 403, "pro_required");
-  }
+  const user = await getUserDoc(principal.uid);
+  const plan: AgentPlan = resolveIsSubscribed(user) ? "pro" : "free";
   const ref = adminFirestore.collection(AGENT_TOKEN_COLLECTION).doc(principal.tokenId);
   await ref.set(
     { last_used_at: new Date().toISOString(), calls_total: FieldValue.increment(1) },
     { merge: true },
   ).catch(() => undefined);
-  return principal;
+  return { ...principal, plan };
 }
 
 export function requireAgentScope(principal: AgentPrincipal, scope: AgentScope): void {

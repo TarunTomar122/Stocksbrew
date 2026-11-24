@@ -47,7 +47,7 @@ import { consumeAgentQuota } from "@/lib/agent-quota";
 import type { Comparison } from "@/lib/filing-changes/diff";
 
 function principal(scopes: AgentPrincipal["scopes"]): AgentPrincipal {
-  return { uid: UID, tokenId: "t", kind: "personal", scopes, label: "test", clientId: null };
+  return { uid: UID, tokenId: "t", kind: "personal", scopes, label: "test", clientId: null, plan: "pro" };
 }
 
 function comparison(form: "10-K" | "10-Q", filed: string, patch: Partial<Comparison> = {}): Comparison {

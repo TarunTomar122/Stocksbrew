@@ -14,28 +14,27 @@ import { readJsonObject } from "@/lib/request-json";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function requireProSession() {
+/** Any signed-in account manages its own tokens: Free tokens reach the free tools (lib/agent-tiers.ts). */
+async function requireSession() {
   const session = await getSessionUser();
   if (!session) return { error: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
-  const user = await getUserDoc(session.uid).catch(() => null);
-  if (!resolveIsSubscribed(user)) {
-    return { error: NextResponse.json({ error: "pro_required" }, { status: 403 }) };
-  }
   return { session };
 }
 
 export async function GET() {
-  const auth = await requireProSession();
+  const auth = await requireSession();
   if (auth.error) return auth.error;
+  const user = await getUserDoc(auth.session.uid).catch(() => null);
+  const plan = resolveIsSubscribed(user) ? "pro" : "free";
   const [tokens, usage] = await Promise.all([
     listPersonalAgentTokens(auth.session.uid),
-    getAgentUsage(auth.session.uid),
+    getAgentUsage(auth.session.uid, new Date(), plan),
   ]);
-  return NextResponse.json({ tokens, usage });
+  return NextResponse.json({ tokens, usage, plan });
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireProSession();
+  const auth = await requireSession();
   if (auth.error) return auth.error;
   const body = await readJsonObject(request);
   if (!body) return NextResponse.json({ error: "invalid_json" }, { status: 400 });
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = await requireProSession();
+  const auth = await requireSession();
   if (auth.error) return auth.error;
   const id = new URL(request.url).searchParams.get("id") || "";
   if (!/^[A-Za-z0-9_-]{12,32}$/.test(id)) {

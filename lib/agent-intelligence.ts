@@ -14,6 +14,10 @@ import {
 } from "@/lib/agent-feature-tools";
 import { getAgentBasket, getAgentFilingChanges, listAgentBaskets } from "@/lib/agent-idea-tools";
 import { consumeAgentQuota } from "@/lib/agent-quota";
+import { agentUpgradeUrl, requireAgentPlan, stripLevelsDeep } from "@/lib/agent-tiers";
+import { effectiveCovered, type CoverageDoc } from "@/lib/entitlements-coverage";
+import { FREE_COVERED_STOCKS } from "@/lib/paywall-flag";
+import { isFeaturedStockTicker } from "@/lib/seo/stock-pages";
 import { compareStocks } from "@/lib/compare-stocks";
 import { MARKET_FEED_FRESHNESS, freshnessInfo } from "@/lib/freshness";
 import { getHomeView } from "@/lib/home-view";
@@ -861,13 +865,104 @@ export async function deleteAgentAlert(uid: string, alertId: string) {
   }
 }
 
+/* ── the Free line on the agent tools ──────────────────────────────────────────────────────────────────────────── */
+
+type LevelsCheck = (instrumentId: string, ticker: string) => boolean;
+
+/**
+ * Whether a Free account may see our levels and the whole brief on a stock: the stocks it covers, and the showcase
+ * stocks every reader sees in full. The same rule as canSeeLevels (lib/entitlements-server.ts), from the user doc
+ * alone, since an agent call has no browser session. A doc that cannot be read covers nothing.
+ */
+async function freeLevelsCheck(uid: string): Promise<LevelsCheck> {
+  const user = await getUserDoc(uid).catch(() => null);
+  const covered = new Set(effectiveCovered(user as CoverageDoc | null, false));
+  return (instrumentId, ticker) => {
+    const bare = ticker.trim().toUpperCase();
+    return covered.has(instrumentId) || isFeaturedStockTicker(bare) || isFeaturedStockTicker(bare.replace(/\./g, "-"));
+  };
+}
+
+function fullReportNote(included: boolean) {
+  return included
+    ? { included: true }
+    : {
+        included: false,
+        message: `The price zones and the whole brief come with covering this stock. Free covers ${FREE_COVERED_STOCKS} stocks the member picks in the app; Pro covers every stock: ${agentUpgradeUrl()}`,
+      };
+}
+
+/**
+ * get_stock_intelligence for a stock a Free account does not cover: the call, its headline, the scores and the
+ * market data stay; the reasoning and every price level go. The same cut Ask makes (lib/ask-tools.ts quote card).
+ */
+export function withoutFullRead<T extends Awaited<ReturnType<typeof getStockAgentIntelligence>>>(data: T): T & { full_report: ReturnType<typeof fullReportNote> } {
+  const intel = data.stocksbrew_intelligence;
+  return {
+    ...data,
+    stocksbrew_intelligence: {
+      ...intel,
+      headline: typeof intel.headline === "string" ? stripLevelsDeep(intel.headline) : null,
+      thesis: null,
+      call: intel.call ? stripLevelsDeep(intel.call) : null,
+      drivers: [],
+      catalysts: [],
+      risks: [],
+      what_changed: null,
+      why_it_matters: null,
+      what_to_watch: null,
+      key_points: [],
+    },
+    full_report: fullReportNote(false),
+  };
+}
+
+/** The watchlist write-ups that can name any tracked stock's levels. */
+const RADAR_WRITE_UPS = [
+  "pulse",
+  "brief",
+  "today_setup",
+  "portfolio",
+  "attention_items",
+  "suggestions",
+  "blind_spot_suggestions",
+  "momentum_lift_suggestions",
+  "pillar_lift_suggestions",
+  "risk_summary",
+  "event_radar",
+  "changes",
+] as const;
+
+/**
+ * get_my_radar for a Free account: covered rows in full, the others without levels or prose that quotes one. When any
+ * row is uncovered, the watchlist-wide write-ups lose their level sentences too, as the chat's portfolio context does.
+ */
+export function gateRadarForFree<T extends { rows?: unknown }>(data: T, levels: LevelsCheck): T {
+  if (!Array.isArray(data.rows)) return data;
+  let anyHidden = false;
+  const rows = (data.rows as Array<Record<string, unknown>>).map((row) => {
+    const shown = levels(String(row.instrument_id ?? ""), String(row.ticker ?? ""));
+    if (!shown) anyHidden = true;
+    return shown ? { ...row, full_report: true } : { ...stripLevelsDeep(row), full_report: false };
+  });
+  const out: Record<string, unknown> = { ...data, rows };
+  if (anyHidden) {
+    for (const key of RADAR_WRITE_UPS) if (key in out) out[key] = stripLevelsDeep(out[key]);
+    out.full_report = fullReportNote(false);
+  }
+  return out as T;
+}
+
 export async function executeAgentTool(
   principal: AgentPrincipal,
   tool: AgentToolName,
   args: Record<string, unknown>,
 ) {
   requireAgentScope(principal, requiredScopeForTool(tool));
-  const usage = await consumeAgentQuota(principal.uid, tool);
+  // The plan's tools before the count: a Pro tool refused on Free never spends the day's calls.
+  requireAgentPlan(principal.plan, tool, args);
+  const usage = await consumeAgentQuota(principal.uid, tool, new Date(), principal.plan);
+  const free = principal.plan !== "pro";
   let data: Record<string, unknown>;
   switch (tool) {
     case "search_stocks":
@@ -877,13 +972,22 @@ export async function executeAgentTool(
         limit: typeof args.limit === "number" ? args.limit : undefined,
       });
       break;
-    case "get_stock_intelligence":
-      data = await getStockAgentIntelligence({
+    case "get_stock_intelligence": {
+      const read = await getStockAgentIntelligence({
         ticker: String(args.ticker || ""),
         market: args.market === "IN" ? "IN" : "US",
         uid: principal.uid,
       });
+      if (!free) {
+        data = read;
+        break;
+      }
+      const levels = await freeLevelsCheck(principal.uid);
+      data = levels(read.instrument.instrument_id, read.instrument.ticker)
+        ? { ...read, full_report: fullReportNote(true) }
+        : withoutFullRead(read);
       break;
+    }
     case "get_stock_detail":
       data = await getStockAgentDetail({
         ticker: String(args.ticker || ""),
@@ -911,12 +1015,14 @@ export async function executeAgentTool(
     case "get_screens":
       data = await getAgentScreens({ market: args.market === "IN" ? "IN" : "US" });
       break;
-    case "get_my_radar":
-      data = await getMyAgentRadar(principal.uid, {
+    case "get_my_radar": {
+      const read = await getMyAgentRadar(principal.uid, {
         limit: typeof args.limit === "number" ? args.limit : undefined,
         offset: typeof args.offset === "number" ? args.offset : undefined,
       });
+      data = free ? gateRadarForFree(read, await freeLevelsCheck(principal.uid)) : read;
       break;
+    }
     case "get_radar_changes":
       data = await getAgentRadarChanges(principal.uid, { since: typeof args.since === "string" ? args.since : undefined });
       break;
@@ -986,5 +1092,5 @@ export async function executeAgentTool(
     default:
       throw new AgentDataError("Unknown agent tool.", "unknown_tool", 404);
   }
-  return { ...data, usage };
+  return { ...data, usage: { ...usage, plan: principal.plan } };
 }

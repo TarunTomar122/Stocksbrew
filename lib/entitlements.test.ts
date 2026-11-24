@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENT_DAILY_CALL_LIMIT } from "./agent-access-config";
+import { AGENT_DAILY_CALL_LIMIT, AGENT_FREE_DAILY_CALL_LIMIT } from "./agent-access-config";
 import {
   FEATURES,
   can,
@@ -85,7 +85,8 @@ describe("entitlements", () => {
     expect(describeRule(ruleFor("backtest_history", "free"))).toBe("Last 5 years");
     expect(describeRule(ruleFor("stock_zones", "free"))).toBe("Covered stocks");
     expect(describeRule(ruleFor("wire", "anon"))).toBe("Included");
-    expect(describeRule(ruleFor("agent_api", "free"))).toBe("Not included");
+    expect(describeRule(ruleFor("agent_api", "free"))).toBe("50 calls a day");
+    expect(describeRule(ruleFor("agent_api", "anon"))).toBe("Not included");
   });
 
   it("tracks without a limit and limits coverage instead", () => {
@@ -115,6 +116,10 @@ describe("entitlements", () => {
     const rule = ruleFor("agent_api", "pro");
     expect(rule.kind === "meter" && rule.per).toBe("day");
     expect(limitFor("agent_api", "pro")).toBe(AGENT_DAILY_CALL_LIMIT);
+    // Free connects too, at its own smaller allowance; signed out there is no token to call with.
+    expect(limitFor("agent_api", "free")).toBe(AGENT_FREE_DAILY_CALL_LIMIT);
+    expect(limitFor("agent_api", "free")).toBeLessThan(limitFor("agent_api", "pro"));
+    expect(can("agent_api", "anon")).toBe(false);
     expect(JSON.stringify(FEATURES)).not.toMatch(/a month|per month/i);
   });
 

@@ -35,6 +35,7 @@
  * This file is pure (no server imports) so client components can read it.
  */
 
+import { AGENT_DAILY_CALL_LIMIT, AGENT_FREE_DAILY_CALL_LIMIT } from "@/lib/agent-access-config";
 import { CALL_COVERAGE } from "@/lib/brand-copy";
 import { FREE_COVERED_STOCKS, FREE_COVERED_WORD, PAYWALL_V2 } from "@/lib/paywall-flag";
 
@@ -503,11 +504,13 @@ const TABLE = {
     name: "API, MCP server and CLI for your own AI agent",
     group: "Build",
     anon: locked,
-    free: locked,
-    pro: meter(200, "day", "calls"),
+    // Free: the reads the pipeline writes once for everyone plus your own watchlist, no model calls (the tool list
+    // is lib/agent-tiers.ts). Pro: every tool. Both meters are what lib/agent-quota.ts enforces.
+    free: meter(AGENT_FREE_DAILY_CALL_LIMIT, "day", "calls"),
+    pro: meter(AGENT_DAILY_CALL_LIMIT, "day", "calls"),
     lock: {
-      title: "Agent access is part of Pro",
-      body: "Connect Claude, Codex, Cursor or your own agent to your stocks and our research, 200 calls a day. Everything it would read stays free in the app.",
+      title: "That tool is part of Pro",
+      body: `Free connects your agent to stock and market reads and your own watchlist, ${AGENT_FREE_DAILY_CALL_LIMIT} calls a day, reset at midnight UTC. Pro opens every tool, ${AGENT_DAILY_CALL_LIMIT} calls a day.`,
     },
   },
 } as const satisfies Record<string, Feature>;

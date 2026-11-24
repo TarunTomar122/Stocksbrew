@@ -1,6 +1,5 @@
 import { getSessionUser } from "@/lib/auth-server";
 import { issueAuthorizationCode, OAuthRequestError, validateAuthorizationRequest } from "@/lib/agent-oauth";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 import { readJsonObject } from "@/lib/request-json";
 
 export const runtime = "nodejs";
@@ -33,14 +32,7 @@ export async function POST(request: Request) {
     if (!session) {
       return Response.json({ error: "login_required", error_description: "Sign in to stocksbrew first." }, { status: 401 });
     }
-    const user = await getUserDoc(session.uid).catch(() => null);
-    if (!resolveIsSubscribed(user)) {
-      return Response.json({
-        error: "pro_required",
-        error_description: "Stocksbrew Pro is required to connect an agent.",
-        subscribe_url: "/subscribe",
-      }, { status: 403 });
-    }
+    // Free accounts connect too: the plan decides which tools answer, per call (lib/agent-tiers.ts).
     const code = await issueAuthorizationCode(session.uid, validated);
     const redirect = new URL(validated.redirectUri);
     redirect.searchParams.set("code", code);

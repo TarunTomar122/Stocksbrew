@@ -94,6 +94,8 @@ export async function loadToolReference(): Promise<ToolReference[]> {
     scopes: [...AGENT_SCOPES],
     label: "docs",
     clientId: null,
+    // Pro reads each tool's own description; the docs mark the plan per tool themselves (lib/agent-tiers.ts).
+    plan: "pro",
   });
   const client = new Client({ name: "stocksbrew-docs", version: "1.0.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

@@ -28,6 +28,7 @@ const principal = {
   scopes: ["stocks:read", "market:read", "radar:read", "radar:write", "alerts:read", "alerts:write"] as const,
   label: "Test client",
   clientId: null,
+  plan: "pro" as const,
 };
 
 describe("Stocksbrew MCP server", () => {

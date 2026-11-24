@@ -18,7 +18,7 @@ import { resolveInstrumentByTicker } from "@/lib/instrument-resolver";
  *
  * Reads only. Creating a basket, switching one on or accepting a proposed change stays in the app: whether an outside
  * agent may do those is a separate decision. Scope checks and the daily allowance run in executeAgentTool first;
- * agent access itself is Pro only (requireAgentPrincipal), so the baskets are read with the Pro plan's limits.
+ * the basket tools are Pro only (lib/agent-tiers.ts), so the baskets are read with the Pro plan's limits.
  */
 
 const FRESHNESS = {

@@ -44,8 +44,13 @@ async function handle(request: Request): Promise<Response> {
     principal = await requireAgentPrincipal(request);
   } catch (error) {
     if (error instanceof AgentAuthError) return authErrorResponse(error);
+    // The token or the account could not be read (a store blip). Not a 401: that would send a client back through
+    // OAuth for nothing. Retry shortly.
     console.error("agent_mcp_auth_failed", error);
-    return authErrorResponse(new AgentAuthError("Authentication could not be completed."));
+    return withCors(Response.json(
+      { error: "temporarily_unavailable", error_description: "Authentication could not be completed. Retry in a moment." },
+      { status: 503, headers: { "Retry-After": "30" } },
+    ));
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({

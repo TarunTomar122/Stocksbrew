@@ -52,7 +52,7 @@ import { loadUserXray } from "@/lib/xray-data";
  * page shows, plus sources, dates and a link. Nothing here computes a figure.
  *
  * Scope checks and the daily allowance happen in executeAgentTool before any
- * of these run; agent access itself is Pro only (requireAgentPrincipal).
+ * of these run; every tool here is Pro only (lib/agent-tiers.ts requireAgentPlan).
  */
 
 /** How old each kind of data can get before an agent should say so. */
@@ -561,7 +561,7 @@ export async function readAgentWatchRequest(uid: string, input: { text: string }
     throw new AgentDataError(`Keep it under ${MAX_REQUEST_CHARS} characters. One or two things to watch works best.`, "invalid_request");
   }
 
-  // The same steps as POST /api/agents/parse. Agent access is Pro only, so the Pro meter applies,
+  // The same steps as POST /api/agents/parse. This tool is Pro only (lib/agent-tiers.ts), so the Pro meter applies,
   // counted against the same daily allowance as the Agents page.
   const hidden = hiddenTemplateIds();
   const catalog = await plainCatalog();

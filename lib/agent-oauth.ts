@@ -20,11 +20,10 @@ import {
   consumeRefreshAgentToken,
   issueAgentToken,
   verifyStoredAgentToken,
-  type AgentPrincipal,
+  type AgentTokenPrincipal,
 } from "@/lib/agent-auth";
 import { adminFirestore } from "@/lib/firebase-admin";
 import { captureServerEvent } from "@/lib/posthog-server-capture";
-import { getUserDoc, resolveIsSubscribed } from "@/lib/watchlist";
 
 export type OAuthClientDoc = {
   client_id: string;
@@ -233,10 +232,8 @@ export async function exchangeAuthorizationCode(input: {
     return doc;
   });
 
-  const user = await getUserDoc(codeDoc.uid).catch(() => null);
-  if (!resolveIsSubscribed(user)) {
-    throw new OAuthRequestError("access_denied", "An active stocksbrew Pro subscription is required.", 403);
-  }
+  // Any signed-in account may connect: the plan decides which tools answer and how many calls a day, per call
+  // (lib/agent-tiers.ts), so a Free account that goes Pro gets every tool on its next call without reconnecting.
   const [access, refresh] = await Promise.all([
     issueAgentToken({
       uid: codeDoc.uid,
@@ -272,7 +269,7 @@ export async function exchangeRefreshToken(input: {
   scope?: string | null;
 }) {
   const requestedScopes = validatedScopes(input.scope, []);
-  let principal: AgentPrincipal;
+  let principal: AgentTokenPrincipal;
   try {
     principal = await verifyStoredAgentToken(input.refreshToken, ["refresh"]);
   } catch {
@@ -289,10 +286,6 @@ export async function exchangeRefreshToken(input: {
     principal = await consumeRefreshAgentToken(input.refreshToken, input.clientId);
   } catch {
     throw new OAuthRequestError("invalid_grant", "The refresh token is invalid or expired.");
-  }
-  const user = await getUserDoc(principal.uid).catch(() => null);
-  if (!resolveIsSubscribed(user)) {
-    throw new OAuthRequestError("access_denied", "An active stocksbrew Pro subscription is required.", 403);
   }
   const [access, refresh] = await Promise.all([
     issueAgentToken({

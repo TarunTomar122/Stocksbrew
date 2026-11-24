@@ -30,7 +30,7 @@ import { executeAgentTool } from "@/lib/agent-intelligence";
 import { consumeAgentQuota } from "@/lib/agent-quota";
 
 function principal(scopes: AgentPrincipal["scopes"]): AgentPrincipal {
-  return { uid: "owner-uid", tokenId: "t", kind: "personal", scopes, label: "test", clientId: null };
+  return { uid: "owner-uid", tokenId: "t", kind: "personal", scopes, label: "test", clientId: null, plan: "pro" };
 }
 
 beforeEach(() => vi.clearAllMocks());

@@ -63,11 +63,11 @@ describe("developer docs", () => {
   it("lists the auth and quota error codes the code throws", () => {
     const codes = new Set(API_ERRORS.map((error) => error.code));
     const auth = source("lib/agent-auth.ts");
+    const plan = source("lib/agent-errors.ts");
     const quota = source("lib/agent-quota.ts");
-    for (const code of ["pro_required", "insufficient_scope"]) {
-      expect(auth).toContain(`"${code}"`);
-      expect(codes.has(code)).toBe(true);
-    }
+    expect(auth).toContain(`"insufficient_scope"`);
+    expect(plan).toContain(`"pro_required"`);
+    for (const code of ["pro_required", "insufficient_scope"]) expect(codes.has(code)).toBe(true);
     for (const code of ["minute_limit", "daily_limit"]) {
       expect(quota).toContain(`"${code}"`);
       expect(codes.has(code)).toBe(true);

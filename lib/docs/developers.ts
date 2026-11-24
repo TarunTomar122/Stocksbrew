@@ -1,4 +1,4 @@
-import type { AgentScope } from "@/lib/agent-access-config";
+import { AGENT_DAILY_CALL_LIMIT, AGENT_FREE_DAILY_CALL_LIMIT, type AgentScope } from "@/lib/agent-access-config";
 import type { AgentToolName } from "@/lib/agent-intelligence";
 
 /**
@@ -96,10 +96,10 @@ export const TOOL_GROUPS: { title: string; blurb: string; tools: AgentToolName[]
 /** Every error code the API can return, with the HTTP status the REST routes use. */
 export const API_ERRORS: { code: string; status: number; meaning: string }[] = [
   { code: "invalid_token", status: 401, meaning: "No bearer token, or one that is malformed, revoked or expired." },
-  { code: "pro_required", status: 403, meaning: "The account behind the token does not have an active Pro plan." },
+  { code: "pro_required", status: 403, meaning: "The account is on Free and the tool is Pro only, or a comparison asks for more than two stocks. The body carries upgrade_url. Not counted as a call." },
   { code: "insufficient_scope", status: 403, meaning: "The token was not granted the scope this tool needs." },
   { code: "minute_limit", status: 429, meaning: "Too many calls in the current minute. Retry-After is 60 seconds." },
-  { code: "daily_limit", status: 429, meaning: "The day's allowance is used. Retry-After is the seconds until midnight UTC." },
+  { code: "daily_limit", status: 429, meaning: `The day's allowance is used (${AGENT_FREE_DAILY_CALL_LIMIT} on Free, ${AGENT_DAILY_CALL_LIMIT} on Pro). Retry-After is the seconds until midnight UTC. On Free the body carries upgrade_url.` },
   { code: "stock_not_found", status: 404, meaning: "The ticker is not in our catalog for that market." },
   { code: "invalid_ticker", status: 400, meaning: "The ticker is empty or longer than 20 characters." },
   { code: "invalid_query", status: 400, meaning: "The search text is empty." },

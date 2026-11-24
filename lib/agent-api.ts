@@ -1,6 +1,7 @@
 import { AGENT_SCOPES, publicAppUrl } from "@/lib/agent-access-config";
 import { AgentAuthError, requireAgentPrincipal } from "@/lib/agent-auth";
 import { AgentDataError, executeAgentTool, type AgentToolName } from "@/lib/agent-intelligence";
+import { AgentPlanError } from "@/lib/agent-errors";
 import { AgentQuotaError } from "@/lib/agent-quota";
 
 function noStore(body: Record<string, unknown>, status: number, extraHeaders?: Record<string, string>): Response {
@@ -31,10 +32,13 @@ export async function runAgentApiRequest(
     }
     if (error instanceof AgentQuotaError) {
       return noStore(
-        { error: error.code, message: error.message },
+        { error: error.code, message: error.message, ...(error.upgradeUrl ? { upgrade_url: error.upgradeUrl } : {}) },
         429,
         { "Retry-After": String(error.retryAfterSeconds) },
       );
+    }
+    if (error instanceof AgentPlanError) {
+      return noStore({ error: error.code, message: error.message, upgrade_url: error.upgradeUrl }, error.status);
     }
     if (error instanceof AgentDataError) {
       return noStore({ error: error.code, message: error.message }, error.status);

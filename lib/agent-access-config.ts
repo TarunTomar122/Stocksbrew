@@ -1,6 +1,6 @@
 export const AGENT_ACCESS_VERSION = "2026-08-18";
 export const AGENT_MCP_SERVER_NAME = "stocksbrew";
-export const AGENT_MCP_SERVER_VERSION = "1.3.0";
+export const AGENT_MCP_SERVER_VERSION = "1.4.0";
 
 export const AGENT_SCOPES = [
   "stocks:read",
@@ -12,7 +12,10 @@ export const AGENT_SCOPES = [
 ] as const;
 export type AgentScope = (typeof AGENT_SCOPES)[number];
 
+/** Pro: calls a day per account, across MCP, REST and the CLI. */
 export const AGENT_DAILY_CALL_LIMIT = 200;
+/** Free: calls a day per account, on the free tools only (lib/agent-tiers.ts). Counted on the same per-day doc. */
+export const AGENT_FREE_DAILY_CALL_LIMIT = 50;
 /** @deprecated Use the daily allowance. Kept as an alias for older integrations. */
 export const AGENT_MONTHLY_CALL_LIMIT = AGENT_DAILY_CALL_LIMIT;
 export const AGENT_PER_MINUTE_CALL_LIMIT = 30;
