@@ -797,6 +797,24 @@ def parse_access(lines: Iterable[str]) -> list[tuple[float, int, float, str, boo
     return out
 
 
+P95_WARN_MS = 2500
+P95_FAIL_MS = 6000
+SLOW_SPELL_S = 30  # slow requests that arrive within this many seconds of a spell's first one belong to that spell
+P95_FAIL_MIN_SPELLS = 3  # a red p95 needs at least this many spells of slow (over P95_WARN_MS) requests
+
+
+def slow_spells(arrivals: Iterable[float], span_s: float = SLOW_SPELL_S) -> int:
+    """How many spells the slow requests' arrival times fall into: a new spell starts more than ``span_s`` after the
+    last spell began. A scraper burst is one spell however many pages it loads; slowness that lasts is one per span."""
+    count = 0
+    start: float | None = None
+    for at in sorted(arrivals):
+        if start is None or at - start > span_s:
+            count += 1
+            start = at
+    return count
+
+
 def traffic_stats(records: Iterable[tuple[float, int, float, str, bool | None] | str], since_ts: float) -> dict[str, Any]:
     """Requests, 5xx, p50/p95 (ms) and Varnish hit share since ``since_ts``. Takes parse_access records (or raw lines)."""
     records = list(records)
@@ -806,10 +824,13 @@ def traffic_stats(records: Iterable[tuple[float, int, float, str, bool | None] |
     errors = 0
     hits = cache_known = 0
     error_paths: dict[str, int] = {}
+    slow_arrivals: list[float] = []
     for ts, status, ms, path, hit in records:  # type: ignore[misc]
         if ts < since_ts:
             continue
         durations.append(ms)
+        if ms > P95_WARN_MS:
+            slow_arrivals.append(ts - ms / 1000)  # Caddy's ts is when the response finished
         if status >= 500:
             errors += 1
             key = f"{status} {path}"
@@ -827,6 +848,7 @@ def traffic_stats(records: Iterable[tuple[float, int, float, str, bool | None] |
         "p50_ms": round(p50) if p50 is not None else None,
         "p95_ms": round(p95) if p95 is not None else None,
         "cache_hit_rate": round(hits / cache_known, 3) if cache_known else None,
+        "slow_spells": slow_spells(slow_arrivals),
         "top_5xx": [{"path": key, "count": value} for key, value in sorted(error_paths.items(), key=lambda kv: -kv[1])[:5]],
     }
 
@@ -843,7 +865,16 @@ def traffic_checks(stats: dict[str, Any], window_min: int) -> list[dict[str, Any
     if count < 10 or p95 is None:
         rows.append(check("http_p95", "traffic", "Response time", "unknown" if count == 0 else "ok", f"{count} requests in {window_min} min" + (f", p95 {p95} ms" if p95 is not None else "")))
     else:
-        rows.append(check("http_p95", "traffic", "Response time", "fail" if p95 > 6000 else "warn" if p95 > 2500 else "ok", f"p95 {p95} ms, p50 {stats['p50_ms']} ms", p95_ms=p95))
+        status = "fail" if p95 > P95_FAIL_MS else "warn" if p95 > P95_WARN_MS else "ok"
+        detail = f"p95 {p95} ms, p50 {stats['p50_ms']} ms"
+        spells = stats.get("slow_spells")
+        if status == "fail" and spells is not None and spells < P95_FAIL_MIN_SPELLS:
+            # A scraper loading 30-60 pages in the same second makes the p95 of a quiet window red for 15 minutes on
+            # its own (Nov 24: two such seconds, four red runs, an alert email). Slowness that lasts comes in many
+            # spells; one or two bursts stay amber.
+            status = "warn"
+            detail += f", {spells} short burst{'s' if spells != 1 else ''}"
+        rows.append(check("http_p95", "traffic", "Response time", status, detail, p95_ms=p95))
     return rows
 
 

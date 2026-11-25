@@ -33,7 +33,7 @@ ssh vps 'TIKRR_ENV_FILE=/etc/tikrr/backend.env /opt/tikrr/backend/vps/run-dispat
 - Env: `/etc/tikrr/backend.env`
 - Firebase credentials: `/etc/tikrr/firebase-service-account.json`
 - Timers: `systemd` units named `tikrr-*`
-- Logs: `journalctl -u tikrr-<lane>.service -n 200`
+- Logs: `sudo journalctl -u tikrr-<lane>.service -n 200`
 
 ## Important
 

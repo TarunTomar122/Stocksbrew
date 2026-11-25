@@ -49,7 +49,7 @@ do these in order. the web side goes first so the unsubscribe links and the logo
    the old premarket, open and weekly senders read this file on every run, so they stop at their next run. no restart needed.
 4. look before sending: `sudo -u ubuntu /opt/tikrr/backend/vps/run-mail.sh lifecycle` (no `--send` = dry run). the first lifecycle run sends "we miss you" to everyone away 21–60 days at once; check that count is sane. same for `daily` and `weekly`.
 5. one real email to yourself: `sudo -u ubuntu /opt/tikrr/backend/vps/run-mail.sh daily --uid <your uid> --to <your email>`. in Gmail, "show original" should show `List-Unsubscribe` and pass SPF/DKIM.
-6. install the timers: `sudo /opt/tikrr/backend/vps/install-mail-timers.sh` (refuses unless step 3 is done). check with `systemctl list-timers 'tikrr-mail-*'` and `journalctl -u tikrr-mail-daily -n 50`.
+6. install the timers: `sudo /opt/tikrr/backend/vps/install-mail-timers.sh` (refuses unless step 3 is done). check with `systemctl list-timers 'tikrr-mail-*'` and `sudo journalctl -u tikrr-mail-daily -n 50`.
 
 ## rollback
 

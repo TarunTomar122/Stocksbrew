@@ -18,7 +18,7 @@ The store (`/var/lib/tikrr/localdb/documents.sqlite3`, 4.4 GB in Nov 2026) is ba
 bash backend/vps/ops.sh backups        # what is kept
 bash backend/vps/ops.sh backup-now     # one now, through the unit
 bash backend/vps/ops.sh status         # the backup is one of the checks (amber after 26 h, red after 50 h)
-journalctl -u tikrr-localdb-backup -n 30
+sudo journalctl -u tikrr-localdb-backup -n 30
 ```
 
 ## look inside a backup (production untouched)

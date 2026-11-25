@@ -24,7 +24,7 @@ Tokens are **one-time** and reset when `t3code.service` restarts.
 On the VPS:
 
 ```bash
-journalctl --user -u t3code.service -n 25 | rg -i 'Pairing URL|Token:'
+sudo journalctl --user-unit t3code.service -n 25 | rg -i 'Pairing URL|Token:'
 ```
 
 Example:

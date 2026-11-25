@@ -50,7 +50,7 @@ tailscale serve status 2>/dev/null || true
 
 echo ""
 echo "==> Pairing info from logs (look for Pairing URL / QR):"
-journalctl --user -u t3code.service -n 40 --no-pager 2>/dev/null | rg -i "pair|token|tailscale|https|ready|3773" || journalctl --user -u t3code.service -n 20 --no-pager
+sudo journalctl --user-unit t3code.service -n 40 --no-pager 2>/dev/null | rg -i "pair|token|tailscale|https|ready|3773" || sudo journalctl --user-unit t3code.service -n 20 --no-pager
 
 echo ""
 TS_IP="$(tailscale ip -4 2>/dev/null || true)"

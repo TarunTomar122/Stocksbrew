@@ -208,6 +208,31 @@ class TrafficTest(unittest.TestCase):
         bad = {"requests": 100, "errors_5xx": 9, "error_rate": 0.09, "p50_ms": 20, "p95_ms": 3000}
         self.assertEqual([r["status"] for r in h.traffic_checks(bad, 15)], ["fail", "warn"])
 
+    def test_p95_burst_stays_amber_and_lasting_slowness_goes_red(self) -> None:
+        now = 60_000.0
+        quiet = [self.line(now - 600 + i * 5, 200, 80) for i in range(100)]
+        # Nov 24: 34 pages in one second, 27 in another six minutes later, out of ~160 requests. The first one
+        # arrives at :59.5 and its responses finish over the next few seconds, across a minute boundary.
+        burst = [self.line(now - 420.5 + i / 10 + 6.5, 200, 6500) for i in range(34)]
+        burst += [self.line(now - 40 + i / 100 + 7.5, 200, 7500) for i in range(27)]
+        stats = h.traffic_stats(quiet + burst, now - 900)
+        self.assertEqual(stats["slow_spells"], 2)
+        self.assertGreater(stats["p95_ms"], h.P95_FAIL_MS)
+        row = h.traffic_checks(stats, 15)[1]
+        self.assertEqual(row["status"], "warn")
+        self.assertIn("2 short bursts", row["detail"])
+        # Three minutes of steady slowness is red.
+        lasting = [self.line(now - 200 + i * 4, 200, 7000) for i in range(45)]
+        stats = h.traffic_stats(quiet + lasting, now - 900)
+        self.assertGreaterEqual(stats["slow_spells"], h.P95_FAIL_MIN_SPELLS)
+        self.assertEqual(h.traffic_checks(stats, 15)[1]["status"], "fail")
+
+    def test_slow_spells(self) -> None:
+        self.assertEqual(h.slow_spells([]), 0)
+        self.assertEqual(h.slow_spells([100.0, 100.4, 129.9, 59.9 + 60]), 1)
+        self.assertEqual(h.slow_spells([0.0, 31.0, 62.0, 93.0]), 4)
+        self.assertEqual(h.slow_spells([5.0, 0.0, 40.0]), 2)
+
     def test_running_backup_copy_counts_as_free(self) -> None:
         root = Path(tempfile.mkdtemp())
         try:

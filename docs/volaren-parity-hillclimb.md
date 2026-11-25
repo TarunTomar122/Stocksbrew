@@ -214,6 +214,41 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-25 07:00 UTC: daily health check
+- Ops health (from tm_ops_health/history, see below for why not the journal): 288 runs, 280 green, 3 amber, 5 red,
+  2 alert emails ("http_p95 red" 16:30, "all back to green" 16:45). The reds: Response time 16:25-16:40 (4 runs) and
+  Swap at 14:35 (one run, during the 14:34 deploy). Ambers: Swap 08:35, site_home 13:55, site_home + site_stock 15:05.
+- The p95 reds were two scraper bursts: 34 per-ticker × date pages (/stock/X/earnings/DATE, /moves/DATE, /insiders/X)
+  in one second at 16:22:41 from US Chrome/150, and the usual Singapore fleet, 27 nav pages at 16:28:15. Each page
+  took 5-8 s; a quiet 15-min window has ~150 requests, so 60 slow ones make the p95 red for 15 minutes and email the
+  owner. Fixed in backend/ops/health.py: a red p95 also needs 3 "spells" of slow requests (arrival time = Caddy ts
+  minus duration, a new spell more than 30 s after the last began). Bursts stay amber ("2 short bursts"); steady
+  slowness is still red. Replayed on the last 4 days of Caddy logs: 7 runs had p95 > 6 s, only Nov 21 19:21 (the real
+  proxy-fleet stall) stays red.
+- Found: the journal kept only ~2.5 h of our own logs. Every tikrr unit runs as ubuntu, so its stdout went to
+  user-1000.journal, and with the 2G cap full of xrdp brute-force lines (~12k an hour) that file's archives were gone
+  while system.journal still held 4 days. So 259 of the 288 [ops-health] lines and almost all tikrr-web output for
+  the last 24 h were missing (ops-health's own job/step summary read the same truncated data). Fixed: `SplitMode=none`
+  in backend/vps/journald-stocksbrew.conf, installed and journald restarted at 07:04; the 07:05 ops-health line
+  landed in system.journal. Reading our logs now needs sudo: AGENTS.md, backend/AGENTS.md and the docs' journalctl
+  lines say so, and the T3 pairing lookup uses `sudo journalctl --user-unit t3code.service`.
+- Web: 0 restarts and no OOM; only restarts were yesterday's check (07:17) and two deploys (14:11, 14:38). Now 472/507
+  MB. Box: memory pressure 0.0%, root 82%, sdb 54%, swap full (Firecrawl), load ~1, LocalDB backup 08:36 Nov 24,
+  needrestart interpscan still 0, nothing over 0.9 GB (rabbitmq beam). Failed units: dnsmasq only (since Aug, not
+  ours). All tikrr timers ran; no tikrr job failed in 24 h (trace-web.service failed once, not ours).
+- Traffic: 18.6k requests, 0 5xx, 74 slow (>5 s), 63 of them in the two bursts above. Only 3 seconds in 24 h had
+  15+ page loads (yesterday ~25 bursts). A curl/8.7.1 vulnerability scan (3k requests for .env, aws credentials,
+  path traversal) at 16:41-16:45 got 429s and 404s. Crawlers (bing, Linkup, Perplexity, Apple, Google, Amazon,
+  OAI-Search) fetch canonical pages; no new endless URL pattern.
+- App errors since the journal still had them (04:37): nothing real ("[memo] model sentences dropped" once, two
+  agent-watch timeouts). LocalDB: metrics lines only.
+- Quality pass (subagent): caught that SplitMode breaks `journalctl --user` for the T3 pairing URL, that minute
+  buckets on Caddy's finish time let a burst straddling a minute count twice (now arrival-time spells, with a test),
+  and the no-sudo journalctl lines in the docs. Left: `ops.sh status` without sudo now gets no step summary (sudo is
+  the normal path). backend tests: test_ops_health 31 pass, test_localdb_backup pass; no frontend change.
+- Open for the owner: xrdp on the public internet takes an RDP brute force all day (~12k log lines an hour since Nov
+  19). If nobody uses remote desktop, stopping xrdp or limiting 3389 to Tailscale would end it and give the journal
+  days of history back. Not touched: it's not stocksbrew's.
 ### 2026-11-24 07:00 UTC: daily health check
 - Ops health: 270 ok, 10 fail, 9 warn, 2 alert emails ("1 check red", then "all back to green"). The fails: Failed
   units = tikrr-open-briefs.service, 15:30-16:15 Nov 23. Cause: the OpenAI project hit its "configured enforced spend

@@ -184,7 +184,7 @@ Observed successful write jobs:
 ```bash
 bash backend/vps/ops.sh status
 systemctl list-timers 'tikrr-*'
-journalctl -u tikrr-reddit-buzz.service -n 200
+sudo journalctl -u tikrr-reddit-buzz.service -n 200
 systemctl start tikrr-reddit-buzz.service
 systemctl disable --now tikrr-reddit-buzz.timer
 systemctl show tikrr-reddit-buzz.service -p MemoryMax -p MemorySwapMax

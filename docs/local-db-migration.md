@@ -87,7 +87,7 @@ POST /documents:batchUpsert            body: {"documents": [{"path": "...", "dat
 `GET /metrics` (same bearer token; optional `?window=<seconds>` to narrow it) reports what the store was asked for over a rolling in-memory window (`LOCALDB_METRICS_WINDOW_SECONDS`, default 900): totals, then per endpoint (`get`, `list`, `batchGet`, `query`, and the writes) and per collection (with its endpoints), each with request count, documents, response bytes and p50/p95/max latency, largest by bytes first. Collections are labelled with ids replaced by `*` (`users/*/watchlist`), so no user id or ticker is kept. Every 5 minutes (`LOCALDB_METRICS_LOG_SECONDS`, 0 turns it off) the service logs one compact line with the top collections:
 
 ```sh
-ssh vps 'journalctl -u tikrr-localdb.service --since -1h | grep "localdb metrics"'
+ssh vps 'sudo journalctl -u tikrr-localdb.service --since -1h | grep "localdb metrics"'
 ssh vps 'set -a; . /etc/tikrr/localdb.env; curl -s -H "Authorization: Bearer $LOCALDB_API_TOKEN" "127.0.0.1:8500/metrics?window=300" | jq ".collections | to_entries[:10]"'
 ```
 
