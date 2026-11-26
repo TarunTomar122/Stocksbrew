@@ -486,11 +486,11 @@ export async function loadAnalysisPage(now: Date = new Date()): Promise<Analysis
  * following. An idea without a page is left off its row; the person's own names stay as they are.
  */
 async function withoutPagelessIdeas(analysis: PortfolioAnalysis): Promise<PortfolioAnalysis> {
-  const module = analysis.concentration;
-  const ideas = (module?.sectors ?? []).flatMap((row) => (row.names ?? []).filter((name) => name.idea).map((name) => name.ticker));
-  if (!module || ideas.length === 0) return analysis;
+  const shares = analysis.concentration;
+  const ideas = (shares?.sectors ?? []).flatMap((row) => (row.names ?? []).filter((name) => name.idea).map((name) => name.ticker));
+  if (!shares || ideas.length === 0) return analysis;
   const pages = await stockPagesAmong(ideas);
   if (!pages) return analysis;
-  const sectors = module.sectors.map((row) => ({ ...row, names: (row.names ?? []).filter((name) => !name.idea || hasStockPage(pages, name.ticker)) }));
-  return { ...analysis, concentration: { ...module, sectors } };
+  const sectors = shares.sectors.map((row) => ({ ...row, names: (row.names ?? []).filter((name) => !name.idea || hasStockPage(pages, name.ticker)) }));
+  return { ...analysis, concentration: { ...shares, sectors } };
 }
