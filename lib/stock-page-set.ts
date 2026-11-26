@@ -1,25 +1,14 @@
 import { getLatestPriceQuotes } from "@/lib/firestore";
 import { fundKindOf } from "@/lib/funds/tickers";
 import { getSeoStockPage } from "@/lib/seo/stock-pages";
-import { normalizeStockSymbolParam } from "@/lib/stock";
+import { hasStockPage, normalizedTicker as normalized, type StockPageSet } from "@/lib/stock-page-set-shared";
 
-/** The tickers that have a stock page, or `null` when that could not be read (then everything is linked). */
-export type StockPageSet = ReadonlySet<string> | null;
+export { hasStockPage, type StockPageSet };
 
 /** Whether a page exists changes slowly (a new listing, a dead one): each answer is kept this long per instance. */
 const MEMO_MS = 10 * 60_000;
 const MEMO_MAX = 5_000;
 const memo = new Map<string, { has: boolean; at: number }>();
-
-/** The ticker as the stock page's address normalises it, or null (never throws on a stray "%"). */
-function normalized(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  try {
-    return normalizeStockSymbolParam(raw);
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Which of these tickers have a stock page that answers 200, so a list of
@@ -65,13 +54,6 @@ export async function stockPagesAmong(tickers: Iterable<string | null | undefine
     console.error(`[stock-page-set] price read failed, linking every ticker: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
-}
-
-/** Whether a ticker gets a link: yes when the set could not be read. */
-export function hasStockPage(pages: StockPageSet | undefined, ticker: string | null | undefined): boolean {
-  const key = normalized(ticker);
-  if (!key) return false;
-  return pages ? pages.has(key) : true;
 }
 
 /** For tests: forget what was read. */

@@ -13,7 +13,7 @@ import {
   type CopyRecordFull,
 } from "@/lib/copy-trades-shared";
 import { fmtFrac, fmtMonthYear } from "@/lib/follow-shared";
-import { hasStockPage, type StockPageSet } from "@/lib/stock-page-set";
+import { hasStockPage, type StockPageSet } from "@/lib/stock-page-set-shared";
 
 const TH = "oa-mono whitespace-nowrap px-3 py-2 text-[11px] font-normal uppercase tracking-[0.08em] text-oa-muted-fg";
 const TD = "whitespace-nowrap px-3 py-2 align-middle";

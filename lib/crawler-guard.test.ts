@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GET as robotsTxt } from "@/app/robots.txt/route";
-import { SITEMAP_FAMILIES } from "@/lib/seo/sitemap";
+import { SITEMAP_FAMILIES } from "@/lib/seo/sitemap-families";
 import {
   BLOCKED_ROBOTS_NAMES,
   SIGNED_IN_RATE,

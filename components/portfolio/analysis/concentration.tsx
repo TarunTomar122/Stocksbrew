@@ -122,7 +122,7 @@ function Sectors({ module, beside }: { module: ConcentrationModule; beside: bool
               <SectorIcon id={row.sector} size={15} />
               <span className="truncate">{row.sector}</span>
             </span>
-            {anyNames ? (
+            {anyNames && (row.names ?? []).length > 0 ? (
               <span className="col-span-3 col-start-1 row-start-2 flex h-6 min-w-0 flex-wrap gap-1 overflow-hidden pl-[23px] sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:pl-0">
                 {(row.names ?? []).map((name) => (
                   <NameChip key={name.ticker} name={name} sector={row.sector} />

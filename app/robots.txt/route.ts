@@ -1,5 +1,5 @@
 import { BLOCKED_ROBOTS_NAMES } from "@/lib/crawler-guard";
-import { SITEMAP_FAMILIES, SITE_BASE } from "@/lib/seo/sitemap";
+import { SITEMAP_FAMILIES, SITE_BASE } from "@/lib/seo/sitemap-families";
 
 // Filter views (/news?ticker=..&topic=.., /calendar?day=..) are endless combinations of the same pages: crawlers stay
 // on the pages themselves, plus the filter views with a page of their own (lib/crawler-guard.ts LISTED_FILTER_VIEWS).
@@ -44,7 +44,7 @@ Disallow: /
 User-agent: *
 ${rules}
 
-Sitemap: https://www.stocksbrew.online/sitemap.xml
+Sitemap: ${SITE_BASE}/sitemap.xml
 ${FAMILY_SITEMAPS}
 # Plain-text site guide: https://www.stocksbrew.online/llms.txt
 `;

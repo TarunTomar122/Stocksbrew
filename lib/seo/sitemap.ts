@@ -25,7 +25,9 @@ import {
 import { getCoverage, getInsiderCounts, getRecentMoves, indexableStockSymbols, sectorGroups, stockPairs } from "@/lib/seo/family-data";
 import { listStrategies } from "@/lib/strategies";
 
-export const SITE_BASE = "https://www.stocksbrew.online";
+import { SITEMAP_FAMILIES, SITE_BASE, type SitemapFamily } from "@/lib/seo/sitemap-families";
+
+export { SITEMAP_FAMILIES, SITE_BASE, type SitemapFamily };
 
 /**
  * The sitemap is split by kind of page so Search Console reports indexing per
@@ -35,27 +37,6 @@ export const SITE_BASE = "https://www.stocksbrew.online";
  * - only addresses that render an indexable page themselves (no redirects, no noindex);
  * - `lastmod` only when we hold a real date for the content. No date is better than today's date.
  */
-export const SITEMAP_FAMILIES = [
-  "pages",
-  "docs",
-  "blog",
-  "stocks",
-  "compare",
-  "movers",
-  "sectors",
-  "insiders",
-  "earnings",
-  "reports",
-  "themes",
-  "strategies",
-  "funds",
-  "congress",
-  "markets",
-  "best",
-  "copy",
-] as const;
-
-export type SitemapFamily = (typeof SITEMAP_FAMILIES)[number];
 
 export type SitemapEntry = { path: string; lastmod?: string };
 
