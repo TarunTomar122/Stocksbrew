@@ -1,4 +1,4 @@
-import { getLatestPriceQuotes } from "@/lib/firestore";
+import { getInstrumentIdsThatExist, getLatestPriceQuotes } from "@/lib/firestore";
 import { fundKindOf } from "@/lib/funds/tickers";
 import { getSeoStockPage } from "@/lib/seo/stock-pages";
 import { hasStockPage, normalizedTicker as normalized, type StockPageSet } from "@/lib/stock-page-set-shared";
@@ -19,7 +19,8 @@ const memo = new Map<string, { has: boolean; at: number }>();
  *
  * The same rule as the stock page's 404 check (app/(app)/stock/[symbol]):
  * the 500-company catalogue, any US fund ticker (a fund page, or the page that
- * says we are adding it), else a latest price with a current quote. Only the US
+ * says we are adding it), else an instrument and a latest price with a current quote (getStockSummary). The price alone is not
+ * enough: the heatmap prices all of the S&P 500, and on Nov 26 SBUX, ADP and MNST had a quote and no page. Only the US
  * market is read: filings are US listings. A page it misses (India only, an
  * alias) is printed instead of linked, never the other way round. `null` when
  * the store could not be read: then everything stays linked rather than
@@ -42,10 +43,11 @@ export async function stockPagesAmong(tickers: Iterable<string | null | undefine
   }
   if (toRead.size === 0) return pages;
   try {
-    const quotes = await getLatestPriceQuotes([...toRead].map((ticker) => `US_${ticker}`));
+    const ids = [...toRead].map((ticker) => `US_${ticker}`);
+    const [quotes, instruments] = await Promise.all([getLatestPriceQuotes(ids), getInstrumentIdsThatExist(ids)]);
     if (memo.size > MEMO_MAX) memo.clear();
     for (const ticker of toRead) {
-      const has = typeof quotes.get(`US_${ticker}`)?.quote?.current === "number";
+      const has = typeof quotes.get(`US_${ticker}`)?.quote?.current === "number" && instruments.has(`US_${ticker}`);
       memo.set(ticker, { has, at: now });
       if (has) pages.add(ticker);
     }

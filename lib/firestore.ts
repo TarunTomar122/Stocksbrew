@@ -351,6 +351,11 @@ const getInstrumentUncached = async (instrumentId: string): Promise<Instrument |
 
 export const getInstrument = cache(getInstrumentUncached);
 
+/** Which of these instruments exist, reading one small field of each (a stock page needs its instrument). */
+export async function getInstrumentIdsThatExist(instrumentIds: string[]): Promise<Set<string>> {
+  return new Set((await batchGetRefs<Pick<Instrument, "ticker">>(instrumentIds.map((id) => adminFirestore.collection("tm_instruments").doc(id)), ["ticker"])).keys());
+}
+
 export async function getInstruments(instrumentIds: string[]): Promise<Map<string, Instrument>> {
   return batchGetRefs<Instrument>(
     instrumentIds.map((id) => adminFirestore.collection("tm_instruments").doc(id)),

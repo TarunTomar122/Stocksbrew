@@ -2,16 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 vi.mock("@/lib/firebase-admin", () => ({ adminFirestore: {} }));
-vi.mock("@/lib/firestore", () => ({ getLatestPriceQuotes: vi.fn() }));
+vi.mock("@/lib/firestore", () => ({ getLatestPriceQuotes: vi.fn(), getInstrumentIdsThatExist: vi.fn() }));
 
-import { getLatestPriceQuotes } from "@/lib/firestore";
+import { getInstrumentIdsThatExist, getLatestPriceQuotes } from "@/lib/firestore";
 import { forgetStockPages, hasStockPage, stockPagesAmong } from "@/lib/stock-page-set";
 
 const quotes = vi.mocked(getLatestPriceQuotes);
+const instruments = vi.mocked(getInstrumentIdsThatExist);
 
 describe("stockPagesAmong", () => {
   beforeEach(() => {
     quotes.mockReset();
+    instruments.mockReset();
+    // Every instrument exists unless a test says otherwise.
+    instruments.mockImplementation(async (ids: string[]) => new Set(ids));
     forgetStockPages();
   });
   afterEach(() => {
@@ -29,6 +33,13 @@ describe("stockPagesAmong", () => {
     expect(quotes).toHaveBeenCalledTimes(1);
     expect(quotes.mock.calls[0]![0].sort()).toEqual(["US_ADP", "US_KKR", "US_NOK"]);
     expect(pages && [...pages].sort()).toEqual(["AAPL", "NOK", "SPY"]);
+  });
+
+  it("leaves out a stock with a price and no instrument, which the stock page answers with a 404", async () => {
+    quotes.mockResolvedValue(new Map([["US_SBUX", { quote: { current: 95 } }], ["US_NOK", { quote: { current: 7.5 } }]]) as never);
+    instruments.mockResolvedValue(new Set(["US_NOK"]));
+    const pages = await stockPagesAmong(["SBUX", "NOK"]);
+    expect(pages && [...pages]).toEqual(["NOK"]);
   });
 
   it("skips the read when every ticker is already known", async () => {
