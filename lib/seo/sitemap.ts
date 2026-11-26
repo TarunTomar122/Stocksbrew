@@ -322,7 +322,21 @@ export function urlsetXml(entries: SitemapEntry[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</urlset>`;
 }
 
-export function sitemapIndexXml(families: readonly SitemapFamily[]): string {
-  const rows = families.map((family) => `  <sitemap><loc>${SITE_BASE}/sitemaps/${family}.xml</loc></sitemap>`);
+/** The newest lastmod among a family's entries, or undefined when none has one. */
+export function newestLastmod(entries: readonly SitemapEntry[]): string | undefined {
+  let newest: string | undefined;
+  for (const entry of entries) if (entry.lastmod && (!newest || entry.lastmod > newest)) newest = entry.lastmod;
+  return newest;
+}
+
+/**
+ * The index. Each family carries the newest lastmod of its entries: Google decides from it which family files to
+ * fetch again, and by Nov 26 it had read only 6 of the 17 (none of stocks, earnings, insiders or movers).
+ */
+export function sitemapIndexXml(families: ReadonlyArray<SitemapFamily | { family: SitemapFamily; lastmod?: string }>): string {
+  const rows = families.map((item) => {
+    const { family, lastmod } = typeof item === "string" ? { family: item, lastmod: undefined } : item;
+    return `  <sitemap><loc>${SITE_BASE}/sitemaps/${family}.xml</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}</sitemap>`;
+  });
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</sitemapindex>`;
 }

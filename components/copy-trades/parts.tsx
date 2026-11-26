@@ -13,6 +13,7 @@ import {
   type CopyRecordFull,
 } from "@/lib/copy-trades-shared";
 import { fmtFrac, fmtMonthYear } from "@/lib/follow-shared";
+import { hasStockPage, type StockPageSet } from "@/lib/stock-page-set";
 
 const TH = "oa-mono whitespace-nowrap px-3 py-2 text-[11px] font-normal uppercase tracking-[0.08em] text-oa-muted-fg";
 const TD = "whitespace-nowrap px-3 py-2 align-middle";
@@ -33,11 +34,14 @@ function heldText(position: CopyPosition, stoppedAt: string | null): string {
  */
 export function PositionBars({
   positions,
+  pages,
   scale,
   tone,
   stoppedAt = null,
 }: {
   positions: CopyPosition[];
+  /** The tickers with a stock page; the others print without a link. */
+  pages?: StockPageSet;
   scale: number;
   tone: "up" | "down";
   /** The end date of a record that stopped, so a stock still in it reads "until the record ended", not "since". */
@@ -53,7 +57,7 @@ export function PositionBars({
         return (
           <li key={position.ticker} className="px-4 py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <Ticker symbol={position.ticker} name={copyCompanyName(position.name, position.ticker)} size={18} wrap />
+              <Ticker symbol={position.ticker} name={copyCompanyName(position.name, position.ticker)} size={18} wrap href={hasStockPage(pages, position.ticker) ? undefined : null} />
               <span className={`${NUM} shrink-0 text-[14px] font-medium ${tone === "up" ? "text-signal-bullish" : "text-signal-bearish"}`}>
                 {tone === "up" ? "+" : "−"}
                 {fmtDollars(Math.abs(position.pnl))}

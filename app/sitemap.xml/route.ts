@@ -1,4 +1,4 @@
-import { SITEMAP_FAMILIES, sitemapEntries, sitemapIndexXml, type SitemapFamily } from "@/lib/seo/sitemap";
+import { SITEMAP_FAMILIES, newestLastmod, sitemapEntries, sitemapIndexXml, type SitemapFamily } from "@/lib/seo/sitemap";
 
 // Rendered on request and cached at the CDN for a day (see Cache-Control).
 // Building it at deploy time reads every family from the store and times out.
@@ -8,13 +8,13 @@ const CACHE_GOOD = "public, max-age=86400, s-maxage=86400";
 /** When a family could not be read, the index is rebuilt within minutes instead of carrying the gap for a day. */
 const CACHE_AFTER_FAILURE = "public, max-age=300, s-maxage=300";
 
-type FamilyRead = { family: SitemapFamily; count: number; problems: string[] };
+type FamilyRead = { family: SitemapFamily; count: number; lastmod?: string; problems: string[] };
 
 async function readFamily(family: SitemapFamily): Promise<FamilyRead> {
   const problems: string[] = [];
   try {
     const entries = await sitemapEntries(family, undefined, { onDegraded: (reason) => problems.push(reason) });
-    return { family, count: entries.length, problems };
+    return { family, count: entries.length, lastmod: newestLastmod(entries), problems };
   } catch (error) {
     return { family, count: 0, problems: [error instanceof Error ? error.message : String(error)] };
   }
@@ -35,7 +35,10 @@ export async function GET() {
   for (const read of failed) {
     console.error(`[sitemap] family "${read.family}" could not be read in full; kept in the index, cached 5 minutes: ${read.problems.join("; ")}`);
   }
-  const families = reads.filter((read) => read.count > 0 || read.problems.length > 0).map((read) => read.family);
+  // A family that failed gets no lastmod: a date from a short read would say less than none.
+  const families = reads
+    .filter((read) => read.count > 0 || read.problems.length > 0)
+    .map((read) => ({ family: read.family, lastmod: read.problems.length ? undefined : read.lastmod }));
 
   return new Response(sitemapIndexXml(families), {
     headers: {

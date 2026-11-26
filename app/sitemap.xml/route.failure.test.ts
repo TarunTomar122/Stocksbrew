@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  */
 
 const reads = vi.hoisted(() => ({
-  behaviour: {} as Record<string, "ok" | "empty" | "throws" | "short">,
+  behaviour: {} as Record<string, "ok" | "empty" | "throws" | "short" | "dated">,
 }));
 
 vi.mock("@/lib/seo/sitemap", async (importOriginal) => {
@@ -18,6 +18,7 @@ vi.mock("@/lib/seo/sitemap", async (importOriginal) => {
       const mode = reads.behaviour[family] ?? "ok";
       if (mode === "throws") throw new Error("coverage_unavailable");
       if (mode === "empty") return [];
+      if (mode === "dated") return [{ path: `/${family}/a`, lastmod: "2026-11-20" }, { path: `/${family}/b`, lastmod: "2026-11-25" }, { path: `/${family}/c` }];
       if (mode === "short") {
         options?.onDegraded?.("follow sources: store down");
         return [{ path: "/follow" }];
@@ -58,6 +59,18 @@ describe("sitemap index when a family cannot be read", () => {
     const logged = error.mock.calls.map((call) => String(call[0])).join("\n");
     expect(logged).toContain('family "stocks"');
     expect(logged).toContain('family "funds"');
+  });
+});
+
+describe("sitemap index dates", () => {
+  it("gives each family the newest lastmod of its entries, and none to a family without dates or one that failed", async () => {
+    reads.behaviour = { stocks: "dated", earnings: "dated", movers: "short" };
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const xml = await (await GET()).text();
+    expect(xml).toContain("<loc>https://www.stocksbrew.online/sitemaps/stocks.xml</loc><lastmod>2026-11-25</lastmod>");
+    expect(xml).toContain("<loc>https://www.stocksbrew.online/sitemaps/earnings.xml</loc><lastmod>2026-11-25</lastmod>");
+    expect(xml).toContain("<loc>https://www.stocksbrew.online/sitemaps/blog.xml</loc></sitemap>");
+    expect(xml).toContain("<loc>https://www.stocksbrew.online/sitemaps/movers.xml</loc></sitemap>");
   });
 });
 

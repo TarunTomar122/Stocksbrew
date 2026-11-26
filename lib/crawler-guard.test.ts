@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GET as robotsTxt } from "@/app/robots.txt/route";
+import { SITEMAP_FAMILIES } from "@/lib/seo/sitemap";
 import {
   BLOCKED_ROBOTS_NAMES,
   SIGNED_IN_RATE,
@@ -66,6 +67,12 @@ describe("crawlerOf", () => {
     // Still people: an old Internet Explorer and a phone whose model name ends in "bot".
     expect(crawlerOf("Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)")).toBeNull();
     expect(crawlerOf("Mozilla/5.0 (Linux; Android 9; CUBOT/X19) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36")).toBeNull();
+  });
+
+  it("lists the sitemap index and every family file in robots.txt", async () => {
+    const body = await (await robotsTxt()).text();
+    expect(body).toContain("Sitemap: https://www.stocksbrew.online/sitemap.xml\n");
+    for (const family of SITEMAP_FAMILIES) expect(body).toContain(`Sitemap: https://www.stocksbrew.online/sitemaps/${family}.xml\n`);
   });
 
   it("blocks in middleware every scraper robots.txt shuts out", () => {

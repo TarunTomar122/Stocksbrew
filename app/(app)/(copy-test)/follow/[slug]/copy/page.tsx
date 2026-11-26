@@ -24,6 +24,7 @@ import {
 } from "@/lib/copy-trades";
 import { CHAMBER_SOURCE, chamberOf, fmtDate, fmtFrac, isValidSourceSlug } from "@/lib/follow-shared";
 import { copyRecordMetadata } from "@/lib/seo/copy-seo";
+import { stockPagesAmong, type StockPageSet } from "@/lib/stock-page-set";
 
 /**
  * "What if you had copied them?" for one fund or member of Congress: a $10,000 copy
@@ -187,7 +188,7 @@ function coverageLine(record: CopyRecordFull): string {
   return parts.join(" ");
 }
 
-function FullView({ record }: { record: CopyRecordFull }) {
+function FullView({ record, pages }: { record: CopyRecordFull; pages: StockPageSet }) {
   const hold = holdSentence(record);
   const scale = Math.max(...record.best.map((item) => Math.abs(item.pnl)), ...record.worst.map((item) => Math.abs(item.pnl)), 0);
   const noun = record.kind === "fund" ? "filings" : "reports";
@@ -213,10 +214,10 @@ function FullView({ record }: { record: CopyRecordFull }) {
 
       <CardGrid className="mt-3">
         <Panel label="The moves that made the most" flush fill>
-          <PositionBars positions={record.best} scale={scale} tone="up" stoppedAt={record.stopped ? record.end_date : null} />
+          <PositionBars positions={record.best} pages={pages} scale={scale} tone="up" stoppedAt={record.stopped ? record.end_date : null} />
         </Panel>
         <Panel label="The moves that cost the most" flush fill>
-          <PositionBars positions={record.worst} scale={scale} tone="down" stoppedAt={record.stopped ? record.end_date : null} />
+          <PositionBars positions={record.worst} pages={pages} scale={scale} tone="down" stoppedAt={record.stopped ? record.end_date : null} />
         </Panel>
       </CardGrid>
 
@@ -246,6 +247,9 @@ export default async function CopyPage({ params }: Props) {
   const record = await load(params.slug);
   if (!record) notFound();
   const path = copyHref(record.slug);
+  // Link only the stocks that have a page: a member's trades include many we do not cover, and those links were
+  // Googlebot's most common 404 (lib/stock-page-set.ts).
+  const pages = isFullRecord(record) ? await stockPagesAmong([...record.best, ...record.worst].map((position) => position.ticker)) : null;
   return (
     <AppPage>
       <JsonLd
@@ -258,7 +262,7 @@ export default async function CopyPage({ params }: Props) {
       />
       <Head record={record} />
       {isFullRecord(record) ? (
-        <FullView record={record} />
+        <FullView record={record} pages={pages} />
       ) : (
         <>
           <RuleBox record={record} />

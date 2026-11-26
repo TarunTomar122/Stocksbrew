@@ -14,6 +14,8 @@ const nextConfig = {
   async redirects() {
     return [
       // ── The 2026-11 rebuild: old routes land on the surface that replaced them.
+      // Crawlers probe the WordPress name for the sitemap index (Googlebot, Nov 24).
+      { source: "/sitemap_index.xml", destination: "/sitemap.xml", permanent: true },
       { source: "/pulse", destination: "/briefing", permanent: true },
       { source: "/pulse/:path*", destination: "/briefing", permanent: true },
       // /premarket is a page again (Nov 11); its old sub-pages have none, so they land on it.

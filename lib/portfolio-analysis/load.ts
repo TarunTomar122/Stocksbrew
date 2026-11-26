@@ -14,6 +14,7 @@ import { FUNDS_SECTOR, buildPortfolio, type Portfolio, type PortfolioRowInput } 
 import { getScreenerRows, getScreenerSnapshot, isCompleteSnapshot } from "@/lib/screener";
 import type { ScreenerRow } from "@/lib/screener-shared";
 import { sharedCache } from "@/lib/shared-cache";
+import { hasStockPage, stockPagesAmong } from "@/lib/stock-page-set";
 import { EPISODES, episodeCloses, type EpisodeCloses } from "@/lib/stress-test";
 import { stressViewFrom } from "@/lib/stress-test-data";
 import { getUserDoc, type UserDoc } from "@/lib/watchlist";
@@ -476,5 +477,20 @@ export async function loadAnalysisPage(now: Date = new Date()): Promise<Analysis
   base ??= await exampleBase(viewer, now);
   if (!base) return null;
   const deep = base.mode === "example" || can("portfolio_analysis_deep", viewer.plan);
-  return { analysis: await buildAnalysis(base, deep), plan: viewer.plan, trialEligible: viewer.trialEligible, reason };
+  return { analysis: await withoutPagelessIdeas(await buildAnalysis(base, deep)), plan: viewer.plan, trialEligible: viewer.trialEligible, reason };
+}
+
+/**
+ * The S&P 500 names offered as ideas on a sector row link to their stock page, and we have no page for about a
+ * third of the index (SBUX, ADP, MNST, ...): on the signed-out example those were 404s that Googlebot kept
+ * following. An idea without a page is left off its row; the person's own names stay as they are.
+ */
+async function withoutPagelessIdeas(analysis: PortfolioAnalysis): Promise<PortfolioAnalysis> {
+  const module = analysis.concentration;
+  const ideas = (module?.sectors ?? []).flatMap((row) => (row.names ?? []).filter((name) => name.idea).map((name) => name.ticker));
+  if (!module || ideas.length === 0) return analysis;
+  const pages = await stockPagesAmong(ideas);
+  if (!pages) return analysis;
+  const sectors = module.sectors.map((row) => ({ ...row, names: (row.names ?? []).filter((name) => !name.idea || hasStockPage(pages, name.ticker)) }));
+  return { ...analysis, concentration: { ...module, sectors } };
 }

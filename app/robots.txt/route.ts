@@ -1,9 +1,13 @@
 import { BLOCKED_ROBOTS_NAMES } from "@/lib/crawler-guard";
+import { SITEMAP_FAMILIES, SITE_BASE } from "@/lib/seo/sitemap";
 
 // Filter views (/news?ticker=..&topic=.., /calendar?day=..) are endless combinations of the same pages: crawlers stay
 // on the pages themselves, plus the filter views with a page of their own (lib/crawler-guard.ts LISTED_FILTER_VIEWS).
 // middleware.ts enforces the same for crawlers that ignore this file, and rate-limits the rest (Nov 14 outage: GPTBot
 // and PerplexityBot). /icon.svg is served as /icon.svg?<hash>: allowed so search results keep the favicon.
+// Each family file too, not only the index: by Nov 26 Google had read just 6 of the 17 through it.
+const FAMILY_SITEMAPS = SITEMAP_FAMILIES.map((family) => `Sitemap: ${SITE_BASE}/sitemaps/${family}.xml`).join("\n");
+
 const rules = `Allow: /
 Allow: /calendar?type=earnings$
 Allow: /calendar?type=economic$
@@ -41,6 +45,7 @@ User-agent: *
 ${rules}
 
 Sitemap: https://www.stocksbrew.online/sitemap.xml
+${FAMILY_SITEMAPS}
 # Plain-text site guide: https://www.stocksbrew.online/llms.txt
 `;
 
