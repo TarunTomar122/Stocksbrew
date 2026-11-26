@@ -754,7 +754,217 @@
           "US_VSAT",
           "US_LHX",
           "US_PATH",
-          "US_VST"
+          "US_VST",
+          "US_GOOG",
+          "US_SNDK",
+          "US_IBM",
+          "US_WDC",
+          "US_MCD",
+          "US_TJX",
+          "US_UNP",
+          "US_WELL",
+          "US_PGR",
+          "US_PH",
+          "US_SBUX",
+          "US_TT",
+          "US_HWM",
+          "US_BNY",
+          "US_MCK",
+          "US_ADP",
+          "US_JCI",
+          "US_WM",
+          "US_MRSH",
+          "US_UPS",
+          "US_HOOD",
+          "US_RCL",
+          "US_SHW",
+          "US_ORLY",
+          "US_HLT",
+          "US_TDG",
+          "US_MDLZ",
+          "US_SPG",
+          "US_URI",
+          "US_AON",
+          "US_ITW",
+          "US_NSC",
+          "US_TRV",
+          "US_HONA",
+          "US_MSI",
+          "US_MNST",
+          "US_ROST",
+          "US_MPWR",
+          "US_PSX",
+          "US_LITE",
+          "US_KKR",
+          "US_PCAR",
+          "US_KMI",
+          "US_SRE",
+          "US_HCA",
+          "US_KEYS",
+          "US_HPE",
+          "US_GWW",
+          "US_TEL",
+          "US_O",
+          "US_TRGP",
+          "US_OKE",
+          "US_NUE",
+          "US_PSA",
+          "US_XEL",
+          "US_MCHP",
+          "US_HUM",
+          "US_STT",
+          "US_WAB",
+          "US_MET",
+          "US_KDP",
+          "US_UAL",
+          "US_YUM",
+          "US_TTWO",
+          "US_VTR",
+          "US_RSG",
+          "US_BDX",
+          "US_IDXX",
+          "US_MSCI",
+          "US_JBL",
+          "US_PEG",
+          "US_SYY",
+          "US_ODFL",
+          "US_GRMN",
+          "US_IBKR",
+          "US_VMC",
+          "US_WEC",
+          "US_IRM",
+          "US_PRU",
+          "US_ON",
+          "US_PCG",
+          "US_WAT",
+          "US_KVUE",
+          "US_KMB",
+          "US_HIG",
+          "US_HBAN",
+          "US_OXY",
+          "US_MTB",
+          "US_MLM",
+          "US_Q",
+          "US_ROP",
+          "US_IQV",
+          "US_NTRS",
+          "US_PAYX",
+          "US_KR",
+          "US_STLD",
+          "US_TDY",
+          "US_NRG",
+          "US_NTAP",
+          "US_TPR",
+          "US_IR",
+          "US_GEHC",
+          "US_VICI",
+          "US_LYV",
+          "US_RMD",
+          "US_HUBB",
+          "US_OTIS",
+          "US_WSM",
+          "US_PPL",
+          "US_PPG",
+          "US_RJF",
+          "US_PHM",
+          "US_HSY",
+          "US_MTD",
+          "US_RF",
+          "US_SYF",
+          "US_TPL",
+          "US_WST",
+          "US_LUV",
+          "US_WTW",
+          "US_TROW",
+          "US_SW",
+          "US_VRSK",
+          "US_DGX",
+          "US_VMRK",
+          "US_LH",
+          "US_NI",
+          "US_VLTO",
+          "US_JBHT",
+          "US_KEY",
+          "US_PFG",
+          "US_PKG",
+          "US_SNA",
+          "US_OMC",
+          "US_WRB",
+          "US_STE",
+          "US_VRSN",
+          "US_IFF",
+          "US_IP",
+          "US_KHC",
+          "US_FIS",
+          "US_HPQ",
+          "US_ULTA",
+          "US_LEN",
+          "US_L",
+          "US_INCY",
+          "US_SBAC",
+          "US_NVR",
+          "US_FTV",
+          "US_GIS",
+          "US_VTRS",
+          "US_LII",
+          "US_WY",
+          "US_GNRC",
+          "US_KIM",
+          "US_GPN",
+          "US_IEX",
+          "US_ZBH",
+          "US_TSCO",
+          "US_INVH",
+          "US_MAS",
+          "US_FDXF",
+          "US_GPC",
+          "US_MAA",
+          "US_TSN",
+          "US_NDSN",
+          "US_TXT",
+          "US_RL",
+          "US_HST",
+          "US_J",
+          "US_DOC",
+          "US_SWK",
+          "US_GL",
+          "US_ECHO",
+          "US_LVS",
+          "US_REG",
+          "US_PTC",
+          "US_PNW",
+          "US_LDOS",
+          "US_MKC",
+          "US_TKO",
+          "US_RVTY",
+          "US_TYL",
+          "US_ROL",
+          "US_SJM",
+          "US_TRMB",
+          "US_UDR",
+          "US_IVZ",
+          "US_SOLV",
+          "US_GDDY",
+          "US_HAS",
+          "US_PODD",
+          "US_FOXA",
+          "US_SWKS",
+          "US_BEN",
+          "US_JKHY",
+          "US_NCLH",
+          "US_MGM",
+          "US_NWSA",
+          "US_IT",
+          "US_WYNN",
+          "US_HSIC",
+          "US_UHS",
+          "US_TTD",
+          "US_HRL",
+          "US_MOS",
+          "US_FOX",
+          "US_TAP",
+          "US_NWS",
+          "US_SKYD"
         ],
         "us_macro_cues": [
           "US_IDX_SPX",
@@ -16338,6 +16548,6538 @@
           ],
           "status": "active",
           "updated_at": "2026-09-01T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GOOG",
+          "market": "US",
+          "ticker": "GOOG",
+          "name": "Alphabet Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Internet Content & Information",
+          "description": "Alphabet Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_META",
+            "US_GOOGL"
+          ],
+          "aliases": [
+            "GOOG",
+            "Alphabet",
+            "Alphabet Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SNDK",
+          "market": "US",
+          "ticker": "SNDK",
+          "name": "Sandisk Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Computer Hardware",
+          "description": "Sandisk Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_STX",
+            "US_WDC",
+            "US_HPQ"
+          ],
+          "aliases": [
+            "SNDK",
+            "Sandisk",
+            "Sandisk Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IBM",
+          "market": "US",
+          "ticker": "IBM",
+          "name": "International Business Machines Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Information Technology Services",
+          "description": "International Business Machines Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_FIS",
+            "US_LDOS",
+            "US_JKHY"
+          ],
+          "aliases": [
+            "IBM",
+            "International Business Machines",
+            "International Business Machines Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WDC",
+          "market": "US",
+          "ticker": "WDC",
+          "name": "Western Digital Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Computer Hardware",
+          "description": "Western Digital Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_STX",
+            "US_SNDK",
+            "US_HPQ"
+          ],
+          "aliases": [
+            "WDC",
+            "Western Digital",
+            "Western Digital Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MCD",
+          "market": "US",
+          "ticker": "MCD",
+          "name": "McDonald's Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "McDonald's Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_CMG",
+            "US_DRI",
+            "US_DPZ"
+          ],
+          "aliases": [
+            "MCD",
+            "McDonald's",
+            "McDonald's Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TJX",
+          "market": "US",
+          "ticker": "TJX",
+          "name": "The TJX Companies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Apparel Retail",
+          "description": "The TJX Companies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LULU",
+            "US_ROST"
+          ],
+          "aliases": [
+            "TJX",
+            "The TJX Companies",
+            "The TJX Companies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_UNP",
+          "market": "US",
+          "ticker": "UNP",
+          "name": "Union Pacific Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Railroads",
+          "description": "Union Pacific Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NSC",
+            "US_WAB"
+          ],
+          "aliases": [
+            "UNP",
+            "Union Pacific",
+            "Union Pacific Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WELL",
+          "market": "US",
+          "ticker": "WELL",
+          "name": "Welltower Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Healthcare Facilities",
+          "description": "Welltower Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VTR",
+            "US_DOC"
+          ],
+          "aliases": [
+            "WELL",
+            "Welltower",
+            "Welltower Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PGR",
+          "market": "US",
+          "ticker": "PGR",
+          "name": "The Progressive Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Property & Casualty",
+          "description": "The Progressive Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_TRV",
+            "US_WRB",
+            "US_L"
+          ],
+          "aliases": [
+            "PGR",
+            "The Progressive",
+            "The Progressive Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PH",
+          "market": "US",
+          "ticker": "PH",
+          "name": "Parker-Hannifin Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Parker-Hannifin Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "PH",
+            "Parker-Hannifin",
+            "Parker-Hannifin Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SBUX",
+          "market": "US",
+          "ticker": "SBUX",
+          "name": "Starbucks Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "Starbucks Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_CMG",
+            "US_DRI",
+            "US_DPZ"
+          ],
+          "aliases": [
+            "SBUX",
+            "Starbucks",
+            "Starbucks Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TT",
+          "market": "US",
+          "ticker": "TT",
+          "name": "Trane Technologies plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products & Equipment",
+          "description": "Trane Technologies plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMS",
+            "US_JCI",
+            "US_LII"
+          ],
+          "aliases": [
+            "TT",
+            "Trane Technologies",
+            "Trane Technologies plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HWM",
+          "market": "US",
+          "ticker": "HWM",
+          "name": "Howmet Aerospace Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Howmet Aerospace Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPCX",
+            "US_LMT",
+            "US_RTX"
+          ],
+          "aliases": [
+            "HWM",
+            "Howmet Aerospace",
+            "Howmet Aerospace Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_BNY",
+          "market": "US",
+          "ticker": "BNY",
+          "name": "The Bank of New York Mellon Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Banks - Diversified",
+          "description": "The Bank of New York Mellon Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_JPM",
+            "US_BAC",
+            "US_C"
+          ],
+          "aliases": [
+            "BNY",
+            "The Bank of New York Mellon",
+            "The Bank of New York Mellon Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MCK",
+          "market": "US",
+          "ticker": "MCK",
+          "name": "McKesson Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Distribution",
+          "description": "McKesson Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HSIC"
+          ],
+          "aliases": [
+            "MCK",
+            "McKesson",
+            "McKesson Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ADP",
+          "market": "US",
+          "ticker": "ADP",
+          "name": "Automatic Data Processing, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Application",
+          "description": "Automatic Data Processing, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ROP",
+            "US_PAYX"
+          ],
+          "aliases": [
+            "ADP",
+            "Automatic Data Processing",
+            "Automatic Data Processing, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_JCI",
+          "market": "US",
+          "ticker": "JCI",
+          "name": "Johnson Controls International plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products & Equipment",
+          "description": "Johnson Controls International plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMS",
+            "US_TT",
+            "US_LII"
+          ],
+          "aliases": [
+            "JCI",
+            "Johnson Controls International",
+            "Johnson Controls International plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WM",
+          "market": "US",
+          "ticker": "WM",
+          "name": "Waste Management, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Waste Management",
+          "description": "Waste Management, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_RSG"
+          ],
+          "aliases": [
+            "WM",
+            "Waste Management",
+            "Waste Management, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MRSH",
+          "market": "US",
+          "ticker": "MRSH",
+          "name": "Marsh & McLennan Companies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Marsh & McLennan Companies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_AJG",
+            "US_BRO",
+            "US_ERIE"
+          ],
+          "aliases": [
+            "MRSH",
+            "Marsh & McLennan Companies",
+            "Marsh & McLennan Companies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_UPS",
+          "market": "US",
+          "ticker": "UPS",
+          "name": "United Parcel Service, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Integrated Freight & Logistics",
+          "description": "United Parcel Service, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_JBHT",
+            "US_FDXF"
+          ],
+          "aliases": [
+            "UPS",
+            "United Parcel Service",
+            "United Parcel Service, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HOOD",
+          "market": "US",
+          "ticker": "HOOD",
+          "name": "Robinhood Markets, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Capital Markets",
+          "description": "Robinhood Markets, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GS",
+            "US_MS",
+            "US_SCHW"
+          ],
+          "aliases": [
+            "HOOD",
+            "Robinhood Markets",
+            "Robinhood Markets, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RCL",
+          "market": "US",
+          "ticker": "RCL",
+          "name": "Royal Caribbean Cruises Ltd.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Travel Services",
+          "description": "Royal Caribbean Cruises Ltd. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BKNG",
+            "US_ABNB",
+            "US_EXPE"
+          ],
+          "aliases": [
+            "RCL",
+            "Royal Caribbean Cruises",
+            "Royal Caribbean Cruises Ltd."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SHW",
+          "market": "US",
+          "ticker": "SHW",
+          "name": "The Sherwin-Williams Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "The Sherwin-Williams Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ALB",
+            "US_DD",
+            "US_ECL"
+          ],
+          "aliases": [
+            "SHW",
+            "The Sherwin-Williams",
+            "The Sherwin-Williams Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ORLY",
+          "market": "US",
+          "ticker": "ORLY",
+          "name": "O'Reilly Automotive, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Auto Parts",
+          "description": "O'Reilly Automotive, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GPC"
+          ],
+          "aliases": [
+            "ORLY",
+            "O'Reilly Automotive",
+            "O'Reilly Automotive, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HLT",
+          "market": "US",
+          "ticker": "HLT",
+          "name": "Hilton Worldwide Holdings Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Lodging",
+          "description": "Hilton Worldwide Holdings Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MAR"
+          ],
+          "aliases": [
+            "HLT",
+            "Hilton Worldwide",
+            "Hilton Worldwide Holdings Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TDG",
+          "market": "US",
+          "ticker": "TDG",
+          "name": "TransDigm Group Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "TransDigm Group Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPCX",
+            "US_LMT",
+            "US_RTX"
+          ],
+          "aliases": [
+            "TDG",
+            "TransDigm Group",
+            "TransDigm Group Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MDLZ",
+          "market": "US",
+          "ticker": "MDLZ",
+          "name": "Mondelez International, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Confectioners",
+          "description": "Mondelez International, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HSY"
+          ],
+          "aliases": [
+            "MDLZ",
+            "Mondelez International",
+            "Mondelez International, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SPG",
+          "market": "US",
+          "ticker": "SPG",
+          "name": "Simon Property Group, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Retail",
+          "description": "Simon Property Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_O",
+            "US_KIM",
+            "US_REG"
+          ],
+          "aliases": [
+            "SPG",
+            "Simon Property",
+            "Simon Property Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_URI",
+          "market": "US",
+          "ticker": "URI",
+          "name": "United Rentals, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Rental & Leasing Services",
+          "description": "United Rentals, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "URI",
+            "United Rentals",
+            "United Rentals, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_AON",
+          "market": "US",
+          "ticker": "AON",
+          "name": "Aon plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Aon plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_AJG",
+            "US_BRO",
+            "US_ERIE"
+          ],
+          "aliases": [
+            "Aon",
+            "AON",
+            "Aon plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ITW",
+          "market": "US",
+          "ticker": "ITW",
+          "name": "Illinois Tool Works Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Illinois Tool Works Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "ITW",
+            "Illinois Tool Works",
+            "Illinois Tool Works Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NSC",
+          "market": "US",
+          "ticker": "NSC",
+          "name": "Norfolk Southern Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Railroads",
+          "description": "Norfolk Southern Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UNP",
+            "US_WAB"
+          ],
+          "aliases": [
+            "NSC",
+            "Norfolk Southern",
+            "Norfolk Southern Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TRV",
+          "market": "US",
+          "ticker": "TRV",
+          "name": "The Travelers Companies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Property & Casualty",
+          "description": "The Travelers Companies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PGR",
+            "US_WRB",
+            "US_L"
+          ],
+          "aliases": [
+            "TRV",
+            "The Travelers Companies",
+            "The Travelers Companies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HONA",
+          "market": "US",
+          "ticker": "HONA",
+          "name": "Honeywell Aerospace Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Honeywell Aerospace Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPCX",
+            "US_LMT",
+            "US_RTX"
+          ],
+          "aliases": [
+            "HONA",
+            "Honeywell Aerospace",
+            "Honeywell Aerospace Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MSI",
+          "market": "US",
+          "ticker": "MSI",
+          "name": "Motorola Solutions, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communication Equipment",
+          "description": "Motorola Solutions, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ZBRA",
+            "US_LITE",
+            "US_HPE"
+          ],
+          "aliases": [
+            "MSI",
+            "Motorola Solutions",
+            "Motorola Solutions, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MNST",
+          "market": "US",
+          "ticker": "MNST",
+          "name": "Monster Beverage Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Beverages - Non-Alcoholic",
+          "description": "Monster Beverage Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KDP"
+          ],
+          "aliases": [
+            "MNST",
+            "Monster Beverage",
+            "Monster Beverage Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ROST",
+          "market": "US",
+          "ticker": "ROST",
+          "name": "Ross Stores, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Apparel Retail",
+          "description": "Ross Stores, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LULU",
+            "US_TJX"
+          ],
+          "aliases": [
+            "ROST",
+            "Ross Stores",
+            "Ross Stores, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MPWR",
+          "market": "US",
+          "ticker": "MPWR",
+          "name": "Monolithic Power Systems, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "Monolithic Power Systems, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NVDA",
+            "US_AMD",
+            "US_AVGO"
+          ],
+          "aliases": [
+            "MPWR",
+            "Monolithic Power Systems",
+            "Monolithic Power Systems, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PSX",
+          "market": "US",
+          "ticker": "PSX",
+          "name": "Phillips 66",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Refining & Marketing",
+          "description": "Phillips 66 tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MPC",
+            "US_PBF",
+            "US_VAL"
+          ],
+          "aliases": [
+            "PSX",
+            "Phillips 66"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LITE",
+          "market": "US",
+          "ticker": "LITE",
+          "name": "Lumentum Holdings Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communication Equipment",
+          "description": "Lumentum Holdings Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ZBRA",
+            "US_MSI",
+            "US_HPE"
+          ],
+          "aliases": [
+            "LITE",
+            "Lumentum",
+            "Lumentum Holdings Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KKR",
+          "market": "US",
+          "ticker": "KKR",
+          "name": "KKR & Co. Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "KKR & Co. Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_STT",
+            "US_NTRS"
+          ],
+          "aliases": [
+            "KKR",
+            "KKR &",
+            "KKR & Co. Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PCAR",
+          "market": "US",
+          "ticker": "PCAR",
+          "name": "PACCAR Inc",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Farm & Heavy Construction Machinery",
+          "description": "PACCAR Inc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_CAT",
+            "US_DE"
+          ],
+          "aliases": [
+            "PCAR",
+            "PACCAR",
+            "PACCAR Inc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KMI",
+          "market": "US",
+          "ticker": "KMI",
+          "name": "Kinder Morgan, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Midstream",
+          "description": "Kinder Morgan, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMB",
+            "US_LNG",
+            "US_TRGP"
+          ],
+          "aliases": [
+            "KMI",
+            "Kinder Morgan",
+            "Kinder Morgan, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SRE",
+          "market": "US",
+          "ticker": "SRE",
+          "name": "Sempra",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Diversified",
+          "description": "Sempra tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_JPM",
+            "US_BAC",
+            "US_C"
+          ],
+          "aliases": [
+            "SRE",
+            "Sempra"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HCA",
+          "market": "US",
+          "ticker": "HCA",
+          "name": "HCA Healthcare, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Care Facilities",
+          "description": "HCA Healthcare, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UHS"
+          ],
+          "aliases": [
+            "HCA",
+            "HCA Healthcare",
+            "HCA Healthcare, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KEYS",
+          "market": "US",
+          "ticker": "KEYS",
+          "name": "Keysight Technologies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Scientific & Technical Instruments",
+          "description": "Keysight Technologies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GRMN",
+            "US_TDY",
+            "US_FTV"
+          ],
+          "aliases": [
+            "KEYS",
+            "Keysight Technologies",
+            "Keysight Technologies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HPE",
+          "market": "US",
+          "ticker": "HPE",
+          "name": "Hewlett Packard Enterprise Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Communication Equipment",
+          "description": "Hewlett Packard Enterprise Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ZBRA",
+            "US_MSI",
+            "US_LITE"
+          ],
+          "aliases": [
+            "HPE",
+            "Hewlett Packard Enterprise",
+            "Hewlett Packard Enterprise Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GWW",
+          "market": "US",
+          "ticker": "GWW",
+          "name": "W.W. Grainger, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Industrial Distribution",
+          "description": "W.W. Grainger, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "GWW",
+            "W.W. Grainger",
+            "W.W. Grainger, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TEL",
+          "market": "US",
+          "ticker": "TEL",
+          "name": "TE Connectivity plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Electronic Components",
+          "description": "TE Connectivity plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_APH",
+            "US_COHR",
+            "US_GLW"
+          ],
+          "aliases": [
+            "TEL",
+            "TE Connectivity",
+            "TE Connectivity plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_O",
+          "market": "US",
+          "ticker": "O",
+          "name": "Realty Income Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Retail",
+          "description": "Realty Income Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPG",
+            "US_KIM",
+            "US_REG"
+          ],
+          "aliases": [
+            "O",
+            "Realty Income",
+            "Realty Income Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TRGP",
+          "market": "US",
+          "ticker": "TRGP",
+          "name": "Targa Resources Corp.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Midstream",
+          "description": "Targa Resources Corp. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMB",
+            "US_LNG",
+            "US_KMI"
+          ],
+          "aliases": [
+            "TRGP",
+            "Targa Resources",
+            "Targa Resources Corp."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_OKE",
+          "market": "US",
+          "ticker": "OKE",
+          "name": "ONEOK, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas Midstream",
+          "description": "ONEOK, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMB",
+            "US_LNG",
+            "US_KMI"
+          ],
+          "aliases": [
+            "OKE",
+            "ONEOK",
+            "ONEOK, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NUE",
+          "market": "US",
+          "ticker": "NUE",
+          "name": "Nucor Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Steel",
+          "description": "Nucor Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_STLD"
+          ],
+          "aliases": [
+            "NUE",
+            "Nucor",
+            "Nucor Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PSA",
+          "market": "US",
+          "ticker": "PSA",
+          "name": "Public Storage",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Industrial",
+          "description": "Public Storage tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "PSA",
+            "Public Storage"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_XEL",
+          "market": "US",
+          "ticker": "XEL",
+          "name": "Xcel Energy Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "Xcel Energy Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PEG",
+            "US_WEC",
+            "US_PCG"
+          ],
+          "aliases": [
+            "XEL",
+            "Xcel Energy",
+            "Xcel Energy Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MCHP",
+          "market": "US",
+          "ticker": "MCHP",
+          "name": "Microchip Technology Incorporated",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "Microchip Technology Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NVDA",
+            "US_AMD",
+            "US_AVGO"
+          ],
+          "aliases": [
+            "MCHP",
+            "Microchip Technology",
+            "Microchip Technology Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HUM",
+          "market": "US",
+          "ticker": "HUM",
+          "name": "Humana Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Healthcare Plans",
+          "description": "Humana Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UNH",
+            "US_CVS",
+            "US_CI"
+          ],
+          "aliases": [
+            "HUM",
+            "Humana",
+            "Humana Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_STT",
+          "market": "US",
+          "ticker": "STT",
+          "name": "State Street Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "State Street Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_NTRS"
+          ],
+          "aliases": [
+            "STT",
+            "State Street",
+            "State Street Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WAB",
+          "market": "US",
+          "ticker": "WAB",
+          "name": "Westinghouse Air Brake Technologies Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Railroads",
+          "description": "Westinghouse Air Brake Technologies Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UNP",
+            "US_NSC"
+          ],
+          "aliases": [
+            "WAB",
+            "Westinghouse Air Brake Technologies",
+            "Westinghouse Air Brake Technologies Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MET",
+          "market": "US",
+          "ticker": "MET",
+          "name": "MetLife, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Life",
+          "description": "MetLife, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PRU",
+            "US_GL"
+          ],
+          "aliases": [
+            "MET",
+            "MetLife",
+            "MetLife, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KDP",
+          "market": "US",
+          "ticker": "KDP",
+          "name": "Keurig Dr Pepper Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Beverages - Non-Alcoholic",
+          "description": "Keurig Dr Pepper Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MNST"
+          ],
+          "aliases": [
+            "KDP",
+            "Keurig Dr Pepper",
+            "Keurig Dr Pepper Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_UAL",
+          "market": "US",
+          "ticker": "UAL",
+          "name": "United Airlines Holdings, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Airlines",
+          "description": "United Airlines Holdings, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LUV"
+          ],
+          "aliases": [
+            "UAL",
+            "United Airlines",
+            "United Airlines Holdings, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_YUM",
+          "market": "US",
+          "ticker": "YUM",
+          "name": "Yum! Brands, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Restaurants",
+          "description": "Yum! Brands, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_CMG",
+            "US_DRI",
+            "US_DPZ"
+          ],
+          "aliases": [
+            "YUM",
+            "Yum! Brands",
+            "Yum! Brands, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TTWO",
+          "market": "US",
+          "ticker": "TTWO",
+          "name": "Take-Two Interactive Software, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Electronic Gaming & Multimedia",
+          "description": "Take-Two Interactive Software, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "TTWO",
+            "Take-Two Interactive Software",
+            "Take-Two Interactive Software, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VTR",
+          "market": "US",
+          "ticker": "VTR",
+          "name": "Ventas, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Healthcare Facilities",
+          "description": "Ventas, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WELL",
+            "US_DOC"
+          ],
+          "aliases": [
+            "VTR",
+            "Ventas",
+            "Ventas, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RSG",
+          "market": "US",
+          "ticker": "RSG",
+          "name": "Republic Services, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Waste Management",
+          "description": "Republic Services, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WM"
+          ],
+          "aliases": [
+            "RSG",
+            "Republic Services",
+            "Republic Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_BDX",
+          "market": "US",
+          "ticker": "BDX",
+          "name": "Becton, Dickinson and Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Instruments & Supplies",
+          "description": "Becton, Dickinson and Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_RMD",
+            "US_WST",
+            "US_SOLV"
+          ],
+          "aliases": [
+            "BDX",
+            "Becton, Dickinson and",
+            "Becton, Dickinson and Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IDXX",
+          "market": "US",
+          "ticker": "IDXX",
+          "name": "IDEXX Laboratories, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "IDEXX Laboratories, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_WAT",
+            "US_IQV"
+          ],
+          "aliases": [
+            "IDXX",
+            "IDEXX Laboratories",
+            "IDEXX Laboratories, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MSCI",
+          "market": "US",
+          "ticker": "MSCI",
+          "name": "MSCI Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Financial Data & Stock Exchanges",
+          "description": "MSCI Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "MSCI",
+            "MSCI Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_JBL",
+          "market": "US",
+          "ticker": "JBL",
+          "name": "Jabil Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Electronic Components",
+          "description": "Jabil Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_APH",
+            "US_COHR",
+            "US_GLW"
+          ],
+          "aliases": [
+            "JBL",
+            "Jabil",
+            "Jabil Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PEG",
+          "market": "US",
+          "ticker": "PEG",
+          "name": "Public Service Enterprise Group Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "Public Service Enterprise Group Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_XEL",
+            "US_WEC",
+            "US_PCG"
+          ],
+          "aliases": [
+            "PEG",
+            "Public Service Enterprise Group",
+            "Public Service Enterprise Group Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SYY",
+          "market": "US",
+          "ticker": "SYY",
+          "name": "Sysco Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Food Distribution",
+          "description": "Sysco Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "SYY",
+            "Sysco",
+            "Sysco Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ODFL",
+          "market": "US",
+          "ticker": "ODFL",
+          "name": "Old Dominion Freight Line, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Trucking",
+          "description": "Old Dominion Freight Line, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ODFL",
+            "Old Dominion Freight Line",
+            "Old Dominion Freight Line, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GRMN",
+          "market": "US",
+          "ticker": "GRMN",
+          "name": "Garmin Ltd.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Scientific & Technical Instruments",
+          "description": "Garmin Ltd. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KEYS",
+            "US_TDY",
+            "US_FTV"
+          ],
+          "aliases": [
+            "GRMN",
+            "Garmin",
+            "Garmin Ltd."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IBKR",
+          "market": "US",
+          "ticker": "IBKR",
+          "name": "Interactive Brokers Group, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Capital Markets",
+          "description": "Interactive Brokers Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GS",
+            "US_MS",
+            "US_SCHW"
+          ],
+          "aliases": [
+            "IBKR",
+            "Interactive Brokers",
+            "Interactive Brokers Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VMC",
+          "market": "US",
+          "ticker": "VMC",
+          "name": "Vulcan Materials Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Building Materials",
+          "description": "Vulcan Materials Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MLM"
+          ],
+          "aliases": [
+            "VMC",
+            "Vulcan Materials",
+            "Vulcan Materials Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WEC",
+          "market": "US",
+          "ticker": "WEC",
+          "name": "WEC Energy Group, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "WEC Energy Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_XEL",
+            "US_PEG",
+            "US_PCG"
+          ],
+          "aliases": [
+            "WEC",
+            "WEC Energy",
+            "WEC Energy Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IRM",
+          "market": "US",
+          "ticker": "IRM",
+          "name": "Iron Mountain Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Specialty",
+          "description": "Iron Mountain Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SBAC",
+            "US_WY"
+          ],
+          "aliases": [
+            "IRM",
+            "Iron Mountain",
+            "Iron Mountain Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PRU",
+          "market": "US",
+          "ticker": "PRU",
+          "name": "Prudential Financial, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Life",
+          "description": "Prudential Financial, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MET",
+            "US_GL"
+          ],
+          "aliases": [
+            "PRU",
+            "Prudential Financial",
+            "Prudential Financial, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ON",
+          "market": "US",
+          "ticker": "ON",
+          "name": "ON Semiconductor Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "ON Semiconductor Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NVDA",
+            "US_AMD",
+            "US_AVGO"
+          ],
+          "aliases": [
+            "ON",
+            "ON Semiconductor",
+            "ON Semiconductor Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PCG",
+          "market": "US",
+          "ticker": "PCG",
+          "name": "PG&E Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "PG&E Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_XEL",
+            "US_PEG",
+            "US_WEC"
+          ],
+          "aliases": [
+            "PCG",
+            "PG&E",
+            "PG&E Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WAT",
+          "market": "US",
+          "ticker": "WAT",
+          "name": "Waters Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "Waters Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_IQV"
+          ],
+          "aliases": [
+            "WAT",
+            "Waters",
+            "Waters Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KVUE",
+          "market": "US",
+          "ticker": "KVUE",
+          "name": "Kenvue Inc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Household & Personal Products",
+          "description": "Kenvue Inc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KMB"
+          ],
+          "aliases": [
+            "KVUE",
+            "Kenvue",
+            "Kenvue Inc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KMB",
+          "market": "US",
+          "ticker": "KMB",
+          "name": "Kimberly-Clark Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Household & Personal Products",
+          "description": "Kimberly-Clark Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KVUE"
+          ],
+          "aliases": [
+            "KMB",
+            "Kimberly-Clark",
+            "Kimberly-Clark Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HIG",
+          "market": "US",
+          "ticker": "HIG",
+          "name": "The Hartford Insurance Group, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Diversified",
+          "description": "The Hartford Insurance Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_JPM",
+            "US_BAC",
+            "US_C"
+          ],
+          "aliases": [
+            "HIG",
+            "The Hartford Insurance",
+            "The Hartford Insurance Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HBAN",
+          "market": "US",
+          "ticker": "HBAN",
+          "name": "Huntington Bancshares Incorporated",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Banks - Regional",
+          "description": "Huntington Bancshares Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HDB",
+            "US_MTB",
+            "US_RF"
+          ],
+          "aliases": [
+            "HBAN",
+            "Huntington Bancshares",
+            "Huntington Bancshares Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_OXY",
+          "market": "US",
+          "ticker": "OXY",
+          "name": "Occidental Petroleum Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas E&P",
+          "description": "Occidental Petroleum Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_COP",
+            "US_EOG",
+            "US_TPL"
+          ],
+          "aliases": [
+            "OXY",
+            "Occidental Petroleum",
+            "Occidental Petroleum Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MTB",
+          "market": "US",
+          "ticker": "MTB",
+          "name": "M&T Bank Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Banks - Regional",
+          "description": "M&T Bank Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HDB",
+            "US_HBAN",
+            "US_RF"
+          ],
+          "aliases": [
+            "MTB",
+            "M&T Bank",
+            "M&T Bank Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MLM",
+          "market": "US",
+          "ticker": "MLM",
+          "name": "Martin Marietta Materials, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Building Materials",
+          "description": "Martin Marietta Materials, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VMC"
+          ],
+          "aliases": [
+            "MLM",
+            "Martin Marietta Materials",
+            "Martin Marietta Materials, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_Q",
+          "market": "US",
+          "ticker": "Q",
+          "name": "Qnity Electronics, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductor Equipment & Materials",
+          "description": "Qnity Electronics, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ASML",
+            "US_AMAT",
+            "US_LRCX"
+          ],
+          "aliases": [
+            "Q",
+            "Qnity Electronics",
+            "Qnity Electronics, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ROP",
+          "market": "US",
+          "ticker": "ROP",
+          "name": "Roper Technologies, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Application",
+          "description": "Roper Technologies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ADP",
+            "US_PAYX"
+          ],
+          "aliases": [
+            "ROP",
+            "Roper Technologies",
+            "Roper Technologies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IQV",
+          "market": "US",
+          "ticker": "IQV",
+          "name": "IQVIA Holdings Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "IQVIA Holdings Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_WAT"
+          ],
+          "aliases": [
+            "IQV",
+            "IQVIA",
+            "IQVIA Holdings Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NTRS",
+          "market": "US",
+          "ticker": "NTRS",
+          "name": "Northern Trust Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "Northern Trust Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "NTRS",
+            "Northern Trust",
+            "Northern Trust Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PAYX",
+          "market": "US",
+          "ticker": "PAYX",
+          "name": "Paychex, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Application",
+          "description": "Paychex, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ADP",
+            "US_ROP"
+          ],
+          "aliases": [
+            "PAYX",
+            "Paychex",
+            "Paychex, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KR",
+          "market": "US",
+          "ticker": "KR",
+          "name": "The Kroger Co.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Grocery Stores",
+          "description": "The Kroger Co. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "KR",
+            "The Kroger",
+            "The Kroger Co."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_STLD",
+          "market": "US",
+          "ticker": "STLD",
+          "name": "Steel Dynamics, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Steel",
+          "description": "Steel Dynamics, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NUE"
+          ],
+          "aliases": [
+            "STLD",
+            "Steel Dynamics",
+            "Steel Dynamics, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TDY",
+          "market": "US",
+          "ticker": "TDY",
+          "name": "Teledyne Technologies Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Scientific & Technical Instruments",
+          "description": "Teledyne Technologies Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KEYS",
+            "US_GRMN",
+            "US_FTV"
+          ],
+          "aliases": [
+            "TDY",
+            "Teledyne Technologies",
+            "Teledyne Technologies Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NRG",
+          "market": "US",
+          "ticker": "NRG",
+          "name": "NRG Energy, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Independent Power Producers",
+          "description": "NRG Energy, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VST"
+          ],
+          "aliases": [
+            "NRG",
+            "NRG Energy",
+            "NRG Energy, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NTAP",
+          "market": "US",
+          "ticker": "NTAP",
+          "name": "NetApp, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Infrastructure",
+          "description": "NetApp, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SQ",
+            "US_PATH",
+            "US_VRSN"
+          ],
+          "aliases": [
+            "NTAP",
+            "NetApp",
+            "NetApp, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TPR",
+          "market": "US",
+          "ticker": "TPR",
+          "name": "Tapestry, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Luxury Goods",
+          "description": "Tapestry, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "TPR",
+            "Tapestry",
+            "Tapestry, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IR",
+          "market": "US",
+          "ticker": "IR",
+          "name": "Ingersoll Rand Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Ingersoll Rand Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "IR",
+            "Ingersoll Rand",
+            "Ingersoll Rand Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GEHC",
+          "market": "US",
+          "ticker": "GEHC",
+          "name": "GE HealthCare Technologies Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Devices",
+          "description": "GE HealthCare Technologies Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MDT",
+            "US_ABT",
+            "US_SYK"
+          ],
+          "aliases": [
+            "GEHC",
+            "GE HealthCare Technologies",
+            "GE HealthCare Technologies Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VICI",
+          "market": "US",
+          "ticker": "VICI",
+          "name": "VICI Properties Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Diversified",
+          "description": "VICI Properties Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_JPM",
+            "US_BAC",
+            "US_C"
+          ],
+          "aliases": [
+            "VICI",
+            "VICI Properties",
+            "VICI Properties Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LYV",
+          "market": "US",
+          "ticker": "LYV",
+          "name": "Live Nation Entertainment, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "Live Nation Entertainment, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_TKO"
+          ],
+          "aliases": [
+            "LYV",
+            "Live Nation Entertainment",
+            "Live Nation Entertainment, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RMD",
+          "market": "US",
+          "ticker": "RMD",
+          "name": "ResMed Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Instruments & Supplies",
+          "description": "ResMed Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BDX",
+            "US_WST",
+            "US_SOLV"
+          ],
+          "aliases": [
+            "RMD",
+            "ResMed",
+            "ResMed Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HUBB",
+          "market": "US",
+          "ticker": "HUBB",
+          "name": "Hubbell Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Electrical Equipment & Parts",
+          "description": "Hubbell Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "HUBB",
+            "Hubbell",
+            "Hubbell Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_OTIS",
+          "market": "US",
+          "ticker": "OTIS",
+          "name": "Otis Worldwide Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Otis Worldwide Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "OTIS",
+            "Otis Worldwide",
+            "Otis Worldwide Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WSM",
+          "market": "US",
+          "ticker": "WSM",
+          "name": "Williams-Sonoma, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Specialty Retail",
+          "description": "Williams-Sonoma, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ULTA",
+            "US_TSCO"
+          ],
+          "aliases": [
+            "WSM",
+            "Williams-Sonoma",
+            "Williams-Sonoma, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PPL",
+          "market": "US",
+          "ticker": "PPL",
+          "name": "PPL Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "PPL Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_XEL",
+            "US_PEG",
+            "US_WEC"
+          ],
+          "aliases": [
+            "PPL",
+            "PPL Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PPG",
+          "market": "US",
+          "ticker": "PPG",
+          "name": "PPG Industries, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "PPG Industries, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ALB",
+            "US_DD",
+            "US_ECL"
+          ],
+          "aliases": [
+            "PPG",
+            "PPG Industries",
+            "PPG Industries, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RJF",
+          "market": "US",
+          "ticker": "RJF",
+          "name": "Raymond James Financial, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "Raymond James Financial, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "RJF",
+            "Raymond James Financial",
+            "Raymond James Financial, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PHM",
+          "market": "US",
+          "ticker": "PHM",
+          "name": "PulteGroup, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Residential Construction",
+          "description": "PulteGroup, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LEN",
+            "US_NVR"
+          ],
+          "aliases": [
+            "PHM",
+            "PulteGroup",
+            "PulteGroup, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HSY",
+          "market": "US",
+          "ticker": "HSY",
+          "name": "The Hershey Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Confectioners",
+          "description": "The Hershey Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MDLZ"
+          ],
+          "aliases": [
+            "HSY",
+            "The Hershey",
+            "The Hershey Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MTD",
+          "market": "US",
+          "ticker": "MTD",
+          "name": "Mettler-Toledo International Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "Mettler-Toledo International Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_WAT"
+          ],
+          "aliases": [
+            "MTD",
+            "Mettler-Toledo International",
+            "Mettler-Toledo International Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RF",
+          "market": "US",
+          "ticker": "RF",
+          "name": "Regions Financial Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Banks - Regional",
+          "description": "Regions Financial Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HDB",
+            "US_HBAN",
+            "US_MTB"
+          ],
+          "aliases": [
+            "RF",
+            "Regions Financial",
+            "Regions Financial Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SYF",
+          "market": "US",
+          "ticker": "SYF",
+          "name": "Synchrony Financial",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Credit Services",
+          "description": "Synchrony Financial tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_AXP",
+            "US_V",
+            "US_MA"
+          ],
+          "aliases": [
+            "SYF",
+            "Synchrony Financial"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TPL",
+          "market": "US",
+          "ticker": "TPL",
+          "name": "Texas Pacific Land Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Energy",
+          "industry": "Oil & Gas E&P",
+          "description": "Texas Pacific Land Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_COP",
+            "US_EOG",
+            "US_OXY"
+          ],
+          "aliases": [
+            "TPL",
+            "Texas Pacific Land",
+            "Texas Pacific Land Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WST",
+          "market": "US",
+          "ticker": "WST",
+          "name": "West Pharmaceutical Services, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Instruments & Supplies",
+          "description": "West Pharmaceutical Services, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BDX",
+            "US_RMD",
+            "US_SOLV"
+          ],
+          "aliases": [
+            "WST",
+            "West Pharmaceutical Services",
+            "West Pharmaceutical Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LUV",
+          "market": "US",
+          "ticker": "LUV",
+          "name": "Southwest Airlines Co.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Airlines",
+          "description": "Southwest Airlines Co. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UAL"
+          ],
+          "aliases": [
+            "LUV",
+            "Southwest Airlines",
+            "Southwest Airlines Co."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WTW",
+          "market": "US",
+          "ticker": "WTW",
+          "name": "Willis Towers Watson Public Limited Company",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance Brokers",
+          "description": "Willis Towers Watson Public Limited Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_AJG",
+            "US_BRO",
+            "US_ERIE"
+          ],
+          "aliases": [
+            "WTW",
+            "Willis Towers Watson Public",
+            "Willis Towers Watson Public Limited Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TROW",
+          "market": "US",
+          "ticker": "TROW",
+          "name": "T. Rowe Price Group, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "T. Rowe Price Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "TROW",
+            "T. Rowe Price",
+            "T. Rowe Price Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SW",
+          "market": "US",
+          "ticker": "SW",
+          "name": "Smurfit Westrock Plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Packaging & Containers",
+          "description": "Smurfit Westrock Plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PKG",
+            "US_IP"
+          ],
+          "aliases": [
+            "SW",
+            "Smurfit Westrock Plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VRSK",
+          "market": "US",
+          "ticker": "VRSK",
+          "name": "Verisk Analytics, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Consulting Services",
+          "description": "Verisk Analytics, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "VRSK",
+            "Verisk Analytics",
+            "Verisk Analytics, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_DGX",
+          "market": "US",
+          "ticker": "DGX",
+          "name": "Quest Diagnostics Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "Quest Diagnostics Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_WAT"
+          ],
+          "aliases": [
+            "DGX",
+            "Quest Diagnostics",
+            "Quest Diagnostics Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VMRK",
+          "market": "US",
+          "ticker": "VMRK",
+          "name": "AvalonBay Communities, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Residential",
+          "description": "AvalonBay Communities, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_INVH",
+            "US_MAA",
+            "US_UDR"
+          ],
+          "aliases": [
+            "VMRK",
+            "AvalonBay Communities",
+            "AvalonBay Communities, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LH",
+          "market": "US",
+          "ticker": "LH",
+          "name": "Labcorp Holdings Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "Labcorp Holdings Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_WAT"
+          ],
+          "aliases": [
+            "LH",
+            "Labcorp",
+            "Labcorp Holdings Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NI",
+          "market": "US",
+          "ticker": "NI",
+          "name": "NiSource Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Gas",
+          "description": "NiSource Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "NI",
+            "NiSource",
+            "NiSource Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VLTO",
+          "market": "US",
+          "ticker": "VLTO",
+          "name": "Veralto Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Pollution & Treatment Controls",
+          "description": "Veralto Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "VLTO",
+            "Veralto",
+            "Veralto Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_JBHT",
+          "market": "US",
+          "ticker": "JBHT",
+          "name": "J.B. Hunt Transport Services, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Integrated Freight & Logistics",
+          "description": "J.B. Hunt Transport Services, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UPS",
+            "US_FDXF"
+          ],
+          "aliases": [
+            "JBHT",
+            "J.B. Hunt Transport Services",
+            "J.B. Hunt Transport Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KEY",
+          "market": "US",
+          "ticker": "KEY",
+          "name": "KeyCorp",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Banks - Regional",
+          "description": "KeyCorp tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HDB",
+            "US_HBAN",
+            "US_MTB"
+          ],
+          "aliases": [
+            "KEY",
+            "KeyCorp"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PFG",
+          "market": "US",
+          "ticker": "PFG",
+          "name": "Principal Financial Group, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "Principal Financial Group, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "PFG",
+            "Principal Financial",
+            "Principal Financial Group, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PKG",
+          "market": "US",
+          "ticker": "PKG",
+          "name": "Packaging Corporation of America",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Packaging & Containers",
+          "description": "Packaging Corporation of America tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SW",
+            "US_IP"
+          ],
+          "aliases": [
+            "PKG",
+            "Packaging Corporation of America"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SNA",
+          "market": "US",
+          "ticker": "SNA",
+          "name": "Snap-on Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Tools & Accessories",
+          "description": "Snap-on Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SWK"
+          ],
+          "aliases": [
+            "SNA",
+            "Snap-on",
+            "Snap-on Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_OMC",
+          "market": "US",
+          "ticker": "OMC",
+          "name": "Omnicom Group Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Advertising Agencies",
+          "description": "Omnicom Group Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_TTD"
+          ],
+          "aliases": [
+            "OMC",
+            "Omnicom",
+            "Omnicom Group Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WRB",
+          "market": "US",
+          "ticker": "WRB",
+          "name": "W. R. Berkley Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Property & Casualty",
+          "description": "W. R. Berkley Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PGR",
+            "US_TRV",
+            "US_L"
+          ],
+          "aliases": [
+            "WRB",
+            "W. R. Berkley",
+            "W. R. Berkley Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_STE",
+          "market": "US",
+          "ticker": "STE",
+          "name": "STERIS plc",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Devices",
+          "description": "STERIS plc tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MDT",
+            "US_ABT",
+            "US_SYK"
+          ],
+          "aliases": [
+            "STE",
+            "STERIS",
+            "STERIS plc"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VRSN",
+          "market": "US",
+          "ticker": "VRSN",
+          "name": "VeriSign, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Infrastructure",
+          "description": "VeriSign, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SQ",
+            "US_PATH",
+            "US_NTAP"
+          ],
+          "aliases": [
+            "VRSN",
+            "VeriSign",
+            "VeriSign, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IFF",
+          "market": "US",
+          "ticker": "IFF",
+          "name": "International Flavors & Fragrances Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Specialty Chemicals",
+          "description": "International Flavors & Fragrances Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ALB",
+            "US_DD",
+            "US_ECL"
+          ],
+          "aliases": [
+            "IFF",
+            "International Flavors & Fragrances",
+            "International Flavors & Fragrances Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IP",
+          "market": "US",
+          "ticker": "IP",
+          "name": "International Paper Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Packaging & Containers",
+          "description": "International Paper Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SW",
+            "US_PKG"
+          ],
+          "aliases": [
+            "IP",
+            "International Paper",
+            "International Paper Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KHC",
+          "market": "US",
+          "ticker": "KHC",
+          "name": "The Kraft Heinz Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods",
+          "description": "The Kraft Heinz Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GIS",
+            "US_MKC",
+            "US_SJM"
+          ],
+          "aliases": [
+            "KHC",
+            "The Kraft Heinz",
+            "The Kraft Heinz Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_FIS",
+          "market": "US",
+          "ticker": "FIS",
+          "name": "Fidelity National Information Services, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Information Technology Services",
+          "description": "Fidelity National Information Services, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IBM",
+            "US_LDOS",
+            "US_JKHY"
+          ],
+          "aliases": [
+            "FIS",
+            "Fidelity National Information Services",
+            "Fidelity National Information Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HPQ",
+          "market": "US",
+          "ticker": "HPQ",
+          "name": "HP Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Computer Hardware",
+          "description": "HP Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_STX",
+            "US_SNDK",
+            "US_WDC"
+          ],
+          "aliases": [
+            "HP",
+            "HPQ",
+            "HP Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ULTA",
+          "market": "US",
+          "ticker": "ULTA",
+          "name": "Ulta Beauty, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Specialty Retail",
+          "description": "Ulta Beauty, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WSM",
+            "US_TSCO"
+          ],
+          "aliases": [
+            "ULTA",
+            "Ulta Beauty",
+            "Ulta Beauty, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LEN",
+          "market": "US",
+          "ticker": "LEN",
+          "name": "Lennar Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Residential Construction",
+          "description": "Lennar Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PHM",
+            "US_NVR"
+          ],
+          "aliases": [
+            "LEN",
+            "Lennar",
+            "Lennar Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_L",
+          "market": "US",
+          "ticker": "L",
+          "name": "Loews Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Property & Casualty",
+          "description": "Loews Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PGR",
+            "US_TRV",
+            "US_WRB"
+          ],
+          "aliases": [
+            "L",
+            "Loews",
+            "Loews Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_INCY",
+          "market": "US",
+          "ticker": "INCY",
+          "name": "Incyte Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Biotechnology",
+          "description": "Incyte Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_AMGN",
+            "US_GILD",
+            "US_REGN"
+          ],
+          "aliases": [
+            "INCY",
+            "Incyte",
+            "Incyte Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SBAC",
+          "market": "US",
+          "ticker": "SBAC",
+          "name": "SBA Communications Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Specialty",
+          "description": "SBA Communications Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IRM",
+            "US_WY"
+          ],
+          "aliases": [
+            "SBAC",
+            "SBA Communications",
+            "SBA Communications Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NVR",
+          "market": "US",
+          "ticker": "NVR",
+          "name": "NVR, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Residential Construction",
+          "description": "NVR, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PHM",
+            "US_LEN"
+          ],
+          "aliases": [
+            "NVR",
+            "NVR, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_FTV",
+          "market": "US",
+          "ticker": "FTV",
+          "name": "Fortive Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Scientific & Technical Instruments",
+          "description": "Fortive Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KEYS",
+            "US_GRMN",
+            "US_TDY"
+          ],
+          "aliases": [
+            "FTV",
+            "Fortive",
+            "Fortive Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GIS",
+          "market": "US",
+          "ticker": "GIS",
+          "name": "General Mills, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods",
+          "description": "General Mills, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KHC",
+            "US_MKC",
+            "US_SJM"
+          ],
+          "aliases": [
+            "GIS",
+            "General Mills",
+            "General Mills, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_VTRS",
+          "market": "US",
+          "ticker": "VTRS",
+          "name": "Viatris Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Drug Manufacturers - Specialty & Generic",
+          "description": "Viatris Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "VTRS",
+            "Viatris",
+            "Viatris Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LII",
+          "market": "US",
+          "ticker": "LII",
+          "name": "Lennox International Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products & Equipment",
+          "description": "Lennox International Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMS",
+            "US_TT",
+            "US_JCI"
+          ],
+          "aliases": [
+            "LII",
+            "Lennox International",
+            "Lennox International Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WY",
+          "market": "US",
+          "ticker": "WY",
+          "name": "Weyerhaeuser Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Specialty",
+          "description": "Weyerhaeuser Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IRM",
+            "US_SBAC"
+          ],
+          "aliases": [
+            "WY",
+            "Weyerhaeuser",
+            "Weyerhaeuser Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GNRC",
+          "market": "US",
+          "ticker": "GNRC",
+          "name": "Generac Holdings Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Generac Holdings Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "GNRC",
+            "Generac",
+            "Generac Holdings Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_KIM",
+          "market": "US",
+          "ticker": "KIM",
+          "name": "Kimco Realty Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Retail",
+          "description": "Kimco Realty Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPG",
+            "US_O",
+            "US_REG"
+          ],
+          "aliases": [
+            "KIM",
+            "Kimco Realty",
+            "Kimco Realty Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GPN",
+          "market": "US",
+          "ticker": "GPN",
+          "name": "Global Payments Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Business Services",
+          "description": "Global Payments Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPIR"
+          ],
+          "aliases": [
+            "GPN",
+            "Global Payments",
+            "Global Payments Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IEX",
+          "market": "US",
+          "ticker": "IEX",
+          "name": "IDEX Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "IDEX Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "IEX",
+            "IDEX",
+            "IDEX Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ZBH",
+          "market": "US",
+          "ticker": "ZBH",
+          "name": "Zimmer Biomet Holdings, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Devices",
+          "description": "Zimmer Biomet Holdings, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MDT",
+            "US_ABT",
+            "US_SYK"
+          ],
+          "aliases": [
+            "ZBH",
+            "Zimmer Biomet",
+            "Zimmer Biomet Holdings, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TSCO",
+          "market": "US",
+          "ticker": "TSCO",
+          "name": "Tractor Supply Company",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Specialty Retail",
+          "description": "Tractor Supply Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WSM",
+            "US_ULTA"
+          ],
+          "aliases": [
+            "TSCO",
+            "Tractor Supply",
+            "Tractor Supply Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_INVH",
+          "market": "US",
+          "ticker": "INVH",
+          "name": "Invitation Homes Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Residential",
+          "description": "Invitation Homes Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VMRK",
+            "US_MAA",
+            "US_UDR"
+          ],
+          "aliases": [
+            "INVH",
+            "Invitation Homes",
+            "Invitation Homes Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MAS",
+          "market": "US",
+          "ticker": "MAS",
+          "name": "Masco Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Building Products & Equipment",
+          "description": "Masco Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WMS",
+            "US_TT",
+            "US_JCI"
+          ],
+          "aliases": [
+            "MAS",
+            "Masco",
+            "Masco Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_FDXF",
+          "market": "US",
+          "ticker": "FDXF",
+          "name": "FedEx Freight Holding Company, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Integrated Freight & Logistics",
+          "description": "FedEx Freight Holding Company, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_UPS",
+            "US_JBHT"
+          ],
+          "aliases": [
+            "FDXF",
+            "FedEx Freight Holding",
+            "FedEx Freight Holding Company, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GPC",
+          "market": "US",
+          "ticker": "GPC",
+          "name": "Genuine Parts Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Auto Parts",
+          "description": "Genuine Parts Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ORLY"
+          ],
+          "aliases": [
+            "GPC",
+            "Genuine Parts",
+            "Genuine Parts Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MAA",
+          "market": "US",
+          "ticker": "MAA",
+          "name": "Mid-America Apartment Communities, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Residential",
+          "description": "Mid-America Apartment Communities, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VMRK",
+            "US_INVH",
+            "US_UDR"
+          ],
+          "aliases": [
+            "MAA",
+            "Mid-America Apartment Communities",
+            "Mid-America Apartment Communities, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TSN",
+          "market": "US",
+          "ticker": "TSN",
+          "name": "Tyson Foods, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Farm Products",
+          "description": "Tyson Foods, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "TSN",
+            "Tyson Foods",
+            "Tyson Foods, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NDSN",
+          "market": "US",
+          "ticker": "NDSN",
+          "name": "Nordson Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Specialty Industrial Machinery",
+          "description": "Nordson Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_EMR",
+            "US_ROK",
+            "US_CMI"
+          ],
+          "aliases": [
+            "NDSN",
+            "Nordson",
+            "Nordson Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TXT",
+          "market": "US",
+          "ticker": "TXT",
+          "name": "Textron Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Aerospace & Defense",
+          "description": "Textron Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPCX",
+            "US_LMT",
+            "US_RTX"
+          ],
+          "aliases": [
+            "TXT",
+            "Textron",
+            "Textron Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RL",
+          "market": "US",
+          "ticker": "RL",
+          "name": "Ralph Lauren Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Apparel Manufacturing",
+          "description": "Ralph Lauren Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "RL",
+            "Ralph Lauren",
+            "Ralph Lauren Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HST",
+          "market": "US",
+          "ticker": "HST",
+          "name": "Host Hotels & Resorts, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Hotel & Motel",
+          "description": "Host Hotels & Resorts, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "HST",
+            "Host Hotels & Resorts",
+            "Host Hotels & Resorts, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_J",
+          "market": "US",
+          "ticker": "J",
+          "name": "Jacobs Solutions Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Engineering & Construction",
+          "description": "Jacobs Solutions Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_PWR",
+            "US_TTEK"
+          ],
+          "aliases": [
+            "J",
+            "Jacobs Solutions",
+            "Jacobs Solutions Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_DOC",
+          "market": "US",
+          "ticker": "DOC",
+          "name": "Healthpeak Properties, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Healthcare Facilities",
+          "description": "Healthpeak Properties, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_WELL",
+            "US_VTR"
+          ],
+          "aliases": [
+            "DOC",
+            "Healthpeak Properties",
+            "Healthpeak Properties, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SWK",
+          "market": "US",
+          "ticker": "SWK",
+          "name": "Stanley Black & Decker, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Industrials",
+          "industry": "Tools & Accessories",
+          "description": "Stanley Black & Decker, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SNA"
+          ],
+          "aliases": [
+            "SWK",
+            "Stanley Black & Decker",
+            "Stanley Black & Decker, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GL",
+          "market": "US",
+          "ticker": "GL",
+          "name": "Globe Life Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Insurance - Life",
+          "description": "Globe Life Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MET",
+            "US_PRU"
+          ],
+          "aliases": [
+            "GL",
+            "Globe Life",
+            "Globe Life Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ECHO",
+          "market": "US",
+          "ticker": "ECHO",
+          "name": "EchoStar Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Telecom Services",
+          "description": "EchoStar Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_CMCSA",
+            "US_T",
+            "US_VZ"
+          ],
+          "aliases": [
+            "ECHO",
+            "EchoStar",
+            "EchoStar Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LVS",
+          "market": "US",
+          "ticker": "LVS",
+          "name": "Las Vegas Sands Corp.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Resorts & Casinos",
+          "description": "Las Vegas Sands Corp. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MGM",
+            "US_WYNN"
+          ],
+          "aliases": [
+            "LVS",
+            "Las Vegas Sands",
+            "Las Vegas Sands Corp."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_REG",
+          "market": "US",
+          "ticker": "REG",
+          "name": "Regency Centers Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Retail",
+          "description": "Regency Centers Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SPG",
+            "US_O",
+            "US_KIM"
+          ],
+          "aliases": [
+            "REG",
+            "Regency Centers",
+            "Regency Centers Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PTC",
+          "market": "US",
+          "ticker": "PTC",
+          "name": "PTC Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Application",
+          "description": "PTC Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ADP",
+            "US_ROP"
+          ],
+          "aliases": [
+            "PTC",
+            "PTC Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PNW",
+          "market": "US",
+          "ticker": "PNW",
+          "name": "Pinnacle West Capital Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Utilities",
+          "industry": "Utilities - Regulated Electric",
+          "description": "Pinnacle West Capital Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_XEL",
+            "US_PEG",
+            "US_WEC"
+          ],
+          "aliases": [
+            "PNW",
+            "Pinnacle West Capital",
+            "Pinnacle West Capital Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_LDOS",
+          "market": "US",
+          "ticker": "LDOS",
+          "name": "Leidos Holdings, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Information Technology Services",
+          "description": "Leidos Holdings, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IBM",
+            "US_FIS",
+            "US_JKHY"
+          ],
+          "aliases": [
+            "LDOS",
+            "Leidos",
+            "Leidos Holdings, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MKC",
+          "market": "US",
+          "ticker": "MKC",
+          "name": "McCormick & Company, Incorporated",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods",
+          "description": "McCormick & Company, Incorporated tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KHC",
+            "US_GIS",
+            "US_SJM"
+          ],
+          "aliases": [
+            "MKC",
+            "McCormick &",
+            "McCormick & Company, Incorporated"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TKO",
+          "market": "US",
+          "ticker": "TKO",
+          "name": "TKO Group Holdings, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "TKO Group Holdings, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "TKO",
+            "TKO Group",
+            "TKO Group Holdings, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_RVTY",
+          "market": "US",
+          "ticker": "RVTY",
+          "name": "Revvity, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Diagnostics & Research",
+          "description": "Revvity, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_GH",
+            "US_IDXX",
+            "US_WAT"
+          ],
+          "aliases": [
+            "RVTY",
+            "Revvity",
+            "Revvity, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TYL",
+          "market": "US",
+          "ticker": "TYL",
+          "name": "Tyler Technologies, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Application",
+          "description": "Tyler Technologies, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_ADP",
+            "US_ROP"
+          ],
+          "aliases": [
+            "TYL",
+            "Tyler Technologies",
+            "Tyler Technologies, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_ROL",
+          "market": "US",
+          "ticker": "ROL",
+          "name": "Rollins, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Personal Services",
+          "description": "Rollins, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "ROL",
+            "Rollins",
+            "Rollins, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SJM",
+          "market": "US",
+          "ticker": "SJM",
+          "name": "The J. M. Smucker Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods",
+          "description": "The J. M. Smucker Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KHC",
+            "US_GIS",
+            "US_MKC"
+          ],
+          "aliases": [
+            "SJM",
+            "The J. M. Smucker",
+            "The J. M. Smucker Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TRMB",
+          "market": "US",
+          "ticker": "TRMB",
+          "name": "Trimble Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Scientific & Technical Instruments",
+          "description": "Trimble Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KEYS",
+            "US_GRMN",
+            "US_TDY"
+          ],
+          "aliases": [
+            "TRMB",
+            "Trimble",
+            "Trimble Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_UDR",
+          "market": "US",
+          "ticker": "UDR",
+          "name": "UDR, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Real Estate",
+          "industry": "REIT - Residential",
+          "description": "UDR, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_VMRK",
+            "US_INVH",
+            "US_MAA"
+          ],
+          "aliases": [
+            "UDR",
+            "UDR, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IVZ",
+          "market": "US",
+          "ticker": "IVZ",
+          "name": "Invesco Ltd.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "Invesco Ltd. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "IVZ",
+            "Invesco",
+            "Invesco Ltd."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SOLV",
+          "market": "US",
+          "ticker": "SOLV",
+          "name": "Solventum Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Instruments & Supplies",
+          "description": "Solventum Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BDX",
+            "US_RMD",
+            "US_WST"
+          ],
+          "aliases": [
+            "SOLV",
+            "Solventum",
+            "Solventum Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_GDDY",
+          "market": "US",
+          "ticker": "GDDY",
+          "name": "GoDaddy Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Software - Infrastructure",
+          "description": "GoDaddy Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_SQ",
+            "US_PATH",
+            "US_NTAP"
+          ],
+          "aliases": [
+            "GDDY",
+            "GoDaddy",
+            "GoDaddy Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HAS",
+          "market": "US",
+          "ticker": "HAS",
+          "name": "Hasbro, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Leisure",
+          "description": "Hasbro, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "HAS",
+            "Hasbro",
+            "Hasbro, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_PODD",
+          "market": "US",
+          "ticker": "PODD",
+          "name": "Insulet Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Devices",
+          "description": "Insulet Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MDT",
+            "US_ABT",
+            "US_SYK"
+          ],
+          "aliases": [
+            "PODD",
+            "Insulet",
+            "Insulet Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_FOXA",
+          "market": "US",
+          "ticker": "FOXA",
+          "name": "Fox Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "Fox Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "Fox",
+            "FOXA",
+            "Fox Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SWKS",
+          "market": "US",
+          "ticker": "SWKS",
+          "name": "Skyworks Solutions, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Semiconductors",
+          "description": "Skyworks Solutions, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_NVDA",
+            "US_AMD",
+            "US_AVGO"
+          ],
+          "aliases": [
+            "SWKS",
+            "Skyworks Solutions",
+            "Skyworks Solutions, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_BEN",
+          "market": "US",
+          "ticker": "BEN",
+          "name": "Franklin Templeton Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Financials",
+          "industry": "Asset Management",
+          "description": "Franklin Templeton Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BLK",
+            "US_KKR",
+            "US_STT"
+          ],
+          "aliases": [
+            "BEN",
+            "Franklin Templeton",
+            "Franklin Templeton Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_JKHY",
+          "market": "US",
+          "ticker": "JKHY",
+          "name": "Jack Henry & Associates, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Information Technology Services",
+          "description": "Jack Henry & Associates, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IBM",
+            "US_FIS",
+            "US_LDOS"
+          ],
+          "aliases": [
+            "JKHY",
+            "Jack Henry & Associates",
+            "Jack Henry & Associates, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NCLH",
+          "market": "US",
+          "ticker": "NCLH",
+          "name": "Norwegian Cruise Line Holdings Ltd.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Travel Services",
+          "description": "Norwegian Cruise Line Holdings Ltd. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_BKNG",
+            "US_ABNB",
+            "US_EXPE"
+          ],
+          "aliases": [
+            "NCLH",
+            "Norwegian Cruise Line Holdings",
+            "Norwegian Cruise Line Holdings Ltd."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MGM",
+          "market": "US",
+          "ticker": "MGM",
+          "name": "MGM Resorts International",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Resorts & Casinos",
+          "description": "MGM Resorts International tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LVS",
+            "US_WYNN"
+          ],
+          "aliases": [
+            "MGM",
+            "MGM Resorts International"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NWSA",
+          "market": "US",
+          "ticker": "NWSA",
+          "name": "News Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "News Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "News",
+            "NWSA",
+            "News Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_IT",
+          "market": "US",
+          "ticker": "IT",
+          "name": "Gartner, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Information Technology",
+          "industry": "Information Technology Services",
+          "description": "Gartner, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_IBM",
+            "US_FIS",
+            "US_LDOS"
+          ],
+          "aliases": [
+            "IT",
+            "Gartner",
+            "Gartner, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_WYNN",
+          "market": "US",
+          "ticker": "WYNN",
+          "name": "Wynn Resorts, Limited",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Discretionary",
+          "industry": "Resorts & Casinos",
+          "description": "Wynn Resorts, Limited tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_LVS",
+            "US_MGM"
+          ],
+          "aliases": [
+            "WYNN",
+            "Wynn Resorts",
+            "Wynn Resorts, Limited"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HSIC",
+          "market": "US",
+          "ticker": "HSIC",
+          "name": "Henry Schein, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Distribution",
+          "description": "Henry Schein, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_MCK"
+          ],
+          "aliases": [
+            "HSIC",
+            "Henry Schein",
+            "Henry Schein, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_UHS",
+          "market": "US",
+          "ticker": "UHS",
+          "name": "Universal Health Services, Inc.",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Health Care",
+          "industry": "Medical Care Facilities",
+          "description": "Universal Health Services, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_HCA"
+          ],
+          "aliases": [
+            "UHS",
+            "Universal Health Services",
+            "Universal Health Services, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TTD",
+          "market": "US",
+          "ticker": "TTD",
+          "name": "The Trade Desk, Inc.",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Advertising Agencies",
+          "description": "The Trade Desk, Inc. tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_OMC"
+          ],
+          "aliases": [
+            "TTD",
+            "The Trade Desk",
+            "The Trade Desk, Inc."
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_HRL",
+          "market": "US",
+          "ticker": "HRL",
+          "name": "Hormel Foods Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Packaged Foods",
+          "description": "Hormel Foods Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_KHC",
+            "US_GIS",
+            "US_MKC"
+          ],
+          "aliases": [
+            "HRL",
+            "Hormel Foods",
+            "Hormel Foods Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_MOS",
+          "market": "US",
+          "ticker": "MOS",
+          "name": "The Mosaic Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Materials",
+          "industry": "Agricultural Inputs",
+          "description": "The Mosaic Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "MOS",
+            "The Mosaic",
+            "The Mosaic Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_FOX",
+          "market": "US",
+          "ticker": "FOX",
+          "name": "Fox Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "Fox Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "FOX",
+            "Fox",
+            "Fox Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_TAP",
+          "market": "US",
+          "ticker": "TAP",
+          "name": "Molson Coors Beverage Company",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Consumer Staples",
+          "industry": "Beverages - Brewers",
+          "description": "Molson Coors Beverage Company tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [],
+          "aliases": [
+            "TAP",
+            "Molson Coors Beverage",
+            "Molson Coors Beverage Company"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_NWS",
+          "market": "US",
+          "ticker": "NWS",
+          "name": "News Corporation",
+          "exchange": "NASDAQ",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "News Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "NWS",
+            "News",
+            "News Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
+        },
+        {
+          "instrument_id": "US_SKYD",
+          "market": "US",
+          "ticker": "SKYD",
+          "name": "Skydance Corporation",
+          "exchange": "NYSE",
+          "country": "US",
+          "currency": "USD",
+          "sector": "Communication Services",
+          "industry": "Entertainment",
+          "description": "Skydance Corporation tracked as an S&P 500 member.",
+          "logo_url": "",
+          "index_memberships": [
+            "S&P 500"
+          ],
+          "peer_ids": [
+            "US_DIS",
+            "US_NFLX",
+            "US_LYV"
+          ],
+          "aliases": [
+            "SKYD",
+            "Skydance",
+            "Skydance Corporation"
+          ],
+          "support_tier": "catalog",
+          "universes": [
+            "us_core_155"
+          ],
+          "status": "active",
+          "updated_at": "2026-11-26T00:00:00Z"
         }
       ]
     },

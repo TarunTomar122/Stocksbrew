@@ -26,19 +26,19 @@ describe("stockPagesAmong", () => {
     quotes.mockResolvedValue(
       new Map([
         ["US_NOK", { quote: { current: 7.5 } }],
-        ["US_ADP", { quote: {} }],
+        ["US_TSEM", { quote: {} }],
       ]) as never,
     );
-    const pages = await stockPagesAmong(["AAPL", "spy", "NOK", "ADP", "KKR", null, "", "nok", "bad ticker!"]);
+    const pages = await stockPagesAmong(["AAPL", "spy", "NOK", "TSEM", "SHEL", null, "", "nok", "bad ticker!"]);
     expect(quotes).toHaveBeenCalledTimes(1);
-    expect(quotes.mock.calls[0]![0].sort()).toEqual(["US_ADP", "US_KKR", "US_NOK"]);
+    expect(quotes.mock.calls[0]![0].sort()).toEqual(["US_NOK", "US_SHEL", "US_TSEM"]);
     expect(pages && [...pages].sort()).toEqual(["AAPL", "NOK", "SPY"]);
   });
 
   it("leaves out a stock with a price and no instrument, which the stock page answers with a 404", async () => {
-    quotes.mockResolvedValue(new Map([["US_SBUX", { quote: { current: 95 } }], ["US_NOK", { quote: { current: 7.5 } }]]) as never);
+    quotes.mockResolvedValue(new Map([["US_FOSL", { quote: { current: 95 } }], ["US_NOK", { quote: { current: 7.5 } }]]) as never);
     instruments.mockResolvedValue(new Set(["US_NOK"]));
-    const pages = await stockPagesAmong(["SBUX", "NOK"]);
+    const pages = await stockPagesAmong(["FOSL", "NOK"]);
     expect(pages && [...pages]).toEqual(["NOK"]);
   });
 
@@ -51,10 +51,10 @@ describe("stockPagesAmong", () => {
   it("remembers each answer for ten minutes, then reads again", async () => {
     quotes.mockResolvedValue(new Map([["US_NOK", { quote: { current: 7.5 } }]]) as never);
     const start = Date.parse("2026-11-20T12:00:00Z");
-    expect([...((await stockPagesAmong(["NOK", "KKR"], start)) ?? [])]).toEqual(["NOK"]);
-    expect([...((await stockPagesAmong(["NOK", "KKR"], start + 5 * 60_000)) ?? [])]).toEqual(["NOK"]);
+    expect([...((await stockPagesAmong(["NOK", "SHEL"], start)) ?? [])]).toEqual(["NOK"]);
+    expect([...((await stockPagesAmong(["NOK", "SHEL"], start + 5 * 60_000)) ?? [])]).toEqual(["NOK"]);
     expect(quotes).toHaveBeenCalledTimes(1);
-    await stockPagesAmong(["NOK", "KKR"], start + 11 * 60_000);
+    await stockPagesAmong(["NOK", "SHEL"], start + 11 * 60_000);
     expect(quotes).toHaveBeenCalledTimes(2);
   });
 
@@ -67,9 +67,9 @@ describe("stockPagesAmong", () => {
   it("returns null when the store cannot be read, so every ticker stays linked", async () => {
     quotes.mockRejectedValue(new Error("down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const pages = await stockPagesAmong(["ADP"]);
+    const pages = await stockPagesAmong(["TSEM"]);
     expect(pages).toBeNull();
-    expect(hasStockPage(pages, "ADP")).toBe(true);
+    expect(hasStockPage(pages, "TSEM")).toBe(true);
   });
 });
 
@@ -77,7 +77,7 @@ describe("hasStockPage", () => {
   it("matches tickers case-insensitively and never links an empty one", () => {
     const pages = new Set(["NOK"]);
     expect(hasStockPage(pages, "nok")).toBe(true);
-    expect(hasStockPage(pages, "ADP")).toBe(false);
+    expect(hasStockPage(pages, "TSEM")).toBe(false);
     expect(hasStockPage(pages, null)).toBe(false);
     expect(hasStockPage(null, "")).toBe(false);
     expect(hasStockPage(pages, "bad ticker!")).toBe(false);

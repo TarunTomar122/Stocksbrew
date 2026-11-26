@@ -20,7 +20,7 @@ const memo = new Map<string, { has: boolean; at: number }>();
  * The same rule as the stock page's 404 check (app/(app)/stock/[symbol]):
  * the 500-company catalogue, any US fund ticker (a fund page, or the page that
  * says we are adding it), else an instrument and a latest price with a current quote (getStockSummary). The price alone is not
- * enough: the heatmap prices all of the S&P 500, and on Nov 26 SBUX, ADP and MNST had a quote and no page. Only the US
+ * enough: the heatmap prices all of the S&P 500, and on Nov 26 SBUX, ADP and MNST had a quote and no page (since covered). Only the US
  * market is read: filings are US listings. A page it misses (India only, an
  * alias) is printed instead of linked, never the other way round. `null` when
  * the store could not be read: then everything stays linked rather than
