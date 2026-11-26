@@ -18,7 +18,11 @@ export type Weighted = HoldingRef & {
 /* ── 1. How the money sits ─────────────────────────────────────────────── */
 
 /** A name shown on a sector row: one of the person's own (biggest first), or an S&P 500 leader to look at. */
-export type SectorName = HoldingRef & { idea: boolean };
+export type SectorName = HoldingRef & {
+  idea: boolean;
+  /** False when we have no stock page for it (set when the page loads): printed without a link. */
+  page?: false;
+};
 
 export type SectorShare = {
   sector: string;

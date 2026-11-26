@@ -481,16 +481,19 @@ export async function loadAnalysisPage(now: Date = new Date()): Promise<Analysis
 }
 
 /**
- * The S&P 500 names offered as ideas on a sector row link to their stock page, and we have no page for about a
- * third of the index (SBUX, ADP, MNST, ...): on the signed-out example those were 404s that Googlebot kept
- * following. An idea without a page is left off its row; the person's own names stay as they are.
+ * Names on a sector row link to their stock page, and we have no page for about a third of the S&P 500 (SBUX, ADP,
+ * MNST, ...): on the signed-out example those were 404s that Googlebot kept following. An idea without a page is
+ * left off its row; one of the person's own (a company inside a fund they hold, often) stays, without a link.
  */
 async function withoutPagelessIdeas(analysis: PortfolioAnalysis): Promise<PortfolioAnalysis> {
   const shares = analysis.concentration;
-  const ideas = (shares?.sectors ?? []).flatMap((row) => (row.names ?? []).filter((name) => name.idea).map((name) => name.ticker));
-  if (!shares || ideas.length === 0) return analysis;
-  const pages = await stockPagesAmong(ideas);
+  const tickers = (shares?.sectors ?? []).flatMap((row) => (row.names ?? []).map((name) => name.ticker));
+  if (!shares || tickers.length === 0) return analysis;
+  const pages = await stockPagesAmong(tickers);
   if (!pages) return analysis;
-  const sectors = shares.sectors.map((row) => ({ ...row, names: (row.names ?? []).filter((name) => !name.idea || hasStockPage(pages, name.ticker)) }));
+  const sectors = shares.sectors.map((row) => ({
+    ...row,
+    names: (row.names ?? []).flatMap((name) => (hasStockPage(pages, name.ticker) ? [name] : name.idea ? [] : [{ ...name, page: false as const }])),
+  }));
   return { ...analysis, concentration: { ...shares, sectors } };
 }

@@ -141,19 +141,28 @@ function Sectors({ module, beside }: { module: ConcentrationModule; beside: bool
   );
 }
 
-/** A name on a sector row: logo and ticker to the stock page; an idea in a dashed, quieter chip. */
+/** A name on a sector row: logo and ticker to the stock page (plain when we have none); an idea in a dashed, quieter chip. */
 function NameChip({ name, sector }: { name: SectorName; sector: string }) {
-  return (
-    <Link
-      href={`/stock/${encodeURIComponent(name.ticker)}`}
-      prefetch={false}
-      title={name.idea ? `${name.name}, one of the S&P 500's largest in ${sector}` : name.name}
-      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[12px] leading-4 transition-colors hover:border-oa-fg ${
-        name.idea ? "border-dashed border-oa-border text-oa-muted-fg" : "border-oa-border bg-oa-bg text-oa-fg"
-      }`}
-    >
+  const title = name.idea ? `${name.name}, one of the S&P 500's largest in ${sector}` : name.name;
+  const className = `inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[12px] leading-4 ${
+    name.idea ? "border-dashed border-oa-border text-oa-muted-fg" : "border-oa-border bg-oa-bg text-oa-fg"
+  }`;
+  const body = (
+    <>
       <StockLogo ticker={name.ticker} size={14} atOnce />
       <span className={`${NUM} font-medium`}>{name.ticker}</span>
+    </>
+  );
+  if (name.page === false) {
+    return (
+      <span title={title} className={className}>
+        {body}
+      </span>
+    );
+  }
+  return (
+    <Link href={`/stock/${encodeURIComponent(name.ticker)}`} prefetch={false} title={title} className={`${className} transition-colors hover:border-oa-fg`}>
+      {body}
     </Link>
   );
 }
