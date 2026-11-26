@@ -837,7 +837,6 @@
           "US_ON",
           "US_PCG",
           "US_WAT",
-          "US_KVUE",
           "US_KMB",
           "US_HIG",
           "US_HBAN",
@@ -19113,7 +19112,7 @@
           "currency": "USD",
           "sector": "Consumer Staples",
           "industry": "Household & Personal Products",
-          "description": "Kenvue Inc tracked as an S&P 500 member.",
+          "description": "Kenvue Inc. (acquired by Kimberly-Clark; last traded Oct 30, 2026).",
           "logo_url": "",
           "index_memberships": [
             "S&P 500"
@@ -19130,7 +19129,7 @@
           "universes": [
             "us_core_155"
           ],
-          "status": "active",
+          "status": "inactive",
           "updated_at": "2026-11-26T00:00:00Z"
         },
         {
@@ -19148,9 +19147,7 @@
           "index_memberships": [
             "S&P 500"
           ],
-          "peer_ids": [
-            "US_KVUE"
-          ],
+          "peer_ids": [],
           "aliases": [
             "KMB",
             "Kimberly-Clark",
