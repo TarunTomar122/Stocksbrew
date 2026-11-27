@@ -35,3 +35,16 @@ def test_open_session_health_is_fresh_only_after_all_publish_stages_complete() -
     assert item["due"] is True
     assert item["status"] == "fresh"
     assert item["missing_stages"] == []
+
+
+def test_open_session_is_not_due_on_a_market_holiday() -> None:
+    # Thanksgiving 2026, 10:45 ET: the exchange is closed, so no opening chain runs and nothing is stale.
+    item = _open_session_item(
+        market="US",
+        data=None,
+        now=datetime(2026, 11, 26, 15, 45, tzinfo=timezone.utc),
+    )
+
+    assert item["due"] is False
+    assert item["status"] == "fresh"
+    assert item["missing_stages"] == []

@@ -12,6 +12,7 @@ from backend.instrument_universe import (
     get_coverage_universe_id,
     list_instruments,
 )
+from backend.mail import nyse
 from backend.market_session_state import MarketSessionState
 from backend.morning_brief_selection import (
     DEFAULT_BRIEF_CAP,
@@ -22,6 +23,7 @@ from backend.morning_brief_selection import (
     session_dates_from_prices,
 )
 from backend.price_pipeline_contract import (
+    LIVE_SESSION_PHASES,
     PriceFreshnessPolicy,
     partition_fresh_price_documents,
 )
@@ -637,6 +639,41 @@ def price_stage_phase(lane: str, session_phase: str) -> bool:
     return False
 
 
+def closed_market_reason(
+    lane: str,
+    market: str,
+    session_phase: str,
+    price_session_phase: str | None,
+    now: datetime | None = None,
+) -> str | None:
+    """Why a live-session lane has nothing to do today, or None when it should run.
+
+    The price timers fire Mon..Fri and know nothing of holidays. On Thanksgiving (Nov 26) every quote was the day
+    before's, so each price batch priced 0% against its 90-96% floor, failed, was retried three times by systemd
+    (3 min of CPU and ~800 MB each) and stayed failed, which turned ops-health red until someone reset the units.
+    On a day the exchange is closed these lanes now exit cleanly; the follow-on units (anomalies, briefs) that start on
+    their success skip the same way. Price, brief and anomaly runs with a manual phase still run; daily_postclose
+    has no phase of its own (its job always prices post_close), so it skips too. --any-day overrides.
+    """
+    if market != "US":
+        return None
+    if lane == "daily_postclose":
+        live = True
+    elif lane in {"price_core_open", "price_core_intraday", "tracked_open_briefs"}:
+        live = session_phase in LIVE_SESSION_PHASES
+    elif lane == "open_anomalies":
+        live = price_session_phase in LIVE_SESSION_PHASES
+    else:
+        live = False
+    if not live:
+        return None
+    day = (now or datetime.now(timezone.utc)).astimezone(nyse.ET).date()
+    if nyse.trading_day(day):
+        return None
+    why = "weekend" if day.weekday() >= 5 else "holiday"
+    return f"US market closed on {day.isoformat()} ({why}): {lane} has no session to price"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tikrr lane dispatcher")
     parser.add_argument(
@@ -723,6 +760,11 @@ def main() -> None:
     parser.add_argument("--include-ir", action="store_true")
     parser.add_argument("--wait-for-completion", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--any-day",
+        action="store_true",
+        help="Run a live-session lane even on a day the US market is closed.",
+    )
     parser.add_argument("--seed-only", action="store_true")
     parser.add_argument(
         "--brief-cap",
@@ -737,6 +779,13 @@ def main() -> None:
         help="Morning brief run: wait this long for the opening anomaly stage before writing.",
     )
     args = parser.parse_args()
+
+    closed = None if args.any_day else closed_market_reason(
+        args.lane, args.market, args.session_phase, args.price_session_phase
+    )
+    if closed:
+        print(f"skipped: {closed}")
+        return
 
     # Cost guardrails: cap intraday fanout server-side so a stale scheduler payload
     # cannot explode Cloud Run executions/cost.

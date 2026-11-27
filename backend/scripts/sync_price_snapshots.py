@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from backend.instrument_universe import list_instruments
-from backend.price_pipeline_contract import _parse_utc, is_current_market_timestamp
+from backend.price_pipeline_contract import LIVE_SESSION_PHASES, _parse_utc, is_current_market_timestamp
 from backend.price_utils import has_valid_quote_change, normalize_quote_change
 from backend.providers.yfinance_provider import YFinanceClient
 from backend.storage import TraceMoneyStore
@@ -161,12 +161,7 @@ def sync_price_snapshots(
     fundamental_rows = []
     invalid_instrument_ids: list[str] = []
     stale_session_instrument_ids: list[str] = []
-    require_current_session = session_phase in {
-        "open_check",
-        "mid_check",
-        "close_check",
-        "post_close",
-    }
+    require_current_session = session_phase in LIVE_SESSION_PHASES
     reference_now = now or datetime.now(timezone.utc)
     for instrument in instruments:
         instrument_id = instrument["instrument_id"]

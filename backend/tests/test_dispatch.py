@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
+import io
 from datetime import datetime, timezone
 import unittest
 
@@ -19,6 +21,8 @@ from backend.cloudrun.orchestrator.dispatch import (
     _run_single_job_lane,
     _tracked_ids,
     _tracked_lane_extra_args,
+    closed_market_reason,
+    main as dispatch_main,
     price_stage_phase,
 )
 from backend.cloudrun.orchestrator.local_api import LocalJobsClient
@@ -259,6 +263,76 @@ class PriceStageTest(unittest.TestCase):
         self.assertFalse(price_stage_phase("price_core_intraday", "manual"))
         self.assertFalse(price_stage_phase("tracked_open_briefs", "mid_check"))
         self.assertFalse(price_stage_phase("open_anomalies", "mid_check"))
+
+
+class ClosedMarketTest(unittest.TestCase):
+    THANKSGIVING_OPEN = datetime(2026, 11, 26, 14, 30, tzinfo=timezone.utc)  # 09:30 ET, exchange closed
+    HALF_DAY_CLOSE = datetime(2026, 11, 27, 21, 10, tzinfo=timezone.utc)  # 16:10 ET on the early-close Friday
+    SATURDAY = datetime(2026, 11, 28, 15, 0, tzinfo=timezone.utc)
+    MONDAY_OPEN = datetime(2026, 11, 30, 14, 30, tzinfo=timezone.utc)
+
+    def test_live_price_lanes_skip_a_holiday(self) -> None:
+        for lane, phase, price_phase in [
+            ("price_core_open", "open_check", None),
+            ("price_core_intraday", "mid_check", None),
+            ("daily_postclose", "manual", None),
+            ("tracked_open_briefs", "open_check", None),
+            ("tracked_open_briefs", "post_close", None),
+            ("open_anomalies", "manual", "open_check"),
+            ("open_anomalies", "manual", "mid_check"),
+            ("open_anomalies", "manual", "post_close"),
+        ]:
+            reason = closed_market_reason(lane, "US", phase, price_phase, now=self.THANKSGIVING_OPEN)
+            self.assertIsNotNone(reason, lane)
+            self.assertIn("2026-11-26 (holiday)", reason or "")
+
+    def test_weekends_are_named_as_such(self) -> None:
+        reason = closed_market_reason("price_core_open", "US", "open_check", None, now=self.SATURDAY)
+        self.assertIn("(weekend)", reason or "")
+
+    def test_trading_days_run_including_a_half_day(self) -> None:
+        for now in (self.MONDAY_OPEN, self.HALF_DAY_CLOSE):
+            self.assertIsNone(closed_market_reason("price_core_open", "US", "open_check", None, now=now))
+            self.assertIsNone(closed_market_reason("daily_postclose", "US", "manual", None, now=now))
+
+    def test_the_evening_after_a_session_is_still_that_session(self) -> None:
+        # 23:30 ET on a trading Wednesday is 04:30 UTC Thursday (Thanksgiving): the ET date decides.
+        evening = datetime(2026, 11, 26, 4, 30, tzinfo=timezone.utc)
+        self.assertIsNone(closed_market_reason("daily_postclose", "US", "manual", None, now=evening))
+
+    def test_manual_phases_other_lanes_and_india_are_untouched(self) -> None:
+        now = self.THANKSGIVING_OPEN
+        self.assertIsNone(closed_market_reason("price_core_open", "US", "manual", None, now=now))
+        self.assertIsNone(closed_market_reason("tracked_open_briefs", "US", "manual", None, now=now))
+        self.assertIsNone(closed_market_reason("open_anomalies", "US", "manual", None, now=now))
+        self.assertIsNone(closed_market_reason("tracked_news_prep", "US", "open_check", None, now=now))
+        self.assertIsNone(closed_market_reason("on_demand_news", "US", "manual", None, now=now))
+        self.assertIsNone(closed_market_reason("price_core_open", "IN", "open_check", None, now=now))
+
+    def test_main_skips_a_holiday_run_without_touching_the_store(self) -> None:
+        argv = ["dispatch", "--executor", "local", "--lane", "open_anomalies", "--price-session-phase", "post_close"]
+        out = io.StringIO()
+        with (
+            patch("sys.argv", argv),
+            patch("backend.cloudrun.orchestrator.dispatch.nyse.trading_day", return_value=False),
+            patch("backend.cloudrun.orchestrator.dispatch.TraceMoneyStore") as store,
+            redirect_stdout(out),
+        ):
+            dispatch_main()
+        store.assert_not_called()
+        self.assertTrue(out.getvalue().startswith("skipped: US market closed on "), out.getvalue())
+        self.assertIn("open_anomalies has no session to price", out.getvalue())
+
+    def test_any_day_overrides_the_skip(self) -> None:
+        argv = ["dispatch", "--executor", "local", "--lane", "price_core_open", "--session-phase", "open_check", "--any-day"]
+        with (
+            patch("sys.argv", argv),
+            patch("backend.cloudrun.orchestrator.dispatch.closed_market_reason") as reason,
+            patch("backend.cloudrun.orchestrator.dispatch.TraceMoneyStore", side_effect=RuntimeError("store reached")),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "store reached"):
+                dispatch_main()
+        reason.assert_not_called()
 
 
 class DispatchAsyncTest(unittest.TestCase):

@@ -13,6 +13,10 @@ from typing import Any, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 
+# Session phases whose price batches need today's session: a quote labelled for an earlier day is refused
+# (backend/scripts/sync_price_snapshots.py), and the dispatcher skips these runs on a day the market is closed.
+LIVE_SESSION_PHASES = frozenset({"open_check", "mid_check", "close_check", "post_close"})
+
 MARKET_TIMEZONES = {
     "US": ZoneInfo("America/New_York"),
     "IN": ZoneInfo("Asia/Kolkata"),

@@ -214,6 +214,45 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-27 07:00 UTC: daily health check
+- Ops health: 288 runs, 92 green, 196 red, 3 alert emails ("1 check red (Failed units)" at 15:00, 21:00 and 03:00).
+  All but one red were the same thing: Thanksgiving. The price timers fire Mon..Fri and know nothing of holidays, so
+  tikrr-open-price, -open-movers-price, -intraday-price-hourly, -midday-movers-price and -postclose ran on a closed
+  exchange, every quote was Wednesday's, each batch priced 0% against its 90-96% floor and failed, systemd retried
+  each three times (~3 min CPU and ~800 MB a try) and left them failed. The one other red: Swap at 14:00, memory
+  stalled 42% for a minute while ~2.3 GB of committed memory went away between 13:50 and 14:00 (not a tikrr unit;
+  ssh sessions were active), gone by the next run.
+- Fixed in backend/cloudrun/orchestrator/dispatch.py: `closed_market_reason()` (backend/mail/nyse.py calendar, ET
+  date). On a day the US market is closed, the live-session lanes (price_core_open/intraday with a live phase,
+  daily_postclose, tracked_open_briefs and open_anomalies with a live phase) print "skipped: ..." and exit 0 before
+  touching the store, so their OnSuccess children (anomalies, briefs) skip the same way. Manual phases, India and
+  every other lane are untouched; `--any-day` overrides. Today (half day, 13:00 close) still runs. Next test:
+  Christmas, Dec 25. The five units were reset-failed after the deploy. The live phases now live once
+  (`LIVE_SESSION_PHASES` in backend/price_pipeline_contract.py, shared with sync_price_snapshots), and
+  backend/scripts/audit_data_health.py no longer calls the opening chain stale on a US holiday (it only checked
+  weekday).
+- Quality pass (subagent): no bugs; chains, half day, weekends, India, manual phases and ops-health's own holiday
+  handling checked. Took its nits (docstring said manual runs still run, but daily_postclose has no phase and skips;
+  the main() test now goes through the real calendar call; open/close anomaly children covered) and the audit fix.
+  Left: open_anomalies' SESSION_HOURS assume a 16:00 close, so on half days the 13:00-15:00 runs write mid_check
+  data after the close (the 16:10 chain overwrites it); premarket_pipeline still builds a report on a holiday from
+  stale quotes (doesn't fail). Tests (on the VPS, no local env): test_dispatch, test_audit_data_health,
+  test_mail_nyse, test_sync_price_snapshots, test_price_pipeline_contract pass (99);
+  test_ops_health::test_collect_end_to_end_writes_nothing fails there only because it reads the real backup dir.
+- Web: 0 restarts besides the deploys (15:xx, 16:xx, 21:05), no OOM, now 444/513 MB. App log: no real errors;
+  ~300 "took longer than ... left out" timeouts (agent-watch, portfolio-home, landing-agent) spread over the day, more
+  than on Nov 25; the busiest hours line up with the failing price jobs' retries (14h, 19h, 21h) and the deploys.
+  Three "[serve] stock serving doc unavailable: serve read timed out". Watch it after a normal trading day.
+- Box: memory pressure 0.06% avg300, swap full (Firecrawl), load ~1, root 86% (10 GB free, was 82% on Nov 25:
+  LocalDB 5.1 GB and growing, the journal at its 2G cap, syslog 385 MB, xrdp.log 212 MB), sdb 54%. LocalDB backup
+  08:30 Nov 26, check ok. needrestart interpscan still 0. Biggest process: rabbitmq 0.8 GB (Firecrawl). Failed units
+  besides ours: dnsmasq (since Aug, not ours). All tikrr timers ran.
+- Traffic: 31.7k requests, 0 5xx, 89 slow (>5 s, 0.3%), mostly /calendar/earnings/X and /stock/X. Crawlers: Meta's
+  meta-webindexer is now the biggest (~8.7k requests, ~1k an hour at night), but its query-string hits are logos,
+  OG images and listed views; the guard 403s the rest. ShapBot 2k (rate-limited), Perplexity 1k, Google 1k. No new
+  endless URL pattern.
+- LocalDB: healthy, no errors in 24 h. Data: prices, news, filings, markets, briefs all within their windows.
+
 ### 2026-11-25 07:00 UTC: daily health check
 - Ops health (from tm_ops_health/history, see below for why not the journal): 288 runs, 280 green, 3 amber, 5 red,
   2 alert emails ("http_p95 red" 16:30, "all back to green" 16:45). The reds: Response time 16:25-16:40 (4 runs) and

@@ -15,6 +15,7 @@ from typing import Any
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+from backend.mail import nyse
 from backend.market_session_state import MARKET_TIMEZONES, session_doc_id
 from backend.price_pipeline_contract import is_current_market_timestamp
 from backend.storage import TraceMoneyStore
@@ -190,7 +191,9 @@ def _open_session_item(
     due_at = local.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0) + timedelta(
         minutes=60
     )
-    due = local.weekday() < 5 and local >= due_at
+    # No opening chain runs on a day the exchange is closed (the dispatcher skips it on holidays too).
+    trading = nyse.trading_day(local.date()) if market == "US" else local.weekday() < 5
+    due = trading and local >= due_at
     required = ["price", "briefs", "anomalies"]
     stages = data.get("stages") if isinstance((data or {}).get("stages"), dict) else {}
     missing = [
