@@ -359,6 +359,12 @@ def _brief_base_universe_id(
     return "us_core_100"
 
 
+# Ceiling on the intraday price lanes' --limit (INTRADAY_LIMIT_CAP overrides). It must stay at or above the
+# coverage catalogue's size like the units' own --limit: at 500 the midday anomaly pass failed on Nov 27, with the
+# 210 S&P 500 names added on Nov 26 unpriced. backend/tests/test_install_systemd.py checks both.
+INTRADAY_LIMIT_CAP_DEFAULT = 1000
+
+
 def _price_core_ids(store: TraceMoneyStore, market: str, universe_id: str, limit: int) -> list[str]:
     # `limit` only caps the ranked runtime core. Price-core overrides are the
     # extended high-priority coverage set and must be included for every
@@ -792,7 +798,7 @@ def main() -> None:
     if args.lane == "price_core_intraday":
         # Price fetches are one Yahoo multi-symbol download, not per-ticker
         # API calls. Keep the cohort broad and the execution fanout at one.
-        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", "500")))
+        intraday_limit_cap = max(1, int(os.getenv("INTRADAY_LIMIT_CAP", str(INTRADAY_LIMIT_CAP_DEFAULT))))
         intraday_shard_min = max(1, int(os.getenv("INTRADAY_SHARD_SIZE_MIN", "700")))
         intraday_parallel_cap = max(1, int(os.getenv("INTRADAY_MAX_PARALLEL_CAP", "1")))
         args.limit = min(max(1, args.limit), intraday_limit_cap)

@@ -214,6 +214,51 @@ Missing: 13F fund following, insider (Form 4) following, strategies with backtes
 
 Newest first. One entry per tick: what changed, what was verified (with screenshot paths), what is still open.
 
+### 2026-11-28 07:00 UTC: daily health check
+- Ops health: 288 runs, 94 green, 3 warn, 191 red, 3 alert emails ("1 check red (Failed units)" at 15:20, 21:20 and
+  03:20) plus the 07:10 all-clear for Thanksgiving. Every red was tikrr-open-anomalies (since 15:14) and
+  tikrr-midday-anomalies (since 19:54): "Refusing to replace anomaly feed: only 766/1014 price inputs match
+  open_check / mid_check". Cause: the Nov 26 coverage commit (7522bc07, us_core_155 544 -> 754 names) put the 210 new
+  S&P 500 names past the price lanes' `--limit 500`, which caps the ranked coverage catalogue. The price jobs priced
+  803 names and passed; the anomaly passes scan the whole catalogue plus tracked names and overrides (1014) and need
+  80% fresh, so they failed, systemd retried each three times and left them failed. The close chain prices the full
+  catalogue, so Friday's 16:10 movers feed published and the weekend's /movers is current; only the open and midday
+  movers rebuilds were lost. The same gap made "Move reasons" warn from 15:30 to 23:25 (last written ~48 h before,
+  Wednesday), cleared by the close run. The other warns: Home page slow 6 runs, Swap full 4 runs (pressure stayed low).
+- Fixed: backend/vps/install-systemd.sh runs the four price-core timers with `--limit 1000` (all 754 plus overrides,
+  ~1010 names, about a quarter more Yahoo symbols an hour), and dispatch.py's own clamp on the intraday lanes
+  (INTRADAY_LIMIT_CAP, default 500, so the unit flag alone would not have fixed midday) defaults to 1000.
+  backend/tests/test_install_systemd.py now fails when either is below the coverage catalogue's size, so the next
+  coverage commit can't do this quietly. Units rendered
+  from the repo matched the installed ones except those four lines; installed with ENABLE_TIMERS=0, both anomaly units
+  reset-failed. First real run: Monday 09:30 ET.
+- Traffic: 18.9k requests, 0 5xx, 188 slow (>5 s, 1%), and all but 2 of the slow ones in two minutes, Nov 27
+  08:13-08:15: a scraper on residential proxies (SG, US, MY, HK; a new address nearly every request) sent ~280 stock and
+  calendar page loads as Chrome 121-154, hints matching the User-Agent, no Referer, Sec-Fetch-Site none. Stock pages
+  took up to 30 s and ops-health warned "Response time p95 17.8 s" three runs. Its tell: every version carried Chrome
+  116's GREASE brand ("Not)A;Brand";v="24"); Chromium derives that brand from its major version. Across 4 days of
+  logs 94% of Chromium (>=110) requests match the formula, and the rest come mostly in bursts like this one (Nov 24
+  12:20-12:50 too, stock pages from a new country each time).
+- Fixed: `hasForgedGrease()` in lib/analytics/ua.ts, and lib/crawler-guard.ts gives signed-out page loads with a
+  mismatched brand one shared bucket per instance (FORGED_HINTS_RATE, 0.2/s, burst 20), 429 past it. Not a 403: a few
+  stray mismatches a day might be real browsers (Edge/Brave/Opera each had 1-6), and they never meet a 20-page burst.
+- Quality pass (subagent): found the intraday clamp above (the one real bug; it counted 1008 scan ids, 806 needed,
+  803 priced at 500, 1013 at 1000). Took its nits: the GREASE comments said the misses were nearly all bursts, but the
+  biggest group is a steady stream (Chrome 124 on macOS with Chrome 134's brand, up to 92 page loads an hour, a bot by
+  the look of it); idle eviction now accounts for the new bucket's refill time. Left: a made-up session cookie skips
+  the shared bucket, and a Chrome UA with no Sec-CH-UA passes both hint checks (both were open before today).
+  Tests: vitest lib/crawler-guard + lib/analytics 159 pass, tsc and eslint clean; test_install_systemd +
+  test_dispatch 38 pass on the VPS venv (no local Python env).
+- Crawlers: Perplexity 1.1k, ShapBot 1k, Google 0.7k, Claude 0.6k, GPT 0.5k; no new endless URL pattern.
+- Web: 0 restarts since the Nov 26 21:05 deploy, no OOM, 530/574 MB. App log: 85 "[serve] stock serving doc
+  unavailable: serve read timed out", all at 08:13-08:14 (the burst above); ~290 "took longer than ... left out"
+  (agent-watch, portfolio-home, landing-agent), spread over the day, about as on Nov 27. LocalDB: one BrokenPipe
+  (client hung up), healthy.
+- Box: memory pressure 0.10% avg300, swap full (Firecrawl), load ~1, root 88% (9 GB free, 10 GB yesterday: LocalDB
+  5.1 GB, journal 1.9 GB at its cap, syslog ~1 GB, containerd 6.2 GB, ~/.codex 1.5 GB), sdb 54%. LocalDB backup 08:30
+  Nov 27, ok (728 MB). needrestart interpscan still 0. Failed units besides ours: dnsmasq (since Aug, not ours). All
+  tikrr timers ran. Data: prices, news and the close chain current; ops-health's other checks green.
+
 ### 2026-11-27 07:00 UTC: daily health check
 - Ops health: 288 runs, 92 green, 196 red, 3 alert emails ("1 check red (Failed units)" at 15:00, 21:00 and 03:00).
   All but one red were the same thing: Thanksgiving. The price timers fire Mon..Fri and know nothing of holidays, so

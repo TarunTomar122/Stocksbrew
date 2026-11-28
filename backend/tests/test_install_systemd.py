@@ -145,7 +145,7 @@ class InstallSystemdTest(unittest.TestCase):
         exec_start = _unit_value(price, "ExecStart")
         # The intraday lane shares its lock with the hourly batch, so the two never overlap.
         self.assertIn("run-dispatch.sh price_core_intraday --session-phase mid_check", exec_start)
-        self.assertIn("--limit 500", exec_start)
+        self.assertIn("--limit 1000", exec_start)
         anomalies = self._service("midday-anomalies")
         self.assertIn(
             "run-dispatch.sh open_anomalies --price-session-phase mid_check",
@@ -156,6 +156,21 @@ class InstallSystemdTest(unittest.TestCase):
         # The hourly batch must not start the rebuild every hour.
         self.assertEqual(_unit_value(self._service("intraday-price-hourly"), "OnSuccess"), "")
         self.assertIn("tikrr-midday-movers-price.timer", self.systemctl_log.read_text())
+
+    def test_price_lanes_cover_the_whole_coverage_catalogue(self) -> None:
+        # The anomaly passes scan the full coverage catalogue and refuse to
+        # publish under 80% fresh quotes, so a price cap below its size
+        # fails them (Nov 27: 754 names, cap 500).
+        from backend.cloudrun.orchestrator.dispatch import INTRADAY_LIMIT_CAP_DEFAULT
+        from backend.instrument_universe import get_coverage_universe_id, list_instruments
+
+        coverage = len(list_instruments("US", get_coverage_universe_id("US")))
+        # dispatch.py clamps the intraday lanes' --limit to this, whatever the unit says.
+        self.assertGreaterEqual(INTRADAY_LIMIT_CAP_DEFAULT, coverage)
+        for name in ("open-price", "open-movers-price", "intraday-price-hourly", "midday-movers-price"):
+            args = _unit_value(self._service(name), "ExecStart").split()
+            limit = int(args[args.index("--limit") + 1])
+            self.assertGreaterEqual(limit, coverage, name)
 
     def test_evening_chain_is_unchanged(self) -> None:
         self.assertEqual(_unit_value(self._service("postclose"), "OnSuccess"), "tikrr-close-briefs.service")

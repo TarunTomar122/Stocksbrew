@@ -105,12 +105,17 @@ EOF
 # checks that no market timer loses its zone.
 write_pair preopen-news "Mon..Fri *-*-* 08:45:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2" "" "5min"
 write_pair preclose-news "Mon..Fri *-*-* 15:40:00 America/New_York" tracked_news_prep "--shard-size 20 --max-parallel 4 --per-stock-cap 4 --chunk-workers 2" "" "5min"
+# The price lanes' --limit caps the ranked coverage catalogue (us_core_155).
+# It must cover the whole catalogue: the anomaly passes scan all of it and
+# refuse to publish under 80% fresh quotes. At 500 the 210 S&P 500 names
+# added on Nov 26 fell past the cap and both anomaly units failed on Nov 27.
+# backend/tests/test_install_systemd.py checks the cap against the catalogue.
 # One dependency chain owns the publish order. A single large Yahoo batch
 # replaces ~20 sequential 25-stock price shards.
 # The 09:30 batch refreshes quotes and the home dashboard only. Briefs no
 # longer hang off it: at 09:30 the day's move is still near zero, so a brief
 # written from that tape says a stock that will be down 8% is flat.
-write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "" "1min"
+write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open "--session-phase open_check --limit 1000 --max-parallel 1 --max-workers 2 --shard-size 700" "" "1min"
 # Morning chain, from a settled 20-minute tape. The 09:50 price batch starts
 # two siblings: anomaly research + the opening email (fast, done ~09:58), and
 # the morning briefs, which wait for those mover reasons (up to 20 min) so
@@ -118,7 +123,7 @@ write_pair open-price "Mon..Fri *-*-* 09:30:00 America/New_York" price_core_open
 # a material move since the previous close, a held stock's fresh earnings,
 # and today's anomaly/Reddit names with an old brief. Neither blocks the
 # other on failure.
-write_pair open-movers-price "Mon..Fri *-*-* 09:50:00 America/New_York" price_core_open "--session-phase open_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-anomalies.service tikrr-open-briefs.service" "3min"
+write_pair open-movers-price "Mon..Fri *-*-* 09:50:00 America/New_York" price_core_open "--session-phase open_check --limit 1000 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-open-anomalies.service tikrr-open-briefs.service" "3min"
 write_service open-anomalies open_anomalies "--price-session-phase open_check" "" "5min"
 # Keep brief shard concurrency at four: the shared VPS SQLite store serializes
 # writes, and the 8-worker run hit database-lock failures. Small shards keep
@@ -131,7 +136,7 @@ write_pair market-events-open "Mon..Fri *-*-* 10:40:00 America/New_York" market_
 write_pair data-health-open "Mon..Fri *-*-* 10:50:00 America/New_York" data_health
 write_pair market-events-close "Mon..Fri *-*-* 18:30:00 America/New_York" market_events
 write_pair data-health-close "Mon..Fri *-*-* 18:40:00 America/New_York" data_health
-write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700"
+write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 1000 --max-parallel 1 --max-workers 2 --shard-size 700"
 # Midday movers. Without this the movers list stays the 09:50 one all
 # afternoon. At 12:30 and 14:30 a price batch re-selects the movers from the
 # fresh tape. It runs on the intraday lane, so the lane lock keeps it off the
@@ -139,7 +144,7 @@ write_pair intraday-price-hourly "Mon..Fri *-*-* 10..15:00:00 America/New_York" 
 # lock. The anomaly pass keeps the morning's sourced reasons for stocks still
 # moving the same way, researches only the rest, and sends no email. It skips
 # itself outside the session (Persistent catch-up after downtime).
-write_pair midday-movers-price "Mon..Fri *-*-* 12,14:30:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 500 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-midday-anomalies.service" "3min"
+write_pair midday-movers-price "Mon..Fri *-*-* 12,14:30:00 America/New_York" price_core_intraday "--session-phase mid_check --limit 1000 --max-parallel 1 --max-workers 2 --shard-size 700" "tikrr-midday-anomalies.service" "3min"
 write_service midday-anomalies open_anomalies "--price-session-phase mid_check" "" "5min"
 # Closing price/read-model work feeds briefs, which feed the final anomaly
 # pass. They are separate products but no longer race each other.
