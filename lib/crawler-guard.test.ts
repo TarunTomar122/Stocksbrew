@@ -3,6 +3,7 @@ import { GET as robotsTxt } from "@/app/robots.txt/route";
 import { SITEMAP_FAMILIES } from "@/lib/seo/sitemap-families";
 import {
   BLOCKED_ROBOTS_NAMES,
+  FORGED_HINTS_RATE,
   SIGNED_IN_RATE,
   VISITOR_KEYS_MAX,
   VISITOR_RATE,
@@ -304,6 +305,27 @@ describe("visitor page rate (scrapers that pass for a browser)", () => {
     expect(visit("/news", { key: "198.51.100.20", routerRequest: true, secChUa: hints146 }, 0, store, oldChrome)).toBeNull();
     // Parallel's agent names itself and keeps its crawler rules.
     expect(visit("/news", { key: "198.51.100.24" }, 0, store, "Lightpanda/1.0 ShapBot/0.1.0")).toBeNull();
+  });
+
+  it("gives page loads with a forged GREASE brand one shared bucket, whatever the address", () => {
+    // Nov 27 08:13: ~280 page loads in two minutes, a new address nearly every time, all with Chrome 116's brand.
+    const chrome154 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+    const forged = '"Google Chrome";v="154", "Chromium";v="154", "Not)A;Brand";v="24"';
+    const real = '"Chromium";v="154", "Not A(Brand";v="99", "Google Chrome";v="154"';
+    const store = new Map<string, { tokens: number; at: number }>();
+    for (let i = 0; i < FORGED_HINTS_RATE.burst; i++) {
+      expect(visit(`/stock/T${i}`, { key: `203.0.113.${i}`, secChUa: forged }, 0, store, chrome154)).toBeNull();
+    }
+    expect(visit("/stock/IBM", { key: "198.51.100.40", secChUa: forged }, 0, store, chrome154)?.status).toBe(429);
+    // Real hints, a signed-in visitor, a router fetch and a load from this box are not in that bucket.
+    expect(visit("/stock/IBM", { key: "198.51.100.41", secChUa: real }, 0, store, chrome154)).toBeNull();
+    expect(visit("/stock/IBM", { key: "198.51.100.42", signedIn: true, secChUa: forged }, 0, store, chrome154)).toBeNull();
+    expect(visit("/stock/IBM", { key: "198.51.100.43", routerRequest: true, secChUa: forged }, 0, store, chrome154)).toBeNull();
+    expect(visit("/stock/IBM", { key: null, secChUa: forged }, 0, store, chrome154)).toBeNull();
+    // It refills like any bucket.
+    const refill = Math.ceil(1000 / FORGED_HINTS_RATE.perSecond);
+    expect(visit("/stock/IBM", { key: "198.51.100.44", secChUa: forged }, refill, store, chrome154)).toBeNull();
+    expect(visit("/stock/IBM", { key: "198.51.100.45", secChUa: forged }, refill, store, chrome154)?.status).toBe(429);
   });
 
   it("leaves self-declared crawlers to their own rules", () => {

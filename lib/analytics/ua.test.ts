@@ -1,4 +1,4 @@
-import { browserFamily, deviceClass, isBot, isForgedBrowser, screenBucket } from "@/lib/analytics/ua";
+import { browserFamily, deviceClass, hasForgedGrease, isBot, isForgedBrowser, screenBucket } from "@/lib/analytics/ua";
 
 const CHROME_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const SAFARI_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -85,5 +85,29 @@ describe("isForgedBrowser", () => {
     expect(isForgedBrowser("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0", hints("146"))).toBe(true);
     expect(isForgedBrowser("Lightpanda/1.0", '"Lightpanda";v="1"')).toBe(true);
     expect(isForgedBrowser("Lightpanda/1.0", null)).toBe(true);
+  });
+});
+
+describe("hasForgedGrease", () => {
+  it("passes the GREASE brand each Chromium version really sends", () => {
+    expect(hasForgedGrease('"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"')).toBe(false);
+    expect(hasForgedGrease('"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"')).toBe(false);
+    expect(hasForgedGrease('"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"')).toBe(false);
+    expect(hasForgedGrease('"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"')).toBe(false);
+    expect(hasForgedGrease('"Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"')).toBe(false);
+    expect(hasForgedGrease('"Chromium";v="154", "Not A(Brand";v="99", "Google Chrome";v="154"')).toBe(false);
+  });
+  it("leaves alone what it cannot judge: no hints, no Chromium, the older scheme", () => {
+    expect(hasForgedGrease(null)).toBe(false);
+    expect(hasForgedGrease("")).toBe(false);
+    expect(hasForgedGrease('"Lightpanda";v="1"')).toBe(false);
+    expect(hasForgedGrease('" Not A;Brand";v="99", "Chromium";v="101", "Google Chrome";v="101"')).toBe(false);
+  });
+  it("catches a brand from another version, a wrong dummy version, or none", () => {
+    // Nov 27: every version from 121 to 154 carried Chrome 116's brand.
+    expect(hasForgedGrease('"Google Chrome";v="154", "Chromium";v="154", "Not)A;Brand";v="24"')).toBe(true);
+    expect(hasForgedGrease('"Google Chrome";v="130", "Chromium";v="130", "Not)A;Brand";v="24"')).toBe(true);
+    expect(hasForgedGrease('"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="24"')).toBe(true);
+    expect(hasForgedGrease('"Chromium";v="146", "Google Chrome";v="146"')).toBe(true);
   });
 });

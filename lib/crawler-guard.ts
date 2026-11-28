@@ -11,11 +11,13 @@
  * - Scrapers that pass for a browser: each signed-out visitor address gets a page-load bucket per instance (VISITOR_RATE),
  *   and a page load with a made-up Referer (an origin with no path on a navigation no link started) is refused (403),
  *   as is one from a forged browser (a User-Agent its own client hints contradict, or Lightpanda; isForgedBrowser).
+ *   Page loads whose hints carry a GREASE brand Chromium would not send for that version share one bucket per instance
+ *   (FORGED_HINTS_RATE), however many addresses they come from.
  * Link previews (Slack, X, WhatsApp...) and fetches a person asked for (ChatGPT-User, Perplexity-User) are not
  * crawlers here: they are someone reading a page.
  */
 
-import { isForgedBrowser } from "@/lib/analytics/ua";
+import { hasForgedGrease, isForgedBrowser } from "@/lib/analytics/ua";
 
 export type CrawlerKind = "search" | "ai" | "blocked";
 export type Crawler = { family: string; kind: CrawlerKind };
@@ -167,6 +169,13 @@ export const VISITOR_RATE = { perSecond: 0.25, burst: 30 } as const;
 /** Anyone with a session cookie: middleware cannot check the cookie, so a made-up one buys a bigger allowance, not
  * an unlimited one. */
 export const SIGNED_IN_RATE = { perSecond: 1, burst: 120 } as const;
+/** Page loads per second (and burst) per web instance shared by every signed-out visitor whose client hints carry the
+ * wrong GREASE brand for their Chromium version (hasForgedGrease). A proxy fleet sends each page from a new address, so
+ * no address bucket fills: Nov 27 08:13, ~280 page loads in two minutes this way. Outside bursts such page loads come
+ * a few dozen an hour across both instances, far under 720 an hour each, so a stray visitor with odd hints never meets
+ * this. */
+export const FORGED_HINTS_RATE = { perSecond: 0.2, burst: 20 } as const;
+const FORGED_HINTS_KEY = "forged-hints";
 /** Addresses remembered per instance; past this, idle (refilled) ones are dropped first, then the oldest. */
 export const VISITOR_KEYS_MAX = 5000;
 const visitorBuckets = new Map<string, Bucket>();
@@ -196,7 +205,12 @@ export function visitorKey(cfConnectingIp: string | null | undefined): string | 
 
 function forgetIdleVisitors(store: Map<string, Bucket>, now: number): void {
   if (store.size < VISITOR_KEYS_MAX) return;
-  const fullAfterMs = Math.max(SIGNED_IN_RATE.burst / SIGNED_IN_RATE.perSecond, VISITOR_RATE.burst / VISITOR_RATE.perSecond) * 1000;
+  const fullAfterMs =
+    Math.max(
+      SIGNED_IN_RATE.burst / SIGNED_IN_RATE.perSecond,
+      VISITOR_RATE.burst / VISITOR_RATE.perSecond,
+      FORGED_HINTS_RATE.burst / FORGED_HINTS_RATE.perSecond,
+    ) * 1000;
   for (const [key, bucket] of store) if (now - bucket.at >= fullAfterMs) store.delete(key);
   // Still full of busy addresses: drop the least recently seen (takeVisitorToken moves each address to the end).
   for (const key of store.keys()) {
@@ -278,6 +292,9 @@ export function crawlerVerdict(
       return { status: 403, reason: "This request does not look like it came from a browser. Open https://www.stocksbrew.online/ directly." };
     }
     if (!visitor.key) return null;
+    if (!visitor.signedIn && hasForgedGrease(visitor.secChUa) && !takeVisitorToken(FORGED_HINTS_KEY, now, visitorStore, FORGED_HINTS_RATE)) {
+      return { status: 429, reason: "Too many pages too fast; wait a few seconds and try again." };
+    }
     const allowed = visitor.signedIn
       ? takeVisitorToken(`session ${visitor.key}`, now, visitorStore, SIGNED_IN_RATE)
       : takeVisitorToken(visitor.key, now, visitorStore);

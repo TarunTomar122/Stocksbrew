@@ -39,6 +39,32 @@ export function isForgedBrowser(ua: string | null | undefined, secChUa: string |
   return !chrome || chrome[1] !== chromium[1];
 }
 
+/** Chromium's GREASE brand: "Not" + two characters + "A" ... "Brand" and a dummy version, all derived from the
+ * Chromium major version (components/embedder_support/user_agent_utils.cc). Older majors used another scheme. */
+const GREASE_CHARS = [" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_"];
+const GREASE_VERSIONS = ["8", "99", "24"];
+const GREASE_SINCE_MAJOR = 110;
+
+/**
+ * True when Sec-CH-UA carries a GREASE brand Chromium would not send for its own version (Chrome 130 sends
+ * "Not?A_Brand";v="99", Chrome 154 "Not A(Brand";v="99"), or none at all. Nov 27 08:13: a scraper on residential
+ * proxies (a new country nearly every request) sent ~280 stock and calendar page loads in two minutes as Chrome
+ * 121-154 with hints that matched the User-Agent but always carried Chrome 116's "Not)A;Brand";v="24"; stock pages
+ * took up to 30 s. In the logs since Nov 16, 95% of Chromium page loads match; the rest come in bursts like that or as
+ * a steady few dozen an hour from what look like bots (Chrome 124 on macOS with Chrome 134's brand).
+ * A throttle signal, not proof: crawlerVerdict gives these one shared bucket instead of refusing them.
+ */
+export function hasForgedGrease(secChUa: string | null | undefined): boolean {
+  const hints = secChUa ?? "";
+  const chromium = /"Chromium";\s*v="(\d+)"/i.exec(hints);
+  if (!chromium) return false;
+  const major = Number(chromium[1]);
+  if (!Number.isSafeInteger(major) || major < GREASE_SINCE_MAJOR) return false;
+  const grease = /"(Not[^"]*Brand)";\s*v="(\d+)/.exec(hints);
+  const brand = `Not${GREASE_CHARS[major % 11]}A${GREASE_CHARS[(major + 1) % 11]}Brand`;
+  return !grease || grease[1] !== brand || grease[2] !== GREASE_VERSIONS[major % 3];
+}
+
 export function isBot(ua: string | null | undefined): boolean {
   const value = (ua ?? "").trim();
   if (value.length < 20 || value.length > 1000) return true;
